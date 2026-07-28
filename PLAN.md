@@ -176,7 +176,16 @@ max_bars_back: a `Max Bars Back` field in the main GUI (persisted in config + te
 
 ## 6. GUI changes vs StrategyGeneratorTS
 
-**mainGUI.py**
+**mainGUI.py** — ✅ DONE (implementation-order step 7)
+
+18 tests in `tests/test_mainGUI.py` (171 total). Pure helpers `engineDirProblem(path)` and `summaryText(strategyName, result, specResult)` hold the logic worth testing; template round-trips are exercised against a real hidden window rather than by scraping source.
+
+**Ordering that matters:** `_makeStrategy` validates the spec template and Max Bars Back *before* calling `strategyWriter.generate`, so a bad template cannot leave a written header with no specs beside it. Both writers raise `GenerationError`, so one `except` renders every user-facing message.
+
+Verified by driving `_makeStrategy` headlessly with the dialogs stubbed: it regenerated `Momentum Clone` and left the engine tree byte-identical (git clean), i.e. generation is idempotent.
+
+`config.save` writes no trailing newline, so `config.json` shows one diff the first time the GUI exits and none afterwards. `config.py` is left verbatim as planned.
+
 - Top form: keep `Strategy Name`; replace `Directory` with `BacktestEngine Root` (validated to contain `src/bt/strategies`); add `Spec Template` (entry + Browse) and `Max Bars Back`.
 - Remove `Make MW Inputs` button + `_makeMWInputs`/`_pasteMWCode`/`_showMWResult`.
 - `_makeStrategy`: validate name/engine dir/spec template (loads as JSON with `name`+`strategy`), call `strategyWriter.generate` + `specWriter`, then summary dialog: N versions, header path, registry entries, spec paths, effective max_bars_back warning, and reminder `Rebuild: .\scripts\build.ps1 -Config Release`.
@@ -209,7 +218,7 @@ Beyond the list below, three heuristic warnings were added for the TS-import wor
 4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6.
 5. ~~`strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).~~ ✅ DONE — see §3. **Next agent starts at step 6.**
 6. ~~`specWriter.py` + tests.~~ ✅ DONE — see §4. **Next agent starts at step 7.**
-7. `mainGUI.py` rework.
+7. ~~`mainGUI.py` rework.~~ ✅ DONE — see §6. **Next agent starts at step 8 (README only).**
 8. ~~End-to-end acceptance~~ (✅ passed early — see §4) + README (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
 
 ## Verification
