@@ -177,6 +177,8 @@ ctx.LotCount()
 ctx.BarsSinceEntry()        // from the oldest open lot; -1 when flat
 ctx.BarsSinceExit()         // from the most recent exit fill; -1 if none
 ctx.OpenPositionProfit()    // gross of costs, marked at the last close
+ctx.NetProfit()             // cumulative net P&L of all closed trades
+ctx.BigPointValue()         // $ per full point per contract
 
 // Orders (fill at the NEXT bar's open)
 ctx.EnterLong(size)  ctx.EnterShort(size)  ctx.Exit()  ctx.Exit(size)

@@ -414,6 +414,8 @@ def buildHeaderText(strategyName, panes, getRule=None):
         f"// {strategyName}",
         f"// {_AUTOGEN}",
         "",
+        "#include <cmath>",
+        "",
         '#include "bt/sim/strategy.h"',
         "",
         "#ifdef _MSC_VER",
