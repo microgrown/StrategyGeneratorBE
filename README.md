@@ -48,10 +48,45 @@ includes the two generated `.inc` files. See PLAN.md §1.
    ```
    .\scripts\build.ps1 -Config Release
    ```
-7. `bt_walkforward --spec specs/generated/<name>_v1.json`
+7. `python runBatch.py "<strategy name>"` — runs every version and aggregates
+   the verdicts (or run one spec by hand:
+   `bt_walkforward --spec specs/generated/<name>_v1.json`).
 
 **Flip** swaps a placement's long and short conditions. **Negate** wraps both in
 `!( ... )`. Both are per-placement; the saved rule is never modified.
+
+## Running a batch
+
+```
+python runBatch.py "Momentum Clone"      # name or stem (momentum_clone) both work
+```
+
+Discovers every generated spec for the strategy (`<stem>_v1.json`, `_v2`, ...),
+runs `bt_walkforward` for each version **that has no selection results yet**,
+and writes the combined verdicts to `runs/<stem>/`:
+
+| File | Contents |
+|---|---|
+| `runs/<stem>/selection_summary.csv` | Every version's summary rows, with a leading `run` column — filter on `tradeable` |
+| `runs/<stem>/selection_report.json` | Every version's full report, keyed by run name — metrics for ranking survivors |
+
+The engine computes selection (Monte Carlo included) inside `bt_walkforward`,
+so each version pays for it exactly once. A version whose run directory already
+holds `selection_report.json` is never handed to the engine again — re-invoking
+`runBatch.py` on a finished batch is pure file aggregation and touches nothing.
+The one exception is `--force`, which re-runs the engine for every version;
+use it after editing selection thresholds in the specs, since stored verdicts
+are otherwise final. `--threads N` limits the engine's cores per run (default
+0 = all; versions always run sequentially).
+
+Exit codes mirror the engine: 0 all versions ok, 1 some version failed
+(details and the `run.log` path are in the summary), 2 usage/config error.
+
+Two prerequisites: the spec template must contain a `"selection"` block
+(otherwise the runs produce no verdicts and there is nothing to aggregate —
+the tool warns), and the engine must be rebuilt after Make Strategy. The
+engine GUI's run browser will list `runs/<stem>` with a report-format error;
+that is expected — the aggregate is deliberately not readable as a run.
 
 ---
 
