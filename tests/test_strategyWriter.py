@@ -532,6 +532,14 @@ class TestGenerate(unittest.TestCase):
         with self.assertRaises(GenerationError):
             sw.generate("Momentum Clone", [momentumPane()], {"engineDir": ""})
 
+    def testDefaultSubdirLandsUnderSrc(self):
+        # The include path in headers.inc is relative to the engine's `src`
+        # include root, but the write path is relative to the repo root, so the
+        # fallback must not reuse the include path verbatim.
+        result = sw.generate("Momentum Clone", [momentumPane()],
+                             {"engineDir": self.engineDir})
+        self.assertEqual(result.generatedDir, self.generatedDir())
+
 
 if __name__ == "__main__":
     unittest.main()
