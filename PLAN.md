@@ -218,8 +218,10 @@ Beyond the list below, three heuristic warnings were added for the TS-import wor
 4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6.
 5. ~~`strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).~~ ✅ DONE — see §3. **Next agent starts at step 6.**
 6. ~~`specWriter.py` + tests.~~ ✅ DONE — see §4. **Next agent starts at step 7.**
-7. ~~`mainGUI.py` rework.~~ ✅ DONE — see §6. **Next agent starts at step 8 (README only).**
-8. ~~End-to-end acceptance~~ (✅ passed early — see §4) + README (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
+7. ~~`mainGUI.py` rework.~~ ✅ DONE — see §6.
+8. ~~End-to-end acceptance + README.~~ ✅ DONE — acceptance passed in step 6 (see §4); `README.md` documents the workflow, the rule-authoring conventions, the `ctx` API, what gets generated, and the max_bars_back responsibility.
+
+**All steps complete.** README claims were cross-checked mechanically against the code: the reserved-name list equals `rule.RESERVED_NAMES`, the documented config keys equal `config.json`'s, the rebuild command and both subdirs match their constants, and every `ctx.` member cited exists in `bt/sim/strategy.h`. (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
 
 ## Verification
 
