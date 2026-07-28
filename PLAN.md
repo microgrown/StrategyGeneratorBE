@@ -54,7 +54,7 @@ Completed 2026-07-27. All sub-items below are in place; `.\scripts\build.ps1 -Co
 
 Implemented with 34 passing tests in `tests/test_rule.py`. Parse/format live behind `parseField(attr, text)` / `formatField(attr, variables)` so the editor never hardcodes which field is typed. All 12 StrategyGeneratorTS rule files import cleanly.
 
-**Carry-over for step 4 (editor validation):** legacy imports land every local as `double`, because EasyLanguage recorded no type — e.g. `MomentumConsecutiveBars` yields `ConditionOne(double, true)` (really `bool`) and `ii(double, 0)` (used as a series subscript, really `int`). These compile but are sloppy, so the editor should make a wrong-looking type easy to spot when an imported rule is first saved.
+**Carry-over for step 4 (editor validation) — addressed in §6:** legacy imports land every local as `double`, because EasyLanguage recorded no type — e.g. `MomentumConsecutiveBars` yields `ConditionOne(double, true)` (really `bool`) and `ii(double, 0)` (used as a series subscript, really `int`). These compile but are sloppy, so the editor should make a wrong-looking type easy to spot when an imported rule is first saved.
 
 ```python
 RULE_TYPES = ("Entry", "Exit", "Switch")   # unchanged
@@ -151,7 +151,17 @@ max_bars_back: a `Max Bars Back` field in the main GUI (persisted in config + te
 - `_makeStrategy`: validate name/engine dir/spec template (loads as JSON with `name`+`strategy`), call `strategyWriter.generate` + `specWriter`, then summary dialog: N versions, header path, registry entries, spec paths, effective max_bars_back warning, and reminder `Rebuild: .\scripts\build.ps1 -Config Release`.
 - Panes/RuleItem/flip/negate/params/delims/templates/autosave-template: **unchanged**. `_serializeState`/`_applyState` additionally carry `maxBarsBack`.
 
-**ruleCreationGUI.py** (generic field builder needs no change — driven by `TEXT_FIELDS`)
+**ruleCreationGUI.py** — ✅ DONE (implementation-order step 4)
+
+Ported from TS with all widget code verbatim; 36 tests in `tests/test_ruleCreationGUI.py` (70 total). Validation lives in **module-level pure functions** (`validateName`, `validateVariables`, `variableWarnings`, `codeWarnings`, and the composing `validateRule(name, inputVariables, localVariables, codeFields) -> (errors, warnings)`), so tests import the module without a Tk root. `_save` is a thin composer: one `showerror` listing every error → an `askyesno` per warning → overwrite confirm → save.
+
+**For step 5:** `rule.py` now owns the shared C++ naming vocabulary — `CPP_KEYWORDS`, `RESERVED_NAMES`, `LOCAL_TYPES`, `IDENTIFIER_RE`, `isValidIdentifier()`. `strategyWriter.sanitizeIdentifier` must reuse `CPP_KEYWORDS` rather than redefine it.
+
+Why `RESERVED_NAMES` is a hard error and not a warning: the emitter's whole-word rename rewrites a rule's own `close[0]` into `E1_close[0]`, silently detaching it from the `const auto& close = ctx.close;` alias — likewise a hook assigning `enterLong` would stop reaching order placement.
+
+Beyond the list below, three heuristic warnings were added for the TS-import workflow (verified against all 12 StrategyGeneratorTS rules: 0 errors, warnings only where earned, no false positives): unbalanced `()[]{}`; EasyLanguage block words (`Begin`/`Then`/`End;`, with lookaheads so `v.begin()`/`v.end()` don't trip); and wrong-cased reserved names (EL is case-insensitive, so TS rules write `Close[0]` — flagged on `Breakout` and `MomentumConsecutiveBars`). This also resolves §2's carry-over: a legacy `ConditionOne(double, true)` now warns as a double holding a bool.
+
+
 - Drop: EL scratch-slot warning (`Value0-99`/`Condition0-99`), semicolon auto-insertion expectations.
 - Keep reworded: warn if `;` appears in Long/Short Condition (must be a C++ expression).
 - Add hard errors: variable names must match `^[A-Za-z_][A-Za-z0-9_]*$`, not a C++ keyword, not emitter-reserved (`open high low close volume ctx enterLong enterShort exitLong exitShort`); input defaults must parse as float; locals need both type and initial.
@@ -164,8 +174,8 @@ max_bars_back: a `Max Bars Back` field in the main GUI (persisted in config + te
 
 1. ~~BacktestEngine one-time change (§1); build + tests green; commit there.~~ ✅ DONE — commit `c162d6a`. Start at step 2.
 2. ~~Scaffold StrategyGeneratorBE: copy verbatim files, new config.json.~~ ✅ DONE — commit `63b98a4`.
-3. ~~`rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).~~ ✅ DONE — see §2. **Next agent starts at step 4.**
-4. `ruleCreationGUI.py` validations.
+3. ~~`rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).~~ ✅ DONE — see §2.
+4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6. **Next agent starts at step 5.**
 5. `strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).
 6. `specWriter.py` + tests.
 7. `mainGUI.py` rework.

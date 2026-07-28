@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field, fields
 
 # Allowed rule types. A "Switch" affects entries/exits globally
@@ -26,6 +27,48 @@ VARIABLE_FIELDS = ("inputVariables", "localVariables")
 # Type assumed for locals imported from a StrategyGeneratorTS rule, where
 # EasyLanguage inferred the type and none was recorded.
 LEGACY_LOCAL_TYPE = "double"
+
+
+# --- C++ naming vocabulary --------------------------------------------------
+# Shared by the rule editor (which rejects bad variable names) and the strategy
+# writer (which sanitizes strategy names into class names).
+
+IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+CPP_KEYWORDS = frozenset({
+    "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
+    "bool", "break", "case", "catch", "char", "char8_t", "char16_t",
+    "char32_t", "class", "compl", "concept", "const", "consteval", "constexpr",
+    "constinit", "const_cast", "continue", "co_await", "co_return", "co_yield",
+    "decltype", "default", "delete", "do", "double", "dynamic_cast", "else",
+    "enum", "explicit", "export", "extern", "false", "float", "for", "friend",
+    "goto", "if", "inline", "int", "long", "mutable", "namespace", "new",
+    "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
+    "private", "protected", "public", "register", "reinterpret_cast",
+    "requires", "return", "short", "signed", "sizeof", "static",
+    "static_assert", "static_cast", "struct", "switch", "template", "this",
+    "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
+    "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t",
+    "while", "xor", "xor_eq",
+})
+
+# Names the emitter puts in scope inside OnBarClose. A rule variable with one of
+# these names is fatal: the emitter's whole-word rename turns the rule's own
+# "close[0]" into "E1_close[0]", silently detaching it from the ctx alias.
+RESERVED_NAMES = frozenset({
+    "open", "high", "low", "close", "volume", "ctx",
+    "enterLong", "enterShort", "exitLong", "exitShort",
+})
+
+# Types a local is expected to use. Anything else still generates, so the editor
+# only asks for confirmation rather than refusing.
+LOCAL_TYPES = ("int", "double", "bool")
+
+
+def isValidIdentifier(name):
+    """True if name is syntactically a C++ identifier (says nothing about
+    keywords or reserved names — callers check those separately)."""
+    return bool(IDENTIFIER_RE.match(name))
 
 
 @dataclass
