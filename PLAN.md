@@ -50,7 +50,11 @@ Completed 2026-07-27. All sub-items below are in place; `.\scripts\build.ps1 -Co
 - Git policy: **track everything in `generated/`** (headers, incs, manifest) — small files, and versioning ties run results to exact strategy code.
 - Verify `.\scripts\build.ps1 -Config Release -Test` passes with empty stubs.
 
-## 2. rule.py
+## 2. rule.py — ✅ DONE (implementation-order step 3)
+
+Implemented with 34 passing tests in `tests/test_rule.py`. Parse/format live behind `parseField(attr, text)` / `formatField(attr, variables)` so the editor never hardcodes which field is typed. All 12 StrategyGeneratorTS rule files import cleanly.
+
+**Carry-over for step 4 (editor validation):** legacy imports land every local as `double`, because EasyLanguage recorded no type — e.g. `MomentumConsecutiveBars` yields `ConditionOne(double, true)` (really `bool`) and `ii(double, 0)` (used as a series subscript, really `int`). These compile but are sloppy, so the editor should make a wrong-looking type easy to spot when an imported rule is first saved.
 
 ```python
 RULE_TYPES = ("Entry", "Exit", "Switch")   # unchanged
@@ -159,8 +163,8 @@ max_bars_back: a `Max Bars Back` field in the main GUI (persisted in config + te
 ## Implementation order
 
 1. ~~BacktestEngine one-time change (§1); build + tests green; commit there.~~ ✅ DONE — commit `c162d6a`. Start at step 2.
-2. Scaffold StrategyGeneratorBE: copy verbatim files, new config.json.
-3. `rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).
+2. ~~Scaffold StrategyGeneratorBE: copy verbatim files, new config.json.~~ ✅ DONE — commit `63b98a4`.
+3. ~~`rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).~~ ✅ DONE — see §2. **Next agent starts at step 4.**
 4. `ruleCreationGUI.py` validations.
 5. `strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).
 6. `specWriter.py` + tests.
@@ -169,6 +173,6 @@ max_bars_back: a `Max Bars Back` field in the main GUI (persisted in config + te
 
 ## Verification
 
-1. `python -m unittest` in StrategyGeneratorBE.
+1. `python -m unittest discover -s tests -t .` in StrategyGeneratorBE (`tests/__init__.py` is required — Python 3.14 refuses a non-importable start directory).
 2. Engine builds with empty stubs before any generation (`.\scripts\build.ps1 -Config Release -Test`).
 3. **Acceptance gate — Momentum clone parity**: create Entry rule with input `Length(20)`, long `close[0] > close[Length]`, short `close[0] < close[Length]`; one Entry pane, params Length 5–50×5 (identical grid to hand-written `MomentumReversal`), Max Bars Back 100, template `specs/validation_momentum.json`. Generate → rebuild engine → run `bt_walkforward` on `specs/generated/momentum_clone_v1.json` vs `specs/validation_momentum.json` and diff `runs/<name>/` outputs — must be numerically identical apart from input/strategy names (`E1_Length` vs `Length`), since the generated guards reproduce `MomentumReversal` exactly (always-in, no-pyramiding, auto-reverse; equal closes do nothing).
