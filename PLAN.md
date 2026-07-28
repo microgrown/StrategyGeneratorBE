@@ -137,7 +137,25 @@ if (exitShort && ctx.MarketPosition() < 0) ctx.Exit();
 
 API: `generate(strategyName, panes, cfg) -> GenerationResult` (paths + version count); pure-text `emitHeader(...)` for unit testing; `rebuildIncFiles(generatedDir)`.
 
-## 4. specWriter.py
+## 4. specWriter.py — ✅ DONE (implementation-order step 6)
+
+Implemented with 38 tests in `tests/test_specWriter.py` (153 total). API: `writeSpecs(strategyName, versionCount, cfg) -> SpecResult` (paths, pruned paths, output dir, effective max_bars_back), over pure helpers `loadTemplate`, `buildSpec`, `parseMaxBarsBack`, `effectiveMaxBarsBack`. Version numbers, stems and registry names all come from `strategyWriter.specStem` / `registryName`, so a spec's `strategy` value can never drift from what was registered.
+
+Verified engine facts: `spec.cpp:39-47` rejects unknown keys (so cloning is the only safe strategy — confirmed by a test asserting the emitted key set stays inside `kKnownKeys`); `spec.h:42` defaults `max_bars_back` to 50; `pipeline.cpp:102` writes to `runs/<name>/`, which is why `name` must be the filesystem-safe stem.
+
+**Added beyond the plan text:** stale-spec pruning. Regenerating a strategy that shrinks from 3 versions to 1 used to leave `momentum_clone_v2.json` behind naming a strategy the registry no longer has, so `bt_walkforward` would fail on it. `writeSpecs` now deletes this strategy's own specs above the current version count (other strategies' stems are never touched) and reports them in `SpecResult.removed`.
+
+### ✅ Acceptance gate passed early (PLAN.md Verification §3)
+
+Everything the gate needs existed once step 6 landed, so it was run rather than deferred to step 8:
+
+- `rules/Momentum.json`: input `Length(20)`, long `close[0] > close[Length]`, short `close[0] < close[Length]`
+- one Entry pane, params Length 5–50×5, Max Bars Back 100, template `specs/validation_momentum.json`
+- generated → rebuilt Release → `bt_walkforward --spec specs/generated/momentum_clone_v1.json`
+
+`runs/momentum_clone_v1/AD_M67/wf_results.json` is **byte-for-byte identical** to `runs/validation_momentum/AD_M67/wf_results.json` after normalizing the three names that are expected to differ (spec name, strategy name, `E1_Length` vs `Length`). Both report composite net profit -94445.00 over 11 windows. The generated guards reproduce `MomentumReversal` exactly.
+
+### Original design notes
 
 Per version: `json.load` the template spec, replace only `"name"` (→ `<sanitized_lower>_v<n>`, the run-dir stem) and `"strategy"` (→ registry name), override `"max_bars_back"` if the GUI field is non-blank; write `<engineDir>/specs/generated/<sanitized_lower>_v<n>.json`. Never add other keys (the loader rejects unknown keys; pass-through is safe).
 
@@ -190,9 +208,9 @@ Beyond the list below, three heuristic warnings were added for the TS-import wor
 3. ~~`rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).~~ ✅ DONE — see §2.
 4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6.
 5. ~~`strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).~~ ✅ DONE — see §3. **Next agent starts at step 6.**
-6. `specWriter.py` + tests.
+6. ~~`specWriter.py` + tests.~~ ✅ DONE — see §4. **Next agent starts at step 7.**
 7. `mainGUI.py` rework.
-8. End-to-end acceptance + README (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
+8. ~~End-to-end acceptance~~ (✅ passed early — see §4) + README (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
 
 ## Verification
 
