@@ -76,7 +76,20 @@ TEXT_FIELDS = [
 - `classMembersHook` justification: no engine-side indicator library, so rules needing e.g. ATR must define a private helper method — only expressible at class scope.
 - Hooks run **every bar** (as in EL, where the whole file body runs per bar); one-time init idiom is `if (ctx.CurrentBar() == 1) { ... }`.
 
-## 3. strategyWriter.py — combinatorics ported, emitter rewritten
+## 3. strategyWriter.py — ✅ DONE (implementation-order step 5)
+
+Implemented with 44 tests in `tests/test_strategyWriter.py` (114 total), including a full golden-header fixture (1 entry + 1 exit + 1 switch) that must be edited deliberately whenever the emitter changes.
+
+**End-to-end verified against the real engine**, not just unit tests: generated `Momentum Clone` into `BacktestEngine`, rebuilt Release (only `registry.cpp` recompiled — the header dependency works as designed, and the emitted code produced **zero warnings**), and `bt_walkforward` reports `known: Momentum Clone V1, MomentumReversal`. Registry names containing spaces work.
+
+**Engine-side defect found and fixed while verifying:** `tests/test_optimizer.cpp::StrategyRegistry.FindsKnownAndRejectsUnknown` asserted `strategy_names() == {"MomentumReversal"}` exactly, which any generator run breaks by design. Step 1's smoke test was reverted before this could surface. Now asserts membership. Engine tests: 494/494.
+
+Notes for later steps:
+- `specWriter` (step 6) should reuse `strategyWriter.specStem(name, version)` for the `momentum_clone_v1` run-dir stem and `registryName(name, version)` for the spec's `strategy` value.
+- `generate()` validates and builds the whole header text *before* touching disk, so a bad parameter range leaves the engine tree untouched.
+- `buildHeaderText(strategyName, panes, getRule=...)` is the pure-text seam: `getRule` defaults to `ruleIO.loadRule` and tests inject their own.
+
+### Original design notes
 
 **Ported nearly verbatim from TS** (`C:\Users\brian\source\repos\StrategyGeneratorTS\strategyWriter.py`): `ILLEGAL_NAME_CHARS`, `_templateGroups` (delimiter split; empty group = no-op), `_enumerateVersions` (`itertools.product` across panes, bucketed into entries/exits/switches), `_occurrences`, `_indent`, `_Occ`. **Dropped**: everything MultiWalk (lines ~398–689, `_Occ.mwVars`, `_ensureSemicolons` — hooks are raw C++ now).
 
@@ -175,8 +188,8 @@ Beyond the list below, three heuristic warnings were added for the TS-import wor
 1. ~~BacktestEngine one-time change (§1); build + tests green; commit there.~~ ✅ DONE — commit `c162d6a`. Start at step 2.
 2. ~~Scaffold StrategyGeneratorBE: copy verbatim files, new config.json.~~ ✅ DONE — commit `63b98a4`.
 3. ~~`rule.py` + `tests/test_rule.py` (paren-aware parser round-trips, legacy tolerance).~~ ✅ DONE — see §2.
-4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6. **Next agent starts at step 5.**
-5. `strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).
+4. ~~`ruleCreationGUI.py` validations.~~ ✅ DONE — see §6.
+5. ~~`strategyWriter.py` + golden-text tests (sanitization, case-sensitive rename, full emitted header for a 1-entry/1-exit/1-switch fixture, manifest merge/prune, `.inc` rebuild).~~ ✅ DONE — see §3. **Next agent starts at step 6.**
 6. `specWriter.py` + tests.
 7. `mainGUI.py` rework.
 8. End-to-end acceptance + README (rule-authoring conventions: aliases, ctx API, conditions = expressions without `;`, hooks = raw C++, `CurrentBar()==1` init idiom, max_bars_back responsibility).
