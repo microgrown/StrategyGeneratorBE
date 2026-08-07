@@ -17,11 +17,19 @@
         "rangeStd": {
             "type": "double",
             "init": "0.0"
+        },
+        "rangeHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "rangeCursor": {
+            "type": "std::size_t",
+            "init": "0"
         }
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "rrange = high[0] - low[0];\nrangeMean = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    rangeMean += high[i] - low[i];\n}\nrangeMean /= (int)lookback;\nrangeStd = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    double d = (high[i] - low[i]) - rangeMean;\n    rangeStd += d * d;\n}\nrangeStd = std::sqrt(rangeStd / (int)lookback);",
+    "preConditionHook": "rrange = high[0] - low[0];\n// EL: average() and stddev() read the rrange VARIABLE's own history, and a\n// variable holds its initial 0 for every bar before the strategy's first\n// evaluated one. Recomputing the mean from price instead would use warm-up\n// bars EasyLanguage never saw, so the history is mirrored here -- a ring\n// buffer that starts zeroed. It is also re-seeded if the length ever changes,\n// which is what WFSafe_SummationFC does for the same reason.\nif (rangeHistory.size() != (std::size_t)(int)lookback) {\n    rangeHistory.assign((std::size_t)(int)lookback, 0.0);\n    rangeCursor = 0;\n}\nrangeHistory[rangeCursor] = rrange;\nrangeCursor = (rangeCursor + 1) % rangeHistory.size();\nrangeMean = 0.0;\nfor (double v : rangeHistory) {\n    rangeMean += v;\n}\nrangeMean /= (int)lookback;\n// Population standard deviation (divide by N): EasyLanguage's definition.\nrangeStd = 0.0;\nfor (double v : rangeHistory) {\n    double d = v - rangeMean;\n    rangeStd += d * d;\n}\nrangeStd = std::sqrt(rangeStd / (int)lookback);",
     "longCondition": "rrange > numDevs * rangeStd + rangeMean",
     "shortCondition": "rrange > numDevs * rangeStd + rangeMean",
     "postConditionHook": "",

@@ -95,6 +95,24 @@ that is expected — the aggregate is deliberately not readable as a run.
 Rule code is **C++**, compiled into the engine. It is not checked until you
 rebuild, so the editor validates what it can at save time.
 
+**EasyLanguage is the specification.** Every rule here has a twin in
+`StrategyGeneratorTS/rules/<Name>.json` that emits EasyLanguage for MultiWalk,
+and the whole point of the engine is to reproduce MW's numbers. So a rule must
+reproduce what EL *does*, not merely the formula it writes down — the two have
+come apart three times, each time silently:
+
+- an EL **variable** holds its initial `0` for bars before the strategy's first
+  evaluated one, so `average(v, n)`/`stddev(v, n)` read zeros through warm-up
+  (`rules/BarRangeAboveStd.json` mirrors that history deliberately);
+- EL's standard deviation is the **population** form, dividing by N;
+- position built-ins reset **per position**, and a reversal opens a new one
+  without ever passing through flat — which is why `ctx.MaxPositionProfit()`
+  exists and must not be hand-rolled.
+
+Prefer a `ctx` built-in to a local emulation; the engine can grow one. After
+touching a rule, `BacktestEngine/scripts/compare_el_strategy.py` diffs a
+generated header against its EasyLanguage twin version by version.
+
 ### Fields
 
 | Field | Becomes |

@@ -414,7 +414,11 @@ def buildHeaderText(strategyName, panes, getRule=None):
         f"// {strategyName}",
         f"// {_AUTOGEN}",
         "",
+        # <vector> is for rules that mirror an EasyLanguage variable's own bar
+        # history (see BarRangeAboveStd); unused by rules that do not, which is
+        # harmless in a generated header.
         "#include <cmath>",
+        "#include <vector>",
         "",
         '#include "bt/sim/strategy.h"',
         "",
