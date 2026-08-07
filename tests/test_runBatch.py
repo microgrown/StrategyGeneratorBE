@@ -152,8 +152,34 @@ class TestRunSpecs(BatchCase):
         runner = FakeRunner()
         rb.runSpecs(specs, self.STEM, self.cfg, 7, False, runner, quiet)
         (cmd, cwd), = runner.calls
-        self.assertEqual(cmd, [self.binary, "--spec", specs[0][1], "--threads", "7"])
+        self.assertEqual(cmd, [self.binary, "--spec", specs[0][1], "--threads", "7",
+                               "--quiet"])
         self.assertEqual(cwd, self.engineDir)
+
+    def test_verboseDropsQuiet(self):
+        """The engine's own progress is one --verbose away when a run needs
+        watching; its run.log carries it either way."""
+        specs = [(1, writeSpec(self.specDir, self.STEM, 1))]
+        runner = FakeRunner()
+        rb.runSpecs(specs, self.STEM, self.cfg, 0, False, runner, quiet, verbose=True)
+        (cmd, _), = runner.calls
+        self.assertNotIn("--quiet", cmd)
+
+    def test_oneLinePerVersionCarryingTheOutcome(self):
+        specs = [(n, writeSpec(self.specDir, self.STEM, n)) for n in (1, 2)]
+        runner = FakeRunner(returnCodes={f"{self.STEM}_v1": 2})
+        echoed = []
+
+        def record(*args, end="\n"):
+            echoed.append((" ".join(str(a) for a in args), end))
+
+        rb.runSpecs(specs, self.STEM, self.cfg, 0, False, runner, record)
+        # Two versions: each opens a line and closes it with its outcome.
+        self.assertEqual([end for _, end in echoed], ["", "\n", "", "\n"])
+        self.assertIn(f"{self.STEM}_v1", echoed[0][0])
+        self.assertIn("FAILED (exit 2)", echoed[1][0])
+        self.assertIn(f"{self.STEM}_v2", echoed[2][0])
+        self.assertTrue(echoed[3][0].startswith("OK "))
 
     def test_skipsVersionsWithSelectionOutput(self):
         specs = [(n, writeSpec(self.specDir, self.STEM, n)) for n in (1, 2)]

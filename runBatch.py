@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -45,10 +46,11 @@ REBUILD_COMMAND = r".\scripts\build.ps1 -Config Release"
 _VERSION_SUFFIX = re.compile(r"_v\d+$")
 
 
-def _echo(*args):
+def _echo(*args, end="\n"):
     """Banner lines must reach the console before the engine's own output, and
-    the engine child process writes unbuffered while Python does not."""
-    print(*args, flush=True)
+    the engine child process writes unbuffered while Python does not. end=""
+    leaves the line open so the run's outcome can be appended to it."""
+    print(*args, end=end, flush=True)
 
 
 @dataclass
@@ -127,10 +129,16 @@ def hasSelectionOutput(runDir):
 
 # --- engine invocation -------------------------------------------------------
 
-def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo):
+def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo,
+             verbose=False):
     """Run bt_walkforward for every version without selection output (all of
     them under --force). Sequential — the engine parallelizes internally.
-    Failures don't stop the batch; each outcome records its exit code."""
+    Failures don't stop the batch; each outcome records its exit code.
+
+    One line per version: the engine runs under --quiet, so it prints only
+    genuine errors (its run.log still records everything), and the line opened
+    before a run is closed by that run's outcome. --verbose drops --quiet when
+    a run needs watching."""
     engineDir = _engineDir(cfg)
     baseDir = runsDir(cfg)
     plans = []
@@ -152,11 +160,15 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
             echo(f"[{i}/{len(plans)}] {runName} — results exist, skipping")
             outcomes.append(RunOutcome(version, specPath, runDir, 0, True))
             continue
-        echo(f"[{i}/{len(plans)}] {runName} ...")
-        proc = runner(
-            [binary, "--spec", specPath, "--threads", str(threads)],
-            cwd=engineDir,  # the engine's data/symbols/runs defaults are relative
-        )
+        echo(f"[{i}/{len(plans)}] {runName} ... ", end="")
+        command = [binary, "--spec", specPath, "--threads", str(threads)]
+        if not verbose:
+            command.append("--quiet")
+        started = time.monotonic()
+        proc = runner(command, cwd=engineDir)  # engine paths are relative to it
+        elapsed = time.monotonic() - started
+        status = "OK" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"
+        echo(f"{status} {elapsed:.1f}s")
         outcomes.append(RunOutcome(version, specPath, runDir, proc.returncode))
     return outcomes
 
@@ -319,7 +331,8 @@ def writeAggregate(stem, outcomes, cfg, warnings):
 
 # --- orchestration -----------------------------------------------------------
 
-def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, echo=_echo):
+def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, echo=_echo,
+             verbose=False):
     stem = resolveStem(nameOrStem)
     specs = discoverSpecs(stem, cfg)
     if not specs:
@@ -333,7 +346,7 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
 
     warnings = []
     preflightSelectionWarning(specs, warnings)
-    outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo)
+    outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose)
     aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
     return BatchResult(stem, outcomes, aggregateDir, aggregated, warnings, reports)
 
@@ -382,11 +395,15 @@ def main(argv=None):
     parser.add_argument("--force", action="store_true",
                         help="re-run the engine even for versions that already "
                              "have selection results (recomputes their verdicts)")
+    parser.add_argument("--verbose", action="store_true",
+                        help="let the engine print its progress and warnings "
+                             "instead of errors only (run.log has them either way)")
     args = parser.parse_args(argv)
 
     try:
         result = runBatch(args.strategy, config.load(),
-                          threads=args.threads, force=args.force)
+                          threads=args.threads, force=args.force,
+                          verbose=args.verbose)
     except GenerationError as exc:
         print(exc, file=sys.stderr)
         return 2
