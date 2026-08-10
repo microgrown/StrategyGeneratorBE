@@ -354,12 +354,22 @@ def _classLines(cls, regName, occs):
     lines.extend(_conditionSegment(exits, "Exits", _exitLines))
     lines.extend(_conditionSegment(switches, "Switches", _switchLines))
 
-    # Reproduces the TS no-pyramiding guards; EnterLong while short auto-reverses,
-    # which is what the TS `Buy` did too.
+    # Statement for statement what StrategyGeneratorTS emits: entries UNGUARDED,
+    # exits guarded on MarketPosition.
+    #
+    # The entries used to carry `MarketPosition() <= 0` / `>= 0` guards, on the
+    # theory that they reproduced TradeStation's no-pyramiding rule. They do not.
+    # TS applies that rule at FILL time, after the bar's exits have run, so an
+    # entry emitted while a position was open still fires when an exit closes
+    # that position at the same fill: TS books the close and re-opens in the same
+    # direction at the same price. Guarding at SIGNAL time suppresses that
+    # re-entry, and that is what held the BAS-2 family's net profit within
+    # tolerance on only 11% of its 120,960 unit-schedules. The cap now lives
+    # where the chart property does, SimOptions::max_entries_per_direction.
     lines.append("")
     lines.append("        // -- Order placement --")
-    lines.append("        if (enterLong && ctx.MarketPosition() <= 0) ctx.EnterLong(1);")
-    lines.append("        if (enterShort && ctx.MarketPosition() >= 0) ctx.EnterShort(1);")
+    lines.append("        if (enterLong) ctx.EnterLong(1);")
+    lines.append("        if (enterShort) ctx.EnterShort(1);")
     lines.append("        if (exitLong && ctx.MarketPosition() > 0) ctx.Exit();")
     lines.append("        if (exitShort && ctx.MarketPosition() < 0) ctx.Exit();")
 
@@ -420,6 +430,7 @@ def buildHeaderText(strategyName, panes, getRule=None):
         "#include <cmath>",
         "#include <vector>",
         "",
+        '#include "bt/core/el_compare.h"',
         '#include "bt/sim/strategy.h"',
         "",
         "#ifdef _MSC_VER",

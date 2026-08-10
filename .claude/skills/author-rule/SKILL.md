@@ -121,7 +121,26 @@ is not enough; match what EL actually does, including warm-up and reset timing.
 Where EL's behaviour is unknown, say so and ask — do not pick the more
 defensible numerical choice.
 
-Three ways this has gone wrong before, all of them silent:
+Four ways this has gone wrong before, all of them silent:
+
+- **A MultiWalk `WFSafe_` override is a DIFFERENT function from the EL built-in
+  it resembles, and it wins.** If the EasyLanguage twin calls
+  `WFSafe_AvgTrueRange`, `WFSafe_SummationFC` or any other `WFSafe_` wrapper,
+  the C++ must reproduce *that*, not the plain built-in. Measured: WFSafe's
+  series functions keep a **rolling accumulator** — seeded with a fresh N-term
+  sum on the study's first calculated bar, then
+  `S = S[1] + value - value[Length]` — while EasyLanguage's own `Average` and
+  `StdDev` recompute from scratch every bar. Where MultiWalk provides no
+  override, follow plain EL. `rules/AtrProfitTarget.json` is the reference for
+  the rolling form; `rules/BarRangeAboveStd.json` for the fresh one.
+
+  Two details in that reference are load-bearing and easy to lose:
+  the accumulator **re-seeds when the length changes** (what makes it
+  "walkforward safe"), and the update is **two statements**, `S += in; S -= out;`
+  — EL evaluates `S[1] + Price - Price[Length]` left to right, and folding it to
+  `S += in - out` is a different rounding that lands on the other side of a
+  threshold.
+
 
 - **Warm-up.** An EL *variable* holds its initial `0` for every bar before the
   strategy's first evaluated bar, so `average(v, n)` and `stddev(v, n)` read
