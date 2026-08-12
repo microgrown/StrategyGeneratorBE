@@ -99,6 +99,21 @@ _CPP_HELPER = re.compile(_BOUNDARY + r"(" + "|".join(CPP_HELPERS) + r")\s*\(")
 # A relational operator in a CONDITION must go through el_*; inside a hook a
 # bare `<` is ordinary loop arithmetic and is left alone.
 _RAW_RELATIONAL = re.compile(r"(?<![<>=!])(<=|>=|<|>|==|!=)(?!=)")
+# NOT CHECKED, deliberately: a WFSafe_ accumulator appearing inside an
+# EasyLanguage condition. It looks alarming -- EasyLanguage does not
+# short-circuit and/or while C++ does (EL_LogicalEval_Probe.txt), so an
+# accumulator's advance rate could differ between the twins -- and AtrProfitTarget
+# does exactly that. It is safe, and a check here fired on the reference rule:
+#
+#   * EL evaluates both operands always, so WFSafe_AvgTrueRange in a condition
+#     advances on EVERY bar, deterministically.
+#   * The C++ twin computes the same accumulator in preConditionHook, which the
+#     generator emits unconditionally -- so it also advances on every bar, and
+#     the condition only reads the resulting local.
+#
+# The arrangement is structural rather than lucky: a condition is an EXPRESSION
+# and an accumulator needs STATEMENTS, so it can only ever live in a hook. The
+# hazard is real in principle and prevented by the schema.
 _REGISTRY_TOKEN = re.compile(r"`([^`]+)`")
 
 _EL_COMMENT = re.compile(r"\{.*?\}", re.S)
@@ -257,6 +272,7 @@ def lint(names=None, rulesDir=RULES_DIR, tsDir=None):
             findings.append(("error", name,
                              "no EasyLanguage twin. The twin is what declares the "
                              "EL surface; a C++ emulation loop declares nothing."))
+
 
         for feature in sorted(tsFeatures | beFeatures):
             status = registry.get(feature)
