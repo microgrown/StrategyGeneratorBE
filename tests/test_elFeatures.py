@@ -251,7 +251,9 @@ class TestRealCorpus(unittest.TestCase):
         # ASSUMED warns rather than blocks, so that the seeded debt does not
         # ship the gate red. This pins the debt to what is known, so a NEW
         # assumption fails here even though it would not block authoring.
-        expected = {"date", "and", "or", "not"}
+        # `date` was here until EL_Date_Probe.txt came back: TradeStation dates
+        # by the wall clock, 169/169 bars, so the row is VERIFIED now.
+        expected = {"and", "or", "not"}
         assumed = {tok for tok, status in lef.loadRegistry().items()
                    if status == lef.ASSUMED}
         self.assertEqual(assumed, expected,
