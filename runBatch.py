@@ -27,8 +27,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import config
+import lintElFeatures
 from specWriter import specOutputDir
-from strategyWriter import GenerationError, sanitizeIdentifier
+from strategyWriter import (GenerationError, generatedDirFor, loadManifest,
+                            sanitizeIdentifier)
 
 WALKFORWARD_EXE = os.path.join("build", "release", "bt_walkforward.exe")
 RUNS_SUBDIR = "runs"
@@ -192,6 +194,51 @@ def preflightSelectionWarning(specs, warnings):
         )
 
 
+def preflightFeatureGate(stem, cfg, warnings):
+    """Re-check this batch's EasyLanguage features against the register.
+
+    `strategyWriter.generate` already gated these when the header was written.
+    This catches the other direction: a feature DOWNGRADED since — a row moved
+    to UNKNOWN because a probe came back and contradicted what we assumed — on
+    headers that were generated while it still looked settled. Running a whole
+    batch on that is what the register exists to prevent.
+
+    Raises GenerationError on a blocking feature; everything else is a warning,
+    because a batch must never fail for a reason that is not about the batch."""
+    try:
+        manifest = loadManifest(generatedDirFor(cfg))
+        registry = lintElFeatures.loadRegistry()
+    except (GenerationError, lintElFeatures.LintError, OSError, ValueError) as exc:
+        warnings.append(f"Could not re-check EasyLanguage features: {exc}")
+        return
+
+    recorded, described = set(), False
+    for name, entry in manifest.items():
+        if sanitizeIdentifier(name).lower() != stem:
+            continue
+        features = entry.get("elFeatures")
+        if features is None:
+            warnings.append(
+                f"'{name}' was generated before the EasyLanguage feature gate "
+                "existed, so its features are unrecorded. Re-run Make Strategy "
+                "to record them.")
+            continue
+        described = True
+        recorded |= set(features)
+
+    if not described:
+        return
+    blocking = sorted(f for f in recorded
+                      if registry.get(f, lintElFeatures.UNKNOWN) == lintElFeatures.UNKNOWN)
+    if blocking:
+        raise GenerationError(
+            f"Batch '{stem}' uses EasyLanguage feature(s) whose behaviour is not "
+            f"established: {', '.join(blocking)}. They were settled when the "
+            "headers were generated and have since been downgraded in "
+            f"rules/{lintElFeatures.REGISTRY_NAME}. Re-run Make Strategy after "
+            "the probe settles them.")
+
+
 # --- aggregation -------------------------------------------------------------
 
 def loadRunSelection(runDir, runName, warnings):
@@ -346,6 +393,7 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
 
     warnings = []
     preflightSelectionWarning(specs, warnings)
+    preflightFeatureGate(stem, cfg, warnings)
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose)
     aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
     return BatchResult(stem, outcomes, aggregateDir, aggregated, warnings, reports)

@@ -5,11 +5,12 @@ description: Turn human-language descriptions of trading rules into rules/<Name>
 
 # Authoring rules from prose
 
-`README.md` §"Writing rules" and §"The `ctx` API" (lines 93–224) document the
-schema, the price aliases, the reserved names, and what each field becomes. Read
-them; do not restate them here. This skill covers only what they don't: how to
-decide *what is one rule*, how to avoid re-adding a rule the corpus already has,
-and how to stay inside the EasyLanguage-translatable subset.
+`README.md` §"Writing rules" and §"The `ctx` API" document the schema, the price
+aliases, the reserved names, and what each field becomes. Read them; do not
+restate them here. `rules/EL_FEATURES.md` says which EasyLanguage words have
+actually been measured — §4 turns on it. This skill covers only what neither
+does: how to decide *what is one rule*, how to avoid re-adding a rule the corpus
+already has, and how to stay inside the EasyLanguage-translatable subset.
 
 Work in five passes. On a batch, finish each pass across **all** candidates
 before starting the next — batch dedup matters, because two sources in one batch
@@ -121,6 +122,32 @@ is not enough; match what EL actually does, including warm-up and reset timing.
 Where EL's behaviour is unknown, say so and ask — do not pick the more
 defensible numerical choice.
 
+**Read the feature register before writing a condition.** Every EasyLanguage
+word this corpus relies on has a row in `rules/EL_FEATURES.md`: its status, what
+was measured, the probe that measured it, and the test that holds it. Check the
+row for every word the rule needs.
+
+- `VERIFIED` or `ACCEPTED` — write the rule.
+- `ASSUMED` — write the rule, and say in the report which assumption it now
+  depends on.
+- `UNKNOWN`, or **no row at all** — **stop, and do not save the rule.**
+
+Seventeen probes exist because every surprise below was found *after* a
+MultiWalk disagreement rather than before one; `WFSafe_AvgTrueRange` alone took
+four. On an unmeasured word:
+
+1. Copy `<engineDir>/EL_Probe_Template.txt` to
+   `<engineDir>/EL_<Feature>_Probe.txt` and fill it in — which rule needs the
+   word, what the engine would otherwise assume, the exact chart setup, and what
+   each outcome would prove. The template carries the rubric.
+2. Add the row to `rules/EL_FEATURES.md` with status `UNKNOWN`, citing that
+   probe.
+3. Report the rule as **blocked on `<Feature>`** and hand Brian the probe.
+
+The rule is written when the finding is recorded, not before. If several rules
+in a batch need the same word, write one probe and block all of them on it. The
+full loop is `<engineDir>/docs/EL_VERIFICATION.md`.
+
 Four ways this has gone wrong before, all of them silent:
 
 - **A MultiWalk `WFSafe_` override is a DIFFERENT function from the EL built-in
@@ -157,9 +184,11 @@ Four ways this has gone wrong before, all of them silent:
   reset does not.
 
 Prefer a `ctx` built-in over local emulation whenever one exists. The engine can
-grow one — that is a cheaper and safer change than a clever hook.
+grow one — that is a cheaper and safer change than a clever hook, and a new
+`ctx` built-in is a new register row held to the same standard.
 
-Everything in this table has a clean counterpart:
+Everything in this table has a clean counterpart, and a row in the register
+saying how it was measured:
 
 | EasyLanguage | C++ rule field |
 |---|---|
@@ -181,9 +210,16 @@ Everything in this table has a clean counterpart:
 `close[0] >= highestClose` — **`>=`, not `==`**. Float equality never holds.
 `rules/Breakout.json` is the reference.
 
-Flag, in the summary, anything with no row above: `std::` *containers*, lambdas,
-`auto`, ternaries, pointers/references, or a `classMembersHook` doing something
-no EasyLanguage builtin covers. This is a note for Brian to weigh, not a refusal.
+Two different kinds of "not in the table", with different answers:
+
+- **A C++ construct with no EasyLanguage counterpart** — `std::` *containers*,
+  lambdas, `auto`, ternaries, pointers/references, or a `classMembersHook` doing
+  something no EasyLanguage builtin covers. Flag it in the summary. This is a
+  note for Brian to weigh, not a refusal.
+- **An EasyLanguage word with no register row** — that *is* a refusal. Stop and
+  write the probe, as above. The difference matters: the first is a translation
+  question Brian can answer by reading it, the second is a claim about what
+  TradeStation does that nobody can answer without running it.
 
 ---
 
@@ -204,11 +240,23 @@ print(g.validateRule('Name',
 Errors block the save — fix and re-run. Warnings (semicolon in a condition,
 unbalanced brackets, EasyLanguage leftovers, miscased `Close`) go in the report.
 
+Once both twins are written, run the feature gate over them:
+
+```
+cd C:/Users/brian/source/repos/StrategyGeneratorBE && python lintElFeatures.py <Name>
+```
+
+Errors block the save the same way `validateRule`'s do — and the same check runs
+again at Make Strategy, so a rule that slips past here will not reach the engine.
+
 Then update `rules/CATALOG.md` with a row per rule added, and report:
 
 - Rules written, and for each: the role, and how a compound description was split.
 - Duplicates suspected, with the existing rule named.
 - Anything rejected, with the reason.
+- **Rules blocked on an unmeasured EasyLanguage word**, naming the feature and
+  the probe written for it.
+- Any `ASSUMED` register row a new rule now leans on.
 - Anything outside the EasyLanguage table.
 - **Deepest bar index reached**, as an expression over inputs (e.g. `lookback + 1`).
   Max Bars Back is the strategy author's job (`README.md:275`) and this is its input.

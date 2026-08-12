@@ -18,6 +18,8 @@ import os
 import re
 import json
 import itertools
+
+import lintElFeatures
 from dataclasses import dataclass, field
 
 import ruleIO
@@ -590,6 +592,17 @@ def generate(strategyName, panes, cfg):
     generatedDir = generatedDirFor(cfg)
     headerName = headerFileName(strategyName)
 
+    # The EasyLanguage feature gate. This is the choke point where rules become
+    # C++ the engine will compile, so it is where an unmeasured EL feature has
+    # to stop. Scoped to the rules actually PLACED -- a corpus-wide check here
+    # would let one half-finished rule block every unrelated strategy.
+    placed = sorted({item.name for pane in panes for item in pane.items
+                     if not isinstance(item, str)})
+    try:
+        lintElFeatures.enforce(placed)
+    except lintElFeatures.LintError as exc:
+        raise GenerationError(str(exc)) from exc
+
     # Build (and validate) the text before touching disk, so a bad parameter
     # range leaves the engine tree exactly as it was.
     text, entries = buildHeaderText(strategyName, panes)
@@ -598,6 +611,9 @@ def generate(strategyName, panes, cfg):
     manifest[strategyName] = {
         "header": headerName,
         "entries": [{"name": n, "class": c} for n, c in entries],
+        # Recorded so runBatch can re-check a batch whose features were
+        # downgraded in the registry after the header was written.
+        "elFeatures": sorted(lintElFeatures.featuresOfRules(placed)),
     }
     _checkCollisions(manifest)
 

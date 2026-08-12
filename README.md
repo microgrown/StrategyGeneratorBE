@@ -98,8 +98,12 @@ rebuild, so the editor validates what it can at save time.
 **EasyLanguage is the specification.** Every rule here has a twin in
 `StrategyGeneratorTS/rules/<Name>.json` that emits EasyLanguage for MultiWalk,
 and the whole point of the engine is to reproduce MW's numbers. So a rule must
-reproduce what EL *does*, not merely the formula it writes down — the two have
-come apart three times, each time silently:
+reproduce what EL *does*, not merely the formula it writes down. The two have
+come apart repeatedly, always silently, and it has taken a TradeStation probe to
+settle each one — `rules/EL_FEATURES.md` records which EasyLanguage features
+have been measured, which have not, and what each measurement found. **Check it
+before using a feature that is not already in the corpus.** Three examples, to
+show the shape of the problem:
 
 - an EL **variable** holds its initial `0` for bars before the strategy's first
   evaluated one, so `average(v, n)`/`stddev(v, n)` read zeros through warm-up
@@ -227,15 +231,34 @@ ctx.CurrentContracts()      // total open contracts
 ctx.EntryPrice()            // contract-weighted average; 0.0 when flat
 ctx.EntryPrice(lot)         // per entry, lot 0 = oldest open (FIFO)
 ctx.LotCount()
-ctx.BarsSinceEntry()        // from the oldest open lot; -1 when flat
-ctx.BarsSinceExit()         // from the most recent exit fill; -1 if none
-ctx.OpenPositionProfit()    // gross of costs, marked at the last close
+ctx.BarsSinceEntry()        // from the oldest open lot; 0 on the fill bar, 0 while flat
+ctx.BarsSinceExit()         // from the most recent exit fill; 0 before any exit
+ctx.OpenPositionProfit()    // NET of the entry side's costs, marked at the last close
 ctx.NetProfit()             // cumulative net P&L of all closed trades
-ctx.BigPointValue()         // $ per full point per contract
+ctx.BigPointValue()         // $ per full point per contract; NOT currency-converted
 
 // Orders (fill at the NEXT bar's open)
 ctx.EnterLong(size)  ctx.EnterShort(size)  ctx.Exit()  ctx.Exit(size)
 ```
+
+**Four of those comments are measured, not assumed** — they were each wrong once
+and cost a walkforward comparison to find:
+
+- `BarsSinceEntry()` / `BarsSinceExit()` return **0**, never a `-1` sentinel.
+  TradeStation returned 0 across 13,630 flat bars and across the 45 bars before
+  a chart's first exit. A sentinel reads as "no entry" but *compares* as smaller
+  than any threshold, so `BarsSinceEntry() >= n` disagreed with EL for every
+  `n <= 0`.
+- `OpenPositionProfit()` is **net of the entry side's** commission, slippage and
+  accrued swap — one side, not the round turn. Every profit target, stop and
+  equity switch thresholds on it, so a gross value fires targets early and stops
+  late.
+- `BigPointValue()` is **not** currency-converted while the profit accessors
+  are. That is TradeStation's own inconsistency, preserved deliberately.
+
+`BacktestEngine/CLAUDE.md` is the source of truth for all of these, and
+`rules/EL_FEATURES.md` records which EasyLanguage features have been measured
+and which have not.
 
 You rarely call the order methods yourself — the generator emits them from your
 conditions.
@@ -275,16 +298,30 @@ Exits:     exitLong  = exitLong  || (condition)      // OR
 Switches:  enterLong = enterLong && !(condition)     // block entries
            exitLong  = exitLong  ||  (condition)     // and force an exit
 
-if (enterLong  && MarketPosition() <= 0) EnterLong(1);
-if (enterShort && MarketPosition() >= 0) EnterShort(1);
+if (enterLong)                           EnterLong(1);
+if (enterShort)                          EnterShort(1);
 if (exitLong   && MarketPosition() >  0) Exit();
 if (exitShort  && MarketPosition() <  0) Exit();
 ```
 
-The `MarketPosition()` guards reproduce TradeStation's no-pyramiding default
-(this engine would otherwise pyramid); entering the opposite side auto-reverses,
-matching EL `Buy`/`SellShort`. An empty condition is skipped, since AND-true and
-OR-false are identities.
+**Entries are unguarded; exits are guarded.** That is statement for statement
+what the EasyLanguage twin emits, and it is not a stylistic choice:
+
+- TradeStation applies "allow up to N entries in the same direction" at **fill**
+  time, after that bar's exits — not at signal time. So an entry emitted while a
+  position is open still fires when an exit closes that position at the same
+  fill: TS books the close and re-opens in the same direction at the same price.
+  MultiWalk's own trade export does this 11 times in one NG M480 unit.
+- A `MarketPosition()` guard on an entry is a **signal-time** test and is a
+  different rule. Adding one suppressed that re-entry and held the BAS-2
+  family's net profit within tolerance on only 11% of its 120,960
+  unit-schedules.
+- The cap therefore lives where the chart property does,
+  `SimOptions::max_entries_per_direction` (TradeStation's default is 1, and
+  MultiWalk leaves it there).
+
+Entering the opposite side auto-reverses, matching EL `Buy`/`SellShort`. An
+empty condition is skipped, since AND-true and OR-false are identities.
 
 **Carried-over quirk:** a version with no entry rules enters every bar. That is
 StrategyGeneratorTS behavior, kept deliberately for parity, and the generated
