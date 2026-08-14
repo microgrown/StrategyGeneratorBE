@@ -124,7 +124,10 @@ is deterministic (bit-identical results) only over identical data.
 
 That is also why ingest goes through `ingestData.py`: `bt_ingest`/
 `bt_resample` destructively rewrite a symbol's store directory, so the wrapper
-snapshots the current state first. The selection report stays a complete
+snapshots the current state first. The engine's bulk path is protected too —
+`scripts\ingest_all.ps1` snapshots every affected symbol into one epoch before
+rewriting anything (and refuses to proceed if the snapshot fails;
+`-SkipSnapshot` bypasses deliberately). The selection report stays a complete
 record even for rejected candidates — the engine evaluates every filter for
 every candidate (values recorded, marked informational after the deciding
 failure; `"evaluate_all_filters": false` in a spec's selection block turns
