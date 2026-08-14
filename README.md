@@ -90,6 +90,54 @@ that is expected — the aggregate is deliberately not readable as a run.
 
 ---
 
+## Managing run disk space
+
+Runs are large (hundreds of MB to GB per version). Three tools keep the
+footprint manageable without ever losing a verdict. **All of them are manual:
+nothing prunes automatically after a backtest**, every prune is a dry run
+until you add `--delete`, and tradeable candidates are never touched.
+
+```
+python pruneRuns.py --status                       # per-family footprint
+python pruneRuns.py --prune-wf <family> --delete   # lossless: ~79% of a run
+python pruneRuns.py --prune-units <family> --delete# rejected units, whole dirs
+python pruneRuns.py --regen <stem>_v3              # bring pruned data back
+python snapshotData.py --snapshot [SYM ...]        # archive store data (epoch)
+python snapshotData.py --verify                    # detect store drift
+python ingestData.py ingest --file X --symbol AD   # snapshot-then-ingest
+```
+
+The lifecycle: run → select → aggregate → `--prune-wf` (immediately safe:
+`wf_results.json` is derived from the unit's `.bin` cache and manifest, and
+any engine pass rebuilds it byte-identically with no re-simulation) → for cold
+families, `--prune-units` (deletes rejected candidates' whole unit dirs,
+optimizer caches included) → `--regen` on demand.
+
+`--prune-units` is gated on provable reproducibility: a unit is only deletable
+when its manifest records data-provenance hashes (engine manifest v4 — older
+runs don't have them; use `--prune-wf` or archive those) **and** a
+`snapshotData.py` epoch archives bar data matching those hashes. What was
+deleted is recorded in the run's `prune_ledger.json`; `--regen` re-verifies
+the live store against that ledger before invoking `bt_walkforward` — on a
+mismatch it names the epoch to restore instead of running, because the engine
+is deterministic (bit-identical results) only over identical data.
+
+That is also why ingest goes through `ingestData.py`: `bt_ingest`/
+`bt_resample` destructively rewrite a symbol's store directory, so the wrapper
+snapshots the current state first. The selection report stays a complete
+record even for rejected candidates — the engine evaluates every filter for
+every candidate (values recorded, marked informational after the deciding
+failure; `"evaluate_all_filters": false` in a spec's selection block turns
+this off) and writes their full metric set, so pruned raw data never takes
+answers with it.
+
+Note that `--regen` re-invokes the engine on that version's spec: cached units
+are reused as-is, deleted ones are re-optimized, and the selection chain is
+re-evaluated (deterministically, to the same verdicts). That is the one
+sanctioned way to recompute — `runBatch.py`'s skip logic still never does.
+
+---
+
 ## Writing rules
 
 Rule code is **C++**, compiled into the engine. It is not checked until you
