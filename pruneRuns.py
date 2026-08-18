@@ -5,9 +5,11 @@
     python pruneRuns.py --prune-units <family> [--delete]
     python pruneRuns.py --regen <stem>_v<n> [--threads N]
 
-This tool is ONLY ever run by hand. Nothing in runBatch.py, the engine, or any
-hook invokes it: deleting results is a deliberate human decision, and even then
-the default is a dry run — nothing is removed without --delete.
+This tool only ever runs because a human asked: directly, dry-run by default
+(nothing is removed without --delete), or via runBatch.py's explicit --prune
+flag (which unit-prunes where provable, then wf-sweeps the rest, after a
+clean batch). Nothing prunes implicitly — no hooks, no post-run automation,
+no defaults.
 
 --prune-wf deletes wf_results.json for the REJECTED candidates of completed
 versions. That file is a pure derivation of the unit's manifest.json + .bin

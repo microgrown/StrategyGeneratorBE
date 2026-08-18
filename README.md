@@ -93,9 +93,13 @@ that is expected — the aggregate is deliberately not readable as a run.
 ## Managing run disk space
 
 Runs are large (hundreds of MB to GB per version). Three tools keep the
-footprint manageable without ever losing a verdict. **All of them are manual:
-nothing prunes automatically after a backtest**, every prune is a dry run
-until you add `--delete`, and tradeable candidates are never touched.
+footprint manageable without ever losing a verdict. **Nothing prunes unless
+you ask**: every prune is a dry run until you add `--delete`, tradeable
+candidates are never touched, and the one shortcut —
+`runBatch.py <strategy> --prune`, which after a fully successful batch
+deletes rejected units where provably regenerable and then wf-sweeps the
+rest (~99% of a failing family) — only acts because you typed the flag on
+that invocation.
 
 ```
 python pruneRuns.py --status                       # per-family footprint

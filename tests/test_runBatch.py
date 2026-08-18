@@ -397,6 +397,91 @@ class TestRunBatch(BatchCase):
         self.assertEqual(result.aggregateDir, "")
 
 
+class TestPruneFlag(BatchCase):
+    """--prune is strict opt-in: after a clean batch it unit-prunes rejected
+    candidates where provably regenerable, wf-sweeps the rest, and does
+    nothing at all in any other circumstance."""
+
+    def pruneReport(self):
+        return {"format_version": 1,
+                "candidates": [
+                    {"symbol": "AD", "timeframe_minutes": 60, "tradeable": False,
+                     "rejected_by": "mc", "wf_results": "AD_M60/wf_results.json"},
+                    {"symbol": "CL", "timeframe_minutes": 60, "tradeable": True,
+                     "rejected_by": "", "wf_results": "CL_M60/wf_results.json"}],
+                "tradeable": []}
+
+    def sideEffectWithUnits(self, specPath):
+        runName = os.path.basename(specPath)[:-len(".json")]
+        runDir = os.path.join(self.engineDir, "runs", runName)
+        writeSelection(runDir, report=self.pruneReport())
+        for symbol in ("AD", "CL"):
+            unit = os.path.join(runDir, f"{symbol}_M60")
+            touch(os.path.join(unit, "manifest.json"))
+            touch(os.path.join(unit, "wf_results.json"))
+
+    def wfExists(self, version, symbol):
+        return os.path.isfile(os.path.join(self.runDirFor(version),
+                                           f"{symbol}_M60", "wf_results.json"))
+
+    def test_withoutEpochsFallsBackToWfSweep(self):
+        # No data epochs exist, so unit-pruning refuses (with a warning) and
+        # the wf-sweep still reclaims what it losslessly can.
+        writeSpec(self.specDir, self.STEM, 1)
+        runner = FakeRunner(sideEffect=self.sideEffectWithUnits)
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertFalse(result.failed)
+        self.assertFalse(self.wfExists(1, "AD"))  # rejected: wf swept
+        self.assertTrue(self.wfExists(1, "CL"))   # tradeable: untouched
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.runDirFor(1), "AD_M60", "manifest.json")))
+        self.assertTrue(any("unit dirs" in w for w in result.warnings))
+
+    def test_eligibleUnitsAreDeletedWhole(self):
+        from tests.test_pruneRuns import (AD_CHUNKS, AD_SOURCE_HASH, writeManifest)
+        from tests.test_snapshotData import writeSymbol
+        import snapshotData as sd
+
+        writeSymbol(os.path.join(self.engineDir, sd.DATA_SUBDIR), "AD", AD_CHUNKS)
+        sd.snapshot(["AD"], self.cfg, echo=quiet)
+
+        def sideEffect(specPath):
+            self.sideEffectWithUnits(specPath)
+            runName = os.path.basename(specPath)[:-len(".json")]
+            runDir = os.path.join(self.engineDir, "runs", runName)
+            writeManifest(os.path.join(runDir, "AD_M60"), "AD",
+                          AD_SOURCE_HASH, 0xAAA)
+
+        writeSpec(self.specDir, self.STEM, 1)
+        runner = FakeRunner(sideEffect=sideEffect)
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertFalse(result.failed)
+        # AD's whole unit dir went (fingerprint covered by the epoch); the
+        # tradeable CL kept everything; the ledger records the deletion.
+        self.assertFalse(os.path.isdir(os.path.join(self.runDirFor(1), "AD_M60")))
+        self.assertTrue(self.wfExists(1, "CL"))
+        import pruneRuns
+        ledger = pruneRuns.loadLedger(self.runDirFor(1))
+        self.assertIn("AD_M60", ledger["units"])
+
+    def test_withoutFlagNothingIsPruned(self):
+        writeSpec(self.specDir, self.STEM, 1)
+        runner = FakeRunner(sideEffect=self.sideEffectWithUnits)
+        rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet)
+        self.assertTrue(self.wfExists(1, "AD"))
+
+    def test_failedVersionSkipsPruneEntirely(self):
+        writeSpec(self.specDir, self.STEM, 1)
+        writeSpec(self.specDir, self.STEM, 2)
+        runner = FakeRunner(returnCodes={f"{self.STEM}_v2": 3},
+                            sideEffect=self.sideEffectWithUnits)
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertTrue(result.failed)
+        # Even the clean version keeps its files: a failed batch prunes nothing.
+        self.assertTrue(self.wfExists(1, "AD"))
+        self.assertTrue(any("--prune skipped" in w for w in result.warnings))
+
+
 class TestFormatSummary(BatchCase):
     def test_statusAndCounts(self):
         outcomes = [

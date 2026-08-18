@@ -13,6 +13,13 @@ report is never handed to the engine again: its stored verdict is aggregated
 as-is. Re-invoking this tool on a finished batch is therefore pure file
 aggregation. Use --force after editing selection thresholds in the specs;
 nothing else ever recomputes an existing result.
+
+--prune (explicit opt-in, never implied) prunes rejected candidates after a
+FULLY successful batch: first their whole unit dirs where provably regenerable
+(pruneRuns.py --prune-units — needs v4 manifests plus a covering data epoch),
+then the lossless wf-prune sweeps the wf_results.json of whatever unit-pruning
+refused. Everything deleted comes back via `pruneRuns.py --regen`. A batch
+with any failed version prunes nothing.
 """
 
 import argparse
@@ -379,7 +386,7 @@ def writeAggregate(stem, outcomes, cfg, warnings):
 # --- orchestration -----------------------------------------------------------
 
 def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, echo=_echo,
-             verbose=False):
+             verbose=False, prune=False):
     stem = resolveStem(nameOrStem)
     specs = discoverSpecs(stem, cfg)
     if not specs:
@@ -396,6 +403,32 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
     preflightFeatureGate(stem, cfg, warnings)
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose)
     aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
+
+    # Opt-in only: pruning happens strictly because --prune was typed on this
+    # invocation, and only over a clean batch — a failed version might still be
+    # re-run, and its results must be intact when it is.
+    if prune:
+        if any(not o.ok for o in outcomes):
+            warnings.append("--prune skipped: the batch has failed version(s); "
+                            "prune manually with pruneRuns.py once they pass.")
+        elif not aggregateDir:
+            warnings.append("--prune skipped: no aggregate was written.")
+        else:
+            import pruneRuns  # deferred: pruneRuns imports this module
+            # Unit dirs first (the ~99% prune, where provably regenerable),
+            # then the lossless wf-sweep catches what unit-pruning refused —
+            # legacy manifests or data no epoch covers yet.
+            echo("Pruning rejected candidates' unit dirs (--prune):")
+            try:
+                pruneRuns.pruneUnits(stem, cfg, delete=True, echo=echo)
+            except GenerationError as exc:
+                warnings.append(f"--prune (unit dirs) skipped: {exc}")
+            echo(f"Sweeping remaining rejected {pruneRuns.WF_RESULTS} (--prune):")
+            try:
+                pruneRuns.pruneWf(stem, cfg, delete=True, echo=echo)
+            except GenerationError as exc:
+                warnings.append(f"--prune (wf sweep) failed: {exc}")
+
     return BatchResult(stem, outcomes, aggregateDir, aggregated, warnings, reports)
 
 
@@ -446,12 +479,17 @@ def main(argv=None):
     parser.add_argument("--verbose", action="store_true",
                         help="let the engine print its progress and warnings "
                              "instead of errors only (run.log has them either way)")
+    parser.add_argument("--prune", action="store_true",
+                        help="after a fully successful batch, delete rejected "
+                             "candidates' unit dirs where provably regenerable, "
+                             "then their remaining wf_results.json (all restorable "
+                             "via pruneRuns.py --regen); never runs unless asked")
     args = parser.parse_args(argv)
 
     try:
         result = runBatch(args.strategy, config.load(),
                           threads=args.threads, force=args.force,
-                          verbose=args.verbose)
+                          verbose=args.verbose, prune=args.prune)
     except GenerationError as exc:
         print(exc, file=sys.stderr)
         return 2
