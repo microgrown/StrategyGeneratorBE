@@ -4,6 +4,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -25,16 +26,26 @@ def writeChunk(path, sourceHash, sessionHash, symbol=b"AD"):
         f.write(header)
 
 
+def isoDay(serial):
+    return (date(1970, 1, 1) + timedelta(days=serial)).isoformat()
+
+
 def writeSymbol(dataRoot, symbol, chunks):
-    """chunks: [(relPath, timeframe, firstDay, lastDay, sourceHash, sessionHash)]"""
+    """chunks: [(relPath, timeframe, firstDay, lastDay, sourceHash, sessionHash)]
+    (days as serials, hashes as ints). The index.json is written in the
+    ENGINE's real on-disk forms — ISO date strings, 16-digit hex source_hash,
+    a "source" key — because reading those correctly is exactly what these
+    tests must prove (a fixture of convenient ints once hid a crash on the
+    real store)."""
     symbolDir = os.path.join(dataRoot, symbol)
     index = {"symbol": symbol, "chunks": []}
     for rel, tf, first, last, source, session in chunks:
         writeChunk(os.path.join(symbolDir, *rel.split("/")), source, session)
         index["chunks"].append({"path": rel, "timeframe_minutes": tf,
-                                "first_day": first, "last_day": last,
-                                "record_count": 0, "derived": False,
-                                "source_hash": source})
+                                "first_day": isoDay(first),
+                                "last_day": isoDay(last),
+                                "record_count": 0, "source": "imported",
+                                "source_hash": f"{source:016x}"})
     os.makedirs(symbolDir, exist_ok=True)
     with open(os.path.join(symbolDir, "index.json"), "w") as f:
         json.dump(index, f)
@@ -125,6 +136,34 @@ class SnapshotTest(unittest.TestCase):
     def testRestoreUnknownEpochErrors(self):
         with self.assertRaises(GenerationError):
             sd.restore("nope", "AD", self.cfg, echo=quiet)
+
+    def testFingerprintNormalizesEngineIndexForms(self):
+        # Straight off the real index.json shapes: ISO dates -> serials,
+        # hex source_hash -> int, "source" -> derived flag.
+        chunks = sd.symbolFingerprint(self.dataRoot, "AD")
+        self.assertEqual(chunks[0]["first_day"], 18628)
+        self.assertEqual(chunks[0]["last_day"], 18992)
+        self.assertEqual(chunks[0]["source_hash"], 0x111)
+        self.assertFalse(chunks[0]["derived"])
+
+    def testLoadRegistryNormalizesLegacyRawEntries(self):
+        # A registry written before normalization carries the raw index forms;
+        # loading it must make them comparable to manifest fingerprints.
+        rawChunk = {"path": "M60/2021.btck", "timeframe_minutes": 60,
+                    "first_day": "2021-01-01", "last_day": "2021-12-31",
+                    "derived": False, "source_hash": "0000000000000111",
+                    "session_hash": 0xAAA}
+        sd.saveRegistry(self.cfg, {"epochs": [
+            {"id": "x", "created_utc": "", "note": "",
+             "symbols": {"AD": {"archive": "x/AD.zip", "chunks": [rawChunk]}}}]})
+        registry = sd.loadRegistry(self.cfg)
+        chunk = registry["epochs"][0]["symbols"]["AD"]["chunks"][0]
+        self.assertEqual(chunk["first_day"], 18628)
+        self.assertEqual(chunk["source_hash"], 0x111)
+        self.assertEqual(
+            sd.combinedSourceHash(registry["epochs"][0]["symbols"]["AD"]["chunks"],
+                                  60, 18628, 18992),
+            sd.fnv1aBytes(struct.pack("<Q", 0x111)))
 
     def testBadMagicRejected(self):
         with open(os.path.join(self.dataRoot, "AD", "M60", "2021.btck"), "wb") as f:

@@ -34,6 +34,8 @@ import sys
 import zipfile
 from datetime import datetime, timezone
 
+from datetime import date
+
 import config
 from strategyWriter import GenerationError
 
@@ -102,9 +104,31 @@ def readChunkSessionHash(path):
     return fields[9]
 
 
+def _chunkDay(value):
+    """The engine's index.json writes first_day/last_day as ISO dates
+    ("2007-01-02"); normalize to the day serial everything here computes on.
+    Already-numeric values (a normalized registry) pass through."""
+    if isinstance(value, str):
+        return (date.fromisoformat(value) - _EPOCH_DATE).days
+    return value
+
+
+def _chunkHash(value):
+    """index.json writes source_hash as a 16-digit hex string; run manifests
+    and this module's registry use the integer."""
+    if isinstance(value, str):
+        return int(value, 16)
+    return value
+
+
+_EPOCH_DATE = date(1970, 1, 1)
+
+
 def symbolFingerprint(dataRoot, symbol):
     """Every chunk of one symbol with its hashes: index.json supplies the
-    structure and source_hash, the .btck header supplies session_hash."""
+    structure and source_hash, the .btck header supplies session_hash. Values
+    are normalized (day serials, integer hashes) so they compare directly
+    against run-manifest fingerprints."""
     symbolDir = os.path.join(dataRoot, symbol)
     indexPath = os.path.join(symbolDir, "index.json")
     try:
@@ -115,13 +139,15 @@ def symbolFingerprint(dataRoot, symbol):
     chunks = []
     for entry in index.get("chunks", []):
         chunkPath = os.path.join(symbolDir, *entry["path"].split("/"))
+        derived = (entry["source"] == "derived" if "source" in entry
+                   else entry.get("derived", False))
         chunks.append({
             "path": entry["path"],
             "timeframe_minutes": entry["timeframe_minutes"],
-            "first_day": entry["first_day"],
-            "last_day": entry["last_day"],
-            "derived": entry.get("derived", False),
-            "source_hash": entry["source_hash"],
+            "first_day": _chunkDay(entry["first_day"]),
+            "last_day": _chunkDay(entry["last_day"]),
+            "derived": derived,
+            "source_hash": _chunkHash(entry["source_hash"]),
             "session_hash": readChunkSessionHash(chunkPath),
         })
     return chunks
@@ -136,11 +162,21 @@ def registryPath(cfg):
 def loadRegistry(cfg):
     try:
         with open(registryPath(cfg), encoding="utf-8-sig") as f:
-            return json.load(f)
+            registry = json.load(f)
     except OSError:
         return {"epochs": []}
     except ValueError as exc:
         raise GenerationError(f"corrupt {registryPath(cfg)}: {exc}")
+    # Registries written before value normalization carry the index.json raw
+    # forms (ISO dates, hex-string hashes); normalize on load so every consumer
+    # compares like with like, and the next save persists the normalized form.
+    for epoch in registry.get("epochs", []):
+        for entry in epoch.get("symbols", {}).values():
+            for chunk in entry.get("chunks", []):
+                chunk["first_day"] = _chunkDay(chunk["first_day"])
+                chunk["last_day"] = _chunkDay(chunk["last_day"])
+                chunk["source_hash"] = _chunkHash(chunk["source_hash"])
+    return registry
 
 
 def saveRegistry(cfg, registry):
