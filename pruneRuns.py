@@ -37,6 +37,7 @@ that is still producing results.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -106,6 +107,25 @@ def loadReport(runDir):
 
 # --- prune-wf ----------------------------------------------------------------
 
+@contextlib.contextmanager
+def preservedMtime(path):
+    """Deleting or creating entries inside a directory bumps its mtime, and the
+    engine GUI's run browser sorts runs by exactly that stamp — so without this,
+    pruning a family shuffles its versions above the (untouched) aggregate.
+    Pruning removes derived data; it is not activity worth resorting by.
+    Regeneration, by contrast, is, and deliberately does not use this."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        stat = None
+    try:
+        yield
+    finally:
+        if stat is not None:
+            with contextlib.suppress(OSError):
+                os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+
+
 def rejectedWfPaths(runDir, report, warnings):
     """Absolute wf_results.json paths for the run's rejected candidates.
 
@@ -158,9 +178,16 @@ def pruneWf(family, cfg, delete=False, echo=_echo):
         size = sum(os.path.getsize(p) for p in targets)
         totalFiles += len(targets)
         totalBytes += size
-        if delete:
-            for path in targets:
-                os.remove(path)
+        if delete and targets:
+            # The version dir and each unit dir keep their timestamps: the
+            # deletions bump the unit dirs directly, and belt-and-braces the
+            # run dir too.
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(preservedMtime(runDir))
+                for unitDir in sorted({os.path.dirname(p) for p in targets}):
+                    stack.enter_context(preservedMtime(unitDir))
+                for path in targets:
+                    os.remove(path)
         verb = "deleted" if delete else "would delete"
         echo(f"  {runName}: {verb} {len(targets)} file(s), {size / 2**20:.1f} MB")
     for warning in warnings:
@@ -327,12 +354,15 @@ def pruneUnits(family, cfg, delete=False, echo=_echo):
         totalUnits += len(eligible)
         totalBytes += size
         if delete and eligible:
-            ledger = loadLedger(runDir)
-            for unitName, unitDir, entry, _size in eligible:
-                ledger["units"][unitName] = entry
-            saveLedger(runDir, ledger)  # the ledger lands before anything dies
-            for _name, unitDir, _entry, _size in eligible:
-                shutil.rmtree(unitDir)
+            # Writing the ledger and deleting unit dirs both bump the version
+            # dir's mtime; keep it so pruning never reorders the GUI run list.
+            with preservedMtime(runDir):
+                ledger = loadLedger(runDir)
+                for unitName, unitDir, entry, _size in eligible:
+                    ledger["units"][unitName] = entry
+                saveLedger(runDir, ledger)  # the ledger lands before anything dies
+                for _name, unitDir, _entry, _size in eligible:
+                    shutil.rmtree(unitDir)
         verb = "deleted" if delete else "would delete"
         echo(f"  {runName}: {verb} {len(eligible)} unit dir(s), {size / 2**20:.1f} MB")
     for warning in warnings:

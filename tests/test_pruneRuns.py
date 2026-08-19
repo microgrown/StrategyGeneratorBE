@@ -141,6 +141,19 @@ class PruneWfTest(unittest.TestCase):
         with self.assertRaises(GenerationError):
             pr.pruneWf("nope", self.cfg, echo=quiet)
 
+    def testDeletePreservesDirectoryTimestamps(self):
+        # The GUI run browser sorts by directory mtime; pruning must not
+        # reorder the list (it shuffled version dirs above their aggregate).
+        stem = self.makeFamily()
+        runDir = os.path.join(self.runs, f"{stem}_v1")
+        unitDir = os.path.join(runDir, "AD_M60")
+        old = 1_600_000_000
+        os.utime(runDir, (old, old))
+        os.utime(unitDir, (old, old))
+        pr.pruneWf(stem, self.cfg, delete=True, echo=quiet)
+        self.assertEqual(os.stat(runDir).st_mtime, old)
+        self.assertEqual(os.stat(unitDir).st_mtime, old)
+
     def testAlreadyPrunedIsIdempotent(self):
         stem = self.makeFamily()
         pr.pruneWf(stem, self.cfg, delete=True, echo=quiet)
@@ -213,6 +226,16 @@ class PruneUnitsTest(unittest.TestCase):
         self.assertEqual(units, 1)
         self.assertTrue(os.path.isdir(os.path.join(runDir, "AD_M60")))
         self.assertFalse(os.path.isfile(os.path.join(runDir, pr.PRUNE_LEDGER)))
+
+    def testDeletePreservesVersionDirTimestamp(self):
+        # Ledger write + unit rmtree both bump the version dir, which would
+        # push it above its family aggregate in the GUI's newest-first list.
+        stem, runDir = self.makeRun()
+        old = 1_600_000_000
+        os.utime(runDir, (old, old))
+        pr.pruneUnits(stem, self.cfg, delete=True, echo=quiet)
+        self.assertFalse(os.path.isdir(os.path.join(runDir, "AD_M60")))
+        self.assertEqual(os.stat(runDir).st_mtime, old)
 
     def testLegacyManifestIsRefused(self):
         stem, runDir = self.makeRun(adSourceHash=0)
