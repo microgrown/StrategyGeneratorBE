@@ -50,16 +50,27 @@ often than yes.
 | `squareroot` `absvalue` | ACCEPTED | Pure scalar arithmetic, no state, no accumulation — nothing to measure | — |
 | `maxlist` `minlist` | **UNKNOWN** | **Not EL source**, so whether they carry the relational tolerance is unestablished. Inert in the corpus today only because `AtrProfitTarget`'s stand-in loop compares tick-grid prices that differ by zero or by ≥1 tick — 1e9–1e11× the tolerance | `el_compare.h` says so explicitly |
 | `mod` | **UNKNOWN** | Sign behaviour on **negative** operands differs between C++ `%`, `std::fmod` and EL's `Mod`, and nothing has measured which EL follows | — |
+| `adx` | VERIFIED | **Identical to `wfsafe_adx` on all 18,141 probed bars at fixed length** (the probe's `ovr` column: 0 throughout) — the WFSafe wrapper's only change is recomputing `SF = 1/Length` per bar, inert when Length never changes. MW strategies call `wfsafe_adx`, which is the row rules are held to; see it for the full verified model | `EL_ADX_Probe.txt` (cross-check column); `el_source_wfsafe_adx.txt` header |
 
 ## MultiWalk overrides
 
 A `WFSafe_` wrapper is a **different function** from the EL built-in it
 resembles, and it wins. Where MultiWalk provides no override, follow plain EL.
 
+**Time-series functions generally compare against the `WFSafe_` version.**
+MultiWalk wraps the series functions its strategies use — anything that
+accumulates state across bars (ATR, summation, ADX, ...) — so when a rule
+reaches for one, the default assumption is that the MW twin calls the
+`WFSafe_` variant, and *that* is the gold standard to probe; probing the plain
+built-in answers the wrong question. Scalar functions and the ones measured
+plain above (`average`, `stddev` over variables) are the exceptions, not the
+rule.
+
 | Feature | Status | What is known | Evidence |
 |---|---|---|---|
 | `wfsafe_avgtruerange` | VERIFIED | A **rolling accumulator**, not a fresh mean: seeded with a full N-term sum on the study's first calculated bar (MaxBarsBack + 1), then `S = S[1] + value − value[Length]`, re-seeding when the length changes. The update is **two statements** — EL evaluates left to right, and folding to `S += in − out` rounds differently and lands on the other side of a threshold | `EL_WFSafeAtr_Probe.txt`, `EL_WFSafeSeed_Probe.txt`; `EL_HO_WFSafeAtr_Probe.txt` reproduces TradeStation on **112,705/112,705** bars |
 | `wfsafe_summationfc` | **UNKNOWN** | Named in MultiWalk's library and presumed to share the rolling/re-seeding shape, but never measured | — |
+| `wfsafe_adx` | VERIFIED | Source-faithful port reproduces TradeStation **bit for bit: drift-exact on 9,794/9,794 bars (2007-start run) and 8,287/8,287 bars (2010-start run)** of @OJ 240min. The verified model: MW's `WFSafe_DirMovement` (source on file — TS's `DirMovement` with `SF = 1/Length` recomputed per bar so a walkforward length change takes effect; **no re-seed on length change**, unlike `wfsafe_avgtruerange` — the accumulators carry over), **seeded at the study's first calculated bar** (function `CurrentBar` = study `CurrentBar`): fresh Length-term DM/TR sums reaching `Length` bars back, then EMA-form `Avg = Avg[1] + SF*(X − Avg[1])`; `oADX` warms up as `Cum(oDMI)/CurrentBar` through bar Length, then `oADX = oADX[1] + SF*(oDMI − oADX[1])`. **The relational tolerance is decisive in the DM classification**: `UpperMove`/`LowerMove` are differences of grid prices, so float noise manufactures near-ties — measured at 2010-02-01 12:00, up = 9.60−8.55 = 1.0499999999999998 vs dn = 6.65−5.60 = 1.0500000000000007: raw `>` assigns MinusDM = 1.05, EL assigns nothing, and that single bar was the entire 2010-run seed mismatch. Identical to plain `adx` at fixed length (`ovr` = 0 on all 18,141 bars). The chain is contractive (~(13/14)^n), so the two runs collapse to bit-identical doubles ~500 bars in | `EL_ADX_Probe.txt`; `el_adx_output1/2.txt`; `el_source_wfsafe_adx.txt`, `el_source_wfsafe_dirmovement.txt`; `scripts/adx_replica.py` |
 | any other `wfsafe_*` | **UNKNOWN** | Assume it overrides the built-in and differs from it | — |
 
 ## Position and account built-ins

@@ -1,0 +1,29 @@
+{
+    "name": "AtrTrailingStop",
+    "type": "Exit",
+    "inputVariables": {
+        "lookback": "15",
+        "multiple": "3"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: it is seeded once with a full sum on the study's first calculated bar and\n// thereafter carries S += TrueRange - TrueRange[Length]. Its low bits therefore\n// depend on every bar since the seed, and reproducing them means rolling the\n// same way rather than recomputing more accurately.\n//\n// Measured on @OJ 240min (0.05 tick -- a 0.25-tick symbol cannot show this at\n// all, because sums of dyadic values are exact): the rolling model reproduces\n// TradeStation on 2,808 of 2,808 bars where a fresh sum manages 92, and it is\n// what makes the 2015-02-20 profit target fire where a fresh sum leaves it a\n// hair short. EL_WFSafeSeed_Probe.txt pins the seed: drift is 0 at each run's\n// own first calculated bar and diverges with both MaxBarsBack and the chart\n// start, so the seed is MaxBarsBack + 1 -- the first bar OnBarClose runs.\n//\n// atrLength != lookback also re-seeds, which is what the WFSafe_ wrappers do\n// when a walkforward re-optimization changes the length.\nif (atrLength != (int)lookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)lookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)lookback;\n} else {\n    const int out = (int)lookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    // TWO statements, not one. EasyLanguage writes\n    //     Summation = Summation[1] + Price - Price[Length]\n    // which evaluates left to right as (S + in) - out. Folding it to\n    // S + (in - out) is a different rounding and lands on the other side of the\n    // threshold at @OJ 2015-02-20: (S+in)-out gives 1722.4999999999977 and\n    // fires, S+(in-out) gives 1722.5000000000066 and does not.\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)lookback;",
+    "longCondition": "el_gt(ctx.MaxPositionProfit() - ctx.OpenPositionProfit(), multiple * atr * ctx.BigPointValue())",
+    "shortCondition": "el_gt(ctx.MaxPositionProfit() - ctx.OpenPositionProfit(), multiple * atr * ctx.BigPointValue())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

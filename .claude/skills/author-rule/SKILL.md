@@ -153,7 +153,12 @@ Four ways this has gone wrong before, all of them silent:
 - **A MultiWalk `WFSafe_` override is a DIFFERENT function from the EL built-in
   it resembles, and it wins.** If the EasyLanguage twin calls
   `WFSafe_AvgTrueRange`, `WFSafe_SummationFC` or any other `WFSafe_` wrapper,
-  the C++ must reproduce *that*, not the plain built-in. Measured: WFSafe's
+  the C++ must reproduce *that*, not the plain built-in. And assume the twin
+  *does*: MultiWalk wraps the time-series functions its strategies use —
+  anything accumulating state across bars (ATR, summation, ADX, ...) — so a
+  rule reaching for one compares against the `WFSafe_` version by default, and
+  a probe for an unmeasured series function must target the `WFSafe_` variant,
+  not the plain built-in (`EL_FEATURES.md` §"MultiWalk overrides"). Measured: WFSafe's
   series functions keep a **rolling accumulator** — seeded with a fresh N-term
   sum on the study's first calculated bar, then
   `S = S[1] + value - value[Length]` — while EasyLanguage's own `Average` and
