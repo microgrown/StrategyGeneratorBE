@@ -14,12 +14,16 @@ as-is. Re-invoking this tool on a finished batch is therefore pure file
 aggregation. Use --force after editing selection thresholds in the specs;
 nothing else ever recomputes an existing result.
 
---prune (explicit opt-in, never implied) prunes rejected candidates after a
-FULLY successful batch: first their whole unit dirs where provably regenerable
-(pruneRuns.py --prune-units — needs v4 manifests plus a covering data epoch),
-then the lossless wf-prune sweeps the wf_results.json of whatever unit-pruning
-refused. Everything deleted comes back via `pruneRuns.py --regen`. A batch
-with any failed version prunes nothing.
+--prune (explicit opt-in, never implied) reclaims disk as the batch goes:
+after each version completes, the aggregate-so-far is refreshed and that
+version's rejected candidates are pruned — first their whole unit dirs where
+provably regenerable (needs v4 manifests plus a covering data epoch), then
+the lossless wf-sweep of whatever unit-pruning refused — so disk never holds
+much more than the survivors plus one full version. Everything deleted comes
+back via `pruneRuns.py --regen`. A data epoch must already exist (python
+snapshotData.py --snapshot); without one the batch fails up front, before any
+engine time is spent. Failed versions are left unpruned so they can be re-run
+intact.
 """
 
 import argparse
@@ -139,10 +143,12 @@ def hasSelectionOutput(runDir):
 # --- engine invocation -------------------------------------------------------
 
 def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo,
-             verbose=False):
+             verbose=False, onOutcome=None):
     """Run bt_walkforward for every version without selection output (all of
     them under --force). Sequential — the engine parallelizes internally.
     Failures don't stop the batch; each outcome records its exit code.
+    onOutcome, when given, is called with each outcome as it lands (skipped
+    and failed ones included) — the hook interleaved pruning hangs off.
 
     One line per version: the engine runs under --quiet, so it prints only
     genuine errors (its run.log still records everything), and the line opened
@@ -168,6 +174,8 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
         if skip:
             echo(f"[{i}/{len(plans)}] {runName} — results exist, skipping")
             outcomes.append(RunOutcome(version, specPath, runDir, 0, True))
+            if onOutcome:
+                onOutcome(outcomes[-1])
             continue
         echo(f"[{i}/{len(plans)}] {runName} ... ", end="")
         command = [binary, "--spec", specPath, "--threads", str(threads)]
@@ -179,6 +187,8 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
         status = "OK" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"
         echo(f"{status} {elapsed:.1f}s")
         outcomes.append(RunOutcome(version, specPath, runDir, proc.returncode))
+        if onOutcome:
+            onOutcome(outcomes[-1])
     return outcomes
 
 
@@ -401,33 +411,44 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
     warnings = []
     preflightSelectionWarning(specs, warnings)
     preflightFeatureGate(stem, cfg, warnings)
-    outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose)
-    aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
 
     # Opt-in only: pruning happens strictly because --prune was typed on this
-    # invocation, and only over a clean batch — a failed version might still be
-    # re-run, and its results must be intact when it is.
+    # invocation. It is interleaved — each version's rejects are pruned as soon
+    # as that version succeeds, so disk never accumulates the whole family —
+    # which is why the epoch check must fail HERE, before any engine time is
+    # spent, rather than after the first version has already run.
+    registry = None
+    if prune:
+        import pruneRuns  # deferred: pruneRuns imports this module
+        registry = pruneRuns.requireEpochs(cfg)
+
+    seen = []
+
+    def afterVersion(outcome):
+        seen.append(outcome)
+        if not (prune and outcome.ok and hasSelectionOutput(outcome.runDir)):
+            return  # failed versions stay intact for their re-run
+        runName = f"{stem}_v{outcome.version}"
+        try:
+            # Roll the verdicts up before touching data: the aggregate-so-far
+            # is what makes the finished versions' results safe to prune (the
+            # final writeAggregate below re-derives it with warnings kept).
+            writeAggregate(stem, seen, cfg, [])
+            echo(f"Pruning {runName} rejects (--prune):")
+            pruneRuns.pruneVersion(stem, outcome.version, cfg, registry, echo=echo)
+        except GenerationError as exc:
+            warnings.append(f"--prune ({runName}) failed: {exc}")
+
+    outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose,
+                        onOutcome=afterVersion if prune else None)
+    aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
+
     if prune:
         if any(not o.ok for o in outcomes):
-            warnings.append("--prune skipped: the batch has failed version(s); "
+            warnings.append("--prune: failed version(s) were left unpruned; "
                             "prune manually with pruneRuns.py once they pass.")
-        elif not aggregateDir:
+        if not aggregateDir:
             warnings.append("--prune skipped: no aggregate was written.")
-        else:
-            import pruneRuns  # deferred: pruneRuns imports this module
-            # Unit dirs first (the ~99% prune, where provably regenerable),
-            # then the lossless wf-sweep catches what unit-pruning refused —
-            # legacy manifests or data no epoch covers yet.
-            echo("Pruning rejected candidates' unit dirs (--prune):")
-            try:
-                pruneRuns.pruneUnits(stem, cfg, delete=True, echo=echo)
-            except GenerationError as exc:
-                warnings.append(f"--prune (unit dirs) skipped: {exc}")
-            echo(f"Sweeping remaining rejected {pruneRuns.WF_RESULTS} (--prune):")
-            try:
-                pruneRuns.pruneWf(stem, cfg, delete=True, echo=echo)
-            except GenerationError as exc:
-                warnings.append(f"--prune (wf sweep) failed: {exc}")
 
     return BatchResult(stem, outcomes, aggregateDir, aggregated, warnings, reports)
 
@@ -480,10 +501,12 @@ def main(argv=None):
                         help="let the engine print its progress and warnings "
                              "instead of errors only (run.log has them either way)")
     parser.add_argument("--prune", action="store_true",
-                        help="after a fully successful batch, delete rejected "
-                             "candidates' unit dirs where provably regenerable, "
-                             "then their remaining wf_results.json (all restorable "
-                             "via pruneRuns.py --regen); never runs unless asked")
+                        help="prune each version's rejected candidates as soon "
+                             "as it completes: delete their unit dirs where "
+                             "provably regenerable, then their remaining "
+                             "wf_results.json (all restorable via pruneRuns.py "
+                             "--regen); requires a data epoch (snapshotData.py "
+                             "--snapshot) and never runs unless asked")
     args = parser.parse_args(argv)
 
     try:

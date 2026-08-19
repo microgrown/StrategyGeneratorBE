@@ -257,6 +257,60 @@ class PruneUnitsTest(unittest.TestCase):
             pr.pruneUnits(stem, self.cfg, delete=True, echo=quiet)
 
 
+class PruneVersionTest(unittest.TestCase):
+    """runBatch's interleaved per-version prune: unit dirs where covered,
+    then the wf-sweep, for exactly one completed version."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cfg = {"engineDir": self.tmp.name}
+        self.runs = os.path.join(self.tmp.name, rb.RUNS_SUBDIR)
+        self.dataRoot = os.path.join(self.tmp.name, sd.DATA_SUBDIR)
+        writeSymbol(self.dataRoot, "AD", AD_CHUNKS)
+        sd.snapshot(["AD"], self.cfg, echo=quiet)
+        self.registry = pr.requireEpochs(self.cfg)
+        self.runDir = os.path.join(self.runs, "fam_v1")
+        adUnit = writeUnit(self.runDir, "AD", 60)
+        writeManifest(adUnit, "AD", AD_SOURCE_HASH, 0xAAA)
+        clUnit = writeUnit(self.runDir, "CL", 60)
+        writeManifest(clUnit, "CL", 0x999, 0xBBB)  # fingerprint no epoch covers
+        writeRunReport(self.runDir, [candidate("AD", 60, False),
+                                     candidate("CL", 60, False)])
+        aggDir = os.path.join(self.runs, "fam")
+        os.makedirs(aggDir, exist_ok=True)
+        with open(os.path.join(aggDir, rb.REPORT_JSON), "w") as f:
+            json.dump({"aggregated_by": rb.AGGREGATE_MARKER, "runs": {}}, f)
+
+    def testUnitsThenWfSweep(self):
+        pr.pruneVersion("fam", 1, self.cfg, self.registry, echo=quiet)
+        # AD (epoch-covered) went whole; CL (uncovered) kept its unit dir and
+        # cache but lost its wf_results to the sweep.
+        self.assertFalse(os.path.isdir(os.path.join(self.runDir, "AD_M60")))
+        self.assertTrue(os.path.isdir(os.path.join(self.runDir, "CL_M60")))
+        self.assertFalse(os.path.isfile(
+            os.path.join(self.runDir, "CL_M60", pr.WF_RESULTS)))
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.runDir, "CL_M60", "CL.equity.bin")))
+        self.assertIn("AD_M60", pr.loadLedger(self.runDir)["units"])
+
+    def testRefusesWithoutAggregate(self):
+        os.remove(os.path.join(self.runs, "fam", rb.REPORT_JSON))
+        with self.assertRaises(GenerationError):
+            pr.pruneVersion("fam", 1, self.cfg, self.registry, echo=quiet)
+
+    def testRefusesWithoutReport(self):
+        os.remove(os.path.join(self.runDir, rb.REPORT_JSON))
+        with self.assertRaises(GenerationError):
+            pr.pruneVersion("fam", 1, self.cfg, self.registry, echo=quiet)
+
+    def testRequireEpochsMentionsSnapshot(self):
+        os.remove(sd.registryPath(self.cfg))
+        with self.assertRaises(GenerationError) as ctx:
+            pr.requireEpochs(self.cfg)
+        self.assertIn("snapshotData.py --snapshot", str(ctx.exception))
+
+
 class RegenTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

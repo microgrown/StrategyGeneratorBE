@@ -96,10 +96,13 @@ Runs are large (hundreds of MB to GB per version). Three tools keep the
 footprint manageable without ever losing a verdict. **Nothing prunes unless
 you ask**: every prune is a dry run until you add `--delete`, tradeable
 candidates are never touched, and the one shortcut —
-`runBatch.py <strategy> --prune`, which after a fully successful batch
-deletes rejected units where provably regenerable and then wf-sweeps the
-rest (~99% of a failing family) — only acts because you typed the flag on
-that invocation.
+`runBatch.py <strategy> --prune`, which prunes each version's rejects as
+soon as that version completes (units where provably regenerable, then the
+wf-sweep; ~99% of a failing family), so a large family never accumulates
+more than its survivors plus one full version — only acts because you typed
+the flag on that invocation. It needs a data epoch to exist and fails up
+front, before any engine time is spent, when there is none; failed versions
+are left unpruned so they can be re-run intact.
 
 ```
 python pruneRuns.py --status                       # per-family footprint

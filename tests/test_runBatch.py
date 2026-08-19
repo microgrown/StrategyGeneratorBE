@@ -398,9 +398,11 @@ class TestRunBatch(BatchCase):
 
 
 class TestPruneFlag(BatchCase):
-    """--prune is strict opt-in: after a clean batch it unit-prunes rejected
-    candidates where provably regenerable, wf-sweeps the rest, and does
-    nothing at all in any other circumstance."""
+    """--prune is strict opt-in and interleaved: each version's rejected
+    candidates are pruned as soon as that version succeeds (unit dirs where
+    provably regenerable, wf-sweep for the rest), so disk never accumulates
+    the whole family. It refuses up front without a data epoch and never
+    touches failed versions."""
 
     def pruneReport(self):
         return {"format_version": 1,
@@ -424,9 +426,28 @@ class TestPruneFlag(BatchCase):
         return os.path.isfile(os.path.join(self.runDirFor(version),
                                            f"{symbol}_M60", "wf_results.json"))
 
-    def test_withoutEpochsFallsBackToWfSweep(self):
-        # No data epochs exist, so unit-pruning refuses (with a warning) and
-        # the wf-sweep still reclaims what it losslessly can.
+    def makeEpoch(self):
+        from tests.test_pruneRuns import AD_CHUNKS
+        from tests.test_snapshotData import writeSymbol
+        import snapshotData as sd
+        writeSymbol(os.path.join(self.engineDir, sd.DATA_SUBDIR), "AD", AD_CHUNKS)
+        sd.snapshot(["AD"], self.cfg, echo=quiet)
+
+    def test_withoutEpochsFailsBeforeAnyRun(self):
+        # Interleaved pruning deletes as it goes, so the missing-snapshot
+        # error must land before any engine time is spent.
+        writeSpec(self.specDir, self.STEM, 1)
+        runner = FakeRunner(sideEffect=self.sideEffectWithUnits)
+        with self.assertRaises(GenerationError) as ctx:
+            rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertIn("snapshotData.py --snapshot", str(ctx.exception))
+        self.assertEqual(runner.calls, [])
+
+    def test_uncoveredUnitsStillGetWfSweep(self):
+        # An epoch exists, but these units' manifests carry no readable
+        # fingerprint: unit-pruning refuses them and the wf-sweep still
+        # reclaims what it losslessly can.
+        self.makeEpoch()
         writeSpec(self.specDir, self.STEM, 1)
         runner = FakeRunner(sideEffect=self.sideEffectWithUnits)
         result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
@@ -435,15 +456,10 @@ class TestPruneFlag(BatchCase):
         self.assertTrue(self.wfExists(1, "CL"))   # tradeable: untouched
         self.assertTrue(os.path.isfile(
             os.path.join(self.runDirFor(1), "AD_M60", "manifest.json")))
-        self.assertTrue(any("unit dirs" in w for w in result.warnings))
 
     def test_eligibleUnitsAreDeletedWhole(self):
-        from tests.test_pruneRuns import (AD_CHUNKS, AD_SOURCE_HASH, writeManifest)
-        from tests.test_snapshotData import writeSymbol
-        import snapshotData as sd
-
-        writeSymbol(os.path.join(self.engineDir, sd.DATA_SUBDIR), "AD", AD_CHUNKS)
-        sd.snapshot(["AD"], self.cfg, echo=quiet)
+        from tests.test_pruneRuns import AD_SOURCE_HASH, writeManifest
+        self.makeEpoch()
 
         def sideEffect(specPath):
             self.sideEffectWithUnits(specPath)
@@ -470,16 +486,53 @@ class TestPruneFlag(BatchCase):
         rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet)
         self.assertTrue(self.wfExists(1, "AD"))
 
-    def test_failedVersionSkipsPruneEntirely(self):
-        writeSpec(self.specDir, self.STEM, 1)
-        writeSpec(self.specDir, self.STEM, 2)
+    def test_pruneRunsBetweenVersionsNotAfterTheBatch(self):
+        # The disk-space property the interleaving exists for: by the time
+        # version 2 starts, version 1's rejects are already gone.
+        self.makeEpoch()
+        for n in (1, 2):
+            writeSpec(self.specDir, self.STEM, n)
+        v1StateWhenV2Ran = []
+
+        def sideEffect(specPath):
+            if specPath.endswith("_v2.json"):
+                v1StateWhenV2Ran.append(self.wfExists(1, "AD"))
+            self.sideEffectWithUnits(specPath)
+
+        runner = FakeRunner(sideEffect=sideEffect)
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertFalse(result.failed)
+        self.assertEqual(v1StateWhenV2Ran, [False])
+        self.assertFalse(self.wfExists(2, "AD"))
+
+    def test_failedVersionIsLeftUnpruned(self):
+        self.makeEpoch()
+        for n in (1, 2):
+            writeSpec(self.specDir, self.STEM, n)
         runner = FakeRunner(returnCodes={f"{self.STEM}_v2": 3},
                             sideEffect=self.sideEffectWithUnits)
         result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
         self.assertTrue(result.failed)
-        # Even the clean version keeps its files: a failed batch prunes nothing.
+        # The clean version was pruned as it finished; the failed one keeps
+        # everything so it can be re-run intact.
+        self.assertFalse(self.wfExists(1, "AD"))
+        self.assertTrue(self.wfExists(2, "AD"))
+        self.assertTrue(any("left unpruned" in w for w in result.warnings))
+
+    def test_cachedVersionsArePrunedOnRerun(self):
+        # A finished batch re-invoked with --prune reclaims disk without
+        # ever touching the engine.
+        self.makeEpoch()
+        writeSpec(self.specDir, self.STEM, 1)
+        rb.runBatch(self.STEM, self.cfg,
+                    runner=FakeRunner(sideEffect=self.sideEffectWithUnits), echo=quiet)
         self.assertTrue(self.wfExists(1, "AD"))
-        self.assertTrue(any("--prune skipped" in w for w in result.warnings))
+        runner = FakeRunner()
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
+        self.assertEqual(runner.calls, [])
+        self.assertFalse(result.failed)
+        self.assertFalse(self.wfExists(1, "AD"))
+        self.assertTrue(self.wfExists(1, "CL"))
 
 
 class TestFormatSummary(BatchCase):

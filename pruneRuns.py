@@ -7,9 +7,9 @@
 
 This tool only ever runs because a human asked: directly, dry-run by default
 (nothing is removed without --delete), or via runBatch.py's explicit --prune
-flag (which unit-prunes where provable, then wf-sweeps the rest, after a
-clean batch). Nothing prunes implicitly — no hooks, no post-run automation,
-no defaults.
+flag (which unit-prunes where provable, then wf-sweeps the rest, per version
+as each one completes). Nothing prunes implicitly — no hooks, no post-run
+automation, no defaults.
 
 --prune-wf deletes wf_results.json for the REJECTED candidates of completed
 versions. That file is a pure derivation of the unit's manifest.json + .bin
@@ -151,6 +151,29 @@ def rejectedWfPaths(runDir, report, warnings):
     return paths
 
 
+def _pruneWfRun(runDir, report, delete, echo, warnings):
+    """One version's wf-sweep: the file count and bytes of its rejected
+    candidates' wf_results.json, deleted when delete=True."""
+    runName = os.path.basename(runDir)
+    targets = [p for p in rejectedWfPaths(runDir, report, warnings)
+               if os.path.isfile(p)]
+    size = sum(os.path.getsize(p) for p in targets)
+    if delete and targets:
+        # The version dir and each unit dir keep their timestamps: the
+        # deletions bump the unit dirs directly, and belt-and-braces the
+        # run dir too.
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(preservedMtime(runDir))
+            for unitDir in sorted({os.path.dirname(p) for p in targets}):
+                stack.enter_context(preservedMtime(unitDir))
+            for path in targets:
+                os.remove(path)
+    verb = "deleted" if delete else "would delete"
+    echo(f"  {runName}: {verb} {len(targets)} {WF_RESULTS} file(s), "
+         f"{size / 2**20:.1f} MB")
+    return len(targets), size
+
+
 def pruneWf(family, cfg, delete=False, echo=_echo):
     """Dry-run (default) or delete wf_results.json for rejected candidates in
     every completed version of the family. Returns (files, bytes) affected."""
@@ -173,23 +196,9 @@ def pruneWf(family, cfg, delete=False, echo=_echo):
         if report is None:
             echo(f"  {runName}: no {REPORT_JSON}; skipped (incomplete version)")
             continue
-        targets = [p for p in rejectedWfPaths(runDir, report, warnings)
-                   if os.path.isfile(p)]
-        size = sum(os.path.getsize(p) for p in targets)
-        totalFiles += len(targets)
+        files, size = _pruneWfRun(runDir, report, delete, echo, warnings)
+        totalFiles += files
         totalBytes += size
-        if delete and targets:
-            # The version dir and each unit dir keep their timestamps: the
-            # deletions bump the unit dirs directly, and belt-and-braces the
-            # run dir too.
-            with contextlib.ExitStack() as stack:
-                stack.enter_context(preservedMtime(runDir))
-                for unitDir in sorted({os.path.dirname(p) for p in targets}):
-                    stack.enter_context(preservedMtime(unitDir))
-                for path in targets:
-                    os.remove(path)
-        verb = "deleted" if delete else "would delete"
-        echo(f"  {runName}: {verb} {len(targets)} file(s), {size / 2**20:.1f} MB")
     for warning in warnings:
         echo(f"  Warning: {warning}")
 
@@ -274,6 +283,85 @@ def loadUnitManifest(unitDir):
         return None
 
 
+def requireEpochs(cfg):
+    """The loaded snapshot registry, provided at least one data epoch exists —
+    otherwise an informative error, because without an epoch unit-pruning
+    could never regenerate what it deletes."""
+    registry = snapshotData.loadRegistry(cfg)
+    if not registry["epochs"]:
+        raise GenerationError(
+            "No data epochs exist, so pruned unit dirs could not be "
+            "regenerated. Snapshot the store first "
+            "(python snapshotData.py --snapshot), then re-run.")
+    return registry
+
+
+def _pruneUnitsRun(runDir, report, registry, delete, echo, warnings):
+    """One version's unit-prune: the count and bytes of its rejected
+    candidates' whole unit dirs whose data fingerprint a registry epoch
+    covers, deleted (behind a ledger entry) when delete=True."""
+    runName = os.path.basename(runDir)
+    eligible = []  # (unitName, unitDir, ledgerEntry, size)
+    for candidate in report.get("candidates", []):
+        if candidate.get("tradeable"):
+            continue
+        symbol = candidate.get("symbol")
+        timeframe = candidate.get("timeframe_minutes")
+        unitName = f"{symbol}_M{timeframe}"
+        unitDir = os.path.join(runDir, unitName)
+        if not os.path.isdir(unitDir):
+            continue  # already pruned
+        manifest = loadUnitManifest(unitDir)
+        if manifest is None:
+            warnings.append(f"{runName}/{unitName}: unreadable manifest; left alone.")
+            continue
+        entry = next((s for s in manifest.get("symbols", [])
+                      if s.get("symbol") == symbol), None)
+        sourceHash = (entry or {}).get("source_hash", 0)
+        sessionHash = (entry or {}).get("session_hash", 0)
+        if not sourceHash or not sessionHash:
+            warnings.append(
+                f"{runName}/{unitName}: manifest has no data fingerprint "
+                "(pre-v4); not regenerable-by-proof — use --prune-wf or "
+                "archive instead.")
+            continue
+        firstDay = parseDay(manifest.get("first_day"))
+        lastDay = parseDay(manifest.get("last_day"))
+        epochId = matchEpoch(registry, symbol, timeframe, firstDay, lastDay,
+                             sourceHash, sessionHash)
+        if epochId is None:
+            warnings.append(
+                f"{runName}/{unitName}: no data epoch matches its fingerprint; "
+                f"snapshot first (python snapshotData.py --snapshot {symbol}).")
+            continue
+        eligible.append((unitName, unitDir, {
+            "symbol": symbol,
+            "timeframe_minutes": timeframe,
+            "first_day": manifest.get("first_day"),
+            "last_day": manifest.get("last_day"),
+            "source_hash": sourceHash,
+            "session_hash": sessionHash,
+            "engine_build": manifest.get("engine_build", ""),
+            "epoch": epochId,
+            "pruned_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        }, dirSize(unitDir)))
+
+    size = sum(s for _n, _d, _e, s in eligible)
+    if delete and eligible:
+        # Writing the ledger and deleting unit dirs both bump the version
+        # dir's mtime; keep it so pruning never reorders the GUI run list.
+        with preservedMtime(runDir):
+            ledger = loadLedger(runDir)
+            for unitName, unitDir, entry, _size in eligible:
+                ledger["units"][unitName] = entry
+            saveLedger(runDir, ledger)  # the ledger lands before anything dies
+            for _name, unitDir, _entry, _size in eligible:
+                shutil.rmtree(unitDir)
+    verb = "deleted" if delete else "would delete"
+    echo(f"  {runName}: {verb} {len(eligible)} unit dir(s), {size / 2**20:.1f} MB")
+    return len(eligible), size
+
+
 def pruneUnits(family, cfg, delete=False, echo=_echo):
     """Delete whole unit directories for rejected candidates — strictly the
     ones whose manifest hashes are covered by a data epoch, so --regen can
@@ -289,12 +377,7 @@ def pruneUnits(family, cfg, delete=False, echo=_echo):
             "runBatch.py to completion first. Pruning only touches finished, "
             "aggregated families.")
 
-    registry = snapshotData.loadRegistry(cfg)
-    if not registry["epochs"]:
-        raise GenerationError(
-            "No data epochs exist. Snapshot the store first "
-            "(python snapshotData.py --snapshot) so pruned units stay "
-            "regenerable, then re-run.")
+    registry = requireEpochs(cfg)
 
     warnings = []
     totalUnits = totalBytes = 0
@@ -304,67 +387,9 @@ def pruneUnits(family, cfg, delete=False, echo=_echo):
         if report is None:
             echo(f"  {runName}: no {REPORT_JSON}; skipped (incomplete version)")
             continue
-
-        eligible = []  # (unitName, unitDir, ledgerEntry, size)
-        for candidate in report.get("candidates", []):
-            if candidate.get("tradeable"):
-                continue
-            symbol = candidate.get("symbol")
-            timeframe = candidate.get("timeframe_minutes")
-            unitName = f"{symbol}_M{timeframe}"
-            unitDir = os.path.join(runDir, unitName)
-            if not os.path.isdir(unitDir):
-                continue  # already pruned
-            manifest = loadUnitManifest(unitDir)
-            if manifest is None:
-                warnings.append(f"{runName}/{unitName}: unreadable manifest; left alone.")
-                continue
-            entry = next((s for s in manifest.get("symbols", [])
-                          if s.get("symbol") == symbol), None)
-            sourceHash = (entry or {}).get("source_hash", 0)
-            sessionHash = (entry or {}).get("session_hash", 0)
-            if not sourceHash or not sessionHash:
-                warnings.append(
-                    f"{runName}/{unitName}: manifest has no data fingerprint "
-                    "(pre-v4); not regenerable-by-proof — use --prune-wf or "
-                    "archive instead.")
-                continue
-            firstDay = parseDay(manifest.get("first_day"))
-            lastDay = parseDay(manifest.get("last_day"))
-            epochId = matchEpoch(registry, symbol, timeframe, firstDay, lastDay,
-                                 sourceHash, sessionHash)
-            if epochId is None:
-                warnings.append(
-                    f"{runName}/{unitName}: no data epoch matches its fingerprint; "
-                    f"snapshot first (python snapshotData.py --snapshot {symbol}).")
-                continue
-            eligible.append((unitName, unitDir, {
-                "symbol": symbol,
-                "timeframe_minutes": timeframe,
-                "first_day": manifest.get("first_day"),
-                "last_day": manifest.get("last_day"),
-                "source_hash": sourceHash,
-                "session_hash": sessionHash,
-                "engine_build": manifest.get("engine_build", ""),
-                "epoch": epochId,
-                "pruned_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-            }, dirSize(unitDir)))
-
-        size = sum(s for _n, _d, _e, s in eligible)
-        totalUnits += len(eligible)
+        units, size = _pruneUnitsRun(runDir, report, registry, delete, echo, warnings)
+        totalUnits += units
         totalBytes += size
-        if delete and eligible:
-            # Writing the ledger and deleting unit dirs both bump the version
-            # dir's mtime; keep it so pruning never reorders the GUI run list.
-            with preservedMtime(runDir):
-                ledger = loadLedger(runDir)
-                for unitName, unitDir, entry, _size in eligible:
-                    ledger["units"][unitName] = entry
-                saveLedger(runDir, ledger)  # the ledger lands before anything dies
-                for _name, unitDir, _entry, _size in eligible:
-                    shutil.rmtree(unitDir)
-        verb = "deleted" if delete else "would delete"
-        echo(f"  {runName}: {verb} {len(eligible)} unit dir(s), {size / 2**20:.1f} MB")
     for warning in warnings:
         echo(f"  Warning: {warning}")
 
@@ -375,6 +400,33 @@ def pruneUnits(family, cfg, delete=False, echo=_echo):
         echo("Re-run with --delete to actually remove them. Regenerate later with: "
              "python pruneRuns.py --regen <stem>_v<n>")
     return totalUnits, totalBytes
+
+
+def pruneVersion(stem, version, cfg, registry, echo=_echo):
+    """Delete-mode prune of one completed version — runBatch's interleaved
+    --prune, called as each version finishes. Unit dirs first (where provably
+    regenerable against the registry from requireEpochs), then the lossless
+    wf-sweep of what unit-pruning refused. Requires the family aggregate,
+    which runBatch refreshes before calling: the version's verdicts must be
+    rolled up before its data goes."""
+    baseDir = runsDir(cfg)
+    runName = f"{stem}_v{version}"
+    runDir = os.path.join(baseDir, runName)
+    if not os.path.isdir(runDir):
+        raise GenerationError(f"no run directory {runDir}")
+    if not hasAggregate(stem, baseDir):
+        raise GenerationError(
+            f"'{stem}' has no aggregate at {os.path.join(baseDir, stem)}; "
+            "refusing to prune verdicts that are not rolled up.")
+    report = loadReport(runDir)
+    if report is None:
+        raise GenerationError(f"{runName} has no {REPORT_JSON}; nothing is prunable.")
+
+    warnings = []
+    _pruneUnitsRun(runDir, report, registry, True, echo, warnings)
+    _pruneWfRun(runDir, report, True, echo, warnings)
+    for warning in warnings:
+        echo(f"  Warning: {warning}")
 
 
 def regen(runName, cfg, threads=0, echo=_echo, runner=subprocess.run):
