@@ -101,10 +101,11 @@ class RulePane(tk.Frame):
     """A column for building one rule list (entries, exits, or switches).
     `ruleType` is one of Entry/Exit/Switch and fixes which rules this pane lists."""
 
-    def __init__(self, parent, ruleType, onRemove):
+    def __init__(self, parent, ruleType, onRemove, onMove):
         super().__init__(parent, relief="solid", bd=1)
         self.ruleType = ruleType
         self.onRemove = onRemove          # callback(self)
+        self.onMove = onMove              # callback(self, delta)
         self.items = []                   # list of RuleItem | DELIMITER
 
         self._buildHeader()
@@ -153,6 +154,14 @@ class RulePane(tk.Frame):
         self.paramsBtn.grid(row=1, column=0, padx=2, pady=2)
         self.delimBtn.grid(row=1, column=1, padx=2, pady=2)
 
+        moveFrame = tk.Frame(bf)
+        moveFrame.grid(row=2, column=0, sticky="w", padx=2, pady=(6, 2))
+        tk.Button(moveFrame, text="◀", width=2, command=lambda: self.onMove(self, -1)).pack(
+            side="left"
+        )
+        tk.Button(moveFrame, text="▶", width=2, command=lambda: self.onMove(self, 1)).pack(
+            side="left", padx=(2, 0)
+        )
         tk.Button(bf, text="X", width=2, command=lambda: self.onRemove(self)).grid(
             row=2, column=1, sticky="e", padx=2, pady=(6, 2)
         )
@@ -345,13 +354,23 @@ class mainGUI(tk.Tk):
         win.transient(self)
 
     def _addPane(self, ruleType):
-        pane = RulePane(self.paneHolder, ruleType, self._removePane)
+        pane = RulePane(self.paneHolder, ruleType, self._removePane, self._movePane)
         pane.pack(side="left", fill="y", padx=6, pady=4)
         self.panes.append(pane)
 
     def _removePane(self, pane):
         self.panes.remove(pane)
         pane.destroy()
+
+    def _movePane(self, pane, delta):
+        idx = self.panes.index(pane)
+        new = idx + delta
+        if new < 0 or new >= len(self.panes):
+            return
+        self.panes[idx], self.panes[new] = self.panes[new], self.panes[idx]
+        for p in self.panes:
+            p.pack_forget()
+            p.pack(side="left", fill="y", padx=6, pady=4)
 
     # --- templates (full GUI state: strategy name + every pane and its rules) ---
     def _serializeState(self):

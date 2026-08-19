@@ -158,6 +158,24 @@ class TestTemplateState(unittest.TestCase):
         )
         self.assertEqual(restored.items[1], mainGUI.DELIMITER)
 
+    def testMovePaneReordersAndClampsAtEdges(self):
+        for ruleType in ("Entry", "Exit", "Switch"):
+            self.gui._addPane(ruleType)
+        entry, exitPane, switch = self.gui.panes
+
+        self.gui._movePane(switch, -1)
+        self.assertEqual([p.ruleType for p in self.gui.panes],
+                         ["Entry", "Switch", "Exit"])
+
+        self.gui._movePane(entry, -1)  # already leftmost: no-op
+        self.gui._movePane(exitPane, 1)  # already rightmost: no-op
+        self.assertEqual([p.ruleType for p in self.gui.panes],
+                         ["Entry", "Switch", "Exit"])
+
+        # the pack order must match the list order after a move
+        packed = self.gui.paneHolder.pack_slaves()
+        self.assertEqual(packed, self.gui.panes)
+
     def testEveryTopFieldExists(self):
         for attr in ("strategyNameVar", "engineDirVar", "specTemplateVar",
                      "maxBarsBackVar"):
