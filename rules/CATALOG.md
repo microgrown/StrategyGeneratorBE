@@ -28,6 +28,7 @@ every placement, evaluated at each input's *stop* value.
 | `ClosePercentileRank` | Entry | mirrored | `lookback - 1` | `percentile(10)`, `lookback(100)` | Close ranks in the top (long) / bottom (short) X% of the last N closes — ties share the better rank; at X ≈ 100/N the long side degenerates to `Breakout` |
 | `ConsecutiveUpBars` | Entry | mirrored | `consecutiveBars - 1` | `consecutiveBars(3)` | Each of the last N bars closed above (long) / below (short) its own open — a tie bar fails both sides |
 | `LaggedHigherHigh` | Entry | mirrored | `lookback + 1` | `lookback(1)` | The bar N bars ago made a higher high than the bar before it (long) / a lower low (short) |
+| `CloseAbovePriorHigh` | Entry | mirrored | `lookback` | `lookback(1)` | Close is above the high (long) / below the low (short) of the bar N bars ago — at N=1, a close outside the prior bar's range |
 | `AtrAboveAverage` | Entry | same | `atrLookback + 1` | `atrLookback(15)`, `lookback(20)` | The ATR exceeds its own N-bar average — a volatility-expansion filter; the average runs over the ATR variable's zero-padded warm-up history, so it passes easily early on |
 | `StopLoss` | Exit | same | 0 | `stopLoss(1000)` | Open loss exceeds X dollars |
 | `TakeProfit` | Exit | same | 0 | `takeProfit(1000)` | Open profit exceeds X dollars |
