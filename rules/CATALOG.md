@@ -40,6 +40,14 @@ every placement, evaluated at each input's *stop* value.
 | `AtrTrailingStop` | Exit | same | `lookback + 1` | `lookback(15)`, `multiple(3)` | Open profit has fallen more than K × the N-bar average true range (in dollars) below the position's peak profit |
 | `NumBars` | Exit | same | 0 | `numBarsExit(50)` | The position has been open N bars or more |
 | `MonthlyProfitTarget` | Switch | same | 0 | `ProfitTarget(5000)` | Equity gained since the start of the calendar month exceeds the target — blocks entries and forces flat |
+| `DayOfWeekEntry` | Entry | one input per side | 0 | `dayLong(4)`, `dayShort(3)` | Long when the bar's close date falls on weekday X, short on weekday Y — EL numbering, 0 = Sunday .. 6 = Saturday |
+| `TrueRangeAvgRatio` | Entry | same | `lookback * slowFactor` | `lookback(30)`, `slowFactor(2)`, `multiple(1)` | The plain N-bar mean of True Range exceeds K × the plain (N × F)-bar mean — EL's fresh `Average(TrueRange, n)`, not the `WFSafe_` rolling sum, so not `AtrFastAboveSlow`; negate for the book's "volatility contraction" form |
+| `VolumeAboveAverageMultiple` | Entry | same | `lookback - 1` | `lookback(35)`, `multiple(2)` | This bar's total ticks (up + down, `ctx.Ticks`, not the up-tick `volume` alias) exceed K × their own N-bar average; the average runs over an EL variable's zero-padded warm-up history |
+| `BodyBelowAtrFraction` | Entry | same | `atrLookback + 1` | `atrLookback(14)`, `fraction(0.2)` | The bar's body, \|close − open\|, is smaller than F × the N-bar ATR (`WFSafe_AvgTrueRange` rolling form) — a narrow-body filter, identical both sides |
+| `TakeProfitWithRatioStop` | Exit | same | 0 | `target(3000)`, `stopRatio(0.5)` | Open profit exceeds X dollars, or open loss exceeds R × X — one parameter drives both legs, which is why it is not `TakeProfit` + `StopLoss` |
+| `RsiBelowThreshold` | Entry | mirrored | `lookback` | `lookback(14)`, `threshold(30)` | Long when the N-bar `WFSafe_RSI` of close is below T; short when above 100 − T (bit-exact port, `EL_WFSafeRsi_Probe.txt`) |
+| `RsiRising` | Entry | mirrored | `lookback` | `lookback(14)` | Long when the N-bar `WFSafe_RSI` is above its previous-bar value; short when below — the previous value is the function's own series history, 0 on the first calculated bar |
+| `CloseWithinAtrOfVwap` | Entry | mirrored | `atrLookback + 1` | `atrLookback(14)`, `multiple(0.5)` | Long when close is no more than K × ATR above the session VWAP (reset on each new date, `AvgPrice × Ticks` weighted, `AvgPrice` = (O+H+L+C)/4 or (H+L+C)/3 on a zero open); short when no more than K × ATR below it — the AI-book original's short side (`close + VWAP > …`) was degenerate and replaced by the mirror |
 
 ## Keeping this current
 

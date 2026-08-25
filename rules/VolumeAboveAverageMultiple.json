@@ -1,0 +1,33 @@
+{
+    "name": "VolumeAboveAverageMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "35",
+        "multiple": "2"
+    },
+    "localVariables": {
+        "vol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgVol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "volCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: vol = Ticks (UpTicks + DownTicks -- NOT the `volume` alias, which is\n// EL's Volume == up-ticks only; EL_Volume_Probe.txt). vol is an EL VARIABLE,\n// so average(vol, n) reads its zero-filled warm-up history: mirrored here as a\n// zero-initialized ring buffer, exactly as BarRangeAboveStd does.\nvol = (double)ctx.Ticks[0];\nif (volHistory.size() != (std::size_t)(int)lookback) {\n    volHistory.assign((std::size_t)(int)lookback, 0.0);\n    volCursor = 0;\n}\nvolHistory[volCursor] = vol;\nvolCursor = (volCursor + 1) % volHistory.size();\navgVol = 0.0;\nfor (double v : volHistory) {\n    avgVol += v;\n}\navgVol /= (int)lookback;",
+    "longCondition": "el_gt(vol, multiple * avgVol)",
+    "shortCondition": "el_gt(vol, multiple * avgVol)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

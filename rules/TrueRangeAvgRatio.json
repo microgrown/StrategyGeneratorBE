@@ -1,0 +1,30 @@
+{
+    "name": "TrueRangeAvgRatio",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "30",
+        "slowFactor": "2",
+        "multiple": "1"
+    },
+    "localVariables": {
+        "fastAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Plain EL Average(TrueRange, n): a FRESH mean every bar (measured 2,808/2,808,\n// EL_Summation_Probe.txt) -- deliberately NOT the WFSafe_AvgTrueRange rolling\n// sum. TrueRange is the two-term form max(H, C[1]) - min(L, C[1]).\nfastAvg = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n    double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n    fastAvg += hi - lo;\n}\nfastAvg /= (int)lookback;\nslowLen = (int)(lookback * slowFactor);\nslowAvg = 0.0;\nfor (int i = 0; i < slowLen; ++i) {\n    double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n    double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n    slowAvg += hi - lo;\n}\nslowAvg /= slowLen;",
+    "longCondition": "el_gt(fastAvg, multiple * slowAvg)",
+    "shortCondition": "el_gt(fastAvg, multiple * slowAvg)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

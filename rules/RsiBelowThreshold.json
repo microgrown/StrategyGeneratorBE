@@ -1,0 +1,41 @@
+{
+    "name": "RsiBelowThreshold",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "14",
+        "threshold": "30"
+    },
+    "localVariables": {
+        "netChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "totChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sfRsi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgRatio": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_RSI (el_wf_safe_rsi.txt in the engine repo) -- TS's RSI\n// with SF = 1/Length recomputed every bar so a walkforward length change takes\n// effect; NO re-seed on a length change, the averages carry over (same shape\n// as WFSafe_ADX). Seeded at the study's first calculated bar (function\n// CurrentBar == study CurrentBar, as measured for WFSafe_ADX):\n//   NetChgAvg = (Price - Price[Length]) / Length\n//   TotChgAvg = Average(AbsValue(Price - Price[1]), Length)   -- fresh mean\n// then EMA-form updates Avg = Avg[1] + SF * (X - Avg[1]).\n// `TotChgAvg <> 0` is an EL relational, so it carries the 2.22e-12 tolerance.\n// VERIFIED with EL_WFSafeRsi_Probe.txt on @OJ 240min, two chart starts:\n// drift 0 on 9,834/9,834 and 8,327/8,327 bars against an open-coded twin,\n// RSI[1] == 0 on bar 1 and the prior value after, WFSafe_RSI == plain RSI at\n// a fixed length (ovr 0 everywhere). scripts/rsi_replica.py replays this hook\n// from the store: 9,794/9,794 and 8,287/8,287 at print precision.\n// sfRsi and chgRatio are declared locals, not hook temporaries: hooks share\n// one function scope and only declared names get the placement prefix, so two\n// RSI rules in one strategy would otherwise redefine them.\nsfRsi = 1 / lookback;\nif (ctx.CurrentBar() == 1) {\n    netChgAvg = (close[0] - close[(int)lookback]) / lookback;\n    double totChg = 0.0;\n    for (int i = 0; i < (int)lookback; ++i) {\n        totChg += std::fabs(close[i] - close[i + 1]);\n    }\n    totChgAvg = totChg / lookback;\n} else {\n    double change = close[0] - close[1];\n    netChgAvg = netChgAvg + sfRsi * (change - netChgAvg);\n    totChgAvg = totChgAvg + sfRsi * (std::fabs(change) - totChgAvg);\n}\nchgRatio = 0.0;\nif (el_ne(totChgAvg, 0.0)) chgRatio = netChgAvg / totChgAvg;\n// The function's own series history: RSI[1] on the first bar reads the\n// function variable's initial 0.\nrsiPrev = rsiVal;\nrsiVal = 50 * (chgRatio + 1);",
+    "longCondition": "el_lt(rsiVal, threshold)",
+    "shortCondition": "el_gt(rsiVal, 100 - threshold)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

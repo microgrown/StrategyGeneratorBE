@@ -1,0 +1,41 @@
+{
+    "name": "CloseWithinAtrOfVwap",
+    "type": "Entry",
+    "inputVariables": {
+        "atrLookback": "14",
+        "multiple": "0.5"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "vwap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priceW": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shareW": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Session VWAP as the book writes it: PriceW/ShareW are EL VARIABLES reset on\n// `date > date[1]` (date = wall-clock close date, EL_Date_Probe.txt) and\n// otherwise carried; both start at 0 on the first calculated bar, mid-session\n// or not, exactly as the EL variables do. Volume is Ticks (up + down).\n// AvgPrice MEASURED with EL_AvgPrice_Probe.txt on @OJ 240min, 8,327 bars:\n// (Open + High + Low + Close) / 4 summed left to right on 8,326 -- the other\n// operand order differs in the last bit on 2,750 of them -- and on the ONE bar\n// whose Open was 0 (2012-05-23 14:00 in TS's data) TradeStation returned\n// (High + Low + Close) / 3 exactly: a zero open is treated as missing.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    priceW = 0.0;\n    shareW = 0.0;\n}\ndouble avgPrice = open[0] == 0.0 ? (high[0] + low[0] + close[0]) / 3\n                                  : (open[0] + high[0] + low[0] + close[0]) / 4;\npriceW = priceW + (avgPrice * (double)ctx.Ticks[0]);\nshareW = shareW + (double)ctx.Ticks[0];\nif (el_gt(shareW, 0.0)) vwap = priceW / shareW;\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, then updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding\n// it to S += in - out rounds differently (@OJ 2015-02-20).\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
+    "longCondition": "el_lt(close[0] - vwap, multiple * atr)",
+    "shortCondition": "el_lt(vwap - close[0], multiple * atr)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

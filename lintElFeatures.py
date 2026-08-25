@@ -78,7 +78,7 @@ EL_KEYWORDS = frozenset("""
 ENGINE_ONLY = frozenset({"lotcount"})
 
 # C++ helpers that implement an EL word, mapped to the word they implement.
-CPP_HELPERS = {"civil_from_days": "month", "day_of": "month"}
+CPP_HELPERS = {"civil_from_days": "month", "day_of": "month", "day_of_week": "dayofweek"}
 
 VERIFIED, ACCEPTED, ASSUMED, UNKNOWN = "VERIFIED", "ACCEPTED", "ASSUMED", "UNKNOWN"
 STATUSES = (VERIFIED, ACCEPTED, ASSUMED, UNKNOWN)
