@@ -1,0 +1,46 @@
+{
+    "name": "AtrRising",
+    "type": "Entry",
+    "inputVariables": {
+        "atrLookback": "15",
+        "nearLag": "1",
+        "farLag": "10"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrNear": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrFar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar, then\n// S += TrueRange - TrueRange[Length] as TWO statements (EL evaluates\n// S[1] + in - out left to right; folding to S += in - out rounds differently).\n// atrLength != atrLookback re-seeds, as the WFSafe_ wrappers do when a\n// walkforward re-optimization changes the length. See AtrProfitTarget.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\n// EL: atrValue[n] reads the atrValue VARIABLE's own history, and a variable\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one -- so for the first max(nearLag, farLag) evaluated bars one or both\n// readings are 0. The history is mirrored here as a zero-seeded ring buffer\n// holding lags 0..maxLag, re-seeded if the depth ever changes (see\n// AtrAboveAverage / BarRangeAboveStd).\n{\n    const int maxLag = (int)nearLag > (int)farLag ? (int)nearLag : (int)farLag;\n    if (atrHistory.size() != (std::size_t)(maxLag + 1)) {\n        atrHistory.assign((std::size_t)(maxLag + 1), 0.0);\n        atrCursor = 0;\n    }\n}\natrHistory[atrCursor] = atr;\natrCursor = (atrCursor + 1) % atrHistory.size();\natrNear = atrHistory[(atrCursor + atrHistory.size() - 1 - (std::size_t)(int)nearLag) % atrHistory.size()];\natrFar = atrHistory[(atrCursor + atrHistory.size() - 1 - (std::size_t)(int)farLag) % atrHistory.size()];",
+    "longCondition": "el_gt(atrNear, atrFar)",
+    "shortCondition": "el_gt(atrNear, atrFar)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

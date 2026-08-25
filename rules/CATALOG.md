@@ -30,6 +30,8 @@ every placement, evaluated at each input's *stop* value.
 | `LaggedHigherHigh` | Entry | mirrored | `lookback + 1` | `lookback(1)` | The bar N bars ago made a higher high than the bar before it (long) / a lower low (short) |
 | `CloseAbovePriorHigh` | Entry | mirrored | `lookback` | `lookback(1)` | Close is above the high (long) / below the low (short) of the bar N bars ago — at N=1, a close outside the prior bar's range |
 | `AtrAboveAverage` | Entry | same | `atrLookback + 1` | `atrLookback(15)`, `lookback(20)` | The ATR exceeds its own N-bar average — a volatility-expansion filter; the average runs over the ATR variable's zero-padded warm-up history, so it passes easily early on |
+| `AtrRising` | Entry | same | `max(atrLookback + 1, max(nearLag, farLag))` | `atrLookback(15)`, `nearLag(1)`, `farLag(10)` | The ATR as of X bars ago is above the ATR as of Y bars ago — a volatility-trend filter; both readings come from the ATR variable's zero-padded warm-up history, so for the first max(X, Y) evaluated bars the older reading is 0 and the rule passes trivially |
+| `AtrFastAboveSlow` | Entry | same | `max(fastLookback, slowLookback) + 1` | `fastLookback(5)`, `slowLookback(20)` | The X-bar ATR exceeds the Y-bar ATR — a volatility-expansion filter from two independent `WFSafe_AvgTrueRange` call sites; identical both sides |
 | `StopLoss` | Exit | same | 0 | `stopLoss(1000)` | Open loss exceeds X dollars |
 | `TakeProfit` | Exit | same | 0 | `takeProfit(1000)` | Open profit exceeds X dollars |
 | `AtrProfitTarget` | Exit | same | `lookback + 1` | `lookback(15)`, `multiple(3)` | Open profit exceeds K × the N-bar average true range, converted to dollars |

@@ -1,0 +1,41 @@
+{
+    "name": "AtrFastAboveSlow",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLookback": "5",
+        "slowLookback": "20"
+    },
+    "localVariables": {
+        "fastAtr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fastSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fastLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "slowAtr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Two independent WFSafe_AvgTrueRange call sites, one per length. Each is\n// MultiWalk's ROLLING accumulator (see AtrProfitTarget): seeded with a full sum\n// on the first calculated bar or when its length changes, then updated as TWO\n// statements S += in; S -= out; -- EL evaluates S[1] + in - out left to right\n// and folding it rounds differently.\nif (fastLength != (int)fastLookback) {\n    fastSum = 0.0;\n    for (int i = 0; i < (int)fastLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        fastSum += hi - lo;\n    }\n    fastLength = (int)fastLookback;\n} else {\n    const int out = (int)fastLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    fastSum += hiIn - loIn;\n    fastSum -= hiOut - loOut;\n}\nfastAtr = fastSum / (int)fastLookback;\nif (slowLength != (int)slowLookback) {\n    slowSum = 0.0;\n    for (int i = 0; i < (int)slowLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        slowSum += hi - lo;\n    }\n    slowLength = (int)slowLookback;\n} else {\n    const int out = (int)slowLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    slowSum += hiIn - loIn;\n    slowSum -= hiOut - loOut;\n}\nslowAtr = slowSum / (int)slowLookback;",
+    "longCondition": "el_gt(fastAtr, slowAtr)",
+    "shortCondition": "el_gt(fastAtr, slowAtr)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
