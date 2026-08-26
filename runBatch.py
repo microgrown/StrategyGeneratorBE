@@ -33,7 +33,9 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -143,17 +145,22 @@ def hasSelectionOutput(runDir):
 # --- engine invocation -------------------------------------------------------
 
 def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo,
-             verbose=False, onOutcome=None):
+             verbose=False, onOutcome=None, jobs=1):
     """Run bt_walkforward for every version without selection output (all of
-    them under --force). Sequential — the engine parallelizes internally.
-    Failures don't stop the batch; each outcome records its exit code.
-    onOutcome, when given, is called with each outcome as it lands (skipped
-    and failed ones included) — the hook interleaved pruning hangs off.
+    them under --force). Sequential by default — the engine parallelizes
+    internally; jobs > 1 runs that many versions at once for specs whose grids
+    are too small to fill the machine on their own. Failures don't stop the
+    batch; each outcome records its exit code. onOutcome, when given, is
+    called with each outcome as it lands (skipped and failed ones included),
+    always on the calling thread — the hook interleaved pruning hangs off.
+    Outcomes come back in version order whatever order the runs finished in.
 
     One line per version: the engine runs under --quiet, so it prints only
     genuine errors (its run.log still records everything), and the line opened
     before a run is closed by that run's outcome. --verbose drops --quiet when
-    a run needs watching."""
+    a run needs watching. Concurrent runs cannot share the console, so under
+    jobs > 1 each run's output is captured and only a failed run's is echoed,
+    after its own status line."""
     engineDir = _engineDir(cfg)
     baseDir = runsDir(cfg)
     plans = []
@@ -167,6 +174,10 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
     binary = None
     if any(not skip for _, _, _, skip in plans):
         binary = binaryPath(cfg)
+
+    if jobs > 1:
+        return _runSpecsConcurrently(plans, stem, engineDir, binary, threads, verbose,
+                                     runner, echo, onOutcome, jobs)
 
     outcomes = []
     for i, (version, specPath, runDir, skip) in enumerate(plans, 1):
@@ -189,6 +200,61 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
         outcomes.append(RunOutcome(version, specPath, runDir, proc.returncode))
         if onOutcome:
             onOutcome(outcomes[-1])
+    return outcomes
+
+
+def childThreads(threads, jobs):
+    """Engine threads for each of `jobs` concurrent runs: an explicit count
+    passes through; 0 (all cores) is split so the runs share the machine
+    instead of each claiming all of it."""
+    if threads or jobs <= 1:
+        return threads
+    return max(1, (os.cpu_count() or 1) // jobs)
+
+
+def _runSpecsConcurrently(plans, stem, engineDir, binary, threads, verbose, runner, echo,
+                          onOutcome, jobs):
+    total = len(plans)
+    echoLock = threading.Lock()
+    perRun = childThreads(threads, jobs)
+
+    def run(i, version, specPath, runDir):
+        runName = f"{stem}_v{version}"
+        with echoLock:
+            echo(f"[{i}/{total}] {runName} started")
+        command = [binary, "--spec", specPath, "--threads", str(perRun)]
+        if not verbose:
+            command.append("--quiet")
+        started = time.monotonic()
+        proc = runner(command, cwd=engineDir, stdout=subprocess.PIPE,
+                      stderr=subprocess.STDOUT, text=True)
+        elapsed = time.monotonic() - started
+        status = "OK" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"
+        with echoLock:
+            echo(f"[{i}/{total}] {runName} {status} {elapsed:.1f}s")
+            output = getattr(proc, "stdout", None)
+            if proc.returncode != 0 and output:
+                echo(output.rstrip())
+        return RunOutcome(version, specPath, runDir, proc.returncode)
+
+    # Everything that touches shared state -- outcomes, the caller's hook --
+    # happens here on the calling thread; the workers only run the engine.
+    outcomes = []
+    for i, (version, specPath, runDir, skip) in enumerate(plans, 1):
+        if skip:
+            echo(f"[{i}/{total}] {stem}_v{version} — results exist, skipping")
+            outcomes.append(RunOutcome(version, specPath, runDir, 0, True))
+            if onOutcome:
+                onOutcome(outcomes[-1])
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        futures = [pool.submit(run, i, version, specPath, runDir)
+                   for i, (version, specPath, runDir, skip) in enumerate(plans, 1)
+                   if not skip]
+        for future in as_completed(futures):
+            outcomes.append(future.result())
+            if onOutcome:
+                onOutcome(outcomes[-1])
+    outcomes.sort(key=lambda o: o.version)
     return outcomes
 
 
@@ -381,22 +447,29 @@ def writeAggregate(stem, outcomes, cfg, warnings):
             + ", ".join(divergent)
             + "); the aggregate CSV is a union with blanks."
         )
-    with open(os.path.join(aggDir, SUMMARY_CSV), "w", newline="") as f:
+    # Written whole-or-not: with versions running concurrently the aggregate
+    # is rewritten while a later version's prune may read it back, and a
+    # torn file would trip checkAggregateDirSafety.
+    summaryPath = os.path.join(aggDir, SUMMARY_CSV)
+    with open(summaryPath + ".tmp", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=header, restval="")
         writer.writeheader()
         writer.writerows(rows)
+    os.replace(summaryPath + ".tmp", summaryPath)
 
     reports = {name: report for name, _, _, report in perRun}
-    with open(os.path.join(aggDir, REPORT_JSON), "w") as f:
+    reportPath = os.path.join(aggDir, REPORT_JSON)
+    with open(reportPath + ".tmp", "w") as f:
         json.dump(buildAggregateReport(stem, reports), f, indent=2)
         f.write("\n")
+    os.replace(reportPath + ".tmp", reportPath)
     return aggDir, [name for name, _, _, _ in perRun], reports
 
 
 # --- orchestration -----------------------------------------------------------
 
 def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, echo=_echo,
-             verbose=False, prune=False):
+             verbose=False, prune=False, jobs=1):
     stem = resolveStem(nameOrStem)
     specs = discoverSpecs(stem, cfg)
     if not specs:
@@ -433,14 +506,14 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
             # Roll the verdicts up before touching data: the aggregate-so-far
             # is what makes the finished versions' results safe to prune (the
             # final writeAggregate below re-derives it with warnings kept).
-            writeAggregate(stem, seen, cfg, [])
+            writeAggregate(stem, sorted(seen, key=lambda o: o.version), cfg, [])
             echo(f"Pruning {runName} rejects (--prune):")
             pruneRuns.pruneVersion(stem, outcome.version, cfg, registry, echo=echo)
         except GenerationError as exc:
             warnings.append(f"--prune ({runName}) failed: {exc}")
 
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose,
-                        onOutcome=afterVersion if prune else None)
+                        onOutcome=afterVersion if prune else None, jobs=jobs)
     aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
 
     if prune:
@@ -493,7 +566,12 @@ def main(argv=None):
     parser.add_argument("strategy",
                         help='strategy name or stem, e.g. "Momentum Clone" or momentum_clone')
     parser.add_argument("--threads", type=int, default=0,
-                        help="engine threads per run (0 = all cores; default 0)")
+                        help="engine threads per run (0 = all cores, split evenly "
+                             "across --jobs; default 0)")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="versions to run at once (default 1); worth raising "
+                             "only for specs whose grids cannot fill the machine "
+                             "on their own")
     parser.add_argument("--force", action="store_true",
                         help="re-run the engine even for versions that already "
                              "have selection results (recomputes their verdicts)")
@@ -512,7 +590,8 @@ def main(argv=None):
     try:
         result = runBatch(args.strategy, config.load(),
                           threads=args.threads, force=args.force,
-                          verbose=args.verbose, prune=args.prune)
+                          verbose=args.verbose, prune=args.prune,
+                          jobs=max(1, args.jobs))
     except GenerationError as exc:
         print(exc, file=sys.stderr)
         return 2

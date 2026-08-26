@@ -3,6 +3,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -65,11 +67,13 @@ class FakeRunner:
 
     def __init__(self, returnCodes=None, sideEffect=None):
         self.calls = []
+        self.lock = threading.Lock()  # runs may be concurrent under --jobs
         self.returnCodes = returnCodes or {}
         self.sideEffect = sideEffect
 
-    def __call__(self, cmd, cwd=None):
-        self.calls.append((cmd, cwd))
+    def __call__(self, cmd, cwd=None, **kwargs):
+        with self.lock:
+            self.calls.append((cmd, cwd))
         specPath = cmd[cmd.index("--spec") + 1]
         if self.sideEffect:
             self.sideEffect(specPath)
@@ -397,6 +401,61 @@ class TestRunBatch(BatchCase):
         self.assertEqual(result.aggregateDir, "")
 
 
+class TestConcurrentRuns(BatchCase):
+    def test_versionsOverlapAndOutcomesStayInVersionOrder(self):
+        specs = [(n, writeSpec(self.specDir, self.STEM, n)) for n in (1, 2)]
+        # Each fake run waits for the other at a barrier, so the batch can
+        # only finish if both versions were in flight at the same time.
+        barrier = threading.Barrier(2, timeout=10)
+
+        def sideEffect(specPath):
+            barrier.wait()
+            if specPath.endswith("_v1.json"):
+                time.sleep(0.05)  # v1 lands after v2
+
+        runner = FakeRunner(returnCodes={f"{self.STEM}_v1": 2}, sideEffect=sideEffect)
+        echoed = []
+
+        def record(*args, end="\n"):
+            echoed.append(" ".join(str(a) for a in args))
+
+        outcomes = rb.runSpecs(specs, self.STEM, self.cfg, 0, False, runner, record,
+                               jobs=2)
+        self.assertEqual([o.version for o in outcomes], [1, 2])
+        self.assertEqual([o.returnCode for o in outcomes], [2, 0])
+        self.assertEqual(len(runner.calls), 2)
+        # All cores are shared between the jobs rather than claimed twice.
+        expected = str(max(1, (os.cpu_count() or 1) // 2))
+        for cmd, cwd in runner.calls:
+            self.assertEqual(cmd[cmd.index("--threads") + 1], expected)
+            self.assertEqual(cwd, self.engineDir)
+        # Whole lines only: a started line and a status line per version.
+        self.assertEqual(len(echoed), 4)
+        self.assertTrue(any("FAILED (exit 2)" in line and "_v1" in line for line in echoed))
+        self.assertTrue(any(" OK " in line and "_v2" in line for line in echoed))
+
+    def test_explicitThreadsPassThrough(self):
+        specs = [(1, writeSpec(self.specDir, self.STEM, 1))]
+        runner = FakeRunner()
+        rb.runSpecs(specs, self.STEM, self.cfg, 3, False, runner, quiet, jobs=4)
+        (cmd, _), = runner.calls
+        self.assertEqual(cmd[cmd.index("--threads") + 1], "3")
+
+    def test_hookSeesEveryOutcomeOnTheCallingThread(self):
+        specs = [(n, writeSpec(self.specDir, self.STEM, n)) for n in (1, 2, 3)]
+        writeSelection(self.runDirFor(2))  # skipped, still reported
+        seen = []
+        caller = threading.get_ident()
+
+        def hook(outcome):
+            seen.append((outcome.version, threading.get_ident() == caller))
+
+        rb.runSpecs(specs, self.STEM, self.cfg, 0, False, FakeRunner(), quiet,
+                    onOutcome=hook, jobs=2)
+        self.assertEqual(sorted(v for v, _ in seen), [1, 2, 3])
+        self.assertTrue(all(onCaller for _, onCaller in seen))
+
+
 class TestPruneFlag(BatchCase):
     """--prune is strict opt-in and interleaved: each version's rejected
     candidates are pruned as soon as that version succeeds (unit dirs where
@@ -504,6 +563,22 @@ class TestPruneFlag(BatchCase):
         self.assertFalse(result.failed)
         self.assertEqual(v1StateWhenV2Ran, [False])
         self.assertFalse(self.wfExists(2, "AD"))
+
+    def test_concurrentVersionsAreEachPruned(self):
+        self.makeEpoch()
+        for n in (1, 2, 3):
+            writeSpec(self.specDir, self.STEM, n)
+        runner = FakeRunner(sideEffect=self.sideEffectWithUnits)
+        result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True,
+                             jobs=3)
+        self.assertFalse(result.failed)
+        self.assertEqual([o.version for o in result.outcomes], [1, 2, 3])
+        for n in (1, 2, 3):
+            self.assertFalse(self.wfExists(n, "AD"))
+        self.assertEqual(result.aggregatedVersions,
+                         [f"{self.STEM}_v{n}" for n in (1, 2, 3)])
+        with open(os.path.join(result.aggregateDir, rb.REPORT_JSON)) as f:
+            json.load(f)  # well-formed after the last rewrite
 
     def test_failedVersionIsLeftUnpruned(self):
         self.makeEpoch()
