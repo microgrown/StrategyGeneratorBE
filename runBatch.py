@@ -23,7 +23,9 @@ much more than the survivors plus one full version. Everything deleted comes
 back via `pruneRuns.py --regen`. A data epoch must already exist (python
 snapshotData.py --snapshot); without one the batch fails up front, before any
 engine time is spent. Failed versions are left unpruned so they can be re-run
-intact.
+intact, and cached versions (engine not invoked) are not pruned either — use
+pruneRuns.py to reclaim an already-finished family. Prune detail (counts,
+sizes) prints only under --verbose; the default is one pass/fail line.
 """
 
 import argparse
@@ -66,6 +68,10 @@ def _echo(*args, end="\n"):
     the engine child process writes unbuffered while Python does not. end=""
     leaves the line open so the run's outcome can be appended to it."""
     print(*args, end=end, flush=True)
+
+
+def _silent(*args, end="\n"):
+    """Swallows prune detail lines when --verbose is not given."""
 
 
 @dataclass
@@ -501,15 +507,23 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
         seen.append(outcome)
         if not (prune and outcome.ok and hasSelectionOutput(outcome.runDir)):
             return  # failed versions stay intact for their re-run
+        if outcome.skipped:
+            return  # cached: the engine produced nothing new, so nothing to prune
         runName = f"{stem}_v{outcome.version}"
         try:
             # Roll the verdicts up before touching data: the aggregate-so-far
             # is what makes the finished versions' results safe to prune (the
             # final writeAggregate below re-derives it with warnings kept).
             writeAggregate(stem, sorted(seen, key=lambda o: o.version), cfg, [])
-            echo(f"Pruning {runName} rejects (--prune):")
-            pruneRuns.pruneVersion(stem, outcome.version, cfg, registry, echo=echo)
+            # The per-file counts and sizes only appear under --verbose; the
+            # default console gets a single pass/fail line per version.
+            detail = echo if verbose else _silent
+            if verbose:
+                echo(f"Pruning {runName} rejects (--prune):")
+            pruneRuns.pruneVersion(stem, outcome.version, cfg, registry, echo=detail)
+            echo(f"Pruned {runName} rejects (--prune).")
         except GenerationError as exc:
+            echo(f"Pruning {runName} rejects failed (--prune).")
             warnings.append(f"--prune ({runName}) failed: {exc}")
 
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose,

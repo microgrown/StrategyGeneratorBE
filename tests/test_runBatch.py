@@ -594,9 +594,10 @@ class TestPruneFlag(BatchCase):
         self.assertTrue(self.wfExists(2, "AD"))
         self.assertTrue(any("left unpruned" in w for w in result.warnings))
 
-    def test_cachedVersionsArePrunedOnRerun(self):
-        # A finished batch re-invoked with --prune reclaims disk without
-        # ever touching the engine.
+    def test_cachedVersionsAreNotPruned(self):
+        # A finished batch re-invoked with --prune leaves the cached versions
+        # alone: the engine produced nothing, so there is nothing to prune.
+        # Reclaiming an old family's disk is pruneRuns.py's job.
         self.makeEpoch()
         writeSpec(self.specDir, self.STEM, 1)
         rb.runBatch(self.STEM, self.cfg,
@@ -606,8 +607,28 @@ class TestPruneFlag(BatchCase):
         result = rb.runBatch(self.STEM, self.cfg, runner=runner, echo=quiet, prune=True)
         self.assertEqual(runner.calls, [])
         self.assertFalse(result.failed)
-        self.assertFalse(self.wfExists(1, "AD"))
+        self.assertTrue(self.wfExists(1, "AD"))
         self.assertTrue(self.wfExists(1, "CL"))
+
+    def test_pruneOutputIsTerseUnlessVerbose(self):
+        self.makeEpoch()
+        writeSpec(self.specDir, self.STEM, 1)
+        lines = []
+        rb.runBatch(self.STEM, self.cfg, prune=True,
+                    runner=FakeRunner(sideEffect=self.sideEffectWithUnits),
+                    echo=lambda *a, end="\n": lines.append(" ".join(map(str, a))))
+        self.assertFalse(self.wfExists(1, "AD"))
+        pruneLines = [l for l in lines if "Prun" in l]
+        self.assertEqual(len(pruneLines), 1)
+        self.assertIn("Pruned", pruneLines[0])
+        self.assertFalse(any("file(s)" in l or "unit dir(s)" in l for l in lines))
+
+        writeSpec(self.specDir, self.STEM, 2)
+        lines.clear()
+        rb.runBatch(self.STEM, self.cfg, prune=True, verbose=True,
+                    runner=FakeRunner(sideEffect=self.sideEffectWithUnits),
+                    echo=lambda *a, end="\n": lines.append(" ".join(map(str, a))))
+        self.assertTrue(any("file(s)" in l or "unit dir(s)" in l for l in lines))
 
 
 class TestFormatSummary(BatchCase):
