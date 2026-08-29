@@ -1,0 +1,48 @@
+{
+    "name": "EecAwesomeOscillator",
+    "type": "Entry",
+    "inputVariables": {
+        "aback": "1",
+        "bback": "1",
+        "v1": "5",
+        "v3": "2",
+        "fatr": "0.5"
+    },
+    "localVariables": {
+        "aoFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "aoSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ao": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "aoNear": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "aoFar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "aoHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "aoCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: Value1 = Average((H+L)/2, v1), Value2 = Average((H+L)/2, v1+v3) -- both\n// plain Average over a PRICE expression, which has real history, so they are\n// recomputed fresh from the bars every time (EL_Summation_Probe: Average is\n// not a rolling sum). Summation adds Price[0], Price[1], ... in that order and\n// Average divides once afterwards; (H+L)/2 is evaluated per bar as written.\naoFast = 0.0;\nfor (int i = 0; i < (int)v1; ++i) {\n    aoFast += (high[i] + low[i]) / 2.0;\n}\naoFast = aoFast / (int)v1;\naoSlow = 0.0;\nfor (int i = 0; i < (int)(v1 + v3); ++i) {\n    aoSlow += (high[i] + low[i]) / 2.0;\n}\naoSlow = aoSlow / (int)(v1 + v3);\nao = aoFast - aoSlow;\n// EL: AO is a VARIABLE, so AO[n] reads the variable's own history, which\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one. Mirrored as a zero-seeded ring buffer holding lags 0..maxLag,\n// re-seeded if the depth ever changes (see AtrRising).\n{\n    const int maxLag = (int)aback > (int)bback ? (int)aback : (int)bback;\n    if (aoHistory.size() != (std::size_t)(maxLag + 1)) {\n        aoHistory.assign((std::size_t)(maxLag + 1), 0.0);\n        aoCursor = 0;\n    }\n}\naoHistory[aoCursor] = ao;\naoCursor = (aoCursor + 1) % aoHistory.size();\naoNear = aoHistory[(aoCursor + aoHistory.size() - 1 - (std::size_t)(int)aback) % aoHistory.size()];\naoFar = aoHistory[(aoCursor + aoHistory.size() - 1 - (std::size_t)(int)bback) % aoHistory.size()];",
+    "longCondition": "el_lt(aoNear, aoFar) && el_lt(low[0], low[1]) && el_gt((close[0] - low[0]) / (high[0] - low[0] + .000001), fatr)",
+    "shortCondition": "el_gt(aoNear, aoFar) && el_gt(high[0], high[1]) && el_lt((close[0] - low[0]) / (high[0] - low[0] + .000001), (1 - fatr))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

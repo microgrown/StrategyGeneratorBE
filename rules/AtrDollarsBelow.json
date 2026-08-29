@@ -1,0 +1,29 @@
+{
+    "name": "AtrDollarsBelow",
+    "type": "Entry",
+    "inputVariables": {
+        "atrLookback": "14",
+        "maxDollars": "2500"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and thereafter updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding\n// it to S += in - out rounds differently (@OJ 2015-02-20). The book calls\n// plain AvgTrueRange; the standing decision (AI-Algos book, 2026-08-25) is\n// that every ATR compares against the WFSafe_ override.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
+    "longCondition": "el_lt(atr * ctx.BigPointValue(), maxDollars)",
+    "shortCondition": "el_lt(atr * ctx.BigPointValue(), maxDollars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

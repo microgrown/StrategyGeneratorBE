@@ -1,0 +1,33 @@
+{
+    "name": "EquityDrawdownFilter",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "200",
+        "lossAmount": "3000"
+    },
+    "localVariables": {
+        "totEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pastEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "equityHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "equityCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The book: TotEquity = NetProfit + OpenPositionProfit, an EL VARIABLE, and\n// TotEquity[lookback] reads that variable's own history -- which holds its\n// initial 0 for every bar before the strategy's first evaluated one (the EL\n// warm-up convention; BarRangeAboveStd is the reference). So for the first\n// lookback evaluated bars the test is against 0 equity, not against a value\n// recomputed from bars EL never saw. Mirrored with a zero-initialised ring\n// buffer whose slot at the cursor was written exactly lookback bars ago;\n// re-seeded if the length ever changes.\ntotEquity = ctx.NetProfit() + ctx.OpenPositionProfit();\nif ((int)lookback < 1) {\n    pastEquity = totEquity;\n} else {\n    if (equityHistory.size() != (std::size_t)(int)lookback) {\n        equityHistory.assign((std::size_t)(int)lookback, 0.0);\n        equityCursor = 0;\n    }\n    pastEquity = equityHistory[equityCursor];\n    equityHistory[equityCursor] = totEquity;\n    equityCursor = (equityCursor + 1) % equityHistory.size();\n}",
+    "longCondition": "el_gt(totEquity - pastEquity, -lossAmount)",
+    "shortCondition": "el_gt(totEquity - pastEquity, -lossAmount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

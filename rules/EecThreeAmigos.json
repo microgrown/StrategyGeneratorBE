@@ -1,0 +1,80 @@
+{
+    "name": "EecThreeAmigos",
+    "type": "Entry",
+    "inputVariables": {
+        "adxLength": "14",
+        "rsiLength": "14",
+        "lookbackBig": "20",
+        "lookbackShort": "10",
+        "adxThreshold": "25"
+    },
+    "localVariables": {
+        "avgPlusDM": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgMinusDM": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volty": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cumDmi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adxVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adxSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiPlus": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiMinus": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiDivisor": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "netChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "totChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sfRsi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgRatio": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions #27 (Three Amigos), verbatim: ADX strictly above\n// the threshold, RSI on the pullback side of 50, and opposing long/short-term\n// momentum. Both accumulators run every bar (EL does not short-circuit).\n// MultiWalk's WFSafe_ADX, copied statement for statement from\n// AdxBelowThreshold (the bit-exact reference; EL_ADX_Probe.txt,\n// scripts/adx_replica.py). Seeds at the study's first calculated bar with\n// fresh Length-term DM/TR sums, followed by EMA-form updates with SF = 1/Length;\n// oADX warms up as Cum(oDMI)/CurrentBar through bar Length. el_gt in the DM\n// classification is decisive (near-ties from grid-price differences). No\n// re-seed on a length change. The hook-scope temporaries of the reference\n// (sfAdx, dmiPlus, dmiMinus, divisor, dmi) are DECLARED locals here so they\n// take the placement prefix and cannot collide with AdxBelowThreshold in the\n// same strategy.\nadxSf = 1 / adxLength;\nif (ctx.CurrentBar() == 1) {\n    double sumPlusDM = 0.0;\n    double sumMinusDM = 0.0;\n    double sumTR = 0.0;\n    for (int i = 0; i < (int)adxLength; ++i) {\n        double upMove = high[i] - high[i + 1];\n        double dnMove = low[i + 1] - low[i];\n        double plusDM = 0.0;\n        double minusDM = 0.0;\n        if (el_gt(upMove, dnMove) && el_gt(upMove, 0.0)) plusDM = upMove;\n        else if (el_gt(dnMove, upMove) && el_gt(dnMove, 0.0)) minusDM = dnMove;\n        sumPlusDM += plusDM;\n        sumMinusDM += minusDM;\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        sumTR += hi - lo;\n    }\n    avgPlusDM = sumPlusDM / adxLength;\n    avgMinusDM = sumMinusDM / adxLength;\n    volty = sumTR / adxLength;\n} else {\n    double upMove = high[0] - high[1];\n    double dnMove = low[1] - low[0];\n    double plusDM = 0.0;\n    double minusDM = 0.0;\n    if (el_gt(upMove, dnMove) && el_gt(upMove, 0.0)) plusDM = upMove;\n    else if (el_gt(dnMove, upMove) && el_gt(dnMove, 0.0)) minusDM = dnMove;\n    avgPlusDM = avgPlusDM + adxSf * (plusDM - avgPlusDM);\n    avgMinusDM = avgMinusDM + adxSf * (minusDM - avgMinusDM);\n    double hi = high[0] > close[1] ? high[0] : close[1];\n    double lo = low[0] < close[1] ? low[0] : close[1];\n    volty = volty + adxSf * ((hi - lo) - volty);\n}\ndmiPlus = 0.0;\ndmiMinus = 0.0;\nif (el_gt(volty, 0.0)) {\n    dmiPlus = 100 * avgPlusDM / volty;\n    dmiMinus = 100 * avgMinusDM / volty;\n}\ndmiDivisor = dmiPlus + dmiMinus;\ndmiVal = 0.0;\nif (el_gt(dmiDivisor, 0.0)) dmiVal = 100 * std::fabs(dmiPlus - dmiMinus) / dmiDivisor;\n// Cum() is a series function: it accumulates every bar regardless of which\n// oADX branch runs.\ncumDmi = cumDmi + dmiVal;\nif (ctx.CurrentBar() <= adxLength) {\n    adxVal = cumDmi / ctx.CurrentBar();\n} else {\n    adxVal = adxVal + adxSf * (dmiVal - adxVal);\n}\n// MultiWalk's WFSafe_RSI, copied from RsiBelowThreshold (the bit-exact\n// reference; EL_WFSafeRsi_Probe.txt, scripts/rsi_replica.py): TS's RSI with\n// SF = 1/Length recomputed every bar, NO re-seed on a length change, seeded at\n// the study's first calculated bar with NetChgAvg = (Price - Price[Length]) /\n// Length and a fresh Average(AbsValue(Price - Price[1]), Length), followed by\n// EMA-form updates. `TotChgAvg <> 0` carries the EL tolerance. sfRsi and\n// chgRatio are declared locals so they take the placement prefix.\nsfRsi = 1 / rsiLength;\nif (ctx.CurrentBar() == 1) {\n    netChgAvg = (close[0] - close[(int)rsiLength]) / rsiLength;\n    double totChg = 0.0;\n    for (int i = 0; i < (int)rsiLength; ++i) {\n        totChg += std::fabs(close[i] - close[i + 1]);\n    }\n    totChgAvg = totChg / rsiLength;\n} else {\n    double change = close[0] - close[1];\n    netChgAvg = netChgAvg + sfRsi * (change - netChgAvg);\n    totChgAvg = totChgAvg + sfRsi * (std::fabs(change) - totChgAvg);\n}\nchgRatio = 0.0;\nif (el_ne(totChgAvg, 0.0)) chgRatio = netChgAvg / totChgAvg;\nrsiVal = 50 * (chgRatio + 1);",
+    "longCondition": "el_gt(adxVal, adxThreshold) && el_lt(rsiVal, 50) && el_lt(close[0], close[lookbackBig]) && el_gt(close[0], close[lookbackShort])",
+    "shortCondition": "el_gt(adxVal, adxThreshold) && el_gt(rsiVal, 50) && el_gt(close[0], close[lookbackBig]) && el_lt(close[0], close[lookbackShort])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

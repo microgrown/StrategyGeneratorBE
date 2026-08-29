@@ -1,0 +1,37 @@
+{
+    "name": "EecDayOfWeekWithATwist",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "200",
+        "lossAmt": "3000"
+    },
+    "localVariables": {
+        "totEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pastEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "equityHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "equityCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "dow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions bonus #2 (Day Of Week, With A Twist), verbatim:\n// long on Thursday's bar (fills Friday's open), short on Friday's bar (fills\n// Monday's open), gated on the strategy's own equity not having lost more\n// than lossAmt over the last lookback bars. 'next bar at open' and 'next bar\n// at market' are the same fill here.\n// The book: TotEquity = NetProfit + OpenPositionProfit, an EL VARIABLE, and\n// TotEquity[lookback] reads that variable's own history -- which holds its\n// initial 0 for every bar before the strategy's first evaluated one (the EL\n// warm-up convention; BarRangeAboveStd is the reference). So for the first\n// lookback evaluated bars the test is against 0 equity, not against a value\n// recomputed from bars EL never saw. Mirrored with a zero-initialised ring\n// buffer whose slot at the cursor was written exactly lookback bars ago;\n// re-seeded if the length ever changes.\ntotEquity = ctx.NetProfit() + ctx.OpenPositionProfit();\nif ((int)lookback < 1) {\n    pastEquity = totEquity;\n} else {\n    if (equityHistory.size() != (std::size_t)(int)lookback) {\n        equityHistory.assign((std::size_t)(int)lookback, 0.0);\n        equityCursor = 0;\n    }\n    pastEquity = equityHistory[equityCursor];\n    equityHistory[equityCursor] = totEquity;\n    equityCursor = (equityCursor + 1) % equityHistory.size();\n}\n// EL DayOfWeek(Date): 0 = Sunday .. 6 = Saturday, of the bar's wall-clock\n// close date (EL_Date_Probe.txt, 169/169 incl. evening bars). day_of_week()\n// in time.h uses the same numbering.\ndow = day_of_week(day_of(ctx.Time(0)));",
+    "longCondition": "el_gt(totEquity - pastEquity, -lossAmt) && el_eq(dow, 4)",
+    "shortCondition": "el_gt(totEquity - pastEquity, -lossAmt) && el_eq(dow, 5)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

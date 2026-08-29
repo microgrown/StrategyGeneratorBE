@@ -35,5 +35,10 @@ def saveTemplate(name, data):
 
 
 def loadTemplate(name):
-    with open(templatePath(name)) as f:
+    return loadTemplateFile(templatePath(name))
+
+
+def loadTemplateFile(path):
+    """Load a template from an arbitrary path (makeStrategy.py accepts one)."""
+    with open(path) as f:
         return json.load(f)

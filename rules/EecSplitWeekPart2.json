@@ -1,0 +1,50 @@
+{
+    "name": "EecSplitWeekPart2",
+    "type": "Entry",
+    "inputVariables": {
+        "bbars": "15",
+        "maxl": "2500",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "dow": {
+            "type": "int",
+            "init": "0"
+        },
+        "highestHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowestLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highestClose": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowestClose": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions #15 (Split Week), verbatim: on Fri/Mon, a joint\n// highest-high AND highest-close (lowest-low / lowest-close short) while the\n// ATR in dollars is below maxl. The book's Condition1 is inlined -- it was\n// assigned unconditionally every bar, so the OR of days is the same test.\n// EL DayOfWeek(Date): 0 = Sunday .. 6 = Saturday, of the bar's wall-clock\n// close date (EL_Date_Probe.txt, 169/169 incl. evening bars). day_of_week()\n// in time.h uses the same numbering.\ndow = day_of_week(day_of(ctx.Time(0)));\nhighestHigh = high[0];\nlowestLow = low[0];\n// Mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call: seeded\n// at bar 0, scanning bars 1..Length-1, strict comparison (so a tie keeps the\n// earliest bar). Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\nfor (int i = 1; i < (int)bbars; ++i) {\n    if (el_gt(high[i], highestHigh)) highestHigh = high[i];\n    if (el_lt(low[i], lowestLow)) lowestLow = low[i];\n}\nhighestClose = close[0];\nlowestClose = close[0];\n// Mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call: seeded\n// at bar 0, scanning bars 1..Length-1, strict comparison (so a tie keeps the\n// earliest bar). Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\nfor (int i = 1; i < (int)bbars; ++i) {\n    if (el_gt(close[i], highestClose)) highestClose = close[i];\n    if (el_lt(close[i], lowestClose)) lowestClose = close[i];\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and thereafter updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding\n// it to S += in - out rounds differently (@OJ 2015-02-20). The book calls\n// plain AvgTrueRange; the standing decision (AI-Algos book, 2026-08-25) is\n// that every ATR compares against the WFSafe_ override.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
+    "longCondition": "(el_eq(dow, 5) || el_eq(dow, 1)) && el_eq(high[0], highestHigh) && el_eq(close[0], highestClose) && el_lt(atr * ctx.BigPointValue(), maxl)",
+    "shortCondition": "(el_eq(dow, 5) || el_eq(dow, 1)) && el_eq(low[0], lowestLow) && el_eq(close[0], lowestClose) && el_lt(atr * ctx.BigPointValue(), maxl)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

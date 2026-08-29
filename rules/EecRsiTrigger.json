@@ -1,0 +1,42 @@
+{
+    "name": "EecRsiTrigger",
+    "type": "Entry",
+    "inputVariables": {
+        "rsiLength": "5",
+        "rsiThreshold": "80",
+        "xBars": "5"
+    },
+    "localVariables": {
+        "netChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "totChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sfRsi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgRatio": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgClose": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions #12 (RSI Trigger), verbatim.\n// MultiWalk's WFSafe_RSI, copied from RsiBelowThreshold (the bit-exact\n// reference; EL_WFSafeRsi_Probe.txt, scripts/rsi_replica.py): TS's RSI with\n// SF = 1/Length recomputed every bar, NO re-seed on a length change, seeded at\n// the study's first calculated bar with NetChgAvg = (Price - Price[Length]) /\n// Length and a fresh Average(AbsValue(Price - Price[1]), Length), followed by\n// EMA-form updates. `TotChgAvg <> 0` carries the EL tolerance. sfRsi and\n// chgRatio are declared locals so they take the placement prefix.\nsfRsi = 1 / rsiLength;\nif (ctx.CurrentBar() == 1) {\n    netChgAvg = (close[0] - close[(int)rsiLength]) / rsiLength;\n    double totChg = 0.0;\n    for (int i = 0; i < (int)rsiLength; ++i) {\n        totChg += std::fabs(close[i] - close[i + 1]);\n    }\n    totChgAvg = totChg / rsiLength;\n} else {\n    double change = close[0] - close[1];\n    netChgAvg = netChgAvg + sfRsi * (change - netChgAvg);\n    totChgAvg = totChgAvg + sfRsi * (std::fabs(change) - totChgAvg);\n}\nchgRatio = 0.0;\nif (el_ne(totChgAvg, 0.0)) chgRatio = netChgAvg / totChgAvg;\nrsiVal = 50 * (chgRatio + 1);\n// EL's Average recomputes from scratch every bar (CloseAboveAverage is the\n// reference); the close series has real history, so no warm-up mirroring.\navgClose = 0.0;\nfor (int i = 0; i < (int)xBars; ++i) {\n    avgClose += close[i];\n}\navgClose /= (int)xBars;",
+    "longCondition": "el_lt(rsiVal, rsiThreshold) && el_gt(close[0], avgClose)",
+    "shortCondition": "el_gt(rsiVal, 100 - rsiThreshold) && el_lt(close[0], avgClose)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

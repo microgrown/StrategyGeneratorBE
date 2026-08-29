@@ -55,6 +55,35 @@ includes the two generated `.inc` files. See PLAN.md §1.
 **Flip** swaps a placement's long and short conditions. **Negate** wraps both in
 `!( ... )`. Both are per-placement; the saved rule is never modified.
 
+## Generating without the GUI
+
+`makeStrategy.py` is the Make Strategy button as a command: it loads a saved
+template from `templates/` (or any template `.json` path) and runs the same
+pipeline — header, registry `.inc` files, manifest, one spec per version, and
+the template re-saved under the strategy name. Output is byte-identical to the
+GUI's.
+
+```
+python makeStrategy.py "202608 BAS-12"
+.\scripts\build.ps1 -Config Release          # in the engine repo
+python runBatch.py s_202608_bas_12 --prune
+```
+
+Everything defaults to the template and `config.json`; flags override for that
+run only and never write `config.json` back:
+
+| Flag | Meaning |
+|---|---|
+| `--name NAME` | Strategy name (default: the template's `strategyName`). |
+| `--max-bars-back N` | Max Bars Back (default: the template's value, then `config.json`). |
+| `--engine-dir DIR` | BacktestEngine root. |
+| `--spec-template PATH` | Spec JSON to clone per version. |
+| `--no-save-template` | Skip re-saving `templates/<name>.json`. |
+
+Exit code 0 on success, 1 on any error with one line on stderr. A template is
+just the JSON the GUI's Save Template writes, so you can also author or edit
+one by hand (or from a script) and feed it straight in.
+
 ## Running a batch
 
 ```
