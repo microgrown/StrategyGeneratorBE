@@ -321,6 +321,37 @@ class TestWriteAggregate(BatchCase):
             agg = json.load(f)
         self.assertTrue(agg["runs"][f"{self.STEM}_v1"]["changed"])
 
+    def test_streamedFileMatchesJsonDump(self):
+        # The aggregate is streamed from cached per-version encodings; the
+        # bytes must be exactly what json.dump of buildAggregateReport gives.
+        writeSelection(self.runDirFor(1))
+        writeSelection(self.runDirFor(2), report={"format_version": 1,
+                                                  "candidates": [{"k": "vé"}]})
+        _, _, reports = rb.writeAggregate(self.STEM, self.outcomes([1, 2]), self.cfg, [])
+        with open(os.path.join(self.aggDir(), rb.REPORT_JSON)) as f:
+            text = f.read()
+        expected = json.dumps(rb.buildAggregateReport(self.STEM, reports)) + "\n"
+        strip = lambda s: s.replace(json.loads(s)["created_utc"], "T")
+        self.assertEqual(strip(text), strip(expected))
+        self.assertEqual(rb.readAggregateMarker(os.path.join(self.aggDir(), rb.REPORT_JSON)),
+                         rb.AGGREGATE_MARKER)
+
+    def test_cacheSkipsRereadAndRetriesUnreadable(self):
+        writeSelection(self.runDirFor(1))
+        cache = {}
+        rb.writeAggregate(self.STEM, self.outcomes([1, 2]), self.cfg, [], cache=cache)
+        self.assertEqual(set(cache), {f"{self.STEM}_v1"})  # v2 absent: not cached
+        # v1's file changing on disk is invisible through the cache (a version
+        # is read once per batch); v2 appearing is picked up.
+        writeSelection(self.runDirFor(1), report={"format_version": 1,
+                                                  "candidates": [], "changed": True})
+        writeSelection(self.runDirFor(2))
+        _, names, reports = rb.writeAggregate(self.STEM, self.outcomes([1, 2]), self.cfg,
+                                              [], cache=cache)
+        self.assertEqual(len(names), 2)
+        self.assertNotIn("changed", reports[f"{self.STEM}_v1"])
+        self.assertEqual(set(cache), set(names))
+
     def test_refusesRealRunDirWithLog(self):
         writeSelection(self.runDirFor(1))
         touch(os.path.join(self.aggDir(), rb.RUN_LOG))

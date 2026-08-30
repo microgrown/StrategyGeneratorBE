@@ -396,6 +396,27 @@ def buildAggregateReport(stem, reports):
     }
 
 
+def readAggregateMarker(reportPath):
+    """The "aggregated_by" value of an aggregate report, or None when the file
+    is unreadable or does not start with that key. buildAggregateReport writes
+    it as the first key precisely so this needs only a prefix: the aggregate
+    embeds every version's report and runs to gigabytes on big families, so a
+    full json.load here is minutes (and a MemoryError) per call — and --prune
+    calls it once per version."""
+    try:
+        with open(reportPath, encoding="utf-8-sig") as f:
+            head = f.read(4096)
+    except OSError:
+        return None
+    match = re.match(r'\s*\{\s*"aggregated_by"\s*:\s*"((?:[^"\\]|\\.)*)"', head)
+    if match is None:
+        return None
+    try:
+        return json.loads(f'"{match.group(1)}"')
+    except ValueError:
+        return None
+
+
 def checkAggregateDirSafety(aggDir):
     """runs/<stem>/ must not be a real engine run (a spec named exactly <stem>
     would put one there) or hold files some other tool wrote."""
@@ -415,25 +436,36 @@ def checkAggregateDirSafety(aggDir):
             )
     reportPath = os.path.join(aggDir, REPORT_JSON)
     if os.path.exists(reportPath):
-        try:
-            with open(reportPath) as f:
-                existing = json.load(f)
-        except (OSError, ValueError):
-            existing = None
-        if not isinstance(existing, dict) or existing.get("aggregated_by") != AGGREGATE_MARKER:
+        if readAggregateMarker(reportPath) != AGGREGATE_MARKER:
             raise GenerationError(
                 f"'{reportPath}' was not written by runBatch; refusing to overwrite."
             )
 
 
-def writeAggregate(stem, outcomes, cfg, warnings):
+def writeAggregate(stem, outcomes, cfg, warnings, cache=None):
     """Aggregate whatever selection output exists across the batch — including
     from failed or skipped versions. Returns (aggregateDir, runNames, reports);
-    aggregateDir is "" when there was nothing to aggregate."""
-    perRun = []
+    aggregateDir is "" when there was nothing to aggregate.
+
+    cache, when given, is a {runName: loaded} dict that outlives this call:
+    a version's selection output is read from disk once and reused by every
+    later call sharing the dict. --prune rewrites the aggregate after every
+    version, and without the cache each rewrite re-parses every finished
+    version's report — quadratic in the family size. Only successful loads
+    are cached, so a version with unreadable output is retried (and warned
+    about) on each call, exactly as without the cache."""
+    perRun = []  # (runName, fieldnames, rows, report, encodedReport)
     for outcome in outcomes:
         runName = f"{stem}_v{outcome.version}"
-        loaded = loadRunSelection(outcome.runDir, runName, warnings)
+        loaded = cache.get(runName) if cache is not None else None
+        if loaded is None:
+            loaded = loadRunSelection(outcome.runDir, runName, warnings)
+            if loaded is not None:
+                # Encoded once: the report is embedded verbatim, so its JSON
+                # text never changes between rewrites.
+                loaded = loaded + (json.dumps(loaded[2]),)
+                if cache is not None:
+                    cache[runName] = loaded
         if loaded is not None:
             perRun.append((runName,) + loaded)
     if not perRun:
@@ -445,7 +477,7 @@ def writeAggregate(stem, outcomes, cfg, warnings):
     os.makedirs(aggDir, exist_ok=True)
 
     header, rows, divergent = mergeSummaryRows(
-        [(name, fields, rws) for name, fields, rws, _ in perRun]
+        [(name, fields, rws) for name, fields, rws, _, _ in perRun]
     )
     if divergent:
         warnings.append(
@@ -463,13 +495,24 @@ def writeAggregate(stem, outcomes, cfg, warnings):
         writer.writerows(rows)
     os.replace(summaryPath + ".tmp", summaryPath)
 
-    reports = {name: report for name, _, _, report in perRun}
+    reports = {name: report for name, _, _, report, _ in perRun}
     reportPath = os.path.join(aggDir, REPORT_JSON)
+    # Streamed from the per-version encodings, byte-identical to
+    # json.dump(buildAggregateReport(stem, reports), f): the envelope is
+    # dumped with an empty "runs" and its closing "}}" replaced by the
+    # cached run entries. Compact on purpose — this file is read by machines
+    # only (the engine's report reader rejects it by its first key;
+    # readAggregateMarker reads a 4 KB prefix), and re-encoding gigabytes,
+    # pretty-printed, was most of every rewrite under --prune.
+    envelope = json.dumps(buildAggregateReport(stem, {}))
+    assert envelope.endswith('"runs": {}}')
     with open(reportPath + ".tmp", "w") as f:
-        json.dump(buildAggregateReport(stem, reports), f, indent=2)
-        f.write("\n")
+        f.write(envelope[:-2])
+        for i, (name, _, _, _, encoded) in enumerate(perRun):
+            f.write(f'{", " if i else ""}{json.dumps(name)}: {encoded}')
+        f.write("}}\n")
     os.replace(reportPath + ".tmp", reportPath)
-    return aggDir, [name for name, _, _, _ in perRun], reports
+    return aggDir, [name for name, _, _, _, _ in perRun], reports
 
 
 # --- orchestration -----------------------------------------------------------
@@ -502,6 +545,7 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
         registry = pruneRuns.requireEpochs(cfg)
 
     seen = []
+    loadedSelections = {}  # runName -> loaded selection output, read once
 
     def afterVersion(outcome):
         seen.append(outcome)
@@ -514,7 +558,8 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
             # Roll the verdicts up before touching data: the aggregate-so-far
             # is what makes the finished versions' results safe to prune (the
             # final writeAggregate below re-derives it with warnings kept).
-            writeAggregate(stem, sorted(seen, key=lambda o: o.version), cfg, [])
+            writeAggregate(stem, sorted(seen, key=lambda o: o.version), cfg, [],
+                           cache=loadedSelections)
             # The per-file counts and sizes only appear under --verbose; the
             # default console gets a single pass/fail line per version.
             detail = echo if verbose else _silent
@@ -528,7 +573,8 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
 
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose,
                         onOutcome=afterVersion if prune else None, jobs=jobs)
-    aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings)
+    aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings,
+                                                       cache=loadedSelections)
 
     if prune:
         if any(not o.ok for o in outcomes):

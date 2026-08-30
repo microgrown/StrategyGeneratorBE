@@ -49,7 +49,7 @@ from datetime import date, datetime, timezone
 import config
 import snapshotData
 from runBatch import (AGGREGATE_MARKER, REPORT_JSON, WALKFORWARD_EXE,
-                      resolveStem, runsDir)
+                      readAggregateMarker, resolveStem, runsDir)
 from specWriter import specOutputDir
 from strategyWriter import GenerationError
 
@@ -86,21 +86,7 @@ def hasAggregate(stem, baseDir):
     """True when runs/<stem>/ holds a runBatch aggregate — the sign the family
     is finished and its verdicts are safely rolled up."""
     reportPath = os.path.join(baseDir, stem, REPORT_JSON)
-    # runBatch writes "aggregated_by" as the first key, and the aggregate can
-    # run to gigabytes (it embeds every version's report), so read only a
-    # prefix; a full json.load is a MemoryError on the big families.
-    try:
-        with open(reportPath, encoding="utf-8-sig") as f:
-            head = f.read(4096)
-    except OSError:
-        return False
-    match = re.match(r'\s*\{\s*"aggregated_by"\s*:\s*"((?:[^"\\]|\\.)*)"', head)
-    if match is None:
-        return False
-    try:
-        return json.loads(f'"{match.group(1)}"') == AGGREGATE_MARKER
-    except ValueError:
-        return False
+    return readAggregateMarker(reportPath) == AGGREGATE_MARKER
 
 
 def loadReport(runDir):
