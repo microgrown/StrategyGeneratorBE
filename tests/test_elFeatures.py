@@ -55,6 +55,14 @@ class TestExtractionEl(unittest.TestCase):
         rule = {"longCondition": "Maxpositionprofit > maxpositionprofit"}
         self.assertEqual(lef.elFeaturesOfTsRule(rule), {"maxpositionprofit"})
 
+    def testCrossesPhraseIsOneToken(self):
+        # `crosses above` is one two-word operator and must match the register
+        # row's phrase key; neither `crosses` nor `above` may register alone.
+        rule = {"longCondition": "Average(Close, 5) Crosses Above Average(Close, 10)",
+                "shortCondition": "close crosses under close[1]"}
+        self.assertEqual(lef.elFeaturesOfTsRule(rule),
+                         {"average", "close", "crosses above", "crosses under"})
+
     def testIgnoresBracedComments(self):
         rule = {"preConditionHook": "{ mirrors WFSafe_AvgTrueRange and Summation }\nx = 1;",
                 "localVariables": {"x": "0"}}

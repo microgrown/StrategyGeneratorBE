@@ -1,0 +1,31 @@
+{
+    "name": "UltimateOscillatorExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "len1": "7",
+        "len2": "14",
+        "len3": "28",
+        "xbars": "10"
+    },
+    "localVariables": {
+        "uoNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "uoLowest": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "uoHighest": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "// EEC B1 helper: TradeStation's UltimateOscillator evaluated at a lag, fresh\n// from prices (EL_FEATURES `ultimateosc`, VERIFIED):\n//     UO = (4*A_len1 + 2*A_len2 + A_len3) / 7\n//     A_x = Sum(Close - TrueLow, x) / Sum(TrueRange, x)\n//     TrueLow = min(Low, Close[1]); TrueRange = max(High, Close[1]) - TrueLow\n// windows INCLUDING the bar at `lag`, each Sum accumulated NEWEST-FIRST (the\n// EL Summation order). Returns the FRACTION 0..1 -- TradeStation's function\n// does NOT multiply by 100. The oscillator is a function OF PRICE, so its\n// series history is REAL: each lag is recomputed from the bars EL actually\n// saw, not read from a zero-filled variable buffer. The min/max are between\n// tick-grid prices, so plain comparisons, as in AtrProfitTarget's TrueRange\n// loop.\ndouble UoAt(Context& ctx, int lag, int n1, int n2, int n3) const {\n    double buy1 = 0.0, rng1 = 0.0;\n    double buy2 = 0.0, rng2 = 0.0;\n    double buy3 = 0.0, rng3 = 0.0;\n    int nMax = n1 > n2 ? n1 : n2;\n    if (n3 > nMax) nMax = n3;\n    for (int i = 0; i < nMax; ++i) {\n        int j = lag + i;\n        double tl = ctx.low[j] < ctx.close[j + 1] ? ctx.low[j] : ctx.close[j + 1];\n        double th = ctx.high[j] > ctx.close[j + 1] ? ctx.high[j] : ctx.close[j + 1];\n        double bp = ctx.close[j] - tl;\n        double tr = th - tl;\n        if (i < n1) { buy1 += bp; rng1 += tr; }\n        if (i < n2) { buy2 += bp; rng2 += tr; }\n        if (i < n3) { buy3 += bp; rng3 += tr; }\n    }\n    return (4 * (buy1 / rng1) + 2 * (buy2 / rng2) + buy3 / rng3) / 7;\n}",
+    "startOfFileHook": "",
+    "preConditionHook": "// Extremes over the oscillator's own last xbars values, the current bar (lag\n// 0) included. Highest/Lowest are EL SOURCE (Extremes: seeded at position 0,\n// scanning 1..Length-1, strict comparison carrying the EL relational\n// tolerance), so el_gt/el_lt here -- and unlike Breakout's tick-grid closes,\n// the oscillator is NOT on the tick grid, so on the 0..1 fraction scale the\n// absolute 2.22e-12 tolerance genuinely bites.\nuoNow = UoAt(ctx, 0, (int)len1, (int)len2, (int)len3);\nuoLowest = uoNow;\nuoHighest = uoNow;\nfor (int k = 1; k < (int)xbars; ++k) {\n    double v = UoAt(ctx, k, (int)len1, (int)len2, (int)len3);\n    if (el_lt(v, uoLowest)) uoLowest = v;\n    if (el_gt(v, uoHighest)) uoHighest = v;\n}",
+    "longCondition": "el_le(uoNow, uoLowest)",
+    "shortCondition": "el_ge(uoNow, uoHighest)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

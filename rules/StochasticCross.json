@@ -1,0 +1,50 @@
+{
+    "name": "StochasticCross",
+    "type": "Entry",
+    "inputVariables": {
+        "sLength": "8",
+        "smoothing1": "23",
+        "smoothing2": "22"
+    },
+    "localVariables": {
+        "skNumHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "skDenHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "skHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "slowK": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowD": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lastSideKD": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossUpKD": {
+            "type": "bool",
+            "init": "false"
+        },
+        "crossDownKD": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E23's Stochastic at SmoothingType 1 (\"original\"), the `stochastic`\n// register row (VERIFIED, EL_Stochastic_Probe.txt, two chart starts):\n//   oFastK  = 100 * (C - LL(sLength)) / (HH - LL)          -- fresh, real\n//             price history (5.1e-13 against the probe);\n//   oSlowK == oFastD = 100 * Sum(C - LL, smoothing1) / Sum(HH - LL,\n//             smoothing1) -- a RATIO OF SUMS of the per-bar numerator and\n//             denominator, NOT an average of FastK (that model was refuted\n//             at maxd 24);\n//   oSlowD  = simple smoothing2-mean of SlowK.\n// WARM-UP (measured exactly, 0/61 bars, by joining run 2's early bars with\n// run 1's pre-history): the num/den/SlowK series exist only from the\n// study's first calculated bar, and missing terms are SEED-FILLED with the\n// FIRST bar's value -- not zero-filled: a short sum adds (N - have) copies\n// of element [0], and SlowD's mean pads with the first SlowK the same way.\n// The growing vectors below reproduce that: they start empty at the first\n// evaluated bar and never see pre-study bars.\ndouble hhWin = high[0];\ndouble llWin = low[0];\nfor (int i = 1; i < (int)sLength; ++i) {\n    if (el_gt(high[i], hhWin)) { hhWin = high[i]; }\n    if (el_lt(low[i], llWin)) { llWin = low[i]; }\n}\nskNumHist.push_back(close[0] - llWin);\nskDenHist.push_back(hhWin - llWin);\ndouble skSumN = 0.0;\ndouble skSumD = 0.0;\n{\n    int have = (int)skNumHist.size();\n    int take = have < (int)smoothing1 ? have : (int)smoothing1;\n    for (int i = 0; i < take; ++i) {  // newest-first\n        skSumN += skNumHist[skNumHist.size() - 1 - i];\n        skSumD += skDenHist[skDenHist.size() - 1 - i];\n    }\n    int miss = (int)smoothing1 - take;\n    if (miss > 0) {\n        skSumN += miss * skNumHist[0];\n        skSumD += miss * skDenHist[0];\n    }\n}\n// An all-flat sLength window across the whole sum makes the denominator 0;\n// EL raises there (the zero-denominator register row) and this mirror does\n// not guard either -- unreachable on real data.\nslowK = 100.0 * skSumN / skSumD;\nskHist.push_back(slowK);\ndouble skSumK = 0.0;\n{\n    int have = (int)skHist.size();\n    int take = have < (int)smoothing2 ? have : (int)smoothing2;\n    for (int i = 0; i < take; ++i) {  // newest-first\n        skSumK += skHist[skHist.size() - 1 - i];\n    }\n    int miss = (int)smoothing2 - take;\n    if (miss > 0) { skSumK += miss * skHist[0]; }\n}\nslowD = skSumK / (int)smoothing2;\n// EL `crosses` is a STATE MACHINE (the `crosses over/under` register row,\n// VERIFIED): fires when the toleranced comparison holds AND the most recent\n// NON-equal bar was on the other side; equality runs are bridged; the side\n// starts UNKNOWN (0), so nothing fires on the first evaluated bar.\ncrossUpKD = el_gt(slowK, slowD) && lastSideKD == -1;\ncrossDownKD = el_lt(slowK, slowD) && lastSideKD == 1;\nif (el_gt(slowK, slowD)) { lastSideKD = 1; }\nelse if (el_lt(slowK, slowD)) { lastSideKD = -1; }",
+    "longCondition": "crossUpKD",
+    "shortCondition": "crossDownKD",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

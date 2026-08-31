@@ -1,0 +1,38 @@
+{
+    "name": "MoneyFlowCross",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "14",
+        "oversold": "20",
+        "overbought": "80"
+    },
+    "localVariables": {
+        "mfVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lastSideOversold": {
+            "type": "int",
+            "init": "0"
+        },
+        "lastSideOverbought": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossUpOversold": {
+            "type": "bool",
+            "init": "false"
+        },
+        "crossDownOverbought": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E24's MoneyFlow(length), the `moneyflow` register row (VERIFIED,\n// EL_MoneyFlow_Probe.txt, 0/9,821 bars at 4.3e-10):\n//   MF = 100 * pos / (pos + neg) over `length` current-inclusive bars;\n//   money flow per bar = typical price (H+L+C)/3 x TICKS -- the TOTAL\n//   up+down tick count (ctx.Ticks), NOT the up-tick `volume` alias\n//   (EL_Volume_Probe.txt); a bar adds to pos when its TP is above the\n//   previous bar's, and to neg OTHERWISE (ties share the else branch);\n//   sums are fresh, newest-first; and there is NO clamp -- with negative\n//   back-adjusted prices the ratio legitimately leaves 0..100 (598.8\n//   measured on @OJ Aug 2008), so do not \"fix\" values outside the range.\n// TP is a pure price function, so every lag reads real chart history.\n// The TP comparison is toleranced (el_gt): TP is a computed value, and\n// EL-source functions carry the relational tolerance internally; the\n// probe's fit cannot distinguish raw from toleranced here (both matched),\n// so this follows the corpus convention for EL-source internals.\ndouble mfPos = 0.0;\ndouble mfNeg = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    double tpNow = (high[i] + low[i] + close[i]) / 3;\n    double tpPrev = (high[i + 1] + low[i + 1] + close[i + 1]) / 3;\n    double flow = tpNow * (double)ctx.Ticks[i];\n    if (el_gt(tpNow, tpPrev)) { mfPos += flow; }\n    else { mfNeg += flow; }\n}\n// pos + neg == 0 needs every bar's TP x Ticks to sum to exactly zero --\n// unreachable on real data (the probe had 0 such bars); EL would divide\n// by zero and raise (the zero-denominator register row), and this mirror\n// does not guard either.\nmfVal = 100.0 * mfPos / (mfPos + mfNeg);\n// EL `crosses` is a STATE MACHINE (the `crosses above/below` register\n// row, VERIFIED): fires when the toleranced comparison holds AND the most\n// recent NON-equal bar was on the other side; equality runs are bridged;\n// the side starts UNKNOWN (0), so nothing fires on the first evaluated\n// bar. One independent state per threshold line.\ncrossUpOversold = el_gt(mfVal, oversold) && lastSideOversold == -1;\ncrossDownOverbought = el_lt(mfVal, overbought) && lastSideOverbought == 1;\nif (el_gt(mfVal, oversold)) { lastSideOversold = 1; }\nelse if (el_lt(mfVal, oversold)) { lastSideOversold = -1; }\nif (el_gt(mfVal, overbought)) { lastSideOverbought = 1; }\nelse if (el_lt(mfVal, overbought)) { lastSideOverbought = -1; }",
+    "longCondition": "crossUpOversold",
+    "shortCondition": "crossDownOverbought",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

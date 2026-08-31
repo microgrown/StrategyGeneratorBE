@@ -1,0 +1,30 @@
+{
+    "name": "EecSerialCorrelation",
+    "type": "Entry",
+    "inputVariables": {
+        "xbars": "15",
+        "waitAfterWin": "5",
+        "waitAfterLoss": "20"
+    },
+    "localVariables": {
+        "scGateOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "scLowestC": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "scHighestC": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E16 \"Introducing Serial Correlation\" -- the book's EXACT composite,\n// deliberately NOT split: the last-trade cooldown gate AND the countertrend\n// extreme-close entry. The gate reads the measured accessors (the\n// `positionprofit(n)`/`totaltrades` register row): PositionProfit(1) is the\n// most recently closed position net of the round turn, BarsSinceExit is 0 on\n// the exit's fill bar, TotalTrades is incremented at that close.\nscGateOk =\n    (el_gt(ctx.PositionProfit(1), 0.0) &&\n     el_ge((double)ctx.BarsSinceExit(), waitAfterWin)) ||\n    (el_le(ctx.PositionProfit(1), 0.0) &&\n     el_ge((double)ctx.BarsSinceExit(), waitAfterLoss)) ||\n    ctx.TotalTrades() == 0;\n// close = Lowest(close, xbars) / Highest(close, xbars): Extremes semantics\n// (seed index 0, strict el_lt/el_gt scan) and the `=` trap -- the equality\n// against the window extreme becomes el_le/el_ge (Breakout is the reference).\nscLowestC = close[0];\nscHighestC = close[0];\nfor (int i = 1; i < (int)xbars; ++i) {\n    if (el_lt(close[i], scLowestC)) { scLowestC = close[i]; }\n    if (el_gt(close[i], scHighestC)) { scHighestC = close[i]; }\n}",
+    "longCondition": "scGateOk && el_le(close[0], scLowestC)",
+    "shortCondition": "scGateOk && el_ge(close[0], scHighestC)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

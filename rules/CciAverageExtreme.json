@@ -1,0 +1,34 @@
+{
+    "name": "CciAverageExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "cciLength": "14",
+        "avgLength": "9",
+        "threshold": "100"
+    },
+    "localVariables": {
+        "cciVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cciAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cciHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "cciCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E35. CCI is fresh from prices every bar (EL_FEATURES `cci`, VERIFIED):\n// (TP - SMA(TP, N)) / (0.015 * mean absolute deviation), TP = (H+L+C)/3, the\n// window INCLUDING the current bar, each summation NEWEST-FIRST -- bar [0]\n// added first, the EL Summation order. Braced so the scratch doubles stay\n// scoped to this placement.\n{\n    double tpMean = 0.0;\n    for (int i = 0; i < (int)cciLength; ++i) {\n        tpMean += (high[i] + low[i] + close[i]) / 3;\n    }\n    tpMean /= (int)cciLength;\n    double meanDev = 0.0;\n    for (int i = 0; i < (int)cciLength; ++i) {\n        meanDev += std::fabs((high[i] + low[i] + close[i]) / 3 - tpMean);\n    }\n    meanDev /= (int)cciLength;\n    cciVal = ((high[0] + low[0] + close[0]) / 3 - tpMean) / (0.015 * meanDev);\n}\n// The book assigns the CCI to the VARIABLE CCIValue and averages THAT, so\n// Average(CCIValue, avgLength) reads the variable's own zero-filled warm-up\n// history -- mirrored here as a zero-initialised ring buffer of the CCI\n// series, re-seeded if the length ever changes (BarRangeAboveStd is the\n// reference pattern). Recomputing the average from prices instead would use\n// bars EL never saw. The average itself also sums NEWEST-FIRST, EL's\n// Summation order, hence the backwards walk from the newest slot.\nif (cciHistory.size() != (std::size_t)(int)avgLength) {\n    cciHistory.assign((std::size_t)(int)avgLength, 0.0);\n    cciCursor = 0;\n}\ncciHistory[cciCursor] = cciVal;\ncciCursor = (cciCursor + 1) % cciHistory.size();\ncciAvg = 0.0;\nfor (std::size_t k = 0; k < cciHistory.size(); ++k) {\n    cciAvg += cciHistory[(cciCursor + cciHistory.size() - 1 - k) % cciHistory.size()];\n}\ncciAvg /= (int)avgLength;",
+    "longCondition": "el_le(cciAvg, -threshold)",
+    "shortCondition": "el_ge(cciAvg, threshold)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

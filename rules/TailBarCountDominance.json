@@ -1,0 +1,25 @@
+{
+    "name": "TailBarCountDominance",
+    "type": "Entry",
+    "inputVariables": {
+        "period": "10",
+        "threshold": "5"
+    },
+    "localVariables": {
+        "bullTails": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearTails": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E36. CountIF counts over bars 0..N-1 INCLUDING the current bar, and the\n// counted condition is a true SERIES: its own [1] offsets shift with the\n// counted bar, so position i tests high[i] > high[i+1] (EL_FEATURES `countif`,\n// VERIFIED -- the frozen-offset model was refuted). The counted condition is\n// on PRICES, which have real history back to the chart start, so no\n// zero-filled variable mirror is needed; MaxBarsBack covers the window. The\n// counts are EL numeric variables, kept as doubles. Every comparison below is\n// an EL relational and goes through el_*; the operands are tick-grid prices or\n// differences of two, so the 2.22e-12 tolerance is inert there either way.\nbullTails = 0.0;\nbearTails = 0.0;\nfor (int i = 0; i < (int)period; ++i) {\n    if (el_gt(close[i], open[i])\n        && el_gt(open[i] - low[i], close[i] - open[i])\n        && el_gt(high[i], high[i + 1])) {\n        bullTails += 1;\n    }\n    if (el_lt(close[i], open[i])\n        && el_gt(high[i] - open[i], open[i] - close[i])\n        && el_lt(low[i], low[i + 1])) {\n        bearTails += 1;\n    }\n}",
+    "longCondition": "el_gt(bullTails, bearTails) && el_gt(bullTails, threshold)",
+    "shortCondition": "el_lt(bullTails, bearTails) && el_gt(bearTails, threshold)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

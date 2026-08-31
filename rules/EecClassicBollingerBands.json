@@ -1,0 +1,50 @@
+{
+    "name": "EecClassicBollingerBands",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "20",
+        "numDevs": "2",
+        "length2": "10"
+    },
+    "localVariables": {
+        "bbAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbSd": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lastSideLower": {
+            "type": "int",
+            "init": "0"
+        },
+        "lastSideUpper": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossUpLower": {
+            "type": "bool",
+            "init": "false"
+        },
+        "crossDownUpper": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions E25 \"Classic Bollinger Bands\", verbatim --\n// deliberately NOT split: the band cross AND the length2-bar momentum\n// confirmation, as the book's code has them (its plain-English text\n// omits the momentum term). Equals BollingerBandCross + Momentum(length2).\n// EEC E25's bands: BollingerBand(close, length, +/-numDevs) = Average(close,\n// length) + NumDevs x StdDev with the POPULATION deviation (divide by N),\n// recomputed FRESH every bar over the window INCLUDING the current bar, and\n// summed NEWEST-FIRST (bar [0] added first -- EL's Summation order): the\n// oldest-first order drifts in the last bit, so do not reorder these loops.\n// All measured -- the `bollingerband` register row.\nbbAvg = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    bbAvg += close[i];\n}\nbbAvg /= (int)length;\nbbSd = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    double d = close[i] - bbAvg;\n    bbSd += d * d;\n}\nbbSd = std::sqrt(bbSd / (int)length);\n// The twin calls BollingerBand(close, length, -numDevs): avg + (-K) x sd.\n// a + (-b)*c and a - b*c are bit-identical in IEEE (negation is exact).\nlowerBand = bbAvg + (-numDevs) * bbSd;\nupperBand = bbAvg + numDevs * bbSd;\n// EL's `crosses` is a STATE MACHINE, not a two-bar test (the `crosses over` /\n// `crosses under` register row, VERIFIED): it fires when the toleranced\n// comparison holds AND the most recent NON-equal bar was on the other side.\n// An equality run (el_eq, absolute 2.22e-12) is BRIDGED -- above -> equal ->\n// above does NOT re-fire -- and the side starts UNKNOWN (0) at the first\n// evaluated bar, so nothing can fire on bar 1. The book assigns the bands to\n// EL variables, but they are recomputed from price every bar, so the cross\n// state is modelled on the computed band values.\ncrossUpLower = el_gt(close[0], lowerBand) && lastSideLower == -1;\ncrossDownUpper = el_lt(close[0], upperBand) && lastSideUpper == 1;\n// Update the sides AFTER the fire flags; an el_eq bar leaves them unchanged.\nif (el_gt(close[0], lowerBand)) { lastSideLower = 1; }\nelse if (el_lt(close[0], lowerBand)) { lastSideLower = -1; }\nif (el_gt(close[0], upperBand)) { lastSideUpper = 1; }\nelse if (el_lt(close[0], upperBand)) { lastSideUpper = -1; }",
+    "longCondition": "crossUpLower && el_gt(close[0], close[length2])",
+    "shortCondition": "crossDownUpper && el_lt(close[0], close[length2])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

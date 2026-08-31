@@ -1,0 +1,37 @@
+{
+    "name": "MovingAverageCross",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLength": "10",
+        "slowLength": "20"
+    },
+    "localVariables": {
+        "fastAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "crossUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "crossDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lastSide": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL's Average recomputes from scratch every bar (EL_Summation_Probe), and\n// EL Summation adds NEWEST-FIRST -- bar [0] first (the `bollingerband`\n// register row). close is a price series with real history, so no warm-up\n// mirroring is needed.\nfastAvg = 0.0;\nfor (int i = 0; i < (int)fastLength; ++i) {\n    fastAvg += close[i];\n}\nfastAvg /= (int)fastLength;\nslowAvg = 0.0;\nfor (int i = 0; i < (int)slowLength; ++i) {\n    slowAvg += close[i];\n}\nslowAvg /= (int)slowLength;\n// \"crosses above/below\" is a STATE MACHINE (EL_FEATURES.md `crosses` row,\n// VERIFIED 2026-08-31), not a two-bar test: a cross fires on a bar whose\n// toleranced relation is above/below AND whose most recent NON-equal relation\n// was on the other side. An equality run (el_eq, absolute 2.22e-12) is\n// bridged -- above -> equal -> above does NOT re-fire -- and the state starts\n// UNKNOWN on the strategy's first evaluated bar, so nothing fires until a\n// non-equal relation has been observed. The fire flags are computed BEFORE\n// lastSide (0 unknown, +1 above, -1 below) is updated, and lastSide only\n// moves on a non-equal bar.\ncrossUp = false;\ncrossDown = false;\nif (el_gt(fastAvg, slowAvg)) {\n    crossUp = (lastSide == -1);\n    lastSide = 1;\n} else if (el_lt(fastAvg, slowAvg)) {\n    crossDown = (lastSide == 1);\n    lastSide = -1;\n}\n// el_eq: equality run -- lastSide deliberately unchanged.",
+    "longCondition": "crossUp",
+    "shortCondition": "crossDown",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

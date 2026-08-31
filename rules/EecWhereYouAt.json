@@ -1,0 +1,34 @@
+{
+    "name": "EecWhereYouAt",
+    "type": "Entry",
+    "inputVariables": {
+        "threshold": "0.5",
+        "startTime": "1600",
+        "endTime": "2300"
+    },
+    "localVariables": {
+        "barSeconds": {
+            "type": "int",
+            "init": "0"
+        },
+        "barHHMM": {
+            "type": "int",
+            "init": "0"
+        },
+        "ll": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E18 \"Where You At?\" verbatim, deliberately NOT split: the book's\n// time exclusion (time < 1600 or time > 2300) AND its 2-bar range-position\n// test, with the book's literal .000001 epsilon. Equals TimeWindow(1600,\n// 2300) negated + TwoBarRangePosition(0.5); kept whole to test the book's\n// exact composite.\n// EL Time is the bar's closing time as HHMM (EL_FEATURES.md `time`, VERIFIED:\n// exchange clock, wall-clock close, no timezone conversion; a bar closing at\n// midnight reads 0). ctx.Time(0) is that same close timestamp, so HHMM is its\n// seconds-of-day re-packed -- the TimeOfDayExit derivation.\nbarSeconds = seconds_of_day(ctx.Time(0));\nbarHHMM = (barSeconds / 3600) * 100 + (barSeconds % 3600) / 60;\n// EEC E18: ll = minlist(l, l[1]); hh = maxlist(h, h[1]) -- the book's spelling.\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md): these operands differ by 0 or by >= 1 tick, ~1e9x the\n// relational tolerance, so whichever comparison they carry cannot matter and\n// the plain ternary stand-in is exact -- same arrangement as AtrProfitTarget's\n// TrueRange. (<algorithm> is not among the emitted includes, so no std::min.)\nll = low[0] < low[1] ? low[0] : low[1];\nhh = high[0] > high[1] ? high[0] : high[1];",
+    "longCondition": "(el_lt((double)barHHMM, startTime) || el_gt((double)barHHMM, endTime)) && el_le((close[0] - ll) / (hh - ll + 0.000001), 1 - threshold)",
+    "shortCondition": "(el_lt((double)barHHMM, startTime) || el_gt((double)barHHMM, endTime)) && el_ge((close[0] - ll) / (hh - ll + 0.000001), threshold)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,21 @@
+{
+    "name": "LastTradeCooldown",
+    "type": "Entry",
+    "inputVariables": {
+        "waitAfterWin": "5",
+        "waitAfterLoss": "20"
+    },
+    "localVariables": {
+        "cooldownOver": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E16's serial-correlation gate: wait X bars after a winner, Y after a\n// loser, and let the backtest's first trade through. All three accessors are\n// measured (the `positionprofit(n)`/`totaltrades` register row,\n// EL_PositionProfit_Probe.txt): PositionProfit(1) is the most recently\n// CLOSED position net of the full round turn (0.0 before any close),\n// BarsSinceExit is 0 on the exit's fill bar, and TotalTrades is already\n// incremented at that bar's close. EL evaluates the whole OR every bar\n// (no short-circuit), but every term here is a stateless accessor read, so\n// C++ short-circuiting cannot diverge. A signal-time gate: it also holds\n// back reversals, exactly as the book's EL does.\ncooldownOver =\n    (el_gt(ctx.PositionProfit(1), 0.0) &&\n     el_ge((double)ctx.BarsSinceExit(), waitAfterWin)) ||\n    (el_le(ctx.PositionProfit(1), 0.0) &&\n     el_ge((double)ctx.BarsSinceExit(), waitAfterLoss)) ||\n    ctx.TotalTrades() == 0;",
+    "longCondition": "cooldownOver",
+    "shortCondition": "cooldownOver",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

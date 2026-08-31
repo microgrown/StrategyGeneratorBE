@@ -1,0 +1,30 @@
+{
+    "name": "ClosePercentileValue",
+    "type": "Entry",
+    "inputVariables": {
+        "percentileLow": "0.25",
+        "percentileHigh": "0.75",
+        "lookback": "25"
+    },
+    "localVariables": {
+        "cpvSorted": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "cpvHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cpvLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL's Percentile(pct, series, N) per the VERIFIED register row\n// (EL_Percentile_Probe.txt / el_percentile_output.txt): copy the window of\n// bars 0..N-1 -- current bar INCLUDED -- sort it and linearly interpolate\n// at rank = pct*(N-1) between the two adjacent sorted values (Excel\n// PERCENTILE.INC; duplicates are interpolated across, {2,2,4,4} median = 3).\n// pct is a 0..1 FRACTION; out of range returns EL's -1 sentinel (measured\n// at pct = 25). The window is the close SERIES, which has real\n// pre-first-bar history, so no zero-fill mirror is needed. Interpolation\n// temporaries live in block scope; everything at hook scope is a declared\n// local so it takes the placement prefix (the AdxBelowThreshold\n// unprefixed-temporaries lesson).\n// Both percentile values are computed every bar, exactly as the EL twin's\n// two Percentile calls are -- one sort serves both, since Percentile is a\n// pure function of the same window.\ncpvSorted.assign((std::size_t)(int)lookback, 0.0);\nfor (int i = 0; i < (int)lookback; ++i) cpvSorted[(std::size_t)i] = close[i];\n// Insertion sort, ascending, in plain loops -- the only non-EL construct is\n// the buffer itself (the AtrRising std::vector precedent). The comparisons\n// inside the sort are between tick-grid closes, where the EL tolerance\n// cannot bind (differences are 0 or >= 1 tick).\nfor (int i = 1; i < (int)lookback; ++i) {\n    double key = cpvSorted[(std::size_t)i];\n    int j = i - 1;\n    while (j >= 0 && cpvSorted[(std::size_t)j] > key) {\n        cpvSorted[(std::size_t)(j + 1)] = cpvSorted[(std::size_t)j];\n        j = j - 1;\n    }\n    cpvSorted[(std::size_t)(j + 1)] = key;\n}\ncpvHigh = 0.0;\nif (percentileHigh < 0.0 || percentileHigh > 1.0) {\n    cpvHigh = -1.0;\n} else {\n    double rank = percentileHigh * ((int)lookback - 1);\n    int lo = (int)rank;\n    double frac = rank - lo;\n    cpvHigh = cpvSorted[(std::size_t)lo];\n    if (frac > 0.0) cpvHigh = cpvHigh + frac * (cpvSorted[(std::size_t)(lo + 1)] - cpvSorted[(std::size_t)lo]);\n}\ncpvLow = 0.0;\nif (percentileLow < 0.0 || percentileLow > 1.0) {\n    cpvLow = -1.0;\n} else {\n    double rank = percentileLow * ((int)lookback - 1);\n    int lo = (int)rank;\n    double frac = rank - lo;\n    cpvLow = cpvSorted[(std::size_t)lo];\n    if (frac > 0.0) cpvLow = cpvLow + frac * (cpvSorted[(std::size_t)(lo + 1)] - cpvSorted[(std::size_t)lo]);\n}",
+    "longCondition": "el_gt(close[0], cpvHigh)",
+    "shortCondition": "el_lt(close[0], cpvLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

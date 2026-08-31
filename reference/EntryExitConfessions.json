@@ -15,7 +15,6 @@
       "The book's plain English for each rule is paraphrased in `description`; the 'General Concept' rationale is condensed into `rationale`."
     ]
   },
-
   "plan_considerations": [
     "ORDER TYPES: 17 of the 43 entries and 2 of the exits place STOP or LIMIT orders at a computed price (breakouts at highest high, close +/- k*ATR, prior-day high/low, limit at close). The corpus only has 'condition true at bar close -> fill at next open'. Reproducing these exactly needs a stop/limit entry-order path in the generator and engine (with EL's fill semantics for a stop/limit inside the next bar). This is the biggest structural gap and should be settled before authoring those rules.",
     "PRICE-LEVEL EXITS: Exit #2 uses SetStopLoss/SetProfitTarget (intrabar, dollar-based, per contract) and Exit #10 uses limit/stop exit orders at price. The corpus's StopLoss/TakeProfit evaluate OpenPositionProfit at bar close and exit next bar at market — different behaviour, not a parameter difference. Exit #2 method 1 is therefore NOT StopLoss + TakeProfit as they exist today.",
@@ -25,29 +24,96 @@
     "EQUALITY: every 'close = highest(close, n)' in the book becomes '>=' in C++ (the `=` trap, Breakout.json). Listed once here rather than per rule.",
     "Nothing else in the extract suggests changing the plan: extract -> author atomic rules -> author exact composites -> test composites against the book."
   ],
-
   "blocking_features_summary": {
-    "stop_or_limit_entry_at_price": ["E4", "E5", "E7", "E8", "E9", "E10", "E11", "E19", "E20", "E21", "E22", "E34", "E40"],
-    "stop_or_limit_exit_at_price": ["X2", "X10"],
-    "crosses_above_below": ["E3", "E13", "E23", "E24", "E25", "E26"],
-    "highd_lowd_opend_closed": ["E7", "E8", "E9", "E10", "E11", "E21", "E22", "E41"],
-    "percentile": ["E6", "X5"],
-    "entriestoday": ["E7", "E8"],
-    "xaverage": ["E19"],
-    "triaverage": ["E21"],
-    "stochastic": ["E23"],
-    "moneyflow": ["E24"],
-    "bollingerband": ["E25"],
-    "cci": ["E35"],
-    "countif": ["E36"],
-    "ultimateosc": ["B1"],
-    "positionprofit_totaltrades": ["E16"],
-    "year": ["X4"],
-    "time_or_date_history_index": ["E20", "E40", "X4"],
-    "setstoploss_setprofittarget": ["X2"],
-    "maxlist_minlist_on_non_price_values": ["E18", "E20", "X2"]
+    "stop_or_limit_entry_at_price": [
+      "E4",
+      "E5",
+      "E7",
+      "E8",
+      "E9",
+      "E10",
+      "E11",
+      "E19",
+      "E20",
+      "E21",
+      "E22",
+      "E34",
+      "E40"
+    ],
+    "stop_or_limit_exit_at_price": [
+      "X2",
+      "X10"
+    ],
+    "crosses_above_below": [
+      "E3",
+      "E13",
+      "E23",
+      "E24",
+      "E25",
+      "E26"
+    ],
+    "highd_lowd_opend_closed": [
+      "E7",
+      "E8",
+      "E9",
+      "E10",
+      "E11",
+      "E21",
+      "E22",
+      "E41"
+    ],
+    "percentile": [
+      "E6",
+      "X5"
+    ],
+    "entriestoday": [
+      "E7",
+      "E8"
+    ],
+    "xaverage": [
+      "E19"
+    ],
+    "triaverage": [
+      "E21"
+    ],
+    "stochastic": [
+      "E23"
+    ],
+    "moneyflow": [
+      "E24"
+    ],
+    "bollingerband": [
+      "E25"
+    ],
+    "cci": [
+      "E35"
+    ],
+    "countif": [
+      "E36"
+    ],
+    "ultimateosc": [
+      "B1"
+    ],
+    "positionprofit_totaltrades": [
+      "E16"
+    ],
+    "year": [
+      "X4"
+    ],
+    "time_or_date_history_index": [
+      "E20",
+      "E40",
+      "X4"
+    ],
+    "setstoploss_setprofittarget": [
+      "X2"
+    ],
+    "maxlist_minlist_on_non_price_values": [
+      "E18",
+      "E20",
+      "X2"
+    ]
   },
-
   "rules": [
     {
       "id": "E1",
@@ -57,14 +123,22 @@
       "rationale": "Trade in the direction of 1-bar momentum; as soon as a bar closes with the open position showing a loss beyond a threshold, reverse. Author used it in metals.",
       "description": "If close < previous close AND (open position profit < -openloss OR flat), sell short next bar at market. If close > previous close AND (open position profit < -openloss OR flat), buy next bar at market.",
       "tradestation_code": "Var: openloss(1000); //allowable loss per contract\n\nif close<close[1] and (openpositionprofit< -openloss or marketposition=0) then sellshort next bar at market;\nif close>close[1] and (openpositionprofit< -openloss or marketposition=0) then buy next bar at market;",
-      "parameters": { "openloss": 1000 },
+      "parameters": {
+        "openloss": 1000
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close > close[1]", "maps_to": "Momentum (existing), lookback=1" },
-        { "piece": "openpositionprofit < -openloss OR marketposition = 0", "maps_to": "NEW entry filter, e.g. FlatOrOpenLossExceeds(openloss) — same both sides; note the OR is not splittable across panes, so this stays one rule" }
+        {
+          "piece": "close > close[1]",
+          "maps_to": "Momentum (existing), lookback=1"
+        },
+        {
+          "piece": "openpositionprofit < -openloss OR marketposition = 0",
+          "maps_to": "NEW entry filter, e.g. FlatOrOpenLossExceeds(openloss) — same both sides; note the OR is not splittable across panes, so this stays one rule"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
@@ -82,14 +156,24 @@
       "rationale": "Once-a-week entry: if Friday's close is the highest close of the lookback, go long at the next bar (Monday/Sunday-night open). Written for daily bars. Author used it in energies.",
       "description": "If the bar's day of week is Friday (5) AND close is the highest close of the last bbars bars, buy next bar at market. If Friday AND close is the lowest close of the last bbars bars, sell short next bar at market.",
       "tradestation_code": "Var:bbars(25); //number of lookback bars for the highest/lowest evaluation\n\nif dayofweek(date)=5 and close=highest(close,bbars) then buy next bar at market;\nif dayofweek(date)=5 and close=lowest(close,bbars) then sellshort next bar at market;",
-      "parameters": { "bbars": 25 },
-      "hardcoded_constants": { "dayofweek": 5 },
+      "parameters": {
+        "bbars": 25
+      },
+      "hardcoded_constants": {
+        "dayofweek": 5
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "dayofweek(date) = 5", "maps_to": "DayOfWeekEntry (existing), dayLong=5, dayShort=5" },
-        { "piece": "close = highest(close, bbars)", "maps_to": "Breakout (existing), lookback=bbars" }
+        {
+          "piece": "dayofweek(date) = 5",
+          "maps_to": "DayOfWeekEntry (existing), dayLong=5, dayShort=5"
+        },
+        {
+          "piece": "close = highest(close, bbars)",
+          "maps_to": "Breakout (existing), lookback=bbars"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
@@ -106,16 +190,28 @@
       "rationale": "Countertrend moving-average cross adapted from Tushar Chande's 'Beyond Technical Analysis' (long-only there, made bidirectional). Author used it in stocks and stock indices.",
       "description": "If the shortma-bar average of close crosses BELOW the longma-bar average AND close < short average, buy next bar at market. If the short average crosses ABOVE the long average AND close > short average, sell short next bar at market.",
       "tradestation_code": "Var: shortma(5), longma(10);// short and long moving average lengths\n\nIf average(close,shortma) crosses below average(close,longma) and close<average(close,shortma) then buy next bar at market;\nIf average(close,shortma) crosses above average(close,longma) and close>average(close,shortma) then sellshort next bar at market;",
-      "parameters": { "shortma": 5, "longma": 10 },
+      "parameters": {
+        "shortma": 5,
+        "longma": 10
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "average(close,short) crosses below average(close,long)", "maps_to": "NEW MovingAverageCross(fastLength, slowLength) — a crossing, never split; long side = fast crosses ABOVE slow, so E3's long uses it FLIPPED (E13 uses it un-flipped)" },
-        { "piece": "close < average(close, shortma)", "maps_to": "CloseAboveAverage (existing), lookback=shortma, FLIPPED" }
+        {
+          "piece": "average(close,short) crosses below average(close,long)",
+          "maps_to": "NEW MovingAverageCross(fastLength, slowLength) — a crossing, never split; long side = fast crosses ABOVE slow, so E3's long uses it FLIPPED (E13 uses it un-flipped)"
+        },
+        {
+          "piece": "close < average(close, shortma)",
+          "maps_to": "CloseAboveAverage (existing), lookback=shortma, FLIPPED"
+        }
       ],
-      "el_words_unregistered": ["crosses above", "crosses below"],
+      "el_words_unregistered": [
+        "crosses above",
+        "crosses below"
+      ],
       "discrepancies": [],
       "notes": [
         "'crosses below' in EL is true on the bar where A < B and A[1] >= B[1] (needs a register row to confirm the tie handling).",
@@ -130,16 +226,29 @@
       "rationale": "Breakouts mostly fail; take them only when ADX says the market is NOT trending, on the idea that breakouts out of flat periods lead to bigger trends. Author used it in metals.",
       "description": "If the 15-bar ADX < 20, buy next bar on a stop at the highest high of the last len bars, and sell short next bar on a stop at the lowest low of the last len bars.",
       "tradestation_code": "Var: len(10); // length of the lookback period for the breakout\n\nIf adx(15)< 20  then Buy next bar at highest(high,len) stop;\nIf adx(15)< 20  then Sellshort next bar at lowest(low,len) stop;",
-      "parameters": { "len": 10 },
-      "hardcoded_constants": { "adx_length": 15, "adx_threshold": 20 },
+      "parameters": {
+        "len": 10
+      },
+      "hardcoded_constants": {
+        "adx_length": 15,
+        "adx_threshold": 20
+      },
       "order_type": "stop at price (highest high / lowest low of len bars, including current bar)",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "adx(15) < 20", "maps_to": "AdxBelowThreshold (existing), lookback=15, threshold=20" },
-        { "piece": "buy next bar at highest(high,len) stop", "maps_to": "NEW stop-entry rule, e.g. HighestHighStopEntry(len) — requires stop-order entry support" }
+        {
+          "piece": "adx(15) < 20",
+          "maps_to": "AdxBelowThreshold (existing), lookback=15, threshold=20"
+        },
+        {
+          "piece": "buy next bar at highest(high,len) stop",
+          "maps_to": "NEW stop-entry rule, e.g. HighestHighStopEntry(len) — requires stop-order entry support"
+        }
       ],
-      "el_words_unregistered": ["stop-order entry at price"],
+      "el_words_unregistered": [
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
       "notes": [
         "Both orders are placed every bar the filter passes, so this is stop-and-reverse.",
@@ -154,15 +263,23 @@
       "rationale": "A breakout must be large relative to recent volatility to count: the next bar has to move XX ATRs beyond the current close. Author used it in grains/agriculturals.",
       "description": "Buy next bar on a stop at close + XX * AvgTrueRange(ATRval). Sell short next bar on a stop at close - XX * AvgTrueRange(ATRval).",
       "tradestation_code": "Var: XX(1);  //multiplier for average true range\nVar:ATRval(15);  //lookback period for ATR calculation\n\nBuy next bar at close+XX*AvgTrueRange(ATRVal) stop;\nSellshort next bar at close-XX*AvgTrueRange(ATRVal) stop;",
-      "parameters": { "XX": 1, "ATRval": 15 },
+      "parameters": {
+        "XX": 1,
+        "ATRval": 15
+      },
       "hardcoded_constants": {},
       "order_type": "stop at price (close +/- XX*ATR)",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW AtrRangeStopEntry(atrLookback, multiple) — requires stop-order entry support; ATR = WFSafe_AvgTrueRange rolling form (AtrProfitTarget reference)" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW AtrRangeStopEntry(atrLookback, multiple) — requires stop-order entry support; ATR = WFSafe_AvgTrueRange rolling form (AtrProfitTarget reference)"
+        }
       ],
-      "el_words_unregistered": ["stop-order entry at price"],
+      "el_words_unregistered": [
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
       "notes": [
         "No condition at all — orders are live every bar; stop-and-reverse.",
@@ -177,17 +294,36 @@
       "rationale": "Low prices lead to lower prices and high to higher: sell when the close is in the lower quartile of recent closes, buy in the upper quartile — but only while ADX shows a moderate trend (20–30), to avoid flat ranges.",
       "description": "Value1 = 25th percentile of the last xbars closes; Value2 = 75th percentile. If 20 < ADX(14) < 30 AND close < Value1, sell short next bar at market. If 20 < ADX(14) < 30 AND close > Value2, buy next bar at market.",
       "tradestation_code": "Var: xbars(25); //lookback period for percentile calculation\n\nValue1=percentile(.25,close,xbars);  //price at 25th percentile\nValue2=percentile(.75,close,xbars);  //price at 75th percentile\n\nIf ADX(14) >20 AND ADX(14) <30 AND close<Value1 then sellshort next bar at market;\nIf ADX(14) >20 AND ADX(14) <30 AND close>Value2 then buy next bar at market;",
-      "parameters": { "xbars": 25 },
-      "hardcoded_constants": { "adx_length": 14, "adx_low": 20, "adx_high": 30, "percentile_low": 0.25, "percentile_high": 0.75 },
+      "parameters": {
+        "xbars": 25
+      },
+      "hardcoded_constants": {
+        "adx_length": 14,
+        "adx_low": 20,
+        "adx_high": 30,
+        "percentile_low": 0.25,
+        "percentile_high": 0.75
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "ADX(14) > 20", "maps_to": "AdxBelowThreshold (existing), threshold=20, NEGATED" },
-        { "piece": "ADX(14) < 30", "maps_to": "AdxBelowThreshold (existing), threshold=30" },
-        { "piece": "close > percentile(.75, close, xbars) (long) / close < percentile(.25, ...) (short)", "maps_to": "NEW ClosePercentileValue(percentile, lookback) — EL's Percentile() interpolates a VALUE; the existing ClosePercentileRank ranks the close itself and is a different calculation" }
+        {
+          "piece": "ADX(14) > 20",
+          "maps_to": "AdxBelowThreshold (existing), threshold=20, NEGATED"
+        },
+        {
+          "piece": "ADX(14) < 30",
+          "maps_to": "AdxBelowThreshold (existing), threshold=30"
+        },
+        {
+          "piece": "close > percentile(.75, close, xbars) (long) / close < percentile(.25, ...) (short)",
+          "maps_to": "NEW ClosePercentileValue(percentile, lookback) — EL's Percentile() interpolates a VALUE; the existing ClosePercentileRank ranks the close itself and is a different calculation"
+        }
       ],
-      "el_words_unregistered": ["percentile"],
+      "el_words_unregistered": [
+        "percentile"
+      ],
       "discrepancies": [],
       "notes": [
         "Percentile(pct, series, length) is an EL function whose interpolation method must be probed (shared with X5).",
@@ -202,18 +338,44 @@
       "rationale": "Short-term breakout of the prior day's high/low, only inside a chosen time-of-day window, at most one entry per day, and only when ADX shows a trend. Intraday bars only.",
       "description": "If bar time is within [tbeg, tend] AND there have been no entries today AND ADX(adxP) >= adxThresh, buy next bar on a stop at yesterday's high + offset and sell short next bar on a stop at yesterday's low - offset.",
       "tradestation_code": "Var: tbeg(945); // signal window start time\nVar: tend(1045);  //signal window end time\nVar: offset(.1); //additional amount the price has to break the high or low before entering a trade – can be zero if desired\nVar: adxP(10); // ADX lookback period\nVar: adxThresh(20); // ADX threshold for signifying a trend\n\nif time>=tbeg and time<=tend then begin\nif EntriesToday(date[0])<1 and adx(adxP) >= AdxThresh then begin\nbuy next bar at highd(1) + Offset Points stop;\nsellshort next bar at lowd(1) - Offset points stop;\nend;\nend;",
-      "parameters": { "tbeg": 945, "tend": 1045, "offset": 0.1, "adxP": 10, "adxThresh": 20 },
-      "hardcoded_constants": { "max_entries_today": 1 },
+      "parameters": {
+        "tbeg": 945,
+        "tend": 1045,
+        "offset": 0.1,
+        "adxP": 10,
+        "adxThresh": 20
+      },
+      "hardcoded_constants": {
+        "max_entries_today": 1
+      },
       "order_type": "stop at price (prior day high/low +/- offset points)",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "time >= tbeg and time <= tend", "maps_to": "NEW TimeWindow(start, end) entry filter — same both sides" },
-        { "piece": "EntriesToday(date) < 1", "maps_to": "NEW MaxEntriesPerDay(n) filter — needs a ctx built-in or EL probe" },
-        { "piece": "adx(adxP) >= adxThresh", "maps_to": "AdxBelowThreshold (existing) NEGATED (gives >=, matching the book exactly here)" },
-        { "piece": "stop at highd(1) + offset / lowd(1) - offset", "maps_to": "NEW PriorDayHighLowStopEntry(offset) — requires stop-order entry support and HighD/LowD" }
+        {
+          "piece": "time >= tbeg and time <= tend",
+          "maps_to": "NEW TimeWindow(start, end) entry filter — same both sides"
+        },
+        {
+          "piece": "EntriesToday(date) < 1",
+          "maps_to": "NEW MaxEntriesPerDay(n) filter — needs a ctx built-in or EL probe"
+        },
+        {
+          "piece": "adx(adxP) >= adxThresh",
+          "maps_to": "AdxBelowThreshold (existing) NEGATED (gives >=, matching the book exactly here)"
+        },
+        {
+          "piece": "stop at highd(1) + offset / lowd(1) - offset",
+          "maps_to": "NEW PriorDayHighLowStopEntry(offset) — requires stop-order entry support and HighD/LowD"
+        }
       ],
-      "el_words_unregistered": ["entriestoday", "highd", "lowd", "stop-order entry at price", "Points keyword"],
+      "el_words_unregistered": [
+        "entriestoday",
+        "highd",
+        "lowd",
+        "stop-order entry at price",
+        "Points keyword"
+      ],
       "discrepancies": [],
       "notes": [
         "offset is in price points, so its useful value is instrument-specific.",
@@ -228,18 +390,40 @@
       "rationale": "E7 plus a range-expansion condition: yesterday's range must exceed the range of two days ago, on the idea that expansion continues.",
       "description": "As E7, with the additional condition that (yesterday's high - low) > (high - low of two days ago).",
       "tradestation_code": "Var: tbeg(945); // signal window start time\nVar: tend(1045);  //signal window end time\nVar: offset(.1); //additional amount the price has to break the high or low before entering a trade – can be zero if desired\nVar: adxP(10); // ADX lookback period\nVar: adxThresh(20); // ADX threshold for signifying a trend\n\nif time>=tbeg and time<=tend then begin\nif EntriesToday(date[0])< 1 and adx(adxP) >= AdxThresh and (highd(1)-lowd(1) > highd(2)-lowd(2)) then begin\nbuy next bar at highd(1) + Offset Points stop;\nsellshort next bar at lowd(1) - Offset points stop;\nend;\nend;",
-      "parameters": { "tbeg": 945, "tend": 1045, "offset": 0.1, "adxP": 10, "adxThresh": 20 },
-      "hardcoded_constants": { "max_entries_today": 1 },
+      "parameters": {
+        "tbeg": 945,
+        "tend": 1045,
+        "offset": 0.1,
+        "adxP": 10,
+        "adxThresh": 20
+      },
+      "hardcoded_constants": {
+        "max_entries_today": 1
+      },
       "order_type": "stop at price (prior day high/low +/- offset points)",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "everything in E7", "maps_to": "see E7" },
-        { "piece": "highd(1)-lowd(1) > highd(2)-lowd(2)", "maps_to": "NEW DailyRangeExpanding filter — same both sides; E41's filter is exactly this NEGATED (range contracting), so one rule serves both" }
+        {
+          "piece": "everything in E7",
+          "maps_to": "see E7"
+        },
+        {
+          "piece": "highd(1)-lowd(1) > highd(2)-lowd(2)",
+          "maps_to": "NEW DailyRangeExpanding filter — same both sides; E41's filter is exactly this NEGATED (range contracting), so one rule serves both"
+        }
       ],
-      "el_words_unregistered": ["entriestoday", "highd", "lowd", "stop-order entry at price", "Points keyword"],
+      "el_words_unregistered": [
+        "entriestoday",
+        "highd",
+        "lowd",
+        "stop-order entry at price",
+        "Points keyword"
+      ],
       "discrepancies": [],
-      "notes": ["Intraday only."]
+      "notes": [
+        "Intraday only."
+      ]
     },
     {
       "id": "E9",
@@ -250,18 +434,38 @@
       "description": "At the 9:35 bar on Wednesday (3), buy next bar on a stop at yesterday's high. At the 9:35 bar on Thursday (4), sell short next bar on a stop at yesterday's low.",
       "tradestation_code": "If time=935 and dayofweek(date)=3 then Buy next bar at highd(1) stop;\nIf time=935 and dayofweek(date)=4 then SellShort next bar at lowd(1) stop;",
       "parameters": {},
-      "hardcoded_constants": { "signal_time": 935, "day_long": 3, "day_short": 4 },
+      "hardcoded_constants": {
+        "signal_time": 935,
+        "day_long": 3,
+        "day_short": 4
+      },
       "order_type": "stop at price (prior day high / low)",
       "sides": "one input per side (different days)",
       "composite": true,
       "decomposition": [
-        { "piece": "time = 935", "maps_to": "NEW TimeOfDayEquals(time) filter — same both sides" },
-        { "piece": "dayofweek(date) = 3 (long) / = 4 (short)", "maps_to": "DayOfWeekEntry (existing), dayLong=3, dayShort=4" },
-        { "piece": "stop at highd(1) / lowd(1)", "maps_to": "NEW PriorDayHighLowStopEntry(offset=0) — shared with E7/E8/E10/E11" }
+        {
+          "piece": "time = 935",
+          "maps_to": "NEW TimeOfDayEquals(time) filter — same both sides"
+        },
+        {
+          "piece": "dayofweek(date) = 3 (long) / = 4 (short)",
+          "maps_to": "DayOfWeekEntry (existing), dayLong=3, dayShort=4"
+        },
+        {
+          "piece": "stop at highd(1) / lowd(1)",
+          "maps_to": "NEW PriorDayHighLowStopEntry(offset=0) — shared with E7/E8/E10/E11"
+        }
       ],
-      "el_words_unregistered": ["highd", "lowd", "stop-order entry at price"],
+      "el_words_unregistered": [
+        "highd",
+        "lowd",
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
-      "notes": ["Author warns trades are infrequent: one bar of validity and price must already be near yesterday's extreme.", "Intraday only (remove the time test for daily bars)."]
+      "notes": [
+        "Author warns trades are infrequent: one bar of validity and price must already be near yesterday's extreme.",
+        "Intraday only (remove the time test for daily bars)."
+      ]
     },
     {
       "id": "E10",
@@ -271,18 +475,36 @@
       "rationale": "E9 with a momentum confirmation added — shown to illustrate adding conditions to an entry.",
       "description": "As E9, plus close > close[xbars] for the long and close < close[xbars] for the short.",
       "tradestation_code": "Var: xbars(10); // lookback period for momentum\n\nIf time=935 and dayofweek(date)=3 and close>close[xbars] then Buy next bar at highd(1) stop;\nIf time=935 and dayofweek(date)=4 and close<close[xbars] then SellShort next bar at lowd(1) stop;",
-      "parameters": { "xbars": 10 },
-      "hardcoded_constants": { "signal_time": 935, "day_long": 3, "day_short": 4 },
+      "parameters": {
+        "xbars": 10
+      },
+      "hardcoded_constants": {
+        "signal_time": 935,
+        "day_long": 3,
+        "day_short": 4
+      },
       "order_type": "stop at price (prior day high / low)",
       "sides": "mirrored (days differ per side)",
       "composite": true,
       "decomposition": [
-        { "piece": "everything in E9", "maps_to": "see E9" },
-        { "piece": "close > close[xbars]", "maps_to": "Momentum (existing), lookback=xbars" }
+        {
+          "piece": "everything in E9",
+          "maps_to": "see E9"
+        },
+        {
+          "piece": "close > close[xbars]",
+          "maps_to": "Momentum (existing), lookback=xbars"
+        }
       ],
-      "el_words_unregistered": ["highd", "lowd", "stop-order entry at price"],
+      "el_words_unregistered": [
+        "highd",
+        "lowd",
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
-      "notes": ["Intraday only."]
+      "notes": [
+        "Intraday only."
+      ]
     },
     {
       "id": "E11",
@@ -293,17 +515,32 @@
       "description": "On every day except Wednesday (3), buy next bar on a stop at yesterday's high. On every day except Thursday (4), sell short next bar on a stop at yesterday's low.",
       "tradestation_code": "If dayofweek(date)<> 3 then Buy next bar at highd(1) stop;\nIf dayofweek(date)<> 4 then SellShort next bar at lowd(1) stop;",
       "parameters": {},
-      "hardcoded_constants": { "day_excluded_long": 3, "day_excluded_short": 4 },
+      "hardcoded_constants": {
+        "day_excluded_long": 3,
+        "day_excluded_short": 4
+      },
       "order_type": "stop at price (prior day high / low)",
       "sides": "one input per side",
       "composite": true,
       "decomposition": [
-        { "piece": "dayofweek(date) <> 3 / <> 4", "maps_to": "DayOfWeekEntry (existing), dayLong=3, dayShort=4, NEGATED" },
-        { "piece": "stop at highd(1) / lowd(1)", "maps_to": "NEW PriorDayHighLowStopEntry(offset=0)" }
+        {
+          "piece": "dayofweek(date) <> 3 / <> 4",
+          "maps_to": "DayOfWeekEntry (existing), dayLong=3, dayShort=4, NEGATED"
+        },
+        {
+          "piece": "stop at highd(1) / lowd(1)",
+          "maps_to": "NEW PriorDayHighLowStopEntry(offset=0)"
+        }
       ],
-      "el_words_unregistered": ["highd", "lowd", "stop-order entry at price"],
+      "el_words_unregistered": [
+        "highd",
+        "lowd",
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
-      "notes": ["No time test, so it works on daily bars too (where highd(1) is simply high[1])."]
+      "notes": [
+        "No time test, so it works on daily bars too (where highd(1) is simply high[1])."
+      ]
     },
     {
       "id": "E12",
@@ -313,18 +550,31 @@
       "rationale": "Classic RSI overbought/oversold, combined with a close-above-average trend check. Author used it with stocks, ETFs, stock indices.",
       "description": "If RSI(close, RSILength) < RSIThreshold AND close > Average(close, XBars), buy next bar at market. If RSI > 100 - RSIThreshold AND close < Average(close, XBars), sell short next bar at market.",
       "tradestation_code": "Var: RSILength(5);  //RSI lookback period\nVar: RSIThreshold(80);  //RSI threshold\nVar: XBars(5);  //moving average lookback period\n\nIf RSI(Close,RSILength)< RSIThreshold And Close > Average(Close,Xbars) Then buy next bar at market;\nIf RSI(Close,RSILength)> 100-RSIThreshold And Close < Average(Close,Xbars) Then Sellshort next bar at market;",
-      "parameters": { "RSILength": 5, "RSIThreshold": 80, "XBars": 5 },
+      "parameters": {
+        "RSILength": 5,
+        "RSIThreshold": 80,
+        "XBars": 5
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "RSI(close, n) < T (long) / > 100 - T (short)", "maps_to": "RsiBelowThreshold (existing), lookback=5, threshold=80 — exact match including the 100-T short side" },
-        { "piece": "close > Average(close, XBars)", "maps_to": "CloseAboveAverage (existing), lookback=5" }
+        {
+          "piece": "RSI(close, n) < T (long) / > 100 - T (short)",
+          "maps_to": "RsiBelowThreshold (existing), lookback=5, threshold=80 — exact match including the 100-T short side"
+        },
+        {
+          "piece": "close > Average(close, XBars)",
+          "maps_to": "CloseAboveAverage (existing), lookback=5"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Fully covered by existing rules: RsiBelowThreshold(5,80) AND CloseAboveAverage(5).", "RSI = WFSafe_RSI per the standing decision (identical to plain RSI at fixed length)."]
+      "notes": [
+        "Fully covered by existing rules: RsiBelowThreshold(5,80) AND CloseAboveAverage(5).",
+        "RSI = WFSafe_RSI per the standing decision (identical to plain RSI at fixed length)."
+      ]
     },
     {
       "id": "E13",
@@ -334,16 +584,29 @@
       "rationale": "The standard MA crossover, but only if the close has not run away from the previous bar's low/high — filters crosses caused by price spikes. Author used it in softs and agriculturals.",
       "description": "If Average(close, FastLength) crosses above Average(close, SlowLength) AND close < low[1] + XX, buy next bar at market. If the fast average crosses below the slow average AND close > high[1] - XX, sell short next bar at market.",
       "tradestation_code": "Var: FastLength(10), SlowLength(20); // moving average lengths\nVar: XX(3); // threshold (measured in price of instrument) for valid signals\n\nIf Average(Close, FastLength) crosses above Average(Close, SlowLength) and close<low[1]+ XX then Buy next bar at market;\nIf Average(Close, FastLength) crosses below Average(Close, SlowLength) and close>high[1] - XX then Sell Short next bar at market;",
-      "parameters": { "FastLength": 10, "SlowLength": 20, "XX": 3 },
+      "parameters": {
+        "FastLength": 10,
+        "SlowLength": 20,
+        "XX": 3
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "fast average crosses above slow average", "maps_to": "NEW MovingAverageCross(fastLength, slowLength) — shared with E3 (E3 uses it flipped)" },
-        { "piece": "close < low[1] + XX (long) / close > high[1] - XX (short)", "maps_to": "NEW CloseNearPriorLow(threshold) — threshold in price points (instrument-specific; a tick- or ATR-based variant may be worth adding but is not the book's rule)" }
+        {
+          "piece": "fast average crosses above slow average",
+          "maps_to": "NEW MovingAverageCross(fastLength, slowLength) — shared with E3 (E3 uses it flipped)"
+        },
+        {
+          "piece": "close < low[1] + XX (long) / close > high[1] - XX (short)",
+          "maps_to": "NEW CloseNearPriorLow(threshold) — threshold in price points (instrument-specific; a tick- or ATR-based variant may be worth adding but is not the book's rule)"
+        }
       ],
-      "el_words_unregistered": ["crosses above", "crosses below"],
+      "el_words_unregistered": [
+        "crosses above",
+        "crosses below"
+      ],
       "discrepancies": [],
       "notes": []
     },
@@ -355,20 +618,44 @@
       "rationale": "Mid-week (Tue/Wed/Thu) behaves differently from days adjacent to the weekend. Enter on a joint highest-high and highest-close, filtered to low-volatility conditions via ATR in dollars. Author used it in metals and currencies.",
       "description": "If the day is Tuesday, Wednesday or Thursday AND high = highest high of bbars AND close = highest close of bbars AND AvgTrueRange(14) * BigPointValue < maxl, buy next bar at market. Mirror (lowest low, lowest close) for the short.",
       "tradestation_code": "Var: bbars(15); // lookbar period for the recent highest and lowest prices\nVar: maxl(2500);  // max allowable average true range, converted to dollars per contract\n\nCondition1 = dayofweek(date)=2 or dayofweek(date)=3 or dayofweek(date)=4; //True or False\n\nIf Condition1 and high=highest(high,bbars) and close=highest(close,bbars) and avgtruerange(14)*BigPointValue<maxl then buy next bar at market;\nIf Condition1 and low =lowest(low,bbars) and close=lowest(close,bbars) and avgtruerange(14)*BigPointValue<maxl then sellshort next bar at market;",
-      "parameters": { "bbars": 15, "maxl": 2500 },
-      "hardcoded_constants": { "days": [2, 3, 4], "atr_length": 14 },
+      "parameters": {
+        "bbars": 15,
+        "maxl": 2500
+      },
+      "hardcoded_constants": {
+        "days": [
+          2,
+          3,
+          4
+        ],
+        "atr_length": 14
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "dayofweek in {2,3,4}", "maps_to": "NEW DayOfWeekRange(firstDay, lastDay) or DayOfWeekSet filter — DayOfWeekEntry takes one day per side and panes AND, so an OR of days needs its own rule" },
-        { "piece": "high = highest(high, bbars)", "maps_to": "NEW HighestHighBreakout(lookback) — high >= highest high of N bars (Breakout is on closes)" },
-        { "piece": "close = highest(close, bbars)", "maps_to": "Breakout (existing), lookback=bbars" },
-        { "piece": "avgtruerange(14) * BigPointValue < maxl", "maps_to": "NEW AtrDollarsBelow(atrLookback, maxDollars) filter — same both sides; BigPointValue is unconverted (EL_FEATURES.md)" }
+        {
+          "piece": "dayofweek in {2,3,4}",
+          "maps_to": "NEW DayOfWeekRange(firstDay, lastDay) or DayOfWeekSet filter — DayOfWeekEntry takes one day per side and panes AND, so an OR of days needs its own rule"
+        },
+        {
+          "piece": "high = highest(high, bbars)",
+          "maps_to": "NEW HighestHighBreakout(lookback) — high >= highest high of N bars (Breakout is on closes)"
+        },
+        {
+          "piece": "close = highest(close, bbars)",
+          "maps_to": "Breakout (existing), lookback=bbars"
+        },
+        {
+          "piece": "avgtruerange(14) * BigPointValue < maxl",
+          "maps_to": "NEW AtrDollarsBelow(atrLookback, maxDollars) filter — same both sides; BigPointValue is unconverted (EL_FEATURES.md)"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Shares the whole body with E15; only the day set differs."]
+      "notes": [
+        "Shares the whole body with E15; only the day set differs."
+      ]
     },
     {
       "id": "E15",
@@ -378,18 +665,35 @@
       "rationale": "The weekend-adjacent half of E14: signals only on Friday and Monday.",
       "description": "As E14, but the day must be Friday (5) or Monday (1).",
       "tradestation_code": "Var: bbars(15); // lookbar period for the recent highest and lowest prices\nVar: maxl(2500);  // max allowable average true range, converted to dollars per contract\n\nCondition1 = dayofweek(date)=5 or dayofweek(date)=1; //True or False\n\nIf Condition1 and high=highest(high,bbars) and close=highest(close,bbars) and avgtruerange(14)*BigPointValue<maxl then buy next bar at market;\nIf Condition1 and low =lowest(low,bbars) and close=lowest(close,bbars) and avgtruerange(14)*BigPointValue<maxl then sellshort next bar at market;",
-      "parameters": { "bbars": 15, "maxl": 2500 },
-      "hardcoded_constants": { "days": [5, 1], "atr_length": 14 },
+      "parameters": {
+        "bbars": 15,
+        "maxl": 2500
+      },
+      "hardcoded_constants": {
+        "days": [
+          5,
+          1
+        ],
+        "atr_length": 14
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "dayofweek in {5,1}", "maps_to": "same day-set rule as E14 (NOT a contiguous range — a set, or the negation of E14's {2,3,4} on a Mon–Fri market)" },
-        { "piece": "remaining conditions", "maps_to": "see E14" }
+        {
+          "piece": "dayofweek in {5,1}",
+          "maps_to": "same day-set rule as E14 (NOT a contiguous range — a set, or the negation of E14's {2,3,4} on a Mon–Fri market)"
+        },
+        {
+          "piece": "remaining conditions",
+          "maps_to": "see E14"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["On a Monday–Friday market, {5,1} is exactly NOT {2,3,4}, so E14's day filter negated reproduces it — unless Sunday-night bars exist (dayofweek 0), which fall in neither set."]
+      "notes": [
+        "On a Monday–Friday market, {5,1} is exactly NOT {2,3,4}, so E14's day filter negated reproduces it — unless Sunday-night bars exist (dayofweek 0), which fall in neither set."
+      ]
     },
     {
       "id": "E16",
@@ -399,16 +703,30 @@
       "rationale": "Make the next trade depend on the last: wait 5 bars after a winner, 20 after a loser, before taking a new countertrend signal (buy the lowest close, sell the highest).",
       "description": "If (last position was profitable AND >= 5 bars since its exit) OR (last position lost AND >= 20 bars since exit) OR no trades yet: buy next bar at market if close = lowest close of xbars; sell short if close = highest close of xbars.",
       "tradestation_code": "Var: xbars(15); // lookback period\n\nIf ((PositionProfit(1)>0 and BarsSinceExit(1)>=5)  //if last position was profitable, wait 5 bars before taking a new trade\nor (PositionProfit(1)<=0 and BarsSinceExit(1)>=20)  // if last trade was a loser, wait 20 bars before taking the next signal\nor TotalTrades=0) then begin  //allows the first trade in the backtest to occur\n\nif Close = Lowest( Close, xbars )  then buy next bar at market;\nif Close = Highest( Close, xbars )  then SellShort next bar at market;\nend;",
-      "parameters": { "xbars": 15 },
-      "hardcoded_constants": { "wait_after_win": 5, "wait_after_loss": 20 },
+      "parameters": {
+        "xbars": 15
+      },
+      "hardcoded_constants": {
+        "wait_after_win": 5,
+        "wait_after_loss": 20
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close = lowest(close, xbars) (long)", "maps_to": "Breakout (existing), lookback=xbars, FLIPPED" },
-        { "piece": "PositionProfit(1)/BarsSinceExit(1)/TotalTrades gate", "maps_to": "NEW LastTradeCooldown(waitAfterWin, waitAfterLoss) filter — same both sides; the OR of three terms is one rule" }
+        {
+          "piece": "close = lowest(close, xbars) (long)",
+          "maps_to": "Breakout (existing), lookback=xbars, FLIPPED"
+        },
+        {
+          "piece": "PositionProfit(1)/BarsSinceExit(1)/TotalTrades gate",
+          "maps_to": "NEW LastTradeCooldown(waitAfterWin, waitAfterLoss) filter — same both sides; the OR of three terms is one rule"
+        }
       ],
-      "el_words_unregistered": ["positionprofit(n)", "totaltrades"],
+      "el_words_unregistered": [
+        "positionprofit(n)",
+        "totaltrades"
+      ],
       "discrepancies": [],
       "notes": [
         "BarsSinceExit(1) IS registered (VERIFIED, wants an index). PositionProfit(1) and TotalTrades are not.",
@@ -429,11 +747,17 @@
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole pattern", "maps_to": "NEW HarrisGapPattern (name TBD) — a single 4-bar pattern; the comparisons are not independently meaningful" }
+        {
+          "piece": "whole pattern",
+          "maps_to": "NEW HarrisGapPattern (name TBD) — a single 4-bar pattern; the comparisons are not independently meaningful"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 3 bars.", "E30 is the first three terms of this pattern with the sides swapped plus a momentum term."]
+      "notes": [
+        "Reaches back 3 bars.",
+        "E30 is the first three terms of this pattern with the sides swapped plus a momentum term."
+      ]
     },
     {
       "id": "E18",
@@ -443,14 +767,26 @@
       "rationale": "A 2-bar stochastic: where the close sits in the range of the last two bars. Mean-reverting — sell strength, buy weakness. Ignores signals in the early night session (24-hour futures). Author used it in stocks and stock indices.",
       "description": "If time < 1600 or time > 2300: ll = min(low, low[1]); hh = max(high, high[1]). If (close - ll) / (hh - ll + 0.000001) >= thresh, sell short next bar at market. If it is <= 1 - thresh, buy next bar at market.",
       "tradestation_code": "Var: ll(0), hh(0);\nVar: Thresh(.5); // threshold value for entries, between 0 and 1\n\nif time<1600 or time>2300 then begin\n\nll=minlist(l,l[1]);\nhh=maxlist(h,h[1]);\n\nif (c-ll)/(hh-ll+.000001)>=thresh then sellshort next bar at market;\nif (c-ll)/(hh-ll+.000001)<=(1-thresh) then buy next bar at market;\nend;",
-      "parameters": { "Thresh": 0.5 },
-      "hardcoded_constants": { "time_exclusion_start": 1600, "time_exclusion_end": 2300, "epsilon": 0.000001 },
+      "parameters": {
+        "Thresh": 0.5
+      },
+      "hardcoded_constants": {
+        "time_exclusion_start": 1600,
+        "time_exclusion_end": 2300,
+        "epsilon": 1e-06
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "time < 1600 or time > 2300", "maps_to": "NEW TimeWindow filter NEGATED (window 1600–2300 excluded) — shares the rule with E7" },
-        { "piece": "(c-ll)/(hh-ll+eps) >= thresh (short) / <= 1-thresh (long)", "maps_to": "NEW TwoBarRangePosition(threshold) — mean-reversion form; note E38/E39 use the single-bar (c-l)/(h-l) version" }
+        {
+          "piece": "time < 1600 or time > 2300",
+          "maps_to": "NEW TimeWindow filter NEGATED (window 1600–2300 excluded) — shares the rule with E7"
+        },
+        {
+          "piece": "(c-ll)/(hh-ll+eps) >= thresh (short) / <= 1-thresh (long)",
+          "maps_to": "NEW TwoBarRangePosition(threshold) — mean-reversion form; note E38/E39 use the single-bar (c-l)/(h-l) version"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
@@ -468,18 +804,35 @@
       "rationale": "Dual exponential-moving-average crossover, slow length fixed at 4x the fast, entering on a stop at the signal bar's high/low. Originally used in metals.",
       "description": "avg1 = XAverage(close, lookbackdays); avg2 = XAverage(close, 4 * lookbackdays). If avg1 > avg2 AND avg1[1] < avg2[1], buy next bar on a stop at this bar's high. If avg1 < avg2 AND avg1[1] > avg2[1], sell short next bar on a stop at this bar's low.",
       "tradestation_code": "var:avg1(10),avg2(20); // 2 exponential moving averages\nvar:lookbackdays(10); // lengths of faster exponential moving average\n\navg1=xaverage(close,lookbackdays);\navg2=xaverage(close,lookbackdays*4);  //slower average has length 4 x the faster average\n\nCondition1 = (avg1>avg2 and avg1[1]<avg2[1]);\nIf Condition1 then Buy next bar at high stop;\n\nCondition2 = (avg1<avg2 and avg1[1]>avg2[1]);\nIf Condition2  then  SellShort next bar at low stop;",
-      "parameters": { "lookbackdays": 10 },
-      "hardcoded_constants": { "slow_multiple": 4 },
+      "parameters": {
+        "lookbackdays": 10
+      },
+      "hardcoded_constants": {
+        "slow_multiple": 4
+      },
       "order_type": "stop at price (current bar high / low)",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "avg1 > avg2 and avg1[1] < avg2[1]", "maps_to": "NEW EmaCross(fastLength, slowMultiple) — a crossing (keep whole); STRICT on the prior bar (an exact tie last bar does not count), unlike EL's 'crosses above'" },
-        { "piece": "buy next bar at high stop", "maps_to": "NEW CurrentBarHighLowStopEntry — requires stop-order entry support" }
+        {
+          "piece": "avg1 > avg2 and avg1[1] < avg2[1]",
+          "maps_to": "NEW EmaCross(fastLength, slowMultiple) — a crossing (keep whole); STRICT on the prior bar (an exact tie last bar does not count), unlike EL's 'crosses above'"
+        },
+        {
+          "piece": "buy next bar at high stop",
+          "maps_to": "NEW CurrentBarHighLowStopEntry — requires stop-order entry support"
+        }
       ],
-      "el_words_unregistered": ["xaverage", "stop-order entry at price"],
-      "discrepancies": ["avg1(10) and avg2(20) initial values are overwritten every bar; the comment 'lengths' on lookbackdays is the only real parameter."],
-      "notes": ["XAverage's seed and warm-up behaviour (and MW's WFSafe_XAverage, if one exists) must be probed; avg1[1] reads a variable's history so bar-1 reads 0."]
+      "el_words_unregistered": [
+        "xaverage",
+        "stop-order entry at price"
+      ],
+      "discrepancies": [
+        "avg1(10) and avg2(20) initial values are overwritten every bar; the comment 'lengths' on lookbackdays is the only real parameter."
+      ],
+      "notes": [
+        "XAverage's seed and warm-up behaviour (and MW's WFSafe_XAverage, if one exists) must be probed; avg1[1] reads a variable's history so bar-1 reads 0."
+      ]
     },
     {
       "id": "E20",
@@ -489,16 +842,33 @@
       "rationale": "Daily-range breakout on intraday bars: at the first bar of each calendar day capture the open and the prior day's true range, average the last 10 daily ranges, then buy/sell on stops at today's open +/- a fraction of that average, before 13:00.",
       "description": "On the first bar of a new calendar date: todayopen = open; shift the 10-slot range history; range01 = max(|dayhigh - close two days ago|, |daylow - close two days ago|, dayhigh - daylow) using the previous day's tracked high/low; reset dayhigh/daylow. Every bar: rangeavg = mean of the 10 stored ranges; track dayhigh/daylow. If time < 1300: buy next bar on a stop at todayopen + xfl * rangeavg; sell short next bar on a stop at todayopen - xfs * rangeavg.",
       "tradestation_code": "var:xfl(.1),xfs(.1);\nvar:rangeavg(0),yesterdayclose01(0),yesterdayclose02(0),todayopen(0),daylow(0),dayhigh(0),range10(0),range09(0),range08(0),range07(0),range06(0),range05(0),range04(0),range03(0),range02(0),range01(0);\nIf date<>date[1] then begin //close of first bar of day\n//new day, reset high and low, and shift all ranges\n\ntodayopen=open;\nyesterdayclose02=yesterdayclose01; //close 2 days ago\nyesterdayclose01=close[1]; //close yesterday\n\nrange10=range09;\nrange09=range08;\nrange08=range07;\nrange07=range06;\nrange06=range05;\nrange05=range04;\nrange04=range03;\nrange03=range02;\nrange02=range01;\n\n//range01 is the true range of yesterday, calculated at the close of the first bar today\nrange01=maxlist(absvalue(dayhigh-yesterdayclose02),absvalue(daylow-yesterdayclose02),dayhigh-daylow);\n\ndaylow=99999.;\ndayhigh=-99999.;\n\nend;\n\nrangeavg=(range10+range09+range08+range07+range06+range05+range04+range03+range02+range01)/10.;\n\nIf high>Dayhigh then dayhigh=high;\nIf low<daylow then daylow=low;\n\n//entry signals\n\nIf Time <1300 then begin\nBuy next bar at todayopen + xfl*rangeavg  stop;\nSellShort next bar at todayopen - xfs*rangeavg stop;\nEnd;",
-      "parameters": { "xfl": 0.1, "xfs": 0.1 },
-      "hardcoded_constants": { "range_days": 10, "entry_cutoff_time": 1300, "sentinel_low": 99999, "sentinel_high": -99999 },
+      "parameters": {
+        "xfl": 0.1,
+        "xfs": 0.1
+      },
+      "hardcoded_constants": {
+        "range_days": 10,
+        "entry_cutoff_time": 1300,
+        "sentinel_low": 99999,
+        "sentinel_high": -99999
+      },
       "order_type": "stop at price (today's open +/- fraction of 10-day average range)",
       "sides": "asymmetric inputs (xfl / xfs), mirrored structure",
       "composite": true,
       "decomposition": [
-        { "piece": "Time < 1300", "maps_to": "NEW TimeBefore(cutoff) filter (or TimeWindow with start 0) — same both sides" },
-        { "piece": "stateful daily-range tracking + stop at todayopen +/- k*rangeavg", "maps_to": "NEW DailyRangeStopEntry(longFraction, shortFraction, rangeDays=10) — stateful preConditionHook; requires stop-order entry support" }
+        {
+          "piece": "Time < 1300",
+          "maps_to": "NEW TimeBefore(cutoff) filter (or TimeWindow with start 0) — same both sides"
+        },
+        {
+          "piece": "stateful daily-range tracking + stop at todayopen +/- k*rangeavg",
+          "maps_to": "NEW DailyRangeStopEntry(longFraction, shortFraction, rangeDays=10) — stateful preConditionHook; requires stop-order entry support"
+        }
       ],
-      "el_words_unregistered": ["date[1] (series history of date)", "stop-order entry at price"],
+      "el_words_unregistered": [
+        "date[1] (series history of date)",
+        "stop-order entry at price"
+      ],
       "discrepancies": [
         "range01 uses yesterdayclose02 (the close TWO days ago, as the variable is assigned before use in the same block) against yesterday's high/low — not the close preceding yesterday's session. Reproduce as written.",
         "yesterdayclose01 = close[1] on the first bar of the day is the last bar of the previous day — correct, but the shift makes yesterdayclose02 the day-before-yesterday's last close only from the second day on."
@@ -519,18 +889,38 @@
       "rationale": "An asymmetric entry the author dislikes but that worked (on a foreign stock index): long on a stop above the close, short on a stop below today's low; the long is additionally filtered by a triple average of daily lows versus a lagged low.",
       "description": "EntryL = close + ATRmult * AvgTrueRange(14); EntryS = LowD(0) - ATRmult * AvgTrueRange(14). Long is allowed only if TriAverage(LowD(0), Length1) >= low[Length2]; short is always allowed. Buy next bar at EntryL stop; sell short next bar at EntryS stop.",
       "tradestation_code": "var: EntryL(0),EntryS(0),ATRmult(0), Length1(10),Length2(12);\nvar: EntCondL(False), EntCondS(False);\n\nEntryL = C + ATRmult * AvgTrueRange(14);\nEntryS = LowD(0) - ATRmult * AvgTrueRange(14);\n\nValue1 = TriAverage(LowD(0), Length1);\nValue2= L[Length2];\nEntCondL = Value1>=Value2;\nEntCondS = true;\n\nIf EntCondL then  Buy next bar at EntryL stop;\nIf EntCondS then  SellShort next bar at EntryS stop;",
-      "parameters": { "ATRmult": 0, "Length1": 10, "Length2": 12 },
-      "hardcoded_constants": { "atr_length": 14 },
+      "parameters": {
+        "ATRmult": 0,
+        "Length1": 10,
+        "Length2": 12
+      },
+      "hardcoded_constants": {
+        "atr_length": 14
+      },
       "order_type": "stop at price (asymmetric: close + k*ATR long, LowD(0) - k*ATR short)",
       "sides": "asymmetric",
       "composite": true,
       "decomposition": [
-        { "piece": "TriAverage(LowD(0), Length1) >= L[Length2] (long only)", "maps_to": "NEW TriAverageDailyLowFilter(length1, length2) — long side only; short side always true" },
-        { "piece": "stop orders at EntryL / EntryS", "maps_to": "NEW AsymmetricAtrStopEntry — requires stop-order entry support; the long anchor is the bar close, the short anchor is today's session low" }
+        {
+          "piece": "TriAverage(LowD(0), Length1) >= L[Length2] (long only)",
+          "maps_to": "NEW TriAverageDailyLowFilter(length1, length2) — long side only; short side always true"
+        },
+        {
+          "piece": "stop orders at EntryL / EntryS",
+          "maps_to": "NEW AsymmetricAtrStopEntry — requires stop-order entry support; the long anchor is the bar close, the short anchor is today's session low"
+        }
       ],
-      "el_words_unregistered": ["triaverage", "lowd", "stop-order entry at price"],
-      "discrepancies": ["ATRmult defaults to 0 in the book, which makes the ATR term vanish (EntryL = close, EntryS = LowD(0)). Presumably meant to be optimized; keep 0 as the printed default."],
-      "notes": ["Rules built for a stock index with an upward bias; the author cautions against asymmetric rules elsewhere."]
+      "el_words_unregistered": [
+        "triaverage",
+        "lowd",
+        "stop-order entry at price"
+      ],
+      "discrepancies": [
+        "ATRmult defaults to 0 in the book, which makes the ATR term vanish (EntryL = close, EntryS = LowD(0)). Presumably meant to be optimized; keep 0 as the printed default."
+      ],
+      "notes": [
+        "Rules built for a stock index with an upward bias; the author cautions against asymmetric rules elsewhere."
+      ]
     },
     {
       "id": "E22",
@@ -540,17 +930,35 @@
       "rationale": "Another asymmetric entry: long only on a gap-up day (today's open >= yesterday's close), on a stop above the open; short always, on a stop below today's low.",
       "description": "EntryL = OpenD(0) + ATRmult * AvgTrueRange(14); EntryS = LowD(0) - ATRmult * AvgTrueRange(14). Long allowed only if OpenD(0) >= CloseD(1); short always. Buy next bar at EntryL stop; sell short next bar at EntryS stop.",
       "tradestation_code": "var: EntryL(0),EntryS(0),ATRmult(0);\nvar: EntCondL(False), EntCondS(False);\n\nEntryL = OpenD(0) + ATRmult * AvgTrueRange(14);\nEntryS = LowD(0) - ATRmult * AvgTrueRange(14);\n\nValue1 = OpenD(0);\nValue2= CloseD(1);\nEntCondL = Value1>=Value2;\nEntCondS = true;\n\nIf EntCondL then  Buy next bar at EntryL stop;\nIf EntCondS then  SellShort next bar at EntryS stop;",
-      "parameters": { "ATRmult": 0 },
-      "hardcoded_constants": { "atr_length": 14 },
+      "parameters": {
+        "ATRmult": 0
+      },
+      "hardcoded_constants": {
+        "atr_length": 14
+      },
       "order_type": "stop at price (asymmetric: OpenD(0) + k*ATR long, LowD(0) - k*ATR short)",
       "sides": "asymmetric",
       "composite": true,
       "decomposition": [
-        { "piece": "OpenD(0) >= CloseD(1) (long only)", "maps_to": "NEW GapUpFilter — long side only; short side always true" },
-        { "piece": "stop orders at EntryL / EntryS", "maps_to": "NEW AsymmetricAtrStopEntry variant anchored on OpenD(0) / LowD(0)" }
+        {
+          "piece": "OpenD(0) >= CloseD(1) (long only)",
+          "maps_to": "NEW GapUpFilter — long side only; short side always true"
+        },
+        {
+          "piece": "stop orders at EntryL / EntryS",
+          "maps_to": "NEW AsymmetricAtrStopEntry variant anchored on OpenD(0) / LowD(0)"
+        }
       ],
-      "el_words_unregistered": ["opend", "closed", "lowd", "stop-order entry at price"],
-      "discrepancies": ["ATRmult defaults to 0 (same as E21).", "Plain English says 'open is greater than yesterday's close'; code is >=."],
+      "el_words_unregistered": [
+        "opend",
+        "closed",
+        "lowd",
+        "stop-order entry at price"
+      ],
+      "discrepancies": [
+        "ATRmult defaults to 0 (same as E21).",
+        "Plain English says 'open is greater than yesterday's close'; code is >=."
+      ],
       "notes": []
     },
     {
@@ -561,17 +969,31 @@
       "rationale": "Use the stochastic %K / %D cross on its own as a signal rather than as a confirmation filter.",
       "description": "Compute the Stochastic with SLength, Smoothing1, Smoothing2, SmoothingType. If SlowK crosses over SlowD, buy next bar at market. If SlowK crosses under SlowD, sell short next bar at market.",
       "tradestation_code": "Vars: SLength( 8 ), Smoothing1( 23 ), Smoothing2( 22 );\nVars: Smoothingtype( 1 ), oFastK( 0 ), oFastD( 0 ), oSlowK( 0 ), oSlowD( 0 ) ;\n\nValue1 = Stochastic( H, L, C, SLength, Smoothing1, Smoothing2, SmoothingType, oFastK, oFastD, oSlowK, oSlowD ) ;\n\nif oSlowk crosses over oSlowd then buy next bar at market;\nif oSlowk crosses under oSlowd then sellshort next bar at market;",
-      "parameters": { "SLength": 8, "Smoothing1": 23, "Smoothing2": 22, "SmoothingType": 1 },
+      "parameters": {
+        "SLength": 8,
+        "Smoothing1": 23,
+        "Smoothing2": 22,
+        "SmoothingType": 1
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW StochasticCross(length, smoothing1, smoothing2, smoothingType) — a crossing" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW StochasticCross(length, smoothing1, smoothing2, smoothingType) — a crossing"
+        }
       ],
-      "el_words_unregistered": ["stochastic", "crosses over", "crosses under"],
+      "el_words_unregistered": [
+        "stochastic",
+        "crosses over",
+        "crosses under"
+      ],
       "discrepancies": [],
-      "notes": ["The Stochastic function's exact formulation (SmoothingType 1 = simple, 2 = exponential per TS docs) and MW's WFSafe variant, if any, need a probe."]
+      "notes": [
+        "The Stochastic function's exact formulation (SmoothingType 1 = simple, 2 = exponential per TS docs) and MW's WFSafe variant, if any, need a probe."
+      ]
     },
     {
       "id": "E24",
@@ -581,17 +1003,31 @@
       "rationale": "Money Flow Index (0–100, volume-weighted RSI-like) leaving oversold = buy; leaving overbought = sell.",
       "description": "MoneyFlowVal = MoneyFlow(Length). If it crosses above OverSold, buy next bar at market. If it crosses below Overbought, sell short next bar at market.",
       "tradestation_code": "Vars: Length( 14 ),OverSold( 20 ),Overbought(80);\nvars: MoneyFlowVal( 0 ) ;\n\nMoneyFlowVal = MoneyFlow( Length ) ;\n\nif MoneyFlowVal Crosses above OverSold then buy next bar at market;\nif MoneyFlowVal Crosses below Overbought then Sellshort next bar at market;",
-      "parameters": { "Length": 14, "OverSold": 20, "Overbought": 80 },
+      "parameters": {
+        "Length": 14,
+        "OverSold": 20,
+        "Overbought": 80
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored when Overbought = 100 - OverSold (separate inputs in the book)",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW MoneyFlowCross(length, oversold, overbought) — a crossing" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW MoneyFlowCross(length, oversold, overbought) — a crossing"
+        }
       ],
-      "el_words_unregistered": ["moneyflow", "crosses above", "crosses below"],
+      "el_words_unregistered": [
+        "moneyflow",
+        "crosses above",
+        "crosses below"
+      ],
       "discrepancies": [],
-      "notes": ["MoneyFlow uses Volume — recall EL Volume on TS futures charts is up-ticks (EL_FEATURES.md); the probe must establish which series the function reads.", "MoneyFlowVal is a variable: its history is zero-filled during warm-up, which matters for the 'crosses' test on the first calculated bar."]
+      "notes": [
+        "MoneyFlow uses Volume — recall EL Volume on TS futures charts is up-ticks (EL_FEATURES.md); the probe must establish which series the function reads.",
+        "MoneyFlowVal is a variable: its history is zero-filled during warm-up, which matters for the 'crosses' test on the first calculated bar."
+      ]
     },
     {
       "id": "E25",
@@ -601,18 +1037,36 @@
       "rationale": "Bollinger Band re-entry (close crossing back over the lower band) confirmed by simple momentum, entered at market.",
       "description": "LowerBand = BollingerBand(close, Length, -NumDevs); UpperBand = BollingerBand(close, Length, +NumDevs). If close crosses over LowerBand AND close > close[Length2], buy next bar at market. If close crosses under UpperBand AND close < close[Length2], sell short next bar at market.",
       "tradestation_code": "vars: Length( 20 ), NumDevs( 2 ), Length2(10);\nvars: LowerBand( 0 ), UpperBand(0);\n\nLowerBand = BollingerBand( Close, Length, -NumDevs ) ;\nUpperBand = BollingerBand( Close, Length, +NumDevs ) ;\n\nif Close crosses over LowerBand and close>close[Length2] then Buy next bar at market;\nif Close crosses under UpperBand and close<close[Length2] then SellShort next bar at market;",
-      "parameters": { "Length": 20, "NumDevs": 2, "Length2": 10 },
+      "parameters": {
+        "Length": 20,
+        "NumDevs": 2,
+        "Length2": 10
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close crosses over lower band (long) / under upper band (short)", "maps_to": "NEW BollingerBandCross(length, numDevs) — a crossing; population StdDev (VERIFIED)" },
-        { "piece": "close > close[Length2]", "maps_to": "Momentum (existing), lookback=Length2" }
+        {
+          "piece": "close crosses over lower band (long) / under upper band (short)",
+          "maps_to": "NEW BollingerBandCross(length, numDevs) — a crossing; population StdDev (VERIFIED)"
+        },
+        {
+          "piece": "close > close[Length2]",
+          "maps_to": "Momentum (existing), lookback=Length2"
+        }
       ],
-      "el_words_unregistered": ["bollingerband", "crosses over", "crosses under"],
-      "discrepancies": ["The plain-English text omits the momentum condition that the code has."],
-      "notes": ["LowerBand/UpperBand are variables (zero history in warm-up) — affects the 'crosses' comparison on the first calculated bar."]
+      "el_words_unregistered": [
+        "bollingerband",
+        "crosses over",
+        "crosses under"
+      ],
+      "discrepancies": [
+        "The plain-English text omits the momentum condition that the code has."
+      ],
+      "notes": [
+        "LowerBand/UpperBand are variables (zero history in warm-up) — affects the 'crosses' comparison on the first calculated bar."
+      ]
     },
     {
       "id": "E26",
@@ -622,18 +1076,35 @@
       "rationale": "Same idea as E25 with a Keltner channel (average +/- k * ATR) instead of Bollinger Bands.",
       "description": "LowerBand = Average(close, Length) - NumATRs * AvgTrueRange(Length); UpperBand = Average(close, Length) + NumATRs * AvgTrueRange(Length). If close crosses over LowerBand AND close > close[Length2], buy next bar at market. If close crosses under UpperBand AND close < close[Length2], sell short next bar at market.",
       "tradestation_code": "vars: Length( 20 ), NumATRs( 2 ), Length2(10);\nvars: LowerBand( 0 ), UpperBand(0);\n\nLowerBand = Average(close,Length) - NumATRs*AvgTrueRange(Length) ;\nUpperBand = Average(close,Length)+NumATRs*AvgTrueRange(Length) ;\n\nif Close crosses over LowerBand and close>close[Length2] then Buy next bar at market;\nif Close crosses under UpperBand and close<close[Length2] then SellShort next bar at market;",
-      "parameters": { "Length": 20, "NumATRs": 2, "Length2": 10 },
+      "parameters": {
+        "Length": 20,
+        "NumATRs": 2,
+        "Length2": 10
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close crosses over lower Keltner band / under upper", "maps_to": "NEW KeltnerChannelCross(length, numAtrs) — a crossing; ATR = WFSafe_AvgTrueRange rolling form, same length as the average" },
-        { "piece": "close > close[Length2]", "maps_to": "Momentum (existing), lookback=Length2" }
+        {
+          "piece": "close crosses over lower Keltner band / under upper",
+          "maps_to": "NEW KeltnerChannelCross(length, numAtrs) — a crossing; ATR = WFSafe_AvgTrueRange rolling form, same length as the average"
+        },
+        {
+          "piece": "close > close[Length2]",
+          "maps_to": "Momentum (existing), lookback=Length2"
+        }
       ],
-      "el_words_unregistered": ["crosses over", "crosses under"],
-      "discrepancies": ["Plain-English text omits the momentum condition."],
-      "notes": ["Band variables are zero-filled in warm-up, as E25."]
+      "el_words_unregistered": [
+        "crosses over",
+        "crosses under"
+      ],
+      "discrepancies": [
+        "Plain-English text omits the momentum condition."
+      ],
+      "notes": [
+        "Band variables are zero-filled in warm-up, as E25."
+      ]
     },
     {
       "id": "E27",
@@ -643,20 +1114,42 @@
       "rationale": "A composite of ADX trend filter, RSI below/above midline, and opposing long- and short-term momentum (a pullback within a trend). Author used it in currencies and metals; warns against optimizing all parameters.",
       "description": "If ADX(ADXLength) > 25: buy next bar at market if RSI(close, RSILength) < 50 AND close < close[lookbackBig] AND close > close[lookbackshort]; sell short if RSI > 50 AND close > close[lookbackBig] AND close < close[lookbackshort].",
       "tradestation_code": "vars: ADXLength(14), RSILength(14), lookbackBig(20), lookbackshort(10);\n\nIf ADX(ADXLength)>25  then begin\nIf RSI(close,RSILength)<50 and close<close[lookbackBig] and close>close[lookbackshort] then buy next bar at market;\nIf RSI(close,RSILength)>50 and close>close[lookbackBig] and close<close[lookbackshort] then sellshort next bar at market;\nend;",
-      "parameters": { "ADXLength": 14, "RSILength": 14, "lookbackBig": 20, "lookbackshort": 10 },
-      "hardcoded_constants": { "adx_threshold": 25, "rsi_midline": 50 },
+      "parameters": {
+        "ADXLength": 14,
+        "RSILength": 14,
+        "lookbackBig": 20,
+        "lookbackshort": 10
+      },
+      "hardcoded_constants": {
+        "adx_threshold": 25,
+        "rsi_midline": 50
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "ADX(14) > 25", "maps_to": "AdxBelowThreshold (existing), lookback=14, threshold=25, NEGATED (>= 25 vs book's > 25)" },
-        { "piece": "RSI < 50 (long) / > 50 (short)", "maps_to": "RsiBelowThreshold (existing), lookback=14, threshold=50 — short side 100-50 = 50, exact" },
-        { "piece": "close < close[20] (long)", "maps_to": "Momentum (existing), lookback=20, FLIPPED" },
-        { "piece": "close > close[10] (long)", "maps_to": "Momentum (existing), lookback=10" }
+        {
+          "piece": "ADX(14) > 25",
+          "maps_to": "AdxBelowThreshold (existing), lookback=14, threshold=25, NEGATED (>= 25 vs book's > 25)"
+        },
+        {
+          "piece": "RSI < 50 (long) / > 50 (short)",
+          "maps_to": "RsiBelowThreshold (existing), lookback=14, threshold=50 — short side 100-50 = 50, exact"
+        },
+        {
+          "piece": "close < close[20] (long)",
+          "maps_to": "Momentum (existing), lookback=20, FLIPPED"
+        },
+        {
+          "piece": "close > close[10] (long)",
+          "maps_to": "Momentum (existing), lookback=10"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Fully covered by existing rules; the same combination (AdxBelowThreshold negated + Momentum) was used for AI-Algos #10/#11."]
+      "notes": [
+        "Fully covered by existing rules; the same combination (AdxBelowThreshold negated + Momentum) was used for AI-Algos #10/#11."
+      ]
     },
     {
       "id": "E28",
@@ -666,18 +1159,31 @@
       "rationale": "ADX trend filter plus simple momentum.",
       "description": "If ADX(ADXLength) > 20: buy next bar at market if close > close[lookback]; sell short if close < close[lookback].",
       "tradestation_code": "vars: ADXLength(14), lookback(20);\n\nIf ADX(ADXLength)>20  then begin\nIf close>close[lookback] then buy next bar at market;\nIf close<close[lookback] then sellshort next bar at market;\nend;",
-      "parameters": { "ADXLength": 14, "lookback": 20 },
-      "hardcoded_constants": { "adx_threshold": 20 },
+      "parameters": {
+        "ADXLength": 14,
+        "lookback": 20
+      },
+      "hardcoded_constants": {
+        "adx_threshold": 20
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "ADX(14) > 20", "maps_to": "AdxBelowThreshold (existing), threshold=20, NEGATED" },
-        { "piece": "close > close[lookback]", "maps_to": "Momentum (existing), lookback=20" }
+        {
+          "piece": "ADX(14) > 20",
+          "maps_to": "AdxBelowThreshold (existing), threshold=20, NEGATED"
+        },
+        {
+          "piece": "close > close[lookback]",
+          "maps_to": "Momentum (existing), lookback=20"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Fully covered by existing rules."]
+      "notes": [
+        "Fully covered by existing rules."
+      ]
     },
     {
       "id": "E29",
@@ -693,11 +1199,17 @@
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole pattern", "maps_to": "NEW PitterPatterPattern — single 2-bar pattern" }
+        {
+          "piece": "whole pattern",
+          "maps_to": "NEW PitterPatterPattern — single 2-bar pattern"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["c[1] > l[1] is almost always true (a close is at or above its low); it only fails on a bar that closed on its low. Keep it — it is part of the book's rule.", "Reaches back 1 bar."]
+      "notes": [
+        "c[1] > l[1] is almost always true (a close is at or above its low); it only fails on a bar that closed on its low. Keep it — it is part of the book's rule.",
+        "Reaches back 1 bar."
+      ]
     },
     {
       "id": "E30",
@@ -713,12 +1225,20 @@
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "l[3] > h AND h > l[1] AND l[1] > l[2] (long)", "maps_to": "NEW 3-term pattern (E17's short pattern minus its l[0] > l[2] term, used on the LONG side)" },
-        { "piece": "close > close[1]", "maps_to": "Momentum (existing), lookback=1" }
+        {
+          "piece": "l[3] > h AND h > l[1] AND l[1] > l[2] (long)",
+          "maps_to": "NEW 3-term pattern (E17's short pattern minus its l[0] > l[2] term, used on the LONG side)"
+        },
+        {
+          "piece": "close > close[1]",
+          "maps_to": "Momentum (existing), lookback=1"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 3 bars."]
+      "notes": [
+        "Reaches back 3 bars."
+      ]
     },
     {
       "id": "E31",
@@ -734,11 +1254,16 @@
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole pattern", "maps_to": "NEW ClosingPattern1 — equivalent to the ordering close > close[2] > close[1] > close[3]" }
+        {
+          "piece": "whole pattern",
+          "maps_to": "NEW ClosingPattern1 — equivalent to the ordering close > close[2] > close[1] > close[3]"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 3 bars."]
+      "notes": [
+        "Reaches back 3 bars."
+      ]
     },
     {
       "id": "E32",
@@ -754,12 +1279,20 @@
       "sides": "mirrored (the inside-bar part is identical both sides)",
       "composite": true,
       "decomposition": [
-        { "piece": "h[2] > h[1] AND l[2] < l[1]", "maps_to": "NEW InsideBar(lag=1) filter — same both sides" },
-        { "piece": "close > high[2] (long) / close < low[2] (short)", "maps_to": "CloseAbovePriorHigh (existing), lookback=2" }
+        {
+          "piece": "h[2] > h[1] AND l[2] < l[1]",
+          "maps_to": "NEW InsideBar(lag=1) filter — same both sides"
+        },
+        {
+          "piece": "close > high[2] (long) / close < low[2] (short)",
+          "maps_to": "CloseAbovePriorHigh (existing), lookback=2"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 2 bars."]
+      "notes": [
+        "Reaches back 2 bars."
+      ]
     },
     {
       "id": "E33",
@@ -775,11 +1308,17 @@
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole pattern", "maps_to": "NEW ClosingPattern2 — the ordering close[1] < close[2] < close[5] < close[3] < close[4]; the current close is not used" }
+        {
+          "piece": "whole pattern",
+          "maps_to": "NEW ClosingPattern2 — the ordering close[1] < close[2] < close[5] < close[3] < close[4]; the current close is not used"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 5 bars.", "Does not reference close[0], so the signal is known a bar early."]
+      "notes": [
+        "Reaches back 5 bars.",
+        "Does not reference close[0], so the signal is known a bar early."
+      ]
     },
     {
       "id": "E34",
@@ -789,16 +1328,29 @@
       "rationale": "Countertrend stop entry: when momentum is up, place a sell-short stop a multiple of recent true range below the close (and vice versa) — a move that far against the trend suggests a breakdown. Author used it in softs.",
       "description": "myrange = TrueRange. If close > close[momen], sell short next bar on a stop at close - mult * Average(myrange, 3). If close < close[momen], buy next bar on a stop at close + mult * Average(myrange, 3).",
       "tradestation_code": "Var: momen(10); //length of trend\nVar: mult(2); //multiplier for the average true range\nvar:myrange(0);\n\nmyrange=truerange;  //true range is a Tradestation reserved word\n\nIf close>close[momen] then sellshort next bar at close - mult*average(myRange,3) stop;\n\nIf close<close[momen] then buy next bar at close+mult*average(myRange,3) stop;",
-      "parameters": { "momen": 10, "mult": 2 },
-      "hardcoded_constants": { "range_average_length": 3 },
+      "parameters": {
+        "momen": 10,
+        "mult": 2
+      },
+      "hardcoded_constants": {
+        "range_average_length": 3
+      },
       "order_type": "stop at price (close -/+ mult * 3-bar average true range)",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close > close[momen] (short) / close < close[momen] (long)", "maps_to": "Momentum (existing), lookback=momen, FLIPPED" },
-        { "piece": "stop at close -/+ mult * Average(myrange, 3)", "maps_to": "NEW TrueRangeAverageStopEntry(multiple, avgLength) — requires stop-order entry support" }
+        {
+          "piece": "close > close[momen] (short) / close < close[momen] (long)",
+          "maps_to": "Momentum (existing), lookback=momen, FLIPPED"
+        },
+        {
+          "piece": "stop at close -/+ mult * Average(myrange, 3)",
+          "maps_to": "NEW TrueRangeAverageStopEntry(multiple, avgLength) — requires stop-order entry support"
+        }
       ],
-      "el_words_unregistered": ["stop-order entry at price"],
+      "el_words_unregistered": [
+        "stop-order entry at price"
+      ],
       "discrepancies": [],
       "notes": [
         "myrange is an EL VARIABLE, so Average(myrange, 3) reads zero-filled history during warm-up (reads 0, then TR/3, then 2TR/3 on the first three evaluated bars). This is NOT AvgTrueRange(3) and not the WFSafe rolling form — mirror the variable (BarRangeAboveStd reference).",
@@ -813,17 +1365,32 @@
       "rationale": "CCI, smoothed, used alone as a countertrend signal at +/-100. Author used it in currencies.",
       "description": "CCIValue = CCI(CCILength); CCIAvg = Average(CCIValue, CCIAvgLength). If CCIAvg >= 100, sell short next bar at open. If CCIAvg <= -100, buy next bar at open.",
       "tradestation_code": "input: CCILength(14),CCIAvgLength(9);\nvars: CCIValue(0),CCIAvg(0);\n\nCCIValue = CCI( CCILength ) ;\nCCIAvg = Average( CCIValue, CCIAvgLength );\n\nif CCIAvg>=100 then sell short next bar at open;\nif CCIAvg<=-100 then buy next bar at open;",
-      "parameters": { "CCILength": 14, "CCIAvgLength": 9 },
-      "hardcoded_constants": { "cci_threshold": 100 },
+      "parameters": {
+        "CCILength": 14,
+        "CCIAvgLength": 9
+      },
+      "hardcoded_constants": {
+        "cci_threshold": 100
+      },
       "order_type": "market next bar ('next bar at open')",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW CciAverageExtreme(cciLength, avgLength, threshold)" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW CciAverageExtreme(cciLength, avgLength, threshold)"
+        }
       ],
-      "el_words_unregistered": ["cci"],
-      "discrepancies": ["Declared with `input:` rather than `Var:` — the only rule in the book that does so."],
-      "notes": ["CCIValue is a variable, so Average(CCIValue, 9) runs over zero-filled warm-up history.", "Plain English says '> 100' / '< -100'; code is >= / <=."]
+      "el_words_unregistered": [
+        "cci"
+      ],
+      "discrepancies": [
+        "Declared with `input:` rather than `Var:` — the only rule in the book that does so."
+      ],
+      "notes": [
+        "CCIValue is a variable, so Average(CCIValue, 9) runs over zero-filled warm-up history.",
+        "Plain English says '> 100' / '< -100'; code is >= / <=."
+      ]
     },
     {
       "id": "E36",
@@ -833,17 +1400,28 @@
       "rationale": "Count 'bull tail' bars (up close, lower wick longer than the body, higher high) and 'bear tail' bars over a window; enter long when bull tails dominate and exceed a threshold.",
       "description": "BullBarTail = count over Period bars of (close > open AND open - low > close - open AND high > high[1]). BearBarTail = count of (close < open AND high - open > open - close AND low < low[1]). If BullBarTail > BearBarTail AND BullBarTail > thresh, buy next bar at market. If BullBarTail < BearBarTail AND BearBarTail > thresh, sell short next bar at market.",
       "tradestation_code": "Var:BullBarTail(0),BearBarTail(0);\nVar: Period(10); // lookback length for tail count\nVar:thresh(5); //threshold for having a sufficient number of bull or bear tails\n\nBullBarTail = CountIF(Close>Open AND Open-Low > Close-Open AND High > High[1], Period); // Bullbar with big tail\nBearBarTail = CountIF(Close <Open AND High -Open > Open -Close AND Low < Low[1] , Period); //Bearbar with big peak\n\nIf BullBarTail > BearBarTail and BullBarTail > thresh  then buy next bar at market;\nIf BullBarTail < BearBarTail and BearBarTail > thresh  then sellshort next bar at market;",
-      "parameters": { "Period": 10, "thresh": 5 },
+      "parameters": {
+        "Period": 10,
+        "thresh": 5
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW TailBarCountDominance(period, threshold) — the two counts are only meaningful as a pair, like ProfitProtector's peak-and-now" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW TailBarCountDominance(period, threshold) — the two counts are only meaningful as a pair, like ProfitProtector's peak-and-now"
+        }
       ],
-      "el_words_unregistered": ["countif"],
+      "el_words_unregistered": [
+        "countif"
+      ],
       "discrepancies": [],
-      "notes": ["Reaches back Period bars (the High[1] inside the counted condition adds one: Period + 1 if CountIF evaluates over bars 0..Period-1).", "Open - Low > Close - Open is a comparison of price differences — tick grid, tolerance inert."]
+      "notes": [
+        "Reaches back Period bars (the High[1] inside the counted condition adds one: Period + 1 if CountIF evaluates over bars 0..Period-1).",
+        "Open - Low > Close - Open is a comparison of price differences — tick grid, tolerance inert."
+      ]
     },
     {
       "id": "E37",
@@ -853,19 +1431,32 @@
       "rationale": "A close above the prior N-bar highest high, confirmed by short-term momentum (two consecutive up closes and above the close 3 bars ago). Author used it in currencies and metals; suggests the reverse for stock indices.",
       "description": "Long: close > Highest(high, xbars)[1] AND close > close[1] AND close > close[3] AND close[1] > close[2] — buy next bar at market. Short: mirror with Lowest(low, xbars)[1] and reversed comparisons.",
       "tradestation_code": "Var:xbars(10);\nCondition1= C > Highest(H,xbars)[1] AND C > C[1] AND C>C[3] AND C[1] > C[2];\nCondition2= C < Lowest(L,xbars)[1] AND C < C[1] AND C<C[3] AND C[1] < C[2];\n\nIf Condition1 then buy next bar at market;\nIf Condition2 then sell short next bar at market;",
-      "parameters": { "xbars": 10 },
+      "parameters": {
+        "xbars": 10
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "close > Highest(high, xbars)[1]", "maps_to": "NEW CloseAbovePriorHighestHigh(lookback) — the highest high of the N bars ENDING one bar ago; not Breakout (closes, includes current) and not CloseAbovePriorHigh (one bar)" },
-        { "piece": "close > close[1] AND close[1] > close[2]", "maps_to": "MomentumConsecutiveBars (existing), lookback=1, consecutiveBars=2" },
-        { "piece": "close > close[3]", "maps_to": "Momentum (existing), lookback=3" }
+        {
+          "piece": "close > Highest(high, xbars)[1]",
+          "maps_to": "NEW CloseAbovePriorHighestHigh(lookback) — the highest high of the N bars ENDING one bar ago; not Breakout (closes, includes current) and not CloseAbovePriorHigh (one bar)"
+        },
+        {
+          "piece": "close > close[1] AND close[1] > close[2]",
+          "maps_to": "MomentumConsecutiveBars (existing), lookback=1, consecutiveBars=2"
+        },
+        {
+          "piece": "close > close[3]",
+          "maps_to": "Momentum (existing), lookback=3"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back xbars bars (Highest over bars 1..xbars)."]
+      "notes": [
+        "Reaches back xbars bars (Highest over bars 1..xbars)."
+      ]
     },
     {
       "id": "E38",
@@ -875,15 +1466,32 @@
       "rationale": "Bill Williams' Awesome Oscillator (difference of two averages of the bar midpoint), used as a divergence signal against a lower-low / higher-high bar with a strong close in the opposite direction.",
       "description": "AO = Average((H+L)/2, v1) - Average((H+L)/2, v1+v3). Condition1 = AO[aback] > AO[bback]; Condition2 = AO[aback] < AO[bback]. Condition3 = low < low[1] AND (close-low)/(high-low+0.000001) > fatr. Condition4 = high > high[1] AND (close-low)/(high-low+0.000001) < 1-fatr. If Condition1 AND Condition4, sell short next bar at market. If Condition2 AND Condition3, buy next bar at market.",
       "tradestation_code": "vars: aback(1),bback(1);  // Awesome oscillator lengths\nvars: v1(5),v3(2);  //average lengths\nVars: fatr(.5);  //threshold for stochastic length\nVars: AO(0);\nVars:Price(0);\n\nPrice=(H+L)/2.;\nValue1=average((H+L)/2,v1);\nValue2=average((H+L)/2,v1+v3);\nAO = (value1-value2);\n//Bullish divergence\nCondition1=AO[aback]>AO[bback];\n\n//bearish divergence\nCondition2=AO[aback]<AO[bback];\n\ncondition3=low<low[1] and (close-low)/(high-low+.000001)>fatr;\ncondition4=high>high[1] and (close-low)/(high-low+.000001)<(1-fatr);\n\nif condition1 and condition4 then sellshort next bar at market;\nif condition2 and condition3 then buy next bar at market;",
-      "parameters": { "aback": 1, "bback": 1, "v1": 5, "v3": 2, "fatr": 0.5 },
-      "hardcoded_constants": { "epsilon": 0.000001 },
+      "parameters": {
+        "aback": 1,
+        "bback": 1,
+        "v1": 5,
+        "v3": 2,
+        "fatr": 0.5
+      },
+      "hardcoded_constants": {
+        "epsilon": 1e-06
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "AO[aback] < AO[bback] (long) / > (short)", "maps_to": "NEW AwesomeOscillatorSlope(fastLength, extraLength, nearLag, farLag) — AO is a variable (zero-filled history); Value1/Value2 are averages of a price expression (real history)" },
-        { "piece": "low < low[1] (long) / high > high[1] (short)", "maps_to": "LaggedHigherHigh (existing), lookback=0, FLIPPED (as used for AI-Algos #5)" },
-        { "piece": "(close-low)/(high-low+eps) > fatr (long) / < 1-fatr (short)", "maps_to": "NEW CloseRangePosition(threshold, epsilon) — long when the close is in the upper part of the bar; E39 uses the same term with the opposite sense and no epsilon" }
+        {
+          "piece": "AO[aback] < AO[bback] (long) / > (short)",
+          "maps_to": "NEW AwesomeOscillatorSlope(fastLength, extraLength, nearLag, farLag) — AO is a variable (zero-filled history); Value1/Value2 are averages of a price expression (real history)"
+        },
+        {
+          "piece": "low < low[1] (long) / high > high[1] (short)",
+          "maps_to": "LaggedHigherHigh (existing), lookback=0, FLIPPED (as used for AI-Algos #5)"
+        },
+        {
+          "piece": "(close-low)/(high-low+eps) > fatr (long) / < 1-fatr (short)",
+          "maps_to": "NEW CloseRangePosition(threshold, epsilon) — long when the close is in the upper part of the bar; E39 uses the same term with the opposite sense and no epsilon"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [
@@ -901,19 +1509,36 @@
       "rationale": "Seasonal restriction: January–June long only, July–December short only, combined with a highest/lowest close and a close-position-in-bar term. Author uses it for Soybeans.",
       "description": "If month <= 6 AND close = highest close of xbar bars AND (close-low)/(high-low) < thresh, buy next bar at market. If month > 6 AND close = lowest close of xbar bars AND (close-low)/(high-low) > 1-thresh, sell short next bar at market.",
       "tradestation_code": "Var:xbar(10);\nVar:thresh(.5);\n\nIf month(date)<=6 and close=highest(close,xbar) and ((c-l)/(h-l))<thresh then buy next bar at market;\nIf month(date)>6 and close=lowest(close,xbar) and ((c-l)/(h-l))>(1-thresh) then sellshort next bar at market;",
-      "parameters": { "xbar": 10, "thresh": 0.5 },
-      "hardcoded_constants": { "last_long_month": 6 },
+      "parameters": {
+        "xbar": 10,
+        "thresh": 0.5
+      },
+      "hardcoded_constants": {
+        "last_long_month": 6
+      },
       "order_type": "market next bar",
       "sides": "mirrored, but each side is restricted to half the year",
       "composite": true,
       "decomposition": [
-        { "piece": "month(date) <= 6 (long) / > 6 (short)", "maps_to": "NEW SeasonalHalfYear(lastLongMonth) filter — one input; long in months 1..N, short in N+1..12 (Month is ACCEPTED)" },
-        { "piece": "close = highest(close, xbar)", "maps_to": "Breakout (existing), lookback=xbar" },
-        { "piece": "(c-l)/(h-l) < thresh (long) / > 1-thresh (short)", "maps_to": "CloseRangePosition (NEW, shared with E38) FLIPPED and WITHOUT the epsilon — the two forms differ in low bits and in the zero-range case, so either an input for epsilon or a separate rule" }
+        {
+          "piece": "month(date) <= 6 (long) / > 6 (short)",
+          "maps_to": "NEW SeasonalHalfYear(lastLongMonth) filter — one input; long in months 1..N, short in N+1..12 (Month is ACCEPTED)"
+        },
+        {
+          "piece": "close = highest(close, xbar)",
+          "maps_to": "Breakout (existing), lookback=xbar"
+        },
+        {
+          "piece": "(c-l)/(h-l) < thresh (long) / > 1-thresh (short)",
+          "maps_to": "CloseRangePosition (NEW, shared with E38) FLIPPED and WITHOUT the epsilon — the two forms differ in low bits and in the zero-range case, so either an input for epsilon or a separate rule"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["No epsilon: a bar with high = low divides by zero. What EL does there (raises? evaluates to 0? skips the bar?) must be probed before this rule can be mirrored.", "Note the long wants a NEW HIGH close that finished in the LOWER half of its bar — a pullback-within-breakout."]
+      "notes": [
+        "No epsilon: a bar with high = low divides by zero. What EL does there (raises? evaluates to 0? skips the bar?) must be probed before this rule can be mirrored.",
+        "Note the long wants a NEW HIGH close that finished in the LOWER half of its bar — a pullback-within-breakout."
+      ]
     },
     {
       "id": "E40",
@@ -923,22 +1548,45 @@
       "rationale": "Time-of-day bias: certain times of day favour buying (just after 03:00 and 21:30) and others selling (after 09:00), confirmed by momentum, entered on a limit at the current close. Developed for Bitcoin futures (XBT), 2017–18.",
       "description": "As CODED: BullSignalTime latches true the first time the bar time crosses 03:00 or 21:30; BearSignalTime latches true the first time it crosses 09:00 — neither is ever reset. Once latched, buy next bar on a limit at the close whenever close > close[barsback]; sell short next bar on a limit at the close whenever close < close[barsback].",
       "tradestation_code": "Var:barsback (10);\nVar:BullSignalTime(False), BearSignalTime(false);\n\nIf (time>300 and time[1]<=300) or (time>2130 and time[1]<=2130) then Bullsignaltime=True;\nIf (time>900 and time[1]<=900) then Bearsignaltime=True;\n\nif Bullsignaltime and close>close[barsback] then Buy next bar at close limit;\nif Bearsignaltime and close<close[barsback]   then sellshort next bar at close limit;",
-      "parameters": { "barsback": 10 },
-      "hardcoded_constants": { "bull_times": [300, 2130], "bear_time": 900 },
+      "parameters": {
+        "barsback": 10
+      },
+      "hardcoded_constants": {
+        "bull_times": [
+          300,
+          2130
+        ],
+        "bear_time": 900
+      },
       "order_type": "limit at price (current bar close)",
       "sides": "asymmetric (different signal times per side)",
       "composite": true,
       "decomposition": [
-        { "piece": "Bull/BearSignalTime latch", "maps_to": "NEW TimeCrossingSignal — as coded it is a one-shot latch that becomes permanently true; the INTENDED rule is 'the bar whose time just passed T', i.e. a one-bar window (time > T and time[1] <= T). Author both variants, test the coded one against the book." },
-        { "piece": "close > close[barsback]", "maps_to": "Momentum (existing), lookback=10" },
-        { "piece": "buy next bar at close limit", "maps_to": "NEW limit-at-close entry — requires limit-order entry support" }
+        {
+          "piece": "Bull/BearSignalTime latch",
+          "maps_to": "NEW TimeCrossingSignal — as coded it is a one-shot latch that becomes permanently true; the INTENDED rule is 'the bar whose time just passed T', i.e. a one-bar window (time > T and time[1] <= T). Author both variants, test the coded one against the book."
+        },
+        {
+          "piece": "close > close[barsback]",
+          "maps_to": "Momentum (existing), lookback=10"
+        },
+        {
+          "piece": "buy next bar at close limit",
+          "maps_to": "NEW limit-at-close entry — requires limit-order entry support"
+        }
       ],
-      "el_words_unregistered": ["time[1] (series history of time)", "limit-order entry at price"],
+      "el_words_unregistered": [
+        "time[1] (series history of time)",
+        "limit-order entry at price"
+      ],
       "discrepancies": [
         "The latch variables are never reset, so after the first 03:00/21:30 and 09:00 crossings the time conditions are permanently true and the rule degenerates to 'limit at close on 10-bar momentum' every bar.",
         "Plain English says 'if the current close is LESS than the close barsback ago, then enter a buy limit' (and greater for the short) — the opposite of the code. Also says the SHORT time is 300/2130 ('same times'), which the code does not. The code is authoritative (the ELD files run the code)."
       ],
-      "notes": ["Intraday only.", "The book notes this went to breakeven on XBT after a good start."]
+      "notes": [
+        "Intraday only.",
+        "The book notes this went to breakeven on XBT after a good start."
+      ]
     },
     {
       "id": "E41",
@@ -948,20 +1596,34 @@
       "rationale": "Highest/lowest close breakout, filtered to days where yesterday's range was smaller than the range two days ago (range contraction).",
       "description": "filter = (highd(1) - lowd(1)) < (highd(2) - lowd(2)). If filter: sell short next bar at market if close = lowest close of barsback bars; buy next bar at market if close = highest close of barsback bars.",
       "tradestation_code": "Var:barsback(25);\nVar:filter(False);\n\nfilter   = (highd(1)-lowd(1))< (highd(2)-lowd(2));\n\nIf filter = True then begin\nIF C = lowest(C, barsback) and filter = true then Sellshort next bar at market;\nIF C = highest(C, barsback) and filter = true then buy next bar at market;\nEnd;",
-      "parameters": { "barsback": 25 },
+      "parameters": {
+        "barsback": 25
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "(highd(1)-lowd(1)) < (highd(2)-lowd(2))", "maps_to": "NEW DailyRangeContracting filter — E8's DailyRangeExpanding NEGATED (strict < vs negated > gives <=; one rule with per-placement negation is enough in practice but the exact composite should keep the strict form)" },
-        { "piece": "close = highest(close, barsback)", "maps_to": "Breakout (existing), lookback=25" }
+        {
+          "piece": "(highd(1)-lowd(1)) < (highd(2)-lowd(2))",
+          "maps_to": "NEW DailyRangeContracting filter — E8's DailyRangeExpanding NEGATED (strict < vs negated > gives <=; one rule with per-placement negation is enough in practice but the exact composite should keep the strict form)"
+        },
+        {
+          "piece": "close = highest(close, barsback)",
+          "maps_to": "Breakout (existing), lookback=25"
+        }
       ],
-      "el_words_unregistered": ["highd", "lowd"],
-      "discrepancies": ["`filter = true` is tested twice (outer if and inside each condition); harmless."],
-      "notes": ["On daily bars highd(1)/lowd(1) are high[1]/low[1] and the filter is (high[1]-low[1]) < (high[2]-low[2])."]
+      "el_words_unregistered": [
+        "highd",
+        "lowd"
+      ],
+      "discrepancies": [
+        "`filter = true` is tested twice (outer if and inside each condition); harmless."
+      ],
+      "notes": [
+        "On daily bars highd(1)/lowd(1) are high[1]/low[1] and the filter is (high[1]-low[1]) < (high[2]-low[2])."
+      ]
     },
-
     {
       "id": "X1",
       "name": "No Exit Can Still Be An Exit",
@@ -970,18 +1632,28 @@
       "rationale": "Stop-and-reverse IS an exit: every entry that reverses closes the opposite position. Contrast the same entry gated to fire only when flat (which then has no exit at all). The two perform very differently.",
       "description": "Stop-and-reverse form: buy next bar at market when close = highest close of barsback; sell short when close = lowest. Entry-only form: same, but only when MarketPosition = 0 (needs separate exits).",
       "tradestation_code": "Var: barsback(50); //bars in lookback period\n\n//STOP AND REVERSE (Entry also acts as exit)\nIf close=highest(close,barsback) then buy next bar at market;\nIf close=lowest(close,barsback) then sellshort next bar at market;\n\n//Entry Only (Entry does NOT also act as exit)\nIf marketposition=0 and close=highest(close,barsback) then buy next bar at market;\nIf marketposition=0 and close=lowest(close,barsback) then sellshort next bar at market;",
-      "parameters": { "barsback": 50 },
+      "parameters": {
+        "barsback": 50
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "stop-and-reverse form", "maps_to": "Breakout (existing), lookback=50 — nothing new" },
-        { "piece": "marketposition = 0 gate", "maps_to": "NEW FlatOnly entry filter — a SIGNAL-time MarketPosition test, which CLAUDE.md warns is not TS's fill-time no-pyramiding rule; here the book's EL really does test it at signal time, so the mirror is faithful" }
+        {
+          "piece": "stop-and-reverse form",
+          "maps_to": "Breakout (existing), lookback=50 — nothing new"
+        },
+        {
+          "piece": "marketposition = 0 gate",
+          "maps_to": "NEW FlatOnly entry filter — a SIGNAL-time MarketPosition test, which CLAUDE.md warns is not TS's fill-time no-pyramiding rule; here the book's EL really does test it at signal time, so the mirror is faithful"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Not a library exit; recorded because the entry-only variant is a reusable filter and because the chapter documents the reversal semantics the engine already implements (reversal opens a new position without passing through flat)."]
+      "notes": [
+        "Not a library exit; recorded because the entry-only variant is a reusable filter and because the chapter documents the reversal semantics the engine already implements (reversal opens a new position without passing through flat)."
+      ]
     },
     {
       "id": "X2",
@@ -991,20 +1663,53 @@
       "rationale": "Stop loss and profit target, four ways: fixed dollars; ATR-based; ATR-based with a dollar floor; ATR-based with a dollar ceiling. Author has many strategies with only a stop and no target, and some with neither.",
       "description": "Method 1: SetStopLoss(stopdollar), SetProfitTarget(targetdollar), per contract. Method 2: stop = stopATR * AvgTrueRange(15) * BigPointValue; target = targetATR * ATR(15) * BigPointValue. Method 3: as 2 but each floored at stopdollarmin / profitdollarmin (MaxList). Method 4: as 2 but each capped at stopdollarmax / profitdollarmax (MinList).",
       "tradestation_code": "Var: stopdollar(1000); //stop level in dollars\nVar: targetdollar(1000); //target level in dollars\nVar: stopATR(2); //stop level ATR multiplier\nVar: targetATR(3); //target level ATR multiplier\nVar: stopdollarmin(500); //minimum stop level in dollars\nVar: profitdollarmin(800); //minimum profit level in dollars\nVar: stopdollarmax(1500); //maximum stop level in dollars\nVar: profitdollarmax(500); //maximum profit level in dollars\nVar: imethod(1) ;  //stop and profit method\n\nIf imethod =1 then begin\nSetstopcontract;\nSetstoploss(stopdollar);\nSetprofittarget(targetdollar);\nEnd;\n\nIf imethod =2 then begin\nSetstopcontract;\nSetstoploss(stopATR*AvgTrueRange(15)*BigPointValue);\nSetprofittarget(targetATR*AvgTrueRange(15)*BigPointValue);\nEnd;\n\nIf imethod =3 then begin\nSetstopcontract;\nSetstoploss(maxlist(stopdollarmin, stopATR*AvgTrueRange(15)*BigPointValue));\nSetprofittarget(maxlist(profitdollarmin, targetATR*AvgTrueRange(15)*BigPointValue));\nEnd;\n\nIf imethod =4 then begin\nSetstopcontract;\nSetstoploss(minlist(stopdollarmax, stopATR*AvgTrueRange(15)*BigPointValue));\nSetprofittarget(minlist(profitdollarmax, targetATR*AvgTrueRange(15)*BigPointValue));\nEnd;",
-      "parameters": { "stopdollar": 1000, "targetdollar": 1000, "stopATR": 2, "targetATR": 3, "stopdollarmin": 500, "profitdollarmin": 800, "stopdollarmax": 1500, "profitdollarmax": 500, "imethod": 1 },
-      "hardcoded_constants": { "atr_length": 15 },
+      "parameters": {
+        "stopdollar": 1000,
+        "targetdollar": 1000,
+        "stopATR": 2,
+        "targetATR": 3,
+        "stopdollarmin": 500,
+        "profitdollarmin": 800,
+        "stopdollarmax": 1500,
+        "profitdollarmax": 500,
+        "imethod": 1
+      },
+      "hardcoded_constants": {
+        "atr_length": 15
+      },
       "order_type": "SetStopLoss / SetProfitTarget — TS built-in INTRABAR stop and limit exit orders, per contract",
       "sides": "same",
       "composite": true,
       "decomposition": [
-        { "piece": "method 1 stop", "maps_to": "NOT StopLoss (existing): the corpus StopLoss tests OpenPositionProfit at bar close and exits next bar at market; SetStopLoss exits intrabar at the price where the loss reaches the amount. NEW IntrabarStopLoss(dollars) if the engine grows price-level exits; otherwise the closest existing analogue is StopLoss(1000) with a documented behavioural gap" },
-        { "piece": "method 1 target", "maps_to": "same story vs TakeProfit (existing) — SetProfitTarget is a limit order" },
-        { "piece": "method 2", "maps_to": "AtrProfitTarget (existing, 15, 3) is the bar-close analogue of the target; NEW AtrStopLoss(15, 2) for the stop — plus the same intrabar gap" },
-        { "piece": "methods 3 / 4", "maps_to": "NEW floored / capped variants (maxlist / minlist of a dollar amount and an ATR-dollar amount — NOT tick-grid values, so the maxlist/minlist tolerance question is live here)" }
+        {
+          "piece": "method 1 stop",
+          "maps_to": "NOT StopLoss (existing): the corpus StopLoss tests OpenPositionProfit at bar close and exits next bar at market; SetStopLoss exits intrabar at the price where the loss reaches the amount. NEW IntrabarStopLoss(dollars) if the engine grows price-level exits; otherwise the closest existing analogue is StopLoss(1000) with a documented behavioural gap"
+        },
+        {
+          "piece": "method 1 target",
+          "maps_to": "same story vs TakeProfit (existing) — SetProfitTarget is a limit order"
+        },
+        {
+          "piece": "method 2",
+          "maps_to": "AtrProfitTarget (existing, 15, 3) is the bar-close analogue of the target; NEW AtrStopLoss(15, 2) for the stop — plus the same intrabar gap"
+        },
+        {
+          "piece": "methods 3 / 4",
+          "maps_to": "NEW floored / capped variants (maxlist / minlist of a dollar amount and an ATR-dollar amount — NOT tick-grid values, so the maxlist/minlist tolerance question is live here)"
+        }
       ],
-      "el_words_unregistered": ["setstoploss", "setprofittarget", "setstopcontract", "maxlist/minlist (UNKNOWN)"],
-      "discrepancies": ["profitdollarmax (500) is less than profitdollarmin (800) and less than targetdollar — odd defaults, but as printed."],
-      "notes": ["The bar-close-vs-intrabar difference changes fills, not just parameters: a stop hit mid-bar exits at the stop price that bar, whereas the corpus exits at the next open after the close shows the loss."]
+      "el_words_unregistered": [
+        "setstoploss",
+        "setprofittarget",
+        "setstopcontract",
+        "maxlist/minlist (UNKNOWN)"
+      ],
+      "discrepancies": [
+        "profitdollarmax (500) is less than profitdollarmin (800) and less than targetdollar — odd defaults, but as printed."
+      ],
+      "notes": [
+        "The bar-close-vs-intrabar difference changes fills, not just parameters: a stop hit mid-bar exits at the stop price that bar, whereas the corpus exits at the next open after the close shows the loss."
+      ]
     },
     {
       "id": "X3",
@@ -1014,18 +1719,30 @@
       "rationale": "The author's favourite exit: leave a fixed number of bars after entry, because every entry signal is only valid for so long. Variants: only if profitable, only if losing.",
       "description": "Method 1: if BarsSinceEntry >= bse, exit long and short next bar at market. Method 2: same, only if OpenPositionProfit > 0. Method 3: same, only if OpenPositionProfit < 0.",
       "tradestation_code": "Var: bse(10); //bars to exit after\nVar: imethod(1) ;  //exit method\n\nIf imethod =1  and BarsSinceEntry>= bse then begin\nSell next bar at market;\nBuy to cover next bar at market;\nEnd;\n\n//exit after specified number of bars, ONLY if position is currently profitable\nIf imethod =2  and BarsSinceEntry>= bse and openpositionprofit>0 then begin\nSell next bar at market;\nBuy to cover next bar at market;\nEnd;\n\n//exit after specified number of bars, ONLY if position is currently losing\nIf imethod =3  and BarsSinceEntry>= bse and openpositionprofit<0 then begin\nSell next bar at market;\nBuy to cover next bar at market;\nEnd;",
-      "parameters": { "bse": 10, "imethod": 1 },
+      "parameters": {
+        "bse": 10,
+        "imethod": 1
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "same",
       "composite": true,
       "decomposition": [
-        { "piece": "method 1", "maps_to": "NumBars (existing), numBarsExit=bse — exact (>=)" },
-        { "piece": "method 2 / 3", "maps_to": "NEW NumBarsIfProfitable(numBars) and NumBarsIfLosing(numBars) — or one rule with a mode input; exits are ORed in the panes so the AND with profit sign cannot be composed from NumBars + another exit" }
+        {
+          "piece": "method 1",
+          "maps_to": "NumBars (existing), numBarsExit=bse — exact (>=)"
+        },
+        {
+          "piece": "method 2 / 3",
+          "maps_to": "NEW NumBarsIfProfitable(numBars) and NumBarsIfLosing(numBars) — or one rule with a mode input; exits are ORed in the panes so the AND with profit sign cannot be composed from NumBars + another exit"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["BarsSinceEntry is VERIFIED: 0 on the fill bar, counts from the oldest lot, restarts through a reversal.", "An OpenPositionProfit of exactly 0 satisfies neither method 2 nor 3."]
+      "notes": [
+        "BarsSinceEntry is VERIFIED: 0 on the fill bar, counts from the oldest lot, restarts through a reversal.",
+        "An OpenPositionProfit of exactly 0 satisfies neither method 2 nor 3."
+      ]
     },
     {
       "id": "X4",
@@ -1036,16 +1753,28 @@
       "description": "If the bar's year differs from the previous bar's year, OR the month is July and the previous bar's month was June, exit long and short next bar at market.",
       "tradestation_code": "if year(date)<>year(date[1])  or (month(date)=7 and month(date[1])=6) then begin\nsell next bar at market;\nbuytocover next bar at market;\nend;",
       "parameters": {},
-      "hardcoded_constants": { "exit_month": 7, "prior_month": 6 },
+      "hardcoded_constants": {
+        "exit_month": 7,
+        "prior_month": 6
+      },
       "order_type": "market next bar",
       "sides": "same",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW CalendarBoundaryExit — general form: exit on the first bar of month M for a list of months (here {1, 7}); the year-change term is the first bar of January" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW CalendarBoundaryExit — general form: exit on the first bar of month M for a list of months (here {1, 7}); the year-change term is the first bar of January"
+        }
       ],
-      "el_words_unregistered": ["year", "date[1] (series history of date)"],
+      "el_words_unregistered": [
+        "year",
+        "date[1] (series history of date)"
+      ],
       "discrepancies": [],
-      "notes": ["Month(Date) is ACCEPTED; Year(Date) has no row but follows from the same civil_from_days of the bar's close date.", "Fires on the first bar of the new period (the bar whose date crossed), so the exit fills at the open of the second bar of the period."]
+      "notes": [
+        "Month(Date) is ACCEPTED; Year(Date) has no row but follows from the same civil_from_days of the bar's close date.",
+        "Fires on the first bar of the new period (the bar whose date crossed), so the exit fills at the open of the second bar of the period."
+      ]
     },
     {
       "id": "X5",
@@ -1055,17 +1784,28 @@
       "rationale": "Exit when the close drops into the lower half of recent closes (for longs) or rises into the upper half (for shorts). Author used it in stocks and stock indices.",
       "description": "If close < Percentile(0.50, close, barsback), sell (exit long) next bar at market. If close > Percentile(0.50, close, barsback), buy to cover next bar at market.",
       "tradestation_code": "Var: barsback(5);\n\nif close<Percentile(.50, Close, barsback)  then Sell next bar at market ;\nif close>Percentile(.50, Close, barsback)  then BuyToCover next bar at market ;",
-      "parameters": { "barsback": 5 },
-      "hardcoded_constants": { "percentile": 0.5 },
+      "parameters": {
+        "barsback": 5
+      },
+      "hardcoded_constants": {
+        "percentile": 0.5
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW ClosePercentileExit(percentile, lookback) — same Percentile() function as E6" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW ClosePercentileExit(percentile, lookback) — same Percentile() function as E6"
+        }
       ],
-      "el_words_unregistered": ["percentile"],
+      "el_words_unregistered": [
+        "percentile"
+      ],
       "discrepancies": [],
-      "notes": ["Percentile's interpolation method (and whether the current bar is in the sample) must be probed once for E6 and X5 together."]
+      "notes": [
+        "Percentile's interpolation method (and whether the current bar is in the sample) must be probed once for E6 and X5 together."
+      ]
     },
     {
       "id": "X6",
@@ -1076,16 +1816,24 @@
       "description": "If close > close[1] AND close[1] > close[2] AND close[2] > close[3], sell (exit long) next bar at market. If close < close[1] AND close[1] < close[2] AND close[2] < close[3], buy to cover next bar at market.",
       "tradestation_code": "if close>close[1] and close[1]>close[2] and close[2]>close[3] then sell next bar at market;\nif close<close[1] and close[1]<close[2] and close[2]<close[3] then buytocover next bar at market;",
       "parameters": {},
-      "hardcoded_constants": { "consecutive_closes": 3 },
+      "hardcoded_constants": {
+        "consecutive_closes": 3
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW ConsecutiveCloseExit(consecutiveBars) — the condition is MomentumConsecutiveBars(1, 3) but as an EXIT role, exiting the long on up-closes (profit-taking); an Entry rule cannot be placed in the exit pane" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW ConsecutiveCloseExit(consecutiveBars) — the condition is MomentumConsecutiveBars(1, 3) but as an EXIT role, exiting the long on up-closes (profit-taking); an Entry rule cannot be placed in the exit pane"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Reaches back 3 bars.", "Reads no position state — the role check in author-rule will flag it; it is an exit by placement."]
+      "notes": [
+        "Reaches back 3 bars.",
+        "Reads no position state — the role check in author-rule will flag it; it is an exit by placement."
+      ]
     },
     {
       "id": "X7",
@@ -1095,17 +1843,26 @@
       "rationale": "SetExitOnClose fails live (the order is sent after the close). Instead exit on the first bar whose time is at or past a chosen time, at the next bar's open — so there must be at least one bar after TimeExit. Intraday bars only.",
       "description": "If bar time >= TimeExit, sell (exit long) and buy to cover next bar at open.",
       "tradestation_code": "//exit at TimeExit if you are still in the position\nVar:TimeExit(1605); //4:05 PM chart time\nif Time>=TimeExit then begin\nsell next bar at open;\nbuy to cover next bar at open;\nend;",
-      "parameters": { "TimeExit": 1605 },
+      "parameters": {
+        "TimeExit": 1605
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar ('next bar at open')",
       "sides": "same",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW TimeOfDayExit(exitTime)" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW TimeOfDayExit(exitTime)"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["Time is the bar CLOSE time (ACCEPTED).", "Fires on every bar from TimeExit to the session end, so a re-entry after TimeExit is exited again immediately.", "Intraday only."]
+      "notes": [
+        "Time is the bar CLOSE time (ACCEPTED).",
+        "Fires on every bar from TimeExit to the session end, so a re-entry after TimeExit is exited again immediately.",
+        "Intraday only."
+      ]
     },
     {
       "id": "X8",
@@ -1115,17 +1872,26 @@
       "rationale": "Let the position breathe but never give back more than a volatility-scaled amount of the peak open profit.",
       "description": "If MaxPositionProfit - OpenPositionProfit > xATR * AvgTrueRange(15) * BigPointValue, exit long and short next bar at market.",
       "tradestation_code": "Var:xATR(3);//number of ATRs to trail max profit with\n\nif maxpositionprofit -openpositionprofit > xATR*avgtruerange(15)*BigPointValue then begin\nsell next bar at market;\nbuytocover next bar at market;\nend;",
-      "parameters": { "xATR": 3 },
-      "hardcoded_constants": { "atr_length": 15 },
+      "parameters": {
+        "xATR": 3
+      },
+      "hardcoded_constants": {
+        "atr_length": 15
+      },
       "order_type": "market next bar",
       "sides": "same",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "AtrTrailingStop (existing), lookback=15, multiple=3 — exact match" }
+        {
+          "piece": "whole rule",
+          "maps_to": "AtrTrailingStop (existing), lookback=15, multiple=3 — exact match"
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["MaxPositionProfit is INTRABAR (favourable extreme), OpenPositionProfit close-marked — both VERIFIED and already what AtrTrailingStop uses."]
+      "notes": [
+        "MaxPositionProfit is INTRABAR (favourable extreme), OpenPositionProfit close-marked — both VERIFIED and already what AtrTrailingStop uses."
+      ]
     },
     {
       "id": "X9",
@@ -1135,17 +1901,25 @@
       "rationale": "Once a profit floor has been reached, keep a set percentage of the maximum open profit.",
       "description": "If MaxPositionProfit >= ppfloor AND OpenPositionProfit / MaxPositionProfit < ppratio, exit long and short next bar at market.",
       "tradestation_code": "//set ppfloor and ppratio to protect profit\nVar: ppfloor(1000); //don’t invoke exit until $1000 profit level is reached\nVar:ppratio(.60); //profit keep ratio – keep 60% of maximum profit\n\nIf maxpositionprofit>=ppfloor then begin\nIf (openpositionprofit/maxpositionprofit)<ppratio then begin\nSell next bar at market;\nBuy To Cover Next bar at market;\nEnd;\nEnd;",
-      "parameters": { "ppfloor": 1000, "ppratio": 0.6 },
+      "parameters": {
+        "ppfloor": 1000,
+        "ppratio": 0.6
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "same",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "ProfitProtector (existing), maxProfit=1000, retracement=0.6 — SAME RULE, but two exactness differences: the corpus uses `>` on the floor (book `>=`) and `open < ratio * max` (book `open / max < ratio`). The division rounds differently from the multiplication and can land on the other side of the comparison. Decide whether to add the book's form as a variant for the exact test." }
+        {
+          "piece": "whole rule",
+          "maps_to": "ProfitProtector (existing), maxProfit=1000, retracement=0.6 — SAME RULE, but two exactness differences: the corpus uses `>` on the floor (book `>=`) and `open < ratio * max` (book `open / max < ratio`). The division rounds differently from the multiplication and can land on the other side of the comparison. Decide whether to add the book's form as a variant for the exact test."
+        }
       ],
       "el_words_unregistered": [],
       "discrepancies": [],
-      "notes": ["X11 is the tiered generalisation."]
+      "notes": [
+        "X11 is the tiered generalisation."
+      ]
     },
     {
       "id": "X10",
@@ -1156,17 +1930,31 @@
       "description": "LongProfExit = highest(high, 10); LongLossExit = lowest(low, 7); ShortProfExit = lowest(low, 10); ShortLossExit = highest(high, 7). Sell next bar at LongProfExit limit; sell next bar at LongLossExit stop; buy to cover next bar at ShortProfExit limit; buy to cover next bar at ShortLossExit stop.",
       "tradestation_code": "Var: LongProfExit(0), LongLossExit(0),ShortProfExit(0),ShortLossExit(0);\n\nLongProfExit=highest(high,10);\nLongLossExit=lowest(low,7);\nShortProfExit=lowest(low,10);\nShortLossExit=highest(high,7);\n\nSell next bar at LongProfExit limit;\nSell next bar at LongLossExit stop;\nBuyToCover next bar at ShortProfExit limit;\nBuyToCover next bar at ShortLossExit stop;",
       "parameters": {},
-      "hardcoded_constants": { "profit_lookback": 10, "loss_lookback": 7 },
+      "hardcoded_constants": {
+        "profit_lookback": 10,
+        "loss_lookback": 7
+      },
       "order_type": "limit at price (profit) and stop at price (loss), placed every bar",
       "sides": "mirrored",
       "composite": true,
       "decomposition": [
-        { "piece": "profit exit at highest(high, 10) limit / lowest(low, 10) limit", "maps_to": "NEW ChannelLimitExit(lookback) — requires limit-order exit at price" },
-        { "piece": "loss exit at lowest(low, 7) stop / highest(high, 7) stop", "maps_to": "NEW ChannelStopExit(lookback) — requires stop-order exit at price" }
+        {
+          "piece": "profit exit at highest(high, 10) limit / lowest(low, 10) limit",
+          "maps_to": "NEW ChannelLimitExit(lookback) — requires limit-order exit at price"
+        },
+        {
+          "piece": "loss exit at lowest(low, 7) stop / highest(high, 7) stop",
+          "maps_to": "NEW ChannelStopExit(lookback) — requires stop-order exit at price"
+        }
       ],
-      "el_words_unregistered": ["limit-order exit at price", "stop-order exit at price"],
+      "el_words_unregistered": [
+        "limit-order exit at price",
+        "stop-order exit at price"
+      ],
       "discrepancies": [],
-      "notes": ["The channel includes the current bar, so a long's profit limit sits at or above the current high and its loss stop at or below the lowest low of 7 bars."]
+      "notes": [
+        "The channel includes the current bar, so a long's profit limit sits at or above the current high and its loss stop at or below the lowest low of 7 bars."
+      ]
     },
     {
       "id": "X11",
@@ -1176,19 +1964,33 @@
       "rationale": "Profit protector with rising keep-ratios: the larger the maximum profit, the larger the fraction of it that must be kept.",
       "description": "ppratio = ppratio1 if MaxPositionProfit >= ppfloor1, ppratio2 if >= ppfloor2, ppratio3 if >= ppfloor3 (later assignments override). If MaxPositionProfit >= ppfloor1 AND OpenPositionProfit / MaxPositionProfit < ppratio, exit long and short next bar at market.",
       "tradestation_code": "//set ppfloor and ppratio values to protect profit\n\nVar: ppfloor1(1000); //don’t invoke exit 1 until $1000 profit level is reached\nVar: ppfloor2(2000); //don’t invoke exit 2 until $2000 profit level is reached\nVar: ppfloor3(3000); //don’t invoke exit 3 until $3000 profit level is reached\nVar:ppratio(0); //depends on maxpositionprofit\nVar:ppratio1(.60); //profit exit 1 keep ratio – keep 60% of maximum profit\nVar:ppratio2(.75); //profit exit 2 keep ratio – keep 75% of maximum profit\nVar:ppratio3(.90); //profit exit 3 keep ratio – keep 90% of maximum profit\n\nIf maxpositionprofit>=ppfloor1 then ppratio=ppratio1;\nIf maxpositionprofit>=ppfloor2 then ppratio=ppratio2;\nIf maxpositionprofit>=ppfloor3 then ppratio=ppratio3;\n\nIf maxpositionprofit>=ppfloor1 then begin\nif (openpositionprofit/maxpositionprofit)<ppratio then begin\nSell next bar at market;\nBuy To Cover Next bar at market;\nEnd;\nEnd;",
-      "parameters": { "ppfloor1": 1000, "ppfloor2": 2000, "ppfloor3": 3000, "ppratio1": 0.6, "ppratio2": 0.75, "ppratio3": 0.9 },
+      "parameters": {
+        "ppfloor1": 1000,
+        "ppfloor2": 2000,
+        "ppfloor3": 3000,
+        "ppratio1": 0.6,
+        "ppratio2": 0.75,
+        "ppratio3": 0.9
+      },
       "hardcoded_constants": {},
       "order_type": "market next bar",
       "sides": "same",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW TieredProfitProtector(floor1..3, ratio1..3) — the tiers are one mechanism; six inputs" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW TieredProfitProtector(floor1..3, ratio1..3) — the tiers are one mechanism; six inputs"
+        }
       ],
       "el_words_unregistered": [],
-      "discrepancies": ["The plain-English text says 'ppratio = ppfloor3' etc. — typos for ppratio3; the code is right.", "ppratio is a persistent variable: it keeps its last value across bars, but the exit is gated on floor1 so the stale value never matters."],
-      "notes": ["Same `>=` and division form as X9 versus the corpus ProfitProtector."]
+      "discrepancies": [
+        "The plain-English text says 'ppratio = ppfloor3' etc. — typos for ppratio3; the code is right.",
+        "ppratio is a persistent variable: it keeps its last value across bars, but the exit is gated on floor1 so the stale value never matters."
+      ],
+      "notes": [
+        "Same `>=` and division form as X9 versus the corpus ProfitProtector."
+      ]
     },
-
     {
       "id": "B1",
       "name": "The Ultimate (Bonus Entry #1)",
@@ -1197,17 +1999,34 @@
       "rationale": "Larry Williams' Ultimate Oscillator at its default 7/14/28, entering when the oscillator hits its lowest (buy) or highest (sell) value of the last xbars.",
       "description": "If UltimateOsc(7,14,28) = lowest(UltimateOsc(7,14,28), xbars), buy next bar at market. If it = highest(..., xbars), sell short next bar at market.",
       "tradestation_code": "Var: xbars(10);\n\nif UltimateOsc(7,14,28)= lowest(UltimateOsc(7,14,28),xbars) then buy next bar at market;\nif UltimateOsc(7,14,28)= highest(UltimateOsc(7,14,28),xbars) then sellshort next bar at market;",
-      "parameters": { "xbars": 10 },
-      "hardcoded_constants": { "uo_lengths": [7, 14, 28] },
+      "parameters": {
+        "xbars": 10
+      },
+      "hardcoded_constants": {
+        "uo_lengths": [
+          7,
+          14,
+          28
+        ]
+      },
       "order_type": "market next bar",
       "sides": "mirrored",
       "composite": false,
       "decomposition": [
-        { "piece": "whole rule", "maps_to": "NEW UltimateOscillatorExtreme(len1, len2, len3, lookback) — a Breakout-shaped rule on the oscillator, countertrend (lowest = buy)" }
+        {
+          "piece": "whole rule",
+          "maps_to": "NEW UltimateOscillatorExtreme(len1, len2, len3, lookback) — a Breakout-shaped rule on the oscillator, countertrend (lowest = buy)"
+        }
       ],
-      "el_words_unregistered": ["ultimateosc"],
-      "discrepancies": [],
-      "notes": ["`=` against Lowest/Highest of a function series becomes <= / >= (the `=` trap) — but the oscillator is NOT tick-grid, so EL's 2.22e-12 tolerance is live in this equality; the C++ must use el_le/el_ge."]
+      "el_words_unregistered": [
+        "ultimateosc"
+      ],
+      "discrepancies": [
+        "The book's `UltimateOsc(7,14,28)` does not verify in TradeStation — it is the plot VARIABLE name from TS's \"Ultimate Osc\" indicator, not a function. The real built-in is `UltimateOscillator(FastLength, MedLength, SlowLength)` (confirmed from TS's own indicator source, 2026-08-31); the EL twin must use that spelling."
+      ],
+      "notes": [
+        "`=` against Lowest/Highest of a function series becomes <= / >= (the `=` trap) — but the oscillator is NOT tick-grid, so EL's 2.22e-12 tolerance is live in this equality; the C++ must use el_le/el_ge."
+      ]
     },
     {
       "id": "B2",
@@ -1217,18 +2036,35 @@
       "rationale": "Buy Friday's open, hold the weekend, go short Monday's open — but only while the strategy's own equity has not lost more than LossAmt over the last lookback bars (an equity-curve switch).",
       "description": "TotEquity = NetProfit + OpenPositionProfit. If TotEquity - TotEquity[lookback] > -LossAmt: buy next bar at open if day of week = Thursday (4) (fills Friday open); sell short next bar at open if day of week = Friday (5) (fills Monday open).",
       "tradestation_code": "var:TotEquity(0);\nVar:lookback(200);\nVar: LossAmt(3000);\n\nTotEquity = NetProfit + OpenPositionProfit;\n\nIf TotEquity-TotEquity[lookback]>-LossAmt then begin\n\nIf dayofweek(date)=4   then  buy next bar at open;\n\nIf dayofweek(date)=5   then sellshort next bar at open;\nEnd;",
-      "parameters": { "lookback": 200, "LossAmt": 3000 },
-      "hardcoded_constants": { "day_long": 4, "day_short": 5 },
+      "parameters": {
+        "lookback": 200,
+        "LossAmt": 3000
+      },
+      "hardcoded_constants": {
+        "day_long": 4,
+        "day_short": 5
+      },
       "order_type": "market next bar ('next bar at open')",
       "sides": "one input per side",
       "composite": true,
       "decomposition": [
-        { "piece": "dayofweek = 4 (long) / 5 (short)", "maps_to": "DayOfWeekEntry (existing), dayLong=4, dayShort=5" },
-        { "piece": "TotEquity - TotEquity[lookback] > -LossAmt", "maps_to": "NEW EquityDrawdownFilter(lookback, lossAmount) — an ENTRY filter, not a Switch: the book only blocks new entries and does not force flat. TotEquity is a variable, so TotEquity[lookback] reads 0 for the first `lookback` bars (zero-fill), i.e. the test is against 0 equity during warm-up." }
+        {
+          "piece": "dayofweek = 4 (long) / 5 (short)",
+          "maps_to": "DayOfWeekEntry (existing), dayLong=4, dayShort=5"
+        },
+        {
+          "piece": "TotEquity - TotEquity[lookback] > -LossAmt",
+          "maps_to": "NEW EquityDrawdownFilter(lookback, lossAmount) — an ENTRY filter, not a Switch: the book only blocks new entries and does not force flat. TotEquity is a variable, so TotEquity[lookback] reads 0 for the first `lookback` bars (zero-fill), i.e. the test is against 0 equity during warm-up."
+        }
       ],
       "el_words_unregistered": [],
-      "discrepancies": ["The concept text says 'buys on Friday open ... short on Monday open'; the code signals on Thursday's and Friday's bars, which fills exactly that on daily bars."],
-      "notes": ["Stop-and-reverse by construction; the author says to add exits.", "NetProfit is ACCEPTED (closed trades), OpenPositionProfit VERIFIED."]
+      "discrepancies": [
+        "The concept text says 'buys on Friday open ... short on Monday open'; the code signals on Thursday's and Friday's bars, which fills exactly that on daily bars."
+      ],
+      "notes": [
+        "Stop-and-reverse by construction; the author says to add exits.",
+        "NetProfit is ACCEPTED (closed trades), OpenPositionProfit VERIFIED."
+      ]
     }
   ]
 }

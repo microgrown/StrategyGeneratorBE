@@ -95,6 +95,13 @@ _CTX_CALL = re.compile(r"\bctx\.([A-Za-z_]\w*)\s*\(")
 _CTX_SERIES = re.compile(r"\bctx\.([A-Za-z_]\w*)\s*\[")
 _PRICE_ALIAS = re.compile(_BOUNDARY + r"(open|high|low|close|volume)\s*\[")
 _EL_HELPER = re.compile(r"\bel_(gt|lt|ge|le|eq|ne)\s*\(")
+# EasyLanguage's crossing operator is TWO words -- `crosses above` / `crosses
+# below`, with `over`/`under` as exact synonyms (EL_FEATURES.md `crosses` row).
+# It is one lexical feature and the register's row carries the phrase, so
+# extraction emits the pair as a single token; the constituent words never
+# register alone (`above` is not an EasyLanguage word by itself).
+_EL_CROSS = re.compile(_BOUNDARY + r"crosses\s+(above|below|over|under)(?![A-Za-z0-9_])",
+                       re.IGNORECASE)
 _CPP_HELPER = re.compile(_BOUNDARY + r"(" + "|".join(CPP_HELPERS) + r")\s*\(")
 # A relational operator in a CONDITION must go through el_*; inside a hook a
 # bare `<` is ordinary loop arithmetic and is left alone.
@@ -210,8 +217,18 @@ def _ownNames(rule):
 def elFeaturesOfTsRule(rule):
     """The EasyLanguage feature tokens one TS rule reaches for."""
     own = _ownNames(rule)
-    return {t.lower() for t in _IDENT.findall(_codeBlob(rule, True))
-            if t.lower() not in own and t.lower() not in EL_KEYWORDS}
+    blob = _codeBlob(rule, True)
+    found = set()
+
+    def _crossToken(match):
+        found.add("crosses " + match.group(1).lower())
+        return " "
+
+    # Two-word phrases first, consumed from the blob so their words cannot
+    # also register as bare identifiers.
+    blob = _EL_CROSS.sub(_crossToken, blob)
+    return found | {t.lower() for t in _IDENT.findall(blob)
+                    if t.lower() not in own and t.lower() not in EL_KEYWORDS}
 
 
 def elFeaturesOfBeRule(rule):

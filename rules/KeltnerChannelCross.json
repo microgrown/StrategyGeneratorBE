@@ -1,0 +1,57 @@
+{
+    "name": "KeltnerChannelCross",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "20",
+        "numAtrs": "2"
+    },
+    "localVariables": {
+        "kcAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kcAtr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowerBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lastSideLower": {
+            "type": "int",
+            "init": "0"
+        },
+        "lastSideUpper": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossUpLower": {
+            "type": "bool",
+            "init": "false"
+        },
+        "crossDownUpper": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E26's bands: Average(close, length) -/+ numAtrs x ATR. EL's Average\n// recomputes from scratch every bar, newest-first (bar [0] added first).\nkcAvg = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    kcAvg += close[i];\n}\nkcAvg /= (int)length;\n// The book prints plain AvgTrueRange, but MultiWalk overrides the series\n// functions its strategies use, so the twin calls WFSafe_AvgTrueRange -- a\n// ROLLING accumulator, not a fresh mean (AtrProfitTarget is the reference):\n// seeded with a full length-term sum on the study's first calculated bar,\n// re-seeded when the length changes; from there S += in; S -= out; -- TWO\n// statements, because EL evaluates S[1] + Price - Price[Length] left to\n// right and folding to S += in - out rounds differently. The twin calls it\n// at one length from two call sites; both sites carry identical state, so\n// one accumulator serves both bands.\nif (atrLength != (int)length) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)length; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)length;\n} else {\n    const int out = (int)length;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\nkcAtr = atrSum / (int)length;\nlowerBand = kcAvg - numAtrs * kcAtr;\nupperBand = kcAvg + numAtrs * kcAtr;\n// EL's `crosses` is a STATE MACHINE, not a two-bar test (the `crosses over` /\n// `crosses under` register row, VERIFIED): it fires when the toleranced\n// comparison holds AND the most recent NON-equal bar was on the other side.\n// An equality run (el_eq, absolute 2.22e-12) is BRIDGED -- above -> equal ->\n// above does NOT re-fire -- and the side starts UNKNOWN (0) at the first\n// evaluated bar, so nothing can fire on bar 1. The book assigns the bands to\n// EL variables, but they are recomputed from price every bar, so the cross\n// state is modelled on the computed band values.\ncrossUpLower = el_gt(close[0], lowerBand) && lastSideLower == -1;\ncrossDownUpper = el_lt(close[0], upperBand) && lastSideUpper == 1;\n// Update the sides AFTER the fire flags; an el_eq bar leaves them unchanged.\nif (el_gt(close[0], lowerBand)) { lastSideLower = 1; }\nelse if (el_lt(close[0], lowerBand)) { lastSideLower = -1; }\nif (el_gt(close[0], upperBand)) { lastSideUpper = 1; }\nelse if (el_lt(close[0], upperBand)) { lastSideUpper = -1; }",
+    "longCondition": "crossUpLower",
+    "shortCondition": "crossDownUpper",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

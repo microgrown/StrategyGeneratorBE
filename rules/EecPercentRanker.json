@@ -1,0 +1,73 @@
+{
+    "name": "EecPercentRanker",
+    "type": "Entry",
+    "inputVariables": {
+        "adxLength": "14",
+        "adxLow": "20",
+        "adxHigh": "30",
+        "percentileLow": "0.25",
+        "percentileHigh": "0.75",
+        "xbars": "25"
+    },
+    "localVariables": {
+        "avgPlusDM": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgMinusDM": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volty": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cumDmi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adxVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adxSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiPlus": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiMinus": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiDivisor": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dmiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "eprSorted": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "eprHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "eprLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Entry & Exit Confessions #6 (Percent Ranker), verbatim: ADX strictly\n// between adxLow and adxHigh (both strict, as the book writes them) AND the\n// close beyond the interpolated percentile value of the last xbars closes.\n// MultiWalk's WFSafe_ADX, copied statement for statement from\n// AdxBelowThreshold via EecThreeAmigos (the bit-exact reference;\n// EL_ADX_Probe.txt, scripts/adx_replica.py). Seeds at the study's first\n// calculated bar with fresh Length-term DM/TR sums, followed by EMA-form\n// updates with SF = 1/Length; oADX warms up as Cum(oDMI)/CurrentBar through\n// bar Length. el_gt in the DM classification is decisive (near-ties from\n// grid-price differences). No re-seed on a length change. The hook-scope\n// temporaries of the reference (sfAdx, dmiPlus, dmiMinus, divisor, dmi) are\n// DECLARED locals here so they take the placement prefix and cannot collide\n// with AdxBelowThreshold or EecThreeAmigos in the same strategy.\nadxSf = 1 / adxLength;\nif (ctx.CurrentBar() == 1) {\n    double sumPlusDM = 0.0;\n    double sumMinusDM = 0.0;\n    double sumTR = 0.0;\n    for (int i = 0; i < (int)adxLength; ++i) {\n        double upMove = high[i] - high[i + 1];\n        double dnMove = low[i + 1] - low[i];\n        double plusDM = 0.0;\n        double minusDM = 0.0;\n        if (el_gt(upMove, dnMove) && el_gt(upMove, 0.0)) plusDM = upMove;\n        else if (el_gt(dnMove, upMove) && el_gt(dnMove, 0.0)) minusDM = dnMove;\n        sumPlusDM += plusDM;\n        sumMinusDM += minusDM;\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        sumTR += hi - lo;\n    }\n    avgPlusDM = sumPlusDM / adxLength;\n    avgMinusDM = sumMinusDM / adxLength;\n    volty = sumTR / adxLength;\n} else {\n    double upMove = high[0] - high[1];\n    double dnMove = low[1] - low[0];\n    double plusDM = 0.0;\n    double minusDM = 0.0;\n    if (el_gt(upMove, dnMove) && el_gt(upMove, 0.0)) plusDM = upMove;\n    else if (el_gt(dnMove, upMove) && el_gt(dnMove, 0.0)) minusDM = dnMove;\n    avgPlusDM = avgPlusDM + adxSf * (plusDM - avgPlusDM);\n    avgMinusDM = avgMinusDM + adxSf * (minusDM - avgMinusDM);\n    double hi = high[0] > close[1] ? high[0] : close[1];\n    double lo = low[0] < close[1] ? low[0] : close[1];\n    volty = volty + adxSf * ((hi - lo) - volty);\n}\ndmiPlus = 0.0;\ndmiMinus = 0.0;\nif (el_gt(volty, 0.0)) {\n    dmiPlus = 100 * avgPlusDM / volty;\n    dmiMinus = 100 * avgMinusDM / volty;\n}\ndmiDivisor = dmiPlus + dmiMinus;\ndmiVal = 0.0;\nif (el_gt(dmiDivisor, 0.0)) dmiVal = 100 * std::fabs(dmiPlus - dmiMinus) / dmiDivisor;\n// Cum() is a series function: it accumulates every bar regardless of which\n// oADX branch runs.\ncumDmi = cumDmi + dmiVal;\nif (ctx.CurrentBar() <= adxLength) {\n    adxVal = cumDmi / ctx.CurrentBar();\n} else {\n    adxVal = adxVal + adxSf * (dmiVal - adxVal);\n}\n// EL's Percentile(pct, series, N) per the VERIFIED register row\n// (EL_Percentile_Probe.txt / el_percentile_output.txt): copy the window of\n// bars 0..N-1 -- current bar INCLUDED -- sort it and linearly interpolate\n// at rank = pct*(N-1) between the two adjacent sorted values (Excel\n// PERCENTILE.INC; duplicates are interpolated across). pct is a 0..1\n// FRACTION; out of range returns EL's -1 sentinel (measured at pct = 25).\n// The window is the close SERIES, which has real pre-first-bar history, so\n// no zero-fill mirror is needed. Both values are computed every bar, as the\n// book's Value1/Value2 assignments are -- one sort serves both, since\n// Percentile is a pure function of the same window. Interpolation\n// temporaries live in block scope.\neprSorted.assign((std::size_t)(int)xbars, 0.0);\nfor (int i = 0; i < (int)xbars; ++i) eprSorted[(std::size_t)i] = close[i];\n// Insertion sort, ascending, in plain loops -- the only non-EL construct is\n// the buffer itself (the AtrRising std::vector precedent). The comparisons\n// inside the sort are between tick-grid closes, where the EL tolerance\n// cannot bind (differences are 0 or >= 1 tick).\nfor (int i = 1; i < (int)xbars; ++i) {\n    double key = eprSorted[(std::size_t)i];\n    int j = i - 1;\n    while (j >= 0 && eprSorted[(std::size_t)j] > key) {\n        eprSorted[(std::size_t)(j + 1)] = eprSorted[(std::size_t)j];\n        j = j - 1;\n    }\n    eprSorted[(std::size_t)(j + 1)] = key;\n}\neprHigh = 0.0;\nif (percentileHigh < 0.0 || percentileHigh > 1.0) {\n    eprHigh = -1.0;\n} else {\n    double rank = percentileHigh * ((int)xbars - 1);\n    int lo = (int)rank;\n    double frac = rank - lo;\n    eprHigh = eprSorted[(std::size_t)lo];\n    if (frac > 0.0) eprHigh = eprHigh + frac * (eprSorted[(std::size_t)(lo + 1)] - eprSorted[(std::size_t)lo]);\n}\neprLow = 0.0;\nif (percentileLow < 0.0 || percentileLow > 1.0) {\n    eprLow = -1.0;\n} else {\n    double rank = percentileLow * ((int)xbars - 1);\n    int lo = (int)rank;\n    double frac = rank - lo;\n    eprLow = eprSorted[(std::size_t)lo];\n    if (frac > 0.0) eprLow = eprLow + frac * (eprSorted[(std::size_t)(lo + 1)] - eprSorted[(std::size_t)lo]);\n}",
+    "longCondition": "el_gt(adxVal, adxLow) && el_lt(adxVal, adxHigh) && el_gt(close[0], eprHigh)",
+    "shortCondition": "el_gt(adxVal, adxLow) && el_lt(adxVal, adxHigh) && el_lt(close[0], eprLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

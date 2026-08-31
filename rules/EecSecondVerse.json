@@ -1,0 +1,34 @@
+{
+    "name": "EecSecondVerse",
+    "type": "Entry",
+    "inputVariables": {
+        "xbar": "10",
+        "thresh": "0.5",
+        "lastLongMonth": "6"
+    },
+    "localVariables": {
+        "svMonth": {
+            "type": "int",
+            "init": "0"
+        },
+        "svHighestC": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "svLowestC": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "svRangePos": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EEC E39 \"Second Verse, (Almost) Same As The First\" -- the book's\n// composite, deliberately NOT split: Jan..lastLongMonth long-only /\n// the rest short-only, a highest/lowest close, and the close's position\n// in the bar's range.\n// DELIBERATE DIVERGENCE FROM THE BOOK (Brian's call, 2026-08-31): the\n// book writes (c-l)/(h-l) with NO epsilon, and EL raises a runtime\n// divide-by-zero on a zero-range bar (the zero-denominator register\n// row, measured). Both twins therefore carry E38's +.000001 epsilon --\n// they stay identical to each other and diverge from the book only on\n// bars where the book's own code would halt TradeStation.\nsvMonth = (int)civil_from_days(day_of(ctx.Time(0))).month;\nsvHighestC = close[0];\nsvLowestC = close[0];\nfor (int i = 1; i < (int)xbar; ++i) {\n    if (el_gt(close[i], svHighestC)) { svHighestC = close[i]; }\n    if (el_lt(close[i], svLowestC)) { svLowestC = close[i]; }\n}\nsvRangePos = (close[0] - low[0]) / (high[0] - low[0] + 0.000001);\n// `close = highest(...)` is the `=` trap: el_ge/el_le (Breakout).",
+    "longCondition": "el_le((double)svMonth, lastLongMonth) && el_ge(close[0], svHighestC) && el_lt(svRangePos, thresh)",
+    "shortCondition": "el_gt((double)svMonth, lastLongMonth) && el_le(close[0], svLowestC) && el_gt(svRangePos, 1 - thresh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
