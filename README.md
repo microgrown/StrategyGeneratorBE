@@ -175,6 +175,32 @@ are reused as-is, deleted ones are re-optimized, and the selection chain is
 re-evaluated (deterministically, to the same verdicts). That is the one
 sanctioned way to recompute — `runBatch.py`'s skip logic still never does.
 
+## Re-running a few symbols in a finished family
+
+When a symbol's bars change under a finished family (a session fix, a
+re-ingest), only its candidates need recomputing. Selection is per candidate
+— each filter narrows one candidate's own schedule set, Monte Carlo streams
+are keyed on (seed, run index) — so a spec narrowed to those symbols gives
+bit-identical rows for them, and `rerunSymbols.py` splices exactly those rows
+back into the family:
+
+```
+python rerunSymbols.py s_202608_bas_13 --symbols ETH,BTC,MBT,MET --dry-run
+python rerunSymbols.py s_202608_bas_13 --symbols ETH,BTC,MBT,MET --prune
+```
+
+Per version it runs `bt_walkforward` on `<stem>_v<n>__rerun` (the version's
+spec with `symbols` narrowed), replaces those symbols' `candidates[]` and
+`tradeable[]` in `selection_report.json` (the original is kept once as
+`selection_report.pre_rerun.json`), their rows in `selection_summary.csv` and
+`candidate_metrics.csv`, swaps their unit directories, drops their
+prune-ledger entries, and writes `rerun_symbols.json` so a re-invocation
+skips the version. The family aggregate is rebuilt afterwards; `--prune` then
+unit-prunes the spliced versions, which needs an epoch archiving the **new**
+bars (`snapshotData.py --snapshot <symbols>` after the re-ingest). A format-2
+narrowed report is downgraded into a format-1 family. The tradeable delta per
+family is printed at the end — that is the number to look at.
+
 ---
 
 ## Writing rules
