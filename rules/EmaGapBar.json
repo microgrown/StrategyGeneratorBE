@@ -1,0 +1,20 @@
+{
+    "name": "EmaGapBar",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls. MEASURED\n// BIT-IDENTICAL to the plain XAverage built-in AT A FIXED LENGTH:\n// (wf - xa) * 1e12 printed exactly 0.0000 on all 9,646 + 8,139 bars of\n// EL_XAverage_Probe.txt (@OJ 240min, chart starts 2007 and 2010), with the\n// two fields character-identical on all 17,785. At a fixed emaLength there\n// is nothing to choose between the two.\n//\n// SEED: the PRICE on the study's first calculated bar -- NOT a length-term\n// simple average, which is what most textbooks and most other platforms do.\n// Measured: xa equalled the bar's close on bar 1 of both runs\n// (28.800000000000 and 17.450000000000) and a price-seeded twin matched on\n// 9,646/9,646 and 8,139/8,139 bars. The simple-average twin was -3.4e-05 off\n// at bar 100 and did not coincide until bar 334 / 382.\n//\n// AN EMA NEVER FORGETS ITS SEED. Unlike wfsafe_avgtruerange's rolling window\n// there is no bar at which the seed drops out of a sum; it only decays at\n// (1 - sf)^n. So the seed BAR is part of the specification: it is the first\n// bar OnBarClose runs, ctx.CurrentBar() == 1, and it moves with both Max\n// Bars Back and the chart start. Measured decay between the two chart\n// starts: 5.41 apart at the later run's bar 1, 2.7e-04 at bar 100, 8.1e-11\n// at bar 250, identical at print precision from bar 331 on. A mirror that\n// seeds one bar off self-heals in ~330 bars and is materially wrong before.\n//\n// ONE STATEMENT, IN EL'S FORM: x + sf*(p - x), not sf*p + (1-sf)*x. The two\n// are algebraically identical and NOT identical in floating point -- the\n// probe's d3 column separated them on 67% of bars past 100 (exact multiples\n// of 2^-48, up to 1.7e-13) and XAverage tracked the first form on every one.\n// Do not re-associate this, for the same reason AtrProfitTarget's\n// accumulator is two statements rather than one.\n//\n// NO WARM-UP HOLE: xa is non-zero from bar 1 (the seed) on all 17,785 probed\n// bars -- no zero, no sentinel, no length-bar dead zone. Do NOT add a\n// `ctx.CurrentBar() < n` guard returning 0; that is the textbook twin's\n// behaviour, not EasyLanguage's.\n//\n// sf is computed from the raw input, not a truncated copy, because EL's\n// Length slot is numeric and 2/(Length+1) is evaluated on the value passed.\n//\n// UNMEASURED: a walkforward LENGTH CHANGE, which is the whole reason the\n// wrapper exists. No re-seed is expected (the wfsafe_adx / wfsafe_rsi shape\n// -- sf recomputed per bar, state carried over; an EMA has no window to\n// re-seed) but that is an expectation, so emaLength is PINNED in the grid\n// until it is measured. Also unmeasured: what XAverage(...)[k] returns at a\n// lag. This rule reads the CURRENT value only and needs no history.\nconst double emaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}",
+    "longCondition": "el_gt(low[0], emaVal)",
+    "shortCondition": "el_lt(high[0], emaVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

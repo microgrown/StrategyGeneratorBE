@@ -1,0 +1,73 @@
+{
+    "name": "BreakoutLevelRetest",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "lookback": "20",
+        "maxWaitBars": "3",
+        "toleranceAtr": "0.1",
+        "maxOvershootAtr": "0.2",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "levelHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "levelLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pivotHighBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "pivotLowBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "haveHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeOutUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeOutDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "tol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "overshoot": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The breakout test / breakout pullback. Price closed above a prior swing\n// high within the last maxWaitBars bars, and this bar comes back DOWN to\n// that broken level and holds above it: the low reaches it (within tol) but\n// does not blow more than maxOvershootAtr ATRs through it. Short is the\n// mirror on a swing low, with the pullback coming back UP to the level.\n//\n// THE LEVEL IS A CONFIRMED SWING PIVOT, not a highest-window: the EL twin\n// calls SwingHigh(1, high, strength, lookback) for the price and\n// SwingHighBar for the same pivot's bars-ago count. The merged pseudocode\n// fixed the level at highest(high, lookback) one bar before the breakout\n// bar, which at its default lookback = 1 is just the bar before it; the\n// pivot form is the same idea with the noise filtered by `strength`, and it\n// is what the rest of the corpus will build on. The pivot scan is INLINED\n// here rather than reaching into SwingHigh.json -- rules in this corpus\n// never reference each other.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the `strength` OLDER bars,\n//     STRICTLY ABOVE the `strength` NEWER bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly `strength` bars, never 0 or 1;\n//   * `lookback` is EL's Length: candidate offsets 0..lookback-1 counted\n//     from the current bar inclusive, and the neighbourhood test reaches\n//     `strength` bars past the window, so the deepest index the scan touches\n//     is lookback - 1 + strength;\n//   * a window with no pivot returns the -1 SENTINEL, guarded by haveHigh /\n//     haveLow below: -1 as a price sits under every real price and would\n//     otherwise sail through the hold-above test;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule\n// rather than an observation. There is no WFSafe_SwingHigh in the MultiWalk\n// library, so plain EL governs.\n//\n// THE PIVOT MUST PRECEDE THE BREAKOUT, hence `kk < pivotHighBar` in the\n// breakout scan: a close above the level from before the pivot printed is\n// not a breakout OF that pivot. Since the confirmation lag puts pivotHighBar\n// at `strength` or more, at maxWaitBars <= strength the guard never bites.\n//\n// Tolerance in ATR, not ticks: the sources give 1-2 ticks and 0.1-0.2 ATR\n// for the same test, MinMove/PriceScale are unregistered and the engine\n// exposes no tick size, so both bands are ATR fractions -- the same\n// substitution PriorSessionLevelTest and PullbackFromRecentHigh make.\nconst int pivStrength = (int)strength;\nconst int pivWindow = (int)lookback;\npivotHighBar = -1;\nlevelHigh = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotHighBar = j; levelHigh = high[j]; break; }\n}\npivotLowBar = -1;\nlevelLow = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotLowBar = j; levelLow = low[j]; break; }\n}\nhaveHigh = (pivotHighBar != -1);\nhaveLow = (pivotLowBar != -1);\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right, and\n// folding it to S += in - out rounds differently (@OJ 2015-02-20). One call\n// site, here in the hook, so exactly one accumulator advances per bar.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\ntol = toleranceAtr * atr;\novershoot = maxOvershootAtr * atr;\nbrokeOutUp = false;\nbrokeOutDn = false;\nfor (int kk = 1; kk <= (int)maxWaitBars; ++kk) {\n    if (kk < pivotHighBar && el_gt(close[kk], levelHigh)) brokeOutUp = true;\n    if (kk < pivotLowBar && el_lt(close[kk], levelLow)) brokeOutDn = true;\n}",
+    "longCondition": "haveHigh && brokeOutUp && el_le(low[0], levelHigh + tol) && el_ge(low[0], levelHigh - overshoot)",
+    "shortCondition": "haveLow && brokeOutDn && el_ge(high[0], levelLow - tol) && el_le(high[0], levelLow + overshoot)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

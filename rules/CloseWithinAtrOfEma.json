@@ -1,0 +1,38 @@
+{
+    "name": "CloseWithinAtrOfEma",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20",
+        "nearAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "band": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// \"At the moving average\": the close is no further than K ATRs from the EMA,\n// measured symmetrically, so both sides are the same text. Negate the\n// placement for \"enough room to the moving average to be worth the trade\" --\n// one band read from opposite sides. CloseWithinAtrOfVwap is the template;\n// this swaps the session VWAP for an N-bar EMA and is symmetric rather than\n// one-sided per side. The band is in ATRs, not ticks: the sources disagree\n// (half an ATR, 4 ticks, 2 ticks, 3 ticks) and MinMove/PriceScale are\n// unregistered, so nearAtr is an optimizer input.\n//\n// MultiWalk's WFSafe_Xaverage, ported from EmaGapBar (the EMA reference,\n// which carries the full measurements). In short, from\n// EL_XAverage_Probe.txt (@OJ 240min, chart starts 2007 and 2010):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average, and an EMA\n//     never forgets its seed -- it only decays at (1 - sf)^n, ~330 bars;\n//   * the recurrence is x + sf*(p - x), ONE statement, not sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100;\n//   * there is NO warm-up hole -- do not add a bar-count guard returning 0;\n//   * UNMEASURED: a walkforward length change, so emaLength is PINNED in the\n//     grid; and the lagged read XAverage(...)[k], which this rule does not\n//     need because it reads the current value only.\nconst double emaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right, and\n// folding it to S += in - out rounds differently (@OJ 2015-02-20).\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nband = nearAtr * atr;",
+    "longCondition": "el_le(std::fabs(close[0] - emaVal), band)",
+    "shortCondition": "el_le(std::fabs(close[0] - emaVal), band)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

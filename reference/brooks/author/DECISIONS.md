@@ -126,3 +126,8 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
 - GAP, not a dedup: `StopBeyondSignalBar` is an A-list `exits_stops` key that no slice was ever
   given, yet `StopFractionOfSignalBarRisk` and `WiderStopForSmallSignalBarCapped` both define
   themselves against it. Their rows now say it is not on disk. It still wants authoring.
+- 2026-09-13 post-probe slice 15: 7 rules written (5 EMA current-value reads, SwingHigh primitive,
+  BreakoutLevelRetest). 9 XAverage rules blocked on lagged reads until the follow-up run.
+  Superseded merged assumptions: pivot newer-side test is strict; BreakoutLevelRetest anchors on a
+  confirmed pivot. CloseCrossesEma left for Brian: EL `crosses above` (state machine) would
+  unblock it today but changes the merged two-bar spec. emaLength must stay pinned in grids.
