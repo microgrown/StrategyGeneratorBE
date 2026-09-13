@@ -276,6 +276,14 @@ everything that is not A already.
    words is authored until the rows flip. Ask the probe agent to also check what the
    engine exposes: for Brooks it found tick size never reaches strategies and that
    MinPositionProfit is not an EL word, both engine work rather than probes.
+   **When the probe results come back:** one analysis agent per probe (Opus for the
+   judgment-heavy ones, Sonnet for arithmetic ones). Each reads its probe's rubric,
+   the output files (Brian names them by chart or run number; the run sheet in
+   `reference/brooks/PROBE_RUNSHEET.md` maps which is which), fills the results
+   table inside the probe file, and writes `reference/<source>/probes/<NAME>_FINDINGS.md`
+   with the answers, the exact replacement register rows, and the C++ mirror the
+   authoring pass must use. Agents do not edit `rules/EL_FEATURES.md`; the
+   orchestrator applies the rows once, then re-runs the A-queue split.
 2. **Split the A list by blockage, not by hand.** A script reads `merged/*.json`,
    normalizes each A rule's `el_words_needed`, looks them up via
    `lintElFeatures.loadRegistry()`, and writes `author/A_QUEUE.json` with `unblocked`
@@ -335,3 +343,14 @@ everything that is not A already.
   removed 3 more and corrected 24 catalog rows; the corpus went 92 → 240 rules, lint
   and 319 tests clean, engine Release build clean via compileCheck.py. 52 A rules and
   all B rules wait on the probes; the tick-size ones also need a ctx accessor.
+- **2026-09-13, Brooks probe results.** Brian ran 5 charts (MSFT skipped); four analysis
+  agents (2 Opus, 2 Sonnet, 75k–130k tokens each) settled nine register rows in one
+  pass. Findings that overturned assumptions: EL swing pivots are at-or-above the older
+  bars but strictly above the newer ones (the merged `>=` both sides was wrong), lag is
+  exactly the strength and the prior pivot is returned meanwhile; TLValue's equal-bar
+  case returns 0.0 instead of halting; WFSafe_Xaverage exists and equals the built-in
+  at fixed length, seeded with the first bar's price. Left open by design of the
+  probes: XAverage lagged reads `[k]` and length change (a two-line follow-up run),
+  swing low-side tie sense, the stock tick case. Lesson: a probe that prints only the
+  current value of a series function cannot verify the `[k]` reads most rules make;
+  print one or two lagged values from the start.
