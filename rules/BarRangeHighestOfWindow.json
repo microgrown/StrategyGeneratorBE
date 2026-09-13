@@ -1,0 +1,24 @@
+{
+    "name": "BarRangeHighestOfWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "5"
+    },
+    "localVariables": {
+        "highestRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: highestRange = Highest(high - low, lookback), with\n//     high - low >= highestRange.\n//\n// Highest bottoms out in Extremes, which is EasyLanguage SOURCE: seeded at\n// bar 0, scanning bars 1..Length-1, strict comparison so a tie keeps the\n// earliest bar. Being EL source it carries the relational tolerance, so the\n// scan uses el_gt rather than > -- the same expansion Breakout writes.\n//\n// The window INCLUDES the current bar, so the range can never exceed the\n// maximum and the test is a rank against it: >= is true exactly on the bar\n// that ties the window maximum, which is why Breakout's EL `=` becomes a\n// tolerance-carrying inequality here rather than a float equality.\n//\n// The Highest argument is a price EXPRESSION with real history, not an EL\n// variable, so there is no zero-filled warm-up mirror to build.\n// Direction-agnostic: both sides are identical text.\n// Both scratch locals are class members and persist across bars, so they are\n// reassigned unconditionally every bar.\nbarRange = high[0] - low[0];\nhighestRange = barRange;\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_gt(high[i] - low[i], highestRange)) highestRange = high[i] - low[i];\n}",
+    "longCondition": "el_ge(barRange, highestRange)",
+    "shortCondition": "el_ge(barRange, highestRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

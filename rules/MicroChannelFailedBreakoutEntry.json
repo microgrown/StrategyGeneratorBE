@@ -1,0 +1,33 @@
+{
+    "name": "MicroChannelFailedBreakoutEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "minBars": "5",
+        "maxWaitBars": "3"
+    },
+    "localVariables": {
+        "chanLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "chanHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failedUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failedDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A bounded backward scan for the micro-channel breakout bar, and after it the failure\n// of that break. For each candidate bar k the channel test is\n// MicroChannelRunLength's all-pairs loop read at offset k + 1, so the deepest\n// bar touched is low[maxWaitBars + minBars + 1].\n// Both directions are evaluated on every candidate, matching EL's\n// non-short-circuiting evaluation; every comparison is an ordinary EL\n// relational and goes through el_lt/el_gt.\nfailedUp = false;\nfailedDn = false;\nfor (int k = 1; k <= (int)maxWaitBars; ++k) {\n    chanLow = true;\n    chanHigh = true;\n    for (int j = k + 1; j <= k + (int)minBars; ++j) {\n        if (el_lt(low[j], low[j + 1])) chanLow = false;\n        if (el_gt(high[j], high[j + 1])) chanHigh = false;\n    }\n    if (chanLow && el_lt(low[k], low[k + 1]) && el_gt(close[0], high[k])) failedUp = true;\n    if (chanHigh && el_gt(high[k], high[k + 1]) && el_lt(close[0], low[k])) failedDn = true;\n}",
+    "longCondition": "failedUp",
+    "shortCondition": "failedDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

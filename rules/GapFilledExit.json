@@ -1,0 +1,36 @@
+{
+    "name": "GapFilledExit",
+    "type": "Exit",
+    "inputVariables": {
+        "gapLookback": "20"
+    },
+    "localVariables": {
+        "gapUpFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapUpBottom": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapDownFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDownTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Exit when the close falls back through the lower edge of the most recent\n// bull gap inside the lookback -- Brooks reads the fill as exhaustion, a buy\n// climax. 'The identified gap' is mechanized as a BOUNDED BACKWARD SCAN for\n// the most recent whole-range gap (the TrueGapBar relation) over bars\n// 1..gapLookback, which avoids carrying gap state across bars and across\n// positions. The first gap found walking back is the most recent one; the flag\n// keeps the scan from overwriting it with an older one. The loop is written\n// WITHOUT a break so it matches the EasyLanguage twin statement for statement\n// -- EL has no loop break, and the guard is what stands in for one.\n//\n// The gap's lower edge is the high of the bar BEFORE the gap. Both sides are\n// scanned unconditionally: EasyLanguage does not short-circuit, and Max Bars\n// Back must cover gapLookback + 1 on every bar regardless.\n//\n// The flags and levels are class members and persist across bars, so all four\n// are reset at the top of the hook rather than relied on to start clear. The\n// source's tick tolerance on the fill is dropped: MinMove and PriceScale are\n// UNKNOWN and its own default for that tolerance was 0.\ngapUpFound = false;\ngapUpBottom = 0.0;\nfor (jj = 1; jj <= (int)gapLookback; ++jj) {\n    // Evaluated before the guard, not behind C++'s short-circuit, so the bar\n    // is read on exactly the iterations EasyLanguage reads it on.\n    bool isGapUp = el_gt(low[jj], high[jj + 1]);\n    if (!gapUpFound && isGapUp) {\n        gapUpFound = true;\n        gapUpBottom = high[jj + 1];\n    }\n}\ngapDownFound = false;\ngapDownTop = 0.0;\nfor (jj = 1; jj <= (int)gapLookback; ++jj) {\n    bool isGapDown = el_lt(high[jj], low[jj + 1]);\n    if (!gapDownFound && isGapDown) {\n        gapDownFound = true;\n        gapDownTop = low[jj + 1];\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && gapUpFound && el_lt(close[0], gapUpBottom)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && gapDownFound && el_gt(close[0], gapDownTop)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,33 @@
+{
+    "name": "OverlappingBarRun",
+    "type": "Entry",
+    "inputVariables": {
+        "overlapBars": "4",
+        "overlapFraction": "0.5"
+    },
+    "localVariables": {
+        "overlapCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairOverlap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Every one of the last overlapBars bar pairs overlaps the earlier bar by at\n// least overlapFraction of THAT bar's range -- Brooks's bar-overlap reading of\n// sideways, two-sided trading. The denominator is the older bar's range (one\n// subtraction, and an inside bar passes automatically, which is his intent),\n// not MinList of the two.\n//\n// EL, lowercase as the feature register writes it (EasyLanguage is\n// case-insensitive): countif(minlist(high, high[1]) - maxlist(low, low[1]) >=\n// overlapFraction * (high[1] - low[1]), overlapBars), and the count must equal\n// the window. countif counts bars 0..N-1 including the current bar and the counted\n// condition is a true SERIES -- at position k the offsets shift, so it tests\n// bar k against bar k+1 (EL_FEATURES `countif`, VERIFIED; the frozen-offset\n// model was refuted). That series behaviour is what makes one CountIF express\n// the whole run, and the loop below reproduces it index for index.\n//\n// maxlist/minlist are ACCEPTED for selection among tick-grid price operands,\n// which is what these are, so the plain comparisons stand in for them. On a\n// gap pairOverlap goes negative and the test fails, since the right-hand side\n// is never negative -- no clamp needed, and the EasyLanguage twin has none.\n//\n// At overlapBars = 1 this degenerates to the single-pair rule\n// BarOverlapFraction; the run over N pairs is what this rule adds.\noverlapCount = 0.0;\nfor (int k = 0; k < (int)overlapBars; ++k) {\n    pairTop = high[k];\n    if (high[k + 1] < pairTop) pairTop = high[k + 1];\n    pairBottom = low[k];\n    if (low[k + 1] > pairBottom) pairBottom = low[k + 1];\n    pairOverlap = pairTop - pairBottom;\n    if (el_ge(pairOverlap, overlapFraction * (high[k + 1] - low[k + 1]))) {\n        overlapCount += 1;\n    }\n}",
+    "longCondition": "el_ge(overlapCount, overlapBars)",
+    "shortCondition": "el_ge(overlapCount, overlapBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

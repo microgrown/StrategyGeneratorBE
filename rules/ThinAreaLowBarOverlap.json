@@ -1,0 +1,33 @@
+{
+    "name": "ThinAreaLowBarOverlap",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "3",
+        "overlapFraction": "0.25"
+    },
+    "localVariables": {
+        "thinCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairOverlap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EVERY one of the last spikeBars bar pairs overlaps the earlier bar by at\n// most overlapFraction of THAT bar's range -- Brooks's thin, one-sided\n// breakout area.\n//\n// EL: countif(minlist(high, high[1]) - maxlist(low, low[1]) <=\n// overlapFraction * (high[1] - low[1]), spikeBars), and the count must equal\n// the window. countif counts bars 0..N-1 including the current bar, and the\n// counted condition is a true SERIES -- at position k its offsets shift, so it\n// tests bar k against bar k + 1 (EL_FEATURES `countif`, VERIFIED; the\n// frozen-offset model was refuted). The loop below reproduces that index for\n// index.\n//\n// maxlist/minlist select among raw highs and lows -- tick-grid price operands,\n// which is exactly the scope their ACCEPTED row allows -- so plain comparisons\n// stand in for them here.\n//\n// Multiplied form, so a zero-range earlier bar cannot divide by zero and no\n// epsilon is needed. A gap makes pairOverlap negative and the pair passes,\n// which is the intent: a gap is the thinnest area there is.\n//\n// NOT the negation of OverlappingBarRun: negating an all-pairs conjunction\n// gives \"at least one pair overlaps little\", not \"every pair overlaps little\",\n// so no per-placement toggle reaches this from that rule. Also not\n// AverageBarOverlap, which is a MEAN -- one wide pair fails this test while\n// barely moving that one.\nthinCount = 0.0;\nfor (int k = 0; k < (int)spikeBars; ++k) {\n    pairTop = high[k];\n    if (high[k + 1] < pairTop) pairTop = high[k + 1];\n    pairBottom = low[k];\n    if (low[k + 1] > pairBottom) pairBottom = low[k + 1];\n    pairOverlap = pairTop - pairBottom;\n    if (el_le(pairOverlap, overlapFraction * (high[k + 1] - low[k + 1]))) {\n        thinCount += 1;\n    }\n}",
+    "longCondition": "el_ge(thinCount, spikeBars)",
+    "shortCondition": "el_ge(thinCount, spikeBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

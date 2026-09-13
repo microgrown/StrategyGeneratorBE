@@ -1,0 +1,34 @@
+{
+    "name": "RewardRiskDeteriorationExit",
+    "type": "Exit",
+    "inputVariables": {
+        "targetPoints": "2",
+        "stopPoints": "2",
+        "minRewardRiskMultiple": "1"
+    },
+    "localVariables": {
+        "rewardLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "riskLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rewardShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "riskShort": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The trader's equation re-read every bar off the live close: what is left to\n// the planned target against what is left to the planned stop. Exit once the\n// remaining reward no longer covers a multiple of the remaining risk.\n// Both distances are PRICE UNITS from EntryPrice (VERIFIED: contract-weighted\n// average, 0.0 when flat, TradeStation does not fold slippage into it).\n// The MarketPosition guard is load-bearing rather than decoration: EntryPrice\n// reads 0 while flat and a back-adjusted series can carry negative prices, so\n// without it both sides would test against a meaningless 0 anchor.\n// The parenthesisation matches the EL twin's, so both sides round the same way.\nrewardLong = ctx.EntryPrice() + targetPoints - close[0];\nriskLong = close[0] - (ctx.EntryPrice() - stopPoints);\nrewardShort = close[0] - (ctx.EntryPrice() - targetPoints);\nriskShort = ctx.EntryPrice() + stopPoints - close[0];",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_gt(riskLong, 0.0) && el_lt(rewardLong, minRewardRiskMultiple * riskLong)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_gt(riskShort, 0.0) && el_lt(rewardShort, minRewardRiskMultiple * riskShort)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

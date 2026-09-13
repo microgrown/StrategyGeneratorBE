@@ -1,0 +1,20 @@
+{
+  "name": "AdverseBodyCountExit",
+  "type": "Exit",
+  "inputVariables": {
+    "adverseBars": "2"
+  },
+  "localVariables": {
+    "adverseDown": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "adverseUp": {
+      "type": "double",
+      "init": "0.0"
+    }
+  },
+  "preConditionHook": "// EL: adverseDown = countif(c < o, adverseBars), adverseUp the mirror\n// (lowercase as the feature register writes it).\n// CountIF counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true series (EL_FEATURES `countif`, VERIFIED). The counted\n// condition is on PRICES, which have real history back to the chart start, so\n// no zero-filled variable mirror is needed -- the arrangement\n// OppositeBodyCountInWindow and SpikeWithoutPullback use.\n//\n// A tie bar (close equal to open within the EL tolerance) counts for neither.\n// The counts are EL numeric variables, so they are doubles here.\n//\n// The source writes \"count = adverseBars\"; since CountIF over adverseBars bars\n// can never exceed adverseBars, >= is the same test without a float equality.\nadverseDown = 0.0;\nadverseUp = 0.0;\nfor (int i = 0; i < (int)adverseBars; ++i) {\n    if (el_lt(close[i], open[i])) adverseDown += 1;\n    if (el_gt(close[i], open[i])) adverseUp += 1;\n}",
+  "longCondition": "el_ge(adverseDown, adverseBars)",
+  "shortCondition": "el_ge(adverseUp, adverseBars)"
+}

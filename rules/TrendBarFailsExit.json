@@ -1,0 +1,15 @@
+{
+    "name": "TrendBarFailsExit",
+    "type": "Exit",
+    "inputVariables": {
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {},
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Leave on the first bar that is not another with-trend trend bar: the spike\n// has stopped. The opposite trigger to ConsecutiveCloseExit, which leaves\n// after a RUN of with-trend closes rather than the moment one fails to appear.\n//\n// This cannot be a trend-bar Entry rule placed negated in the exit pane -- an\n// Entry rule cannot sit there, exactly as the catalog notes for\n// ConsecutiveCloseExit -- so the negation is written into the rule.\n//\n// ctx.BarsSinceEntry() >= 1 stops the entry bar itself from triggering it, per\n// the source's own note. BarsSinceEntry is 0 on the fill bar and 0 while flat\n// (VERIFIED, never a -1 sentinel), so the guard also cannot fire when flat;\n// the MarketPosition test is what picks the SIDE.\n//\n// Product, not quotient, for the body test: EL raises a runtime\n// divide-by-zero and a zero-range bar is legal data. Deepest bar read is 0.",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(ctx.BarsSinceEntry(), 1) && !(el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(ctx.BarsSinceEntry(), 1) && !(el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,22 @@
+{
+    "name": "AverageTailFractionBelow",
+    "type": "Entry",
+    "inputVariables": {
+        "tailBars": "5",
+        "maxTailFraction": "0.25",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "avgTailFraction": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgTailFraction = Average((high - low - AbsValue(close - open))\n//         / (high - low + epsilon), tailBars).\n//\n// The averaged quantity is the NON-BODY fraction of the bar -- both tails\n// together -- so the statistic carries no direction and both sides read the\n// same value. That is the distinction from AverageUpperTailFraction, which\n// averages ONE tail and mirrors the sides: a bar with a huge lower tail and a\n// shaved top passes that rule's long side and fails this one.\n//\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808)\n// and the averaged quantity is a price EXPRESSION with real history, not an EL\n// variable -- so this is a fresh loop over price, NOT the WFSafe_AvgTrueRange\n// rolling accumulator and NOT the zero-filled variable mirror BarRangeAboveStd\n// needs. Summed newest-first, EasyLanguage's Summation order.\n//\n// The epsilon is the corpus's zero-range guard (CloseRangePosition's literal,\n// carried as an input so the ratio's low bits match the twin): EasyLanguage\n// raises a RUNTIME divide-by-zero error on a zero denominator, so it is added\n// inside the ratio rather than branched around.\n//\n// The accumulator is a class member and persists across bars, so it is reset\n// before the loop.\navgTailFraction = 0.0;\nfor (int i = 0; i < (int)tailBars; ++i) {\n    avgTailFraction += (high[i] - low[i] - std::fabs(close[i] - open[i])) / (high[i] - low[i] + epsilon);\n}\navgTailFraction /= (int)tailBars;",
+    "longCondition": "el_le(avgTailFraction, maxTailFraction)",
+    "shortCondition": "el_le(avgTailFraction, maxTailFraction)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

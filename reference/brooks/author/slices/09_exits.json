@@ -1,0 +1,433 @@
+{
+ "slice": "09_exits.json",
+ "rules": [
+  {
+   "key": "PullbackNearMissesEntryPrice",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The pullback comes down to within a few ticks of the entry price but misses it by at least a tick: the bulls defended their breakeven stops, which Brooks reads as a continuation signal.",
+   "pseudocode": "ctx.MarketPosition() > 0 && low[0] > ctx.EntryPrice() + missTicks * tickSize && low[0] <= ctx.EntryPrice() + nearTestTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "missTicks": 0,
+    "nearTestTicks": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a two-sided band around the entry price, read at signal time"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T03-15"
+   ],
+   "merge_notes": "Kept apart from PullbackReachesEntryPrice, which its negation alone would not give: this is a BAND (close enough to count as a test, but not close enough to be hit), and the negation of a one-sided threshold is another one-sided threshold. On a bar that never comes near the entry price, PullbackReachesEntryPrice negated is true while this rule is false, which is the whole point of Brooks's observation. The source reads the level as the entry bar's low rather than the entry price; approximated by the entry price for lack of a stored entry-bar-low value, though low[ctx.BarsSinceEntry()] would give it exactly.",
+   "variants_kept_separate": [
+    "PullbackReachesEntryPrice"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PullbackReachesEntryPrice",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The pullback trades back to the position's own entry price, where the breakeven stops sit. Brooks reads it as weakness; negate the placement to get his strength sign, 'the first pullback does not hit a breakeven stop'.",
+   "pseudocode": "ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() + toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "toleranceTicks": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one comparison, but it reads position state at signal time"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "FlatOrOpenLossExceeds",
+    "relation": "variant",
+    "note": "Same species as the catalog's one position-reading Entry: a signal-time gate on the open trade. Different test (entry price touched vs a dollar loss)."
+   },
+   "sources": [
+    "R02-31",
+    "V00-50",
+    "T00-35"
+   ],
+   "merge_notes": "R02-31 is the positive form; V00-50 and T00-35 are the same test negated ('the first pullback does not reach the breakeven stop'), which the per-placement negate toggle covers, so they are citations, not rules. T00-35 writes it as lowest(low, pullbackBars) > EntryPrice, a 3-bar window rather than the current bar; the single-bar form wins because a filter that reads the current bar composes with the pane system, while a windowed one silently widens every other pane's meaning. Tolerance is 0 (R02-31), 2 (V00-50); 0 is the default since the book means the stop being hit.",
+   "variants_kept_separate": [
+    "PullbackNearMissesEntryPrice"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "entryprice",
+    "lowest",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BreakevenStop",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Once the trade has shown a minimum profit, move the protective stop to the entry price (optionally a few ticks worse) and exit if price comes back to it.",
+   "pseudocode": "ctx.MarketPosition() > 0 && ctx.MaxPositionProfit() >= activationDollars && close[0] <= ctx.EntryPrice() - breakevenBufferTicks * tickSize",
+   "sides": "same",
+   "parameters": {
+    "activationDollars": 100,
+    "breakevenBufferTicks": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two position-state reads, peak profit and entry price; no bar history"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ProfitProtector",
+    "relation": "variant",
+    "note": "ProfitProtector exits when profit gives back to retracement x peak; at retracement = 0 that is 'open profit below zero', which is close to but not this rule: the boundary differs (< 0 vs <= entry) and, more importantly, breakevenBufferTicks lets the floor sit BELOW the entry price, which no ProfitProtector parameterization reaches. ProfitProtectorRatio and TieredProfitProtector are the same family and equally not this."
+   },
+   "sources": [
+    "R03-04",
+    "R05-15",
+    "R10-08",
+    "R24-02",
+    "R29-06",
+    "T00-50",
+    "TP1-10",
+    "V02-16",
+    "V24-37",
+    "V24-38",
+    "V25-04"
+   ],
+   "merge_notes": "Eleven candidates, one rule. Every source is 'after X, move the stop to breakeven', differing only in what X is and whether the floor is exactly the entry price: fixed tick profit (R03-04 five ticks, V24-37 eight, R24-02 five), peak profit in dollars (V02-16, TP1-10), a fixed target reached (R05-15 with a 3-tick buffer BELOW entry, so it can still lose), a partial exit already taken (TP1-10, V25-04 — partial exits are not modeled, and with a single unit the trigger reduces to the profit threshold), and 'halfway to the profit target' (R29-06, V24-38), which is this rule at activationDollars = 0.5 x target and therefore a parameterization, not a second rule. T00-50 and R10-08 are the bare test with no activation (price returns to the entry price while profitable); they are the activationDollars -> 0 endpoint. MaxPositionProfit is the winning activation accessor over a hand-rolled once-true flag (R24-02) because the corpus already uses it. The default buffer is 0 (a true breakeven); R05-15's 3-tick give is the reason the parameter exists.",
+   "variants_kept_separate": [
+    "BreakevenStopAfterEmaHoldingRun",
+    "BreakevenStopOnSecondEntryTest",
+    "BreakevenExitAfterAdverseExcursion",
+    "ExitAtBreakevenInTightRange",
+    "WeakEntryBarScratchExit"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "entryprice",
+    "marketposition",
+    "maxpositionprofit",
+    "openpositionprofit"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StopAtSignalBarRangeMultiple",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Size the protective stop to a multiple of the signal bar's own high-low range rather than to a fixed tick amount: big bars get wide stops, small bars tight ones.",
+   "pseudocode": "signalBar = ctx.BarsSinceEntry() + 1; ctx.OpenPositionProfit() <= -stopRangeMultiple * (high[signalBar] - low[signalBar]) * bigPointValue",
+   "sides": "same",
+   "parameters": {
+    "stopRangeMultiple": 1.0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one bar's range located by a runtime index, converted to dollars against open profit"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "StopLoss",
+    "relation": "variant",
+    "note": "StopLoss is a constant dollar amount; this scales the same test by one bar's range. The catalog has an ATR-scaled TRAIL (AtrTrailingStop) and an ATR-scaled TARGET (AtrProfitTarget) but no volatility-scaled INITIAL stop, so this fills a real gap."
+   },
+   "sources": [
+    "VP3-02",
+    "V01-18",
+    "VP1-08"
+   ],
+   "merge_notes": "Three statements of one idea from two volumes; V01-18 and VP1-08 are strays absorbed here. All three say 'stop distance about the height of the bar being faded'. VP3-02 additionally suggests a short-lookback ATR as the scale instead of the single bar's range: kept as the single-bar form because it needs no ATR call site, and the ATR form would be indistinguishable from a StopLoss sized off WFSafe_AvgTrueRange. Brooks's 'and trade smaller size' half is position sizing and is not representable as an Entry/Exit/Switch condition.",
+   "variants_kept_separate": [
+    "StopBeyondSignalBar",
+    "StopSizedToRecentRange"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "openpositionprofit"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StopBeyondExtremeSinceEntry",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Put the stop just beyond the worst price the trade has seen since entry: for a long, one tick below the lowest low since the position opened.",
+   "pseudocode": "ctx.MarketPosition() > 0 && close[0] <= lowest(low, ctx.BarsSinceEntry() + 1)[0] - ratchetOffsetTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "ratchetOffsetTicks": 1
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a min/max window whose length is the position's own age rather than a constant"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R29-07"
+   ],
+   "merge_notes": "Brooks's numeric example: an 11-tick pullback that holds turns into a 12-tick stop. Note the level is monotonically non-tightening for a long (the lowest-since-entry only falls), so this behaves as a self-widening initial stop rather than a trail; kept as stated because it is exactly what the book's arithmetic does. Distinct from SwingPointTrailingStop (needs no pivots) and from TrailStopBeyondPriorBarExtreme (one-bar window, not since-entry). Reaches back as far as the longest trade, so Max Bars Back must cover it or the window must be clamped.",
+   "variants_kept_separate": [
+    "TrailStopBeyondPriorBarExtreme",
+    "SwingPointTrailingStop"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "lowest",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StopBeyondRecentRangeExtreme",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "For a trade taken on a range breakout, put the protective stop well beyond the opposite side of the range so the repeated failed breakouts that precede the successful one cannot stop it out.",
+   "pseudocode": "ctx.MarketPosition() > 0 && close[0] <= lowest(low, rangeLookback)[1] - stopBufferTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeLookback": 20,
+    "stopBufferTicks": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed-length lowest-low window plus an offset"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "The catalog has Donchian-style ENTRIES (Breakout, HighestHighBreakout, CloseAbovePriorHighestHigh) but no Donchian-style protective stop."
+   },
+   "sources": [
+    "RP4-12"
+   ],
+   "merge_notes": "The book anchors the stop to an identified trading range's low; the mechanizable definition chosen here is the N-bar lowest low ending one bar back, which needs no range classification and therefore keeps the rule out of the C pile. Recording the substitution: with a real range detector the level would be the range floor, which the N-bar low tracks well inside a range and badly right after a trend leg. Brooks's point is the SIZE of the buffer, not the anchor, so stopBufferTicks is the input worth optimizing.",
+   "variants_kept_separate": [
+    "StopSizedToRecentRange"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "lowest",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StopFractionOfSignalBarRisk",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "When the signal bar is too tall to risk its whole range, place the stop a fraction of the way up from the signal bar's low toward the entry price instead of beyond the bar: a money-management stop inside the signal bar.",
+   "pseudocode": "signalBarLow = low[ctx.BarsSinceEntry() + 1]; ctx.MarketPosition() > 0 && close[0] <= signalBarLow + stopFraction * (ctx.EntryPrice() - signalBarLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "stopFraction": 0.3
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the same runtime signal-bar lookup as StopBeyondSignalBar plus a linear interpolation toward the entry price"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R29-04"
+   ],
+   "merge_notes": "Stray absorbed (chapter 29, page 203). Brooks's 30 percent is framed as a couple of ticks beyond the 62 percent Fibonacci retracement of the signal bar. At stopFraction = 0 this degenerates to StopBeyondSignalBar with a zero offset, so the two are one rule at the endpoints, but the interpolation is the point of the rule and is kept separate. NOT one of the initial-risk-multiple rules: both ends of the interpolation (the signal bar low and the entry price) are readable at run time, so no fixed initial-stop accessor is needed.",
+   "variants_kept_separate": [
+    "StopBeyondSignalBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TightenStopToEntryBarIfStrong",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Once the entry bar has closed, if it closed as a trend bar in the trade's direction, move the protective stop in from the signal bar's extreme to the entry bar's own extreme; otherwise keep the wider signal-bar stop.",
+   "pseudocode": "entryBar = ctx.BarsSinceEntry(); entryBarStrong = entryBar >= 1 && close[entryBar] > open[entryBar] && (close[entryBar] - open[entryBar]) >= strongBodyFraction * (high[entryBar] - low[entryBar]); ctx.MarketPosition() > 0 && entryBarStrong && close[0] <= low[entryBar] - stopOffsetTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "strongBodyFraction": 0.6,
+    "stopOffsetTicks": 1
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "runtime entry-bar lookup plus a body-fraction test; no persistent state if the entry bar is re-located each bar from BarsSinceEntry()"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R05-14",
+    "R12-09",
+    "R24-03",
+    "R27-02",
+    "R29-03",
+    "R29-16",
+    "R29-02"
+   ],
+   "merge_notes": "Five restatements across ranges chapters 5, 12, 24, 27 and 29. R05-14 and R24-03 state it UNCONDITIONALLY ('move the stop to the entry bar extreme after the entry bar closes'), which is this rule at strongBodyFraction = 0, so they merge as a parameterization rather than a second rule; R12-09, R27-02 and R29-03 add the strong-body gate. Body fraction: R27-02 says 0.7, R12-09 and R29-02 say 0.6; 0.6 chosen as the default, matching the corpus's usual trend-bar-body reading. Offsets: one tick everywhere except R29-03's 'one or two ticks'. R29-02 (the entry-bar strong-trend-bar classifier this rule's gate is lifted from) is sent to bar_anatomy; the gate is inlined here rather than made a dependency because an Entry rule cannot sit in the exit pane. R05-14 asks for a ctx.EntryBarLow() accessor; low[ctx.BarsSinceEntry()] gives the same value with no engine change. R29-16 (whether an adverse entry bar should override the signal-bar stop) is research and is dropped.",
+   "variants_kept_separate": [
+    "StopBeyondSignalBar",
+    "TrailStopBehindStrongBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "WeakEntryBarScratchExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "If the entry bar closes weak — a small body relative to its range, a doji — the setup lacked urgency: scratch the trade on that bar's close rather than holding for the target.",
+   "pseudocode": "ctx.MarketPosition() != 0 && ctx.BarsSinceEntry() == 1 && absValue(close[0] - open[0]) <= weakBodyFrac * (high[0] - low[0])",
+   "sides": "same",
+   "parameters": {
+    "weakBodyFrac": 0.3
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a one-bar body-fraction test fired exactly once, on the bar after entry"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "NumBars",
+    "relation": "variant",
+    "note": "A one-bar time stop with a bar-quality gate rather than a bar count; NumBars(1) would exit unconditionally."
+   },
+   "sources": [
+    "T05-15",
+    "T05-16"
+   ],
+   "merge_notes": "Two chapter-5 statements of 'the entry bar is weak, get out around breakeven'. Only the shared part is carried, per atomic-beats-composite: T05-15 additionally requires the entry bar to be an INSIDE bar (the catalog already has InsideBar) and the trade to be within a breakeven band (that is BreakevenStop), and T05-16 additionally requires the SIGNAL bar to be weak too (a bar_anatomy body test on lag 1). Each of those is independently meaningful and belongs in its own pane. Body fractions: T05-15's doji reading is 0.1, T05-16's weak reading is 0.3; 0.3 is the default and the range worth optimizing. 'Get out at breakeven or a one-tick loss' is a fill assumption, not a condition: the mechanized exit is a market exit at the next open.",
+   "variants_kept_separate": [
+    "BreakevenStop"
+   ],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "marketposition",
+    "openpositionprofit"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "WiderStopForSmallSignalBarCapped",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Widen the signal-bar stop when the signal bar is unusually small (a doji, which invites an outside-bar stop run), but cap the total distance from the entry price so the widened stop never risks more than maxStopTicks.",
+   "pseudocode": "signalBar = ctx.BarsSinceEntry() + 1; offset = (high[signalBar] - low[signalBar] <= smallBarMaxTicks * tickSize) ? widerStopTicks : 1; stopPrice = maxList(low[signalBar] - offset * tickSize, ctx.EntryPrice() - maxStopTicks * tickSize); ctx.MarketPosition() > 0 && close[0] <= stopPrice",
+   "sides": "mirrored",
+   "parameters": {
+    "smallBarMaxTicks": 4,
+    "widerStopTicks": 3,
+    "maxStopTicks": 8
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "signal-bar range test choosing between two offsets, plus a cap measured from the entry price"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R17-14"
+   ],
+   "merge_notes": "Kept apart from StopBeyondSignalBar because the offset is conditional on the signal bar's size and the level is capped: two behavioural differences, not one parameter. The cap half on its own is a tick-denominated StopLoss; the authoring pass should decide whether maxList against ctx.EntryPrice() is worth the machinery or whether the cap should be a separate StopLoss placement. Brooks's 8-tick cap is calibrated to the 5 minute Emini and is a plain parameter here. MaxList is used on tick-grid price operands only, which these are.",
+   "variants_kept_separate": [
+    "StopBeyondSignalBar"
+   ],
+   "depends_on_keys": [
+    "StopBeyondSignalBar"
+   ],
+   "bucket": "exits_stops",
+   "el_words": [
+    "barssinceentry",
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BreakoutMissesScalpTarget",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Sign of weakness: the breakout above the prior swing high never travelled far enough to give a scalper's profit before the pullback began.",
+   "pseudocode": "(highest(high, pullbackWindow)[0] - highest(high, swingLookback)[pullbackWindow]) < scalpTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "swingLookback": 20,
+    "pullbackWindow": 5,
+    "scalpTicks": 4
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two Highest windows offset against each other; the candidate's 'forward-looking' phrasing becomes a backward window once the pullback bar is the evaluation bar"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R02-28"
+   ],
+   "merge_notes": "The mirror of R02-06's sign-of-strength test in the breakouts bucket; kept here because the measure is a scalp target. Recast as two backward-looking windows so nothing peeks ahead.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "exits_targets",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

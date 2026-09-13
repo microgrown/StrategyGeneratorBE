@@ -1,0 +1,46 @@
+{
+    "name": "PullbackNotAfterStrongOppositeReversalBar",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2",
+        "maxScanBars": "10"
+    },
+    "localVariables": {
+        "kkLong": {
+            "type": "int",
+            "init": "0"
+        },
+        "kkShort": {
+            "type": "int",
+            "init": "0"
+        },
+        "scanLong": {
+            "type": "bool",
+            "init": "true"
+        },
+        "scanShort": {
+            "type": "bool",
+            "init": "true"
+        },
+        "okLong": {
+            "type": "bool",
+            "init": "true"
+        },
+        "okShort": {
+            "type": "bool",
+            "init": "true"
+        },
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Long side. Walk back from bar 1 while the bars close DOWN; kkLong lands on\n// the OLDEST bar of that run -- the bar that started the pullback. The scan is\n// capped at maxScanBars because the corpus needs a fixed Max Bars Back, and the\n// deepest reference is high[maxScanBars + 1]. kkLong = 0 means bar 1 is not a\n// down-close bar, so no pullback is under way and the filter passes.\n//\n// The veto is that starting bar being a strong bear reversal bar that also made\n// a HIGHER high than the bar before it: body at least bodyFraction of its range\n// and BOTH tails no more than tailFraction of it -- the same shape StrongTrendBar\n// tests, but evaluated at a bar offset the rule has to find, which is why it is\n// written out here rather than composed from that rule.\n//\n// Stated in the PASSING sense (okLong), so the condition needs no negation and a\n// placement wanting Brooks's veto negates the placement. Comparisons are\n// multiplied, never ratios: EL raises a runtime divide-by-zero on a doji whose\n// high = low. Every variable offset is on a DATA series, never a history\n// reference on a function call -- the case FailedBreakoutReversal open-codes for.\n//\n// Every local persists across bars, so all seven are reset at the top.\nkkLong = 0;\nscanLong = true;\nkkShort = 0;\nscanShort = true;\nfor (int i = 1; i <= (int)maxScanBars; ++i) {\n    if (scanLong && el_lt(close[i], open[i])) {\n        kkLong = i;\n    } else {\n        scanLong = false;\n    }\n    if (scanShort && el_gt(close[i], open[i])) {\n        kkShort = i;\n    } else {\n        scanShort = false;\n    }\n}\nokLong = true;\nif (kkLong > 0) {\n    rng = high[kkLong] - low[kkLong];\n    if (el_ge(open[kkLong] - close[kkLong], bodyFraction * rng)\n        && el_le(high[kkLong] - open[kkLong], tailFraction * rng)\n        && el_le(close[kkLong] - low[kkLong], tailFraction * rng)\n        && el_gt(high[kkLong], high[kkLong + 1])) {\n        okLong = false;\n    }\n}\nokShort = true;\nif (kkShort > 0) {\n    rng = high[kkShort] - low[kkShort];\n    if (el_ge(close[kkShort] - open[kkShort], bodyFraction * rng)\n        && el_le(high[kkShort] - close[kkShort], tailFraction * rng)\n        && el_le(open[kkShort] - low[kkShort], tailFraction * rng)\n        && el_lt(low[kkShort], low[kkShort + 1])) {\n        okShort = false;\n    }\n}",
+    "longCondition": "okLong",
+    "shortCondition": "okShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

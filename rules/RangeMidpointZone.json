@@ -1,0 +1,29 @@
+{
+    "name": "RangeMidpointZone",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "midpointFraction": "0.17"
+    },
+    "localVariables": {
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeMid": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The close sits within midpointFraction of the range height either side of\n// the N-bar range's midpoint. Brooks uses it NEGATED: do not take a stop entry\n// in the middle of a trading range, where the fill is bad in both directions.\n// At 0.17 the admitted band is the middle third of the range.\n//\n// Not the negation of RangeExtremeFade / CloseInRangePosition: that rule's\n// negation on the long side still admits the top of the range, while this\n// excludes both extremes at once.\n//\n// Both loops mirror EasyLanguage's Extremes(), which Highest()/Lowest() call:\n// seeded at bar 0, scanning bars 1..Length-1, strict comparison. Extremes is\n// EL SOURCE, so its comparison carries the EL tolerance -- el_gt/el_lt, as in\n// Breakout (the reference).\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\nrangeMid = (rangeHigh + rangeLow) / 2;",
+    "longCondition": "el_le(std::fabs(close[0] - rangeMid), midpointFraction * (rangeHigh - rangeLow))",
+    "shortCondition": "el_le(std::fabs(close[0] - rangeMid), midpointFraction * (rangeHigh - rangeLow))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,34 @@
+{
+  "name": "PriorSessionLevelTest",
+  "type": "Entry",
+  "inputVariables": {
+    "levelSelect": "3",
+    "toleranceAtr": "0.1",
+    "atrLookback": "14"
+  },
+  "localVariables": {
+    "level": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "tol": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "atr": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "atrSum": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "atrLength": {
+      "type": "int",
+      "init": "0"
+    }
+  },
+  "preConditionHook": "// Brooks's magnets -- yesterday's high, low, open and close -- as one rule with\n// a selector: 0 = high, 1 = low, 2 = open, 3 = close.\n//\n// ONE BAR IS ONE SESSION. On a daily or 1440-minute series the prior session's\n// four reference prices are high[1] / low[1] / open[1] / close[1], so the rule\n// needs no session model, no HighD/LowD/OpenD/CloseD and no -1 warm-up\n// sentinel. On a finer intraday series this reads the prior BAR, which is not\n// what Brooks means -- daily or 1440-minute bars only.\n//\n// A TOUCH, not a break: the bar's low (long, testing the level from below) or\n// high (short, from above) comes within tol of the level. CloseAbovePriorHigh\n// is the break by the close, a different test.\n//\n// The selector's comparisons mirror the twin's EL if/else-if chain on\n// levelSelect, so they go through el_le even though levelSelect only ever\n// holds an exact optimizer value and the 2.22e-12 tolerance cannot change\n// which branch is taken.\nif (el_le(levelSelect, 0)) {\n    level = high[1];\n} else if (el_le(levelSelect, 1)) {\n    level = low[1];\n} else if (el_le(levelSelect, 2)) {\n    level = open[1];\n} else {\n    level = close[1];\n}\n// Tolerance in ATR, not in ticks: the sources say \"1 or 2 ticks\", but MinMove\n// and PriceScale are UNKNOWN in EL_FEATURES and the engine exposes no tick\n// size to a strategy at all, so the margin is a fraction of the N-bar ATR --\n// the substitution PullbackFromRecentHigh and DistanceAboveRecentLow make.\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and thereafter\n// updated as TWO statements -- EL evaluates S[1] + in - out left to right, and folding it\n// to S += in - out rounds differently (@OJ 2015-02-20). One call site, in the\n// hook, so it advances exactly once per bar.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\ntol = toleranceAtr * atr;",
+  "longCondition": "el_le(low[0], level + tol) && el_ge(low[0], level - tol)",
+  "shortCondition": "el_le(high[0], level + tol) && el_ge(high[0], level - tol)"
+}

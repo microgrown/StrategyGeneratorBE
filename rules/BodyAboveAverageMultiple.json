@@ -1,0 +1,34 @@
+{
+    "name": "BodyAboveAverageMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyLookback": "10",
+        "bodyMultiple": "1.0",
+        "consecutiveBars": "1"
+    },
+    "localVariables": {
+        "allBigBull": {
+            "type": "bool",
+            "init": "true"
+        },
+        "allBigBear": {
+            "type": "bool",
+            "init": "true"
+        },
+        "bodySum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgBody": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: for kk = 0 to consecutiveBars - 1, sum AbsValue(close - open) over the\n// bodyLookback bars ending at kk + 1, divide by bodyLookback, and require bar\n// kk to be a bull bar whose body is at least bodyMultiple times that mean.\n//\n// At consecutiveBars = 1 this is Brooks's 'body about the same size as or\n// larger than the median body of the past five or ten bars' -- the MEAN\n// replaces the median deliberately: a median needs the window sorted every\n// bar, the mean is a running sum, and the claim is comparative size. At\n// consecutiveBars = 2 or 3 it is the follow-through run, which is why the\n// count is an input rather than a second rule.\n//\n// The benchmark window EXCLUDES the bar it judges (bars kk+1 .. kk+bodyLookback),\n// so an outsized body cannot raise its own benchmark -- the convention\n// LargeOutsideBar, BarRangeBelowAverageMultiple and LargeTailedBarCount set --\n// and it shifts with the counted bar, which is why the mean is an explicit\n// summation rather than Average(...)[kk + 1]: a function-history reference at a\n// loop-variable offset is not a registered behaviour. The summation runs\n// newest-first, EasyLanguage's Summation order, and divides by the same (int)\n// bound the loop uses.\n//\n// Average over a price EXPRESSION with real history, so a fresh loop -- not the\n// WFSafe_AvgTrueRange rolling accumulator, and not a zero-filled variable\n// mirror.\n//\n// All-of-N written the way StrongTrendBarRun writes it: start true and let any\n// failing bar clear the flag, so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. Both sides are\n// computed here for the same reason. A tie bar (close == open within the EL\n// tolerance) fails both sides.\n//\n// The flags and the accumulators are class members and persist across bars, so\n// all four are reset before use.\nallBigBull = true;\nallBigBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    bodySum = 0.0;\n    for (int j = 0; j < (int)bodyLookback; ++j) {\n        bodySum = bodySum + std::fabs(close[k + 1 + j] - open[k + 1 + j]);\n    }\n    avgBody = bodySum / (int)bodyLookback;\n    if (el_le(close[k], open[k])) allBigBull = false;\n    if (el_lt(close[k] - open[k], bodyMultiple * avgBody)) allBigBull = false;\n    if (el_ge(close[k], open[k])) allBigBear = false;\n    if (el_lt(open[k] - close[k], bodyMultiple * avgBody)) allBigBear = false;\n}",
+    "longCondition": "allBigBull",
+    "shortCondition": "allBigBear",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

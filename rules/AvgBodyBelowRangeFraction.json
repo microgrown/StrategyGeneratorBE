@@ -1,0 +1,25 @@
+{
+    "name": "AvgBodyBelowRangeFraction",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "3",
+        "weakBodyFraction": "0.4"
+    },
+    "localVariables": {
+        "avgBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgBody = Average(AbsValue(close - open), lookback);\n//     avgRange = Average(high - low, lookback);\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808),\n// and both arguments are PRICE expressions with real history back to the chart\n// start -- so these are fresh loops over price, NOT the WFSafe_AvgTrueRange\n// rolling accumulator and NOT a mirrored variable buffer (contrast\n// BarRangeAboveStd, whose Average runs over an EL variable). Summed\n// newest-first, EL's Summation order, and divided by the same (int) bound the\n// loop uses, as LargeOutsideBar does.\n// Scratch locals persist across bars, so both are reset here before the loop.\navgBody = 0.0;\navgRange = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    avgBody += std::fabs(close[i] - open[i]);\n    avgRange += high[i] - low[i];\n}\navgBody /= (int)lookback;\navgRange /= (int)lookback;",
+    "longCondition": "el_lt(avgBody, weakBodyFraction * avgRange)",
+    "shortCondition": "el_lt(avgBody, weakBodyFraction * avgRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

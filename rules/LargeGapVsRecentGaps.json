@@ -1,0 +1,24 @@
+{
+    "name": "LargeGapVsRecentGaps",
+    "type": "Entry",
+    "inputVariables": {
+        "largeGapLookback": "5"
+    },
+    "localVariables": {
+        "maxPriorGapUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxPriorGapDown": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: maxPriorGapUp = highest(l[1] - h[2], largeGapLookback) -- the\n// largest signed bull gap over bars 1..largeGapLookback, the shifted series so\n// this bar's own gap is not in its own benchmark. The gap size is a PRICE\n// EXPRESSION (negative on a bar that does not gap), not an EL variable, so it\n// has real history and needs no zero-filled mirror.\n//\n// The loop mirrors EasyLanguage's Extremes(), which Highest() calls: seeded on\n// the window's first element, scanning the rest, strict comparison so a tie\n// keeps the earliest bar. Extremes is EL SOURCE, so its comparison carries the\n// relational tolerance -- el_gt, as in Breakout. Both sides are computed\n// unconditionally: EasyLanguage does not short-circuit and Max Bars Back must\n// cover largeGapLookback + 1 on every bar regardless.\nmaxPriorGapUp = low[1] - high[2];\nmaxPriorGapDown = low[2] - high[1];\nfor (int i = 1; i < (int)largeGapLookback; ++i) {\n    double gapUp = low[1 + i] - high[2 + i];\n    if (el_gt(gapUp, maxPriorGapUp)) maxPriorGapUp = gapUp;\n    double gapDown = low[2 + i] - high[1 + i];\n    if (el_gt(gapDown, maxPriorGapDown)) maxPriorGapDown = gapDown;\n}",
+    "longCondition": "el_gt(low[0], high[1]) && el_ge(low[0] - high[1], maxPriorGapUp)",
+    "shortCondition": "el_lt(high[0], low[1]) && el_ge(low[1] - high[0], maxPriorGapDown)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

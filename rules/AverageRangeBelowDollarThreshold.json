@@ -1,0 +1,17 @@
+{
+  "name": "AverageRangeBelowDollarThreshold",
+  "type": "Entry",
+  "inputVariables": {
+    "minRangeDollars": "1",
+    "rangeLookback": "20"
+  },
+  "localVariables": {
+    "avgRange": {
+      "type": "double",
+      "init": "0.0"
+    }
+  },
+  "preConditionHook": "// EL: avgRange = average(h - l, rangeLookback), written lowercase as the\n// feature register does (EasyLanguage is case-insensitive).\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808)\n// and h - l is a PRICE expression with real history, so this is a fresh\n// loop over price -- not the WFSafe_AvgTrueRange rolling accumulator and not a\n// mirrored variable buffer. Window INCLUSIVE of the current bar. Summed\n// newest-first, EL's Summation order, exactly as NarrowRangeBar does.\n//\n// The threshold is in PRICE units: the book's \"under a dollar of daily range\"\n// is a stock, where a point is a dollar. There is deliberately no\n// BigPointValue factor -- that, plus range instead of TRUE range and a fresh\n// mean instead of the rolling accumulator, is what separates this from\n// AtrDollarsBelow.\navgRange = 0.0;\nfor (int i = 0; i < (int)rangeLookback; ++i) {\n    avgRange += high[i] - low[i];\n}\navgRange /= (int)rangeLookback;",
+  "longCondition": "el_lt(avgRange, minRangeDollars)",
+  "shortCondition": "el_lt(avgRange, minRangeDollars)"
+}

@@ -1,0 +1,24 @@
+{
+    "name": "ExitOnFirstOppositeBodyAfterRun",
+    "type": "Exit",
+    "inputVariables": {
+        "runBars": "4"
+    },
+    "localVariables": {
+        "bullRun": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearRun": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: bullRun = CountIF(close[1] > open[1], runBars). CountIF counts bars\n// 0..Length-1 INCLUDING the current bar, and its condition is a true SERIES\n// whose own offsets shift per counted bar (EL_FEATURES `countif`, VERIFIED) --\n// so the shifted condition counts bars 1..runBars, the run BEFORE this bar.\n// The counted condition is on PRICES, which have real history back to the\n// chart start, so no zero-filled variable mirror is needed.\n// The count is an EL numeric variable, kept as a double, and can never exceed\n// runBars -- so >= runBars is the source's '= runBars' without a float\n// equality. Every comparison is an EL relational.\nbullRun = 0.0;\nbearRun = 0.0;\nfor (int i = 1; i <= (int)runBars; ++i) {\n    if (el_gt(close[i], open[i])) bullRun += 1;\n    if (el_lt(close[i], open[i])) bearRun += 1;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_lt(close[0], open[0]) && el_ge(bullRun, runBars)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_gt(close[0], open[0]) && el_ge(bearRun, runBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

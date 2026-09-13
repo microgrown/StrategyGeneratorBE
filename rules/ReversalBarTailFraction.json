@@ -1,0 +1,30 @@
+{
+    "name": "ReversalBarTailFraction",
+    "type": "Entry",
+    "inputVariables": {
+        "minTailFraction": "0.33",
+        "maxTailFraction": "0.5",
+        "oppositeTailMax": "0.1"
+    },
+    "localVariables": {
+        "lowerTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: lowerTail = minlist(open, close) - low; upperTail = high - maxlist(open,\n// close). Measured from the BODY edge so it is the right tail whichever way the\n// bar closed. MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md): the open and the close are raw prices, so they differ by exactly 0\n// or by at least one tick -- 1e9-1e11x the 2.22e-12 relational tolerance -- and\n// whichever comparison the reserved word carries cannot matter. The plain\n// ternary stand-in is therefore exact, the same arrangement BarOverlapFraction\n// and ConsecutiveBarsLittleOverlap use. (<algorithm> is not among the emitted\n// includes, so no std::min/std::max.)\n//\n// Every comparison below is multiplied, never a ratio: EL raises a runtime\n// divide-by-zero on a doji whose high = low. A zero-range bar has both\n// tails 0, which passes the two caps and fails the minTailFraction floor only\n// when that input is above 0 -- at 0 the bar passes, which is EL's own answer.\nlowerTail = (open[0] < close[0] ? open[0] : close[0]) - low[0];\nupperTail = high[0] - (open[0] > close[0] ? open[0] : close[0]);\nbarRange = high[0] - low[0];",
+    "longCondition": "el_ge(lowerTail, minTailFraction * barRange) && el_le(lowerTail, maxTailFraction * barRange) && el_le(upperTail, oppositeTailMax * barRange)",
+    "shortCondition": "el_ge(upperTail, minTailFraction * barRange) && el_le(upperTail, maxTailFraction * barRange) && el_le(lowerTail, oppositeTailMax * barRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

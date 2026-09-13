@@ -1,0 +1,497 @@
+{
+ "slice": "14_misc+three_push_patterns+volume+leg_counting+time_session+trade_management.json",
+ "rules": [
+  {
+   "key": "AverageRangeBelowDollarThreshold",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The instrument's recent average bar range is below a small dollar threshold -- avoid scalp-sized targets; price-action entries can still be taken but should be managed for a swing.",
+   "pseudocode": "average(high[i] - low[i], i in 0..rangeLookback-1) < minRangeDollars",
+   "sides": "same",
+   "parameters": {
+    "minRangeDollars": 1.0,
+    "rangeLookback": 20
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a rolling average-range comparison against a fixed dollar threshold"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "AtrDollarsBelow",
+    "relation": "variant",
+    "note": "AtrDollarsBelow uses the WFSafe_AvgTrueRange rolling ATR times BigPointValue against a dollar threshold; this uses a plain Average of bar range (not true range, no BigPointValue conversion) -- close in spirit but a different average and no point-value scaling, so kept as its own rule."
+   },
+   "sources": [
+    "VP3-14"
+   ],
+   "merge_notes": "Book text is stock-specific ('under a dollar'); recorded generically as minRangeDollars so it can be optimized per instrument.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "CloseAboveHighestClose",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Close is at or above the highest close (long) / at or below the lowest close (short) of the N bars ending one bar ago.",
+   "pseudocode": "close[0] >= highest(close, N)[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "N": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "highest over a small window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "Breakout",
+    "relation": "variant",
+    "note": "Breakout is close >= highest close of the last N bars INCLUDING the current bar (a fresh window); this excludes the current bar via the [1] offset, the same exclusion convention CloseAbovePriorHighestHigh uses on highs."
+   },
+   "sources": [
+    "T02-14"
+   ],
+   "merge_notes": "T02-14's original test ANDs this close-vs-highest-close condition with close[0] >= highest(high,N)[1], which is exactly the catalog's CloseAbovePriorHighestHigh -- dropped that AND-term as a composition of an already-catalogued rule (Atomic beats composite); this atomic close-vs-recent-closes half is what's new.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "highest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "DeepPullbackRetracementFilter",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Once the current pullback has retraced at least R percent of the leg's range (measured over a fixed lookback window, not a swing-pivot search), stop treating it as a with-trend pullback -- treat it as the start of a new trend in the opposite direction instead.",
+   "pseudocode": "legLow = lowest(low, legLookback)[1]; legHigh = highest(high, legLookback)[1]; retracement = (close[0] - legLow) / (legHigh - legLow); retracement >= retracementThreshold  // long side: reclassify a bear leg's pullback as a new bull trend; short side mirrors with legHigh/legLow swapped",
+   "sides": "mirrored",
+   "parameters": {
+    "legLookback": 30,
+    "retracementThreshold": 0.75
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a fixed-window Highest/Lowest plus a ratio -- no swing-pivot search needed"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP3-04",
+    "T00-22",
+    "V00-57"
+   ],
+   "merge_notes": "Three restatements of Brooks' '75% retracement flips trend bias' rule (Ranges Pt.III, Trends front matter, Reversals front matter). T00-22 and V00-57 define the leg's start/extreme via SwingHigh/SwingLow pivot detection; RP3-04 uses a fixed N-bar Highest/Lowest window instead, which needs no pivot machinery -- picked as the mechanizable definition per the fixed-offset-over-swing-pivot preference. Default retracementThreshold=0.75 (all three sources agree) and legLookback=30 (from RP3-04; the others leave it unstated).",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "OppositeCloseCountBelowThreshold",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars, fewer than K closed against the intended direction -- the pullback/rally is still mostly one-sided.",
+   "pseudocode": "countIf(close[i] < open[i], i in 0..windowBars-1) < maxOppositeBodies",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 10,
+    "maxOppositeBodies": 3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "counting loop over a window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "TailBarCountDominance compares bull-tail vs bear-tail wick/close counts against each other; this is a single count of opposite-close bars against a fixed threshold, no wick/tail shape requirement."
+   },
+   "sources": [
+    "T07-39",
+    "TP3-25"
+   ],
+   "merge_notes": "T07-39 ('block a long when >=5 of the last 6 bars closed down') and TP3-25 ('as a long filter, require the down-close count in the last 10 bars to be below 3') are the same test stated as a block-condition and an allow-condition -- allow when count < threshold is exactly not-block when count >= threshold. Defaults taken from TP3-25 (windowBars=10, maxOppositeBodies=3); T07-39's stricter (6, 5) pair recorded as an alternate parameterization.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TrendingBarBodies",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last N bars has a body top and body bottom above (long) / below (short) those of the bar before it -- trending bodies, not just trending closes.",
+   "pseudocode": "forall i in 0..trendBars-1: max(open[i],close[i]) > max(open[i+1],close[i+1]) && min(open[i],close[i]) > min(open[i+1],close[i+1])",
+   "sides": "mirrored",
+   "parameters": {
+    "trendBars": 3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "fixed loop over N bars"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V02-26"
+   ],
+   "merge_notes": "Same book quote as TrendingCloseRun ('trending anything: closes, highs, lows, or bodies') but measures body top/bottom instead of close-to-close -- a bar can have a trending close without a trending body, so kept as its own rule per the two-behaviorally-distinct-rules test.",
+   "variants_kept_separate": [
+    "TrendingCloseRun"
+   ],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "AdverseBodyCountExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit the position if N consecutive bars close against it -- a tighter tolerance than a full stop, meant for positions taken on a weak original signal.",
+   "pseudocode": "countif(i in 0..adverseBars-1, close[i] < open[i]) == adverseBars // exit long; mirrored for shorts",
+   "sides": "mirrored",
+   "parameters": {
+    "adverseBars": 2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "fixed window CountIF over bar closes"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "Same condition as ConsecutiveUpBars (each of the last N bars closed against its own open, mirrored) but placed in the EXIT pane -- exactly the ConsecutiveCloseExit precedent: an Entry-shaped condition needs its own Exit-role rule since an Entry cannot sit in the exit pane. Reads no position state: an exit by placement, the streak may pre-date the entry."
+   },
+   "sources": [
+    "VP1-25"
+   ],
+   "merge_notes": "",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "misc",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "HorizontalFlagWidthTest",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The last N bars span less than K times the ATR — a flat, horizontal flag or triangle. Negated, it is the 'tall enough to fade the extremes' test.",
+   "pseudocode": "(highest(high, flagBars) - lowest(low, flagBars)) <= flatAtr * atr(atrLookback)",
+   "sides": "same",
+   "parameters": {
+    "flagBars": 10,
+    "flatAtr": 1.0,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "Highest, Lowest and an ATR over one fixed window; no pivots, no persistent state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "nothing in the catalog measures an N-bar range against ATR; AtrDollarsBelow measures ATR itself, BarRangeAboveStd a single bar"
+   },
+   "sources": [
+    "R08-28"
+   ],
+   "merge_notes": "R08-28 is 'three pushes AND the flag is flat'; only the flatness half is carried here (the three-push half is its own pane), and that half needs no pivots at all — the cheapest real rule in the bucket. R23-05's 'tall enough to fade' is this test negated at flatAtr 3.0, recorded there. DELIBERATELY not merged with FinalFlagCandidate's overlap test: per MERGE.md a tight range by bar overlap and one by N-bar width over ATR stay two rules until someone measures that they coincide. Likely near-duplicate of R22-01 (TightTradingRangeWidthTest) in context_regime_trading_range — the roll-up should check that pair before authoring both.",
+   "variants_kept_separate": [
+    "FinalFlagCandidate",
+    "ShrinkingConsecutiveRanges"
+   ],
+   "depends_on_keys": [],
+   "bucket": "three_push_patterns",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "OutsideOutsidePattern",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "An outside bar is immediately followed by a larger outside bar that engulfs it — Brooks's 'oo' pattern, a miniature expanding triangle in two bars.",
+   "pseudocode": "high[1] > high[2] && low[1] < low[2] && high[0] > high[1] && low[0] < low[1]",
+   "sides": "same",
+   "parameters": {},
+   "complexity": {
+    "grade": "simple",
+    "reason": "four fixed-offset price comparisons, no pivots, no state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "nearest family is the catalog's fixed-offset Harris patterns (HarrisFourBarPattern, InsideBar); no existing rule tests chained outside bars"
+   },
+   "sources": [
+    "R23-02",
+    "R00-11",
+    "V00-08",
+    "T07-28"
+   ],
+   "merge_notes": "The one candidate in the bucket that needs no pivot machinery at all. The source's extra '(high[0]-low[0]) > (high[1]-low[1])' term is implied by the engulfing comparisons and dropped as redundant.",
+   "variants_kept_separate": [
+    "ExpandingTrianglePattern"
+   ],
+   "depends_on_keys": [],
+   "bucket": "three_push_patterns",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "ShrinkingConsecutiveRanges",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The last N bars span less than a fraction of the span of the N bars before them — two consecutive flags with the second one smaller, which Brooks says sets up a wedge reversal on the next breakout.",
+   "pseudocode": "recent = highest(high, flagBars) - lowest(low, flagBars);\nprior  = highest(high, flagBars)[flagBars] - lowest(low, flagBars)[flagBars];\nrecent < shrinkFraction * prior",
+   "sides": "same",
+   "parameters": {
+    "flagBars": 8,
+    "shrinkFraction": 1.0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two Highest/Lowest windows and one comparison; no pivots"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V07-05"
+   ],
+   "merge_notes": "The source left 'smaller' undefined; shrinkFraction 1.0 reproduces Brooks's literal words ('the second one being smaller') and is the natural thing to optimize downward. Graded A rather than research because the mined 'horizontal flag' term reduces to the same fixed-window range measure as HorizontalFlagWidthTest, which is a separate AND-ed pane.",
+   "variants_kept_separate": [
+    "HorizontalFlagWidthTest"
+   ],
+   "depends_on_keys": [],
+   "bucket": "three_push_patterns",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "MinimumAbsoluteVolume",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's volume is at or above an absolute floor — a share or contract count, not a ratio. Brooks's liquidity / eligibility gate. Identical both sides.",
+   "pseudocode": "volume[0] >= minVolume",
+   "sides": "same",
+   "parameters": {
+    "minVolume": 3000000
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "one comparison against a constant"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "VolumeBelowAverage",
+    "relation": "variant",
+    "note": "both catalog volume rules measure volume against its own N-bar average; this is an absolute floor with no window at all"
+   },
+   "sources": [
+    "R24-06",
+    "V22-06",
+    "V10-02",
+    "RP1-12"
+   ],
+   "merge_notes": "One threshold test at four scales: 3M and 5M shares for daily stock selection, 25,000 and 100,000 Emini contracts intraday. Default 3,000,000; the input is instrument-specific either way. Register: the engine's `volume` is UP-TICKS, so an absolute count must read `ticks`.",
+   "variants_kept_separate": [
+    "VolumeAboveAverageMultiple",
+    "VolumeBelowAverageFraction"
+   ],
+   "depends_on_keys": [],
+   "bucket": "volume",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "VolumeBelowAverageFraction",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's volume is at or below a fraction of its own N-bar average volume — Brooks's 'quiet, low-volume market' gate. Identical both sides.",
+   "pseudocode": "volume[0] <= volumeFraction * average(volume, volLookback)",
+   "sides": "same",
+   "parameters": {
+    "volumeFraction": 0.8,
+    "volLookback": 20
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one rolling average-volume window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "VolumeBelowAverage",
+    "relation": "variant",
+    "note": "VolumeBelowAverage is this rule at volumeFraction = 1.0 with a strict <; the cheapest fix is to add a fraction input to the existing rule rather than author a second file"
+   },
+   "sources": [
+    "T06-24"
+   ],
+   "merge_notes": "Only the volume half of T06-24 is carried; its shaved-bar cluster count belongs to bar_anatomy. Brooks says only that 'the volume is low' — the 0.8 fraction is the miner's reading, not a book number. Register: `volume` is up-ticks, so this is an up-tick ratio.",
+   "variants_kept_separate": [
+    "VolumeAboveAverageMultiple",
+    "MinimumAbsoluteVolume"
+   ],
+   "depends_on_keys": [],
+   "bucket": "volume",
+   "el_words": [
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PauseBarBroad",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Brooks's BROAD pullback definition: any pause in the trend's momentum - the bar is an inside bar, OR a trend bar against the trend's direction, OR a doji. 'Any pause should be considered a pullback, even though there may be only sideways action and not an actual move backward.'",
+   "pseudocode": "isInsideBar(0) || close[0] < open[0] || abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "dojiBodyFraction": 0.25
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "an OR of three single/two-bar OHLC tests"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "InsideBar",
+    "relation": "variant",
+    "note": "InsideBar is one of the three disjuncts; the catalog rule alone fires on strictly fewer bars"
+   },
+   "sources": [
+    "RP3-02"
+   ],
+   "merge_notes": "Single source, and it must be one rule rather than three: the pane system ANDs entries, so an OR of three independently meaningful conditions is the one shape the pane CANNOT build from parts. Kept explicitly apart from PullbackBar (the strict lower-low definition) - Brooks states them as competing definitions in the same paragraph and says the broad one 'is more useful', but they fire on very different bar sets and nobody has measured the overlap. dojiBodyFraction is not in the source; bar_anatomy_trend_doji's DojiBar owns the threshold and this rule should take whatever that rule settles on.",
+   "variants_kept_separate": [
+    "PullbackBar",
+    "LowerHighPullbackBar"
+   ],
+   "depends_on_keys": [
+    "InsideBar",
+    "DojiBar"
+   ],
+   "bucket": "leg_counting",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "PriorSessionLevelTest",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar trades into one of the prior session's four reference prices - yesterday's high, low, open or close - within a tick tolerance. Long tests the level from below with the bar's low, short from above with the bar's high.",
+   "pseudocode": "level = priorSessionLevel(levelSelect)  /* 0 = high, 1 = low, 2 = open, 3 = close; on a daily series: high[1], low[1], open[1], close[1] */\nlow[0] <= level + toleranceTicks * tickSize && low[0] >= level - toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "levelSelect": 3,
+    "toleranceTicks": 2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed reference price and a two-sided tolerance comparison; on a daily series the reference is just the prior bar's OHLC"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "CloseAbovePriorHigh",
+    "relation": "variant",
+    "note": "CloseAbovePriorHigh is a strict break of a single BAR's high N bars back; this is a proximity test against a SESSION-level price, and it is a touch, not a break"
+   },
+   "sources": [
+    "RP2-01",
+    "R10-05",
+    "T03-18",
+    "V18-06"
+   ],
+   "merge_notes": "Brooks lists 'yesterday's high, low, open and close' as one group of magnets and every chapter restates the group (RP2-01 and R10-05 verbatim, T03-18 as a generic 'within a tolerance of yesterday's low, high, close or open'). One rule with a levelSelect input rather than four near-identical rules; the authoring pass may prefer to split it into PriorSessionExtremeTest (high/low, mirrored naturally) and PriorSessionCloseTest if a selector input is unwelcome. V18-06 is the same test at levelSelect = close plus a bull-trend-bar body filter (close > open and body >= 0.6 of range); that body half is a bar_anatomy rule and is not carried here, which leaves V18-06 as this rule at a fixed parameter. Tolerance: 1 tick (R10-05, V18-06), 2 ticks (RP2-01, T03-18); default 2. HighD/LowD/OpenD/CloseD have no register row - record as needed. On a daily series this rule needs no session model at all, which is why it is the one A in the bucket.",
+   "variants_kept_separate": [
+    "PremarketExtremeTest"
+   ],
+   "depends_on_keys": [],
+   "bucket": "time_session",
+   "el_words": [
+    "closed",
+    "date",
+    "highd",
+    "lowd",
+    "opend"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstTradingDayOfMonthFilter",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The current bar falls within the first few trading days of the calendar month.",
+   "pseudocode": "Day(Date(0)) <= firstOfMonthWindow",
+   "sides": "same",
+   "parameters": {
+    "firstOfMonthWindow": 1
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "a plain calendar-day comparison"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "DayOfWeekEntry/DayOfWeekAnyOf test weekday, not day-of-month; SeasonalHalfYear tests month, not day; no existing rule tests day-of-month."
+   },
+   "sources": [
+    "R31-12"
+   ],
+   "merge_notes": "Absorbed from the misc bucket (R31-12, DollarCostAverageFixedCalendarInterval): the book cites dollar-cost averaging as a scaling analogy -- buy a fixed FRACTION OF CAPITAL on a fixed calendar schedule regardless of price. The capital-allocation/scheduled-fraction-of-cash part is a portfolio feature the engine's single-position model does not expose and is dropped. The underlying calendar test reduces to a trivial, independently useful Entry filter and is kept atomically.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "trade_management",
+   "el_words": [
+    "date"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

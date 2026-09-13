@@ -1,0 +1,34 @@
+{
+    "name": "UpperTailCountInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "10",
+        "minCount": "4",
+        "tailFraction": "0.33"
+    },
+    "localVariables": {
+        "upperTailBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerTailBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: upperTailBars = CountIF(high - MaxList(open, close)\n//         >= tailFraction * (high - low), windowBars),\n// and the mirror on the lower tail for the short side.\n//\n// The LONG side counts UPPER tails, which is the BEARISH reading -- the same\n// orientation GrowingTopTails carries -- so a with-trend long filter negates\n// the placement.\n//\n// CountIF counts bars 0..N-1 INCLUDING the current bar and its argument is a\n// true SERIES (EL_FEATURES `countif`, VERIFIED): every price term shifts with\n// the counted bar, which is what this loop does. The counted terms are prices\n// with real history, so no zero-filled variable mirror is needed.\n//\n// MaxList / MinList select among open and close -- tick-grid PRICE operands,\n// the scope their ACCEPTED row allows -- so plain > / < stand in, exactly as\n// AverageUpperTailFraction writes the same selection.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero error\n// on a zero denominator and a zero-range bar is legal data.\n// The counts and the selections are class members and persist across bars, so\n// they are reset or reassigned before use.\nupperTailBars = 0.0;\nlowerTailBars = 0.0;\nfor (int i = 0; i < (int)windowBars; ++i) {\n    bodyTop = open[i];\n    if (close[i] > bodyTop) bodyTop = close[i];\n    bodyBottom = open[i];\n    if (close[i] < bodyBottom) bodyBottom = close[i];\n    if (el_ge(high[i] - bodyTop, tailFraction * (high[i] - low[i]))) {\n        upperTailBars = upperTailBars + 1;\n    }\n    if (el_ge(bodyBottom - low[i], tailFraction * (high[i] - low[i]))) {\n        lowerTailBars = lowerTailBars + 1;\n    }\n}",
+    "longCondition": "el_ge(upperTailBars, minCount)",
+    "shortCondition": "el_ge(lowerTailBars, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

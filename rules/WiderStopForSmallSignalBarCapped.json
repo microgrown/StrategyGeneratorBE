@@ -1,0 +1,31 @@
+{
+    "name": "WiderStopForSmallSignalBarCapped",
+    "type": "Exit",
+    "inputVariables": {
+        "smallBarRange": "1",
+        "widerStopOffset": "0.75",
+        "baseStopOffset": "0.25",
+        "maxStopDistance": "2"
+    },
+    "localVariables": {
+        "sigLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopOffsetUsed": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Signal bar captured on the fill bar, where BarsSinceEntry() is 0.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    sigLow = low[1];\n    sigHigh = high[1];\n}\n// A small signal bar invites an outside-bar stop run, so it gets the wider\n// offset; every other bar gets the base one. Written as if/else rather than a\n// ternary because EasyLanguage has no ternary.\nif (el_le(sigHigh - sigLow, smallBarRange)) {\n    stopOffsetUsed = widerStopOffset;\n} else {\n    stopOffsetUsed = baseStopOffset;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && (el_le(close[0], sigLow - stopOffsetUsed) || el_le(close[0], ctx.EntryPrice() - maxStopDistance))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && (el_ge(close[0], sigHigh + stopOffsetUsed) || el_ge(close[0], ctx.EntryPrice() + maxStopDistance))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

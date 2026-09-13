@@ -1,0 +1,47 @@
+{
+    "name": "TightChannel",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "10",
+        "netAtr": "2",
+        "pullbackAtr": "1",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "runHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and thereafter updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding it\n// to S += in - out rounds differently (@OJ 2015-02-20).\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\n// The window is walked OLDEST FIRST -- idx counts down from windowBars - 1 to\n// 0 -- so runHi is the running high of the bars up to and including idx and\n// pbUp is the deepest retracement below it. Walking newest first would measure\n// the distance to a FUTURE high, a different statistic. The EL twin runs the\n// same loop with an explicit idx variable, since EasyLanguage has no\n// descending for.\n// Every comparison here is an ordinary EL relational, including the ones on\n// computed price differences, so all of them go through el_gt/el_lt.\nrunHi = high[(int)windowBars - 1];\nrunLo = low[(int)windowBars - 1];\npbUp = 0.0;\npbDn = 0.0;\nfor (int k = 0; k < (int)windowBars; ++k) {\n    int idx = (int)windowBars - 1 - k;\n    if (el_gt(high[idx], runHi)) runHi = high[idx];\n    if (el_gt(runHi - low[idx], pbUp)) pbUp = runHi - low[idx];\n    if (el_lt(low[idx], runLo)) runLo = low[idx];\n    if (el_gt(high[idx] - runLo, pbDn)) pbDn = high[idx] - runLo;\n}",
+    "longCondition": "el_ge(close[0] - close[windowBars], netAtr * atrVal) && el_le(pbUp, pullbackAtr * atrVal)",
+    "shortCondition": "el_ge(close[windowBars] - close[0], netAtr * atrVal) && el_le(pbDn, pullbackAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

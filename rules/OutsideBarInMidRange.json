@@ -1,0 +1,32 @@
+{
+    "name": "OutsideBarInMidRange",
+    "type": "Entry",
+    "inputVariables": {
+        "lag": "1",
+        "rangeBars": "20",
+        "lowerBand": "0.33",
+        "upperBand": "0.67",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "rh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pos": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: rh = highest(h, rangeBars)[lag]; rl = lowest(l, rangeBars)[lag] --\n// the rangeBars-bar block ending at the signal bar, i.e. bars lag..lag+rangeBars-1.\n// EL highest/lowest bottom out in Extremes(), which is EL SOURCE: seeded at\n// the first bar of the window, scanning the rest with a strict,\n// tolerance-carrying comparison. So the loop below seeds first and uses\n// el_gt/el_lt for the scan (see Breakout and CloseAbovePriorHighestHigh).\nrh = high[lag];\nrl = low[lag];\nfor (int i = 1; i < (int)rangeBars; ++i) {\n    if (el_gt(high[(int)lag + i], rh)) rh = high[(int)lag + i];\n    if (el_lt(low[(int)lag + i], rl)) rl = low[(int)lag + i];\n}\n// The epsilon guards a zero-width block: EL raises a runtime divide-by-zero\n// error on a zero denominator (EL_FEATURES.md).\npos = ((high[lag] + low[lag]) / 2 - rl) / (rh - rl + epsilon);",
+    "longCondition": "el_ge(high[lag], high[lag + 1]) && el_le(low[lag], low[lag + 1]) && el_gt(pos, lowerBand) && el_lt(pos, upperBand)",
+    "shortCondition": "el_ge(high[lag], high[lag + 1]) && el_le(low[lag], low[lag + 1]) && el_gt(pos, lowerBand) && el_lt(pos, upperBand)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

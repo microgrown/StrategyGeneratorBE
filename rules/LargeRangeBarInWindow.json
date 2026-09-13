@@ -1,0 +1,30 @@
+{
+    "name": "LargeRangeBarInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "window": "1",
+        "rangeMultiple": "2",
+        "lookback": "15"
+    },
+    "localVariables": {
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigBar": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: bigBar = false; for ii = 0 to window - 1: sum high - low over the\n// lookback bars ending at ii + 1, divide by lookback, and set bigBar when\n// high[ii] - low[ii] >= rangeMultiple * that mean.\n// The benchmark EXCLUDES the bar being judged, so a huge bar cannot raise its\n// own benchmark. The EL twin writes the mean as an inner for loop rather than\n// Average(high - low, lookback)[ii + 1] because a function-history reference at\n// a loop-variable offset is not a behaviour the register covers; the value is\n// the same, since Average recomputes from scratch every bar (EL_Summation_Probe,\n// 2,808/2,808) over a price expression with real history. Summed newest-first,\n// EL's Summation order, and divided by the same (int) bound the loop uses.\n// high - low, not TrueRange and not the WFSafe_ rolling accumulator: gaps are\n// excluded, which is what separates this from BarRangeAboveAtrMultiple.\n// Scratch locals persist across bars, so all three are reset before use.\nbigBar = false;\nfor (int i = 0; i < (int)window; ++i) {\n    rangeSum = 0.0;\n    for (int j = 0; j < (int)lookback; ++j) {\n        rangeSum = rangeSum + (high[i + 1 + j] - low[i + 1 + j]);\n    }\n    avgRange = rangeSum / (int)lookback;\n    if (el_ge(high[i] - low[i], rangeMultiple * avgRange)) {\n        bigBar = true;\n    }\n}",
+    "longCondition": "bigBar",
+    "shortCondition": "bigBar",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

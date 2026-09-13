@@ -1,0 +1,24 @@
+{
+  "name": "FirstTradingDayOfMonthFilter",
+  "type": "Entry",
+  "inputVariables": {
+    "firstOfMonthWindow": "1"
+  },
+  "localVariables": {
+    "dayIndex": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "curMonth": {
+      "type": "int",
+      "init": "0"
+    },
+    "prevMonth": {
+      "type": "int",
+      "init": "0"
+    }
+  },
+  "preConditionHook": "// EL twin: on a month change (month(date) <> month(date[1])) set dayIndex to\n// 1; otherwise, on a new date (date <> date[1]) with dayIndex already at least\n// 1, add one to it.\n//\n// TRADING days, not calendar days. The source writes day(date) <= N, the day\n// of the MONTH, which counts weekends and holidays -- and `dayofmonth` has no\n// EL_FEATURES row in any case. dayIndex counts the distinct wall-clock DATES\n// seen since the month rolled over, which is what \"the first few trading days\"\n// means, and needs only `month` and `date`, both registered.\n//\n// `date` is the bar's wall-clock closing date, not its session date\n// (EL_Date_Probe.txt: year/month/dayofmonth/dayofweek agree with\n// civil_from_days(day_of(ctx.Time(0))) on 169/169 bars, 50 of them evening\n// bars). date[1] is a DATA series with real history -- MaxBarsBack bars\n// precede the strategy's first evaluated bar -- so ctx.Time(1) needs no\n// first-bar guard, exactly as CalendarBoundaryExit notes.\n//\n// dayIndex is an EL VARIABLE and starts at 0, and the increment branch is\n// gated on dayIndex >= 1, so it stays 0 until the first month boundary the\n// strategy sees: the partial month at the chart start never fires.\n//\n// On a daily or 1440-minute series every bar is its own date, so dayIndex is\n// the trading day of the month; on finer bars it holds at 1 for every bar of\n// the month's first session.\ncurMonth = civil_from_days(day_of(ctx.Time(0))).month;\nprevMonth = civil_from_days(day_of(ctx.Time(1))).month;\nif (curMonth != prevMonth) {\n    dayIndex = 1.0;\n} else if (day_of(ctx.Time(0)) != day_of(ctx.Time(1)) && el_ge(dayIndex, 1)) {\n    dayIndex = dayIndex + 1.0;\n}",
+  "longCondition": "el_ge(dayIndex, 1) && el_le(dayIndex, firstOfMonthWindow)",
+  "shortCondition": "el_ge(dayIndex, 1) && el_le(dayIndex, firstOfMonthWindow)"
+}

@@ -1,0 +1,44 @@
+{
+    "name": "ClimaxBarAfterTrendRunExit",
+    "type": "Exit",
+    "inputVariables": {
+        "bodyFraction": "0.6",
+        "bigBarMultiple": "2",
+        "atrLookback": "20",
+        "lookback": "10",
+        "minTrendBars": "5"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "priorBullBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorBearBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks: 'a big bull trend bar after five to 10 bull trend bars is a buy\n// climax and is likely to be followed by 10 or more sideways to down bars' --\n// so take the profit rather than reverse.\n//\n// An Exit, so the conjunction is legitimately one rule: exits are ORed by the\n// pane, and each half alone would leave the trade far too early. The catalog's\n// ClimaxBar is the bar-0 half as an ENTRY and cannot be ANDed into the exit\n// pane, which is why this is not a duplicate of it.\n//\n// The count runs over bars 1..lookback, deliberately EXCLUDING bar 0, so the\n// climax bar is not counted into its own run. Written as an explicit loop\n// rather than CountIF(...)[1]: a function-history reference on a count is not\n// a behaviour the register covers, and the loop states the window directly.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget and ClimaxBar, including the TWO\n// separate accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently and lands on the other side of a threshold.\n// It stays in the hook, which the generator emits unconditionally: EL does not\n// short-circuit and/or, so an accumulator in a condition would advance every\n// bar in EL and only on some bars in C++.\n//\n// Deepest bar read is the larger of lookback and atrLookback + 1.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\npriorBullBars = 0.0;\npriorBearBars = 0.0;\nfor (kk = 1; kk <= (int)lookback; ++kk) {\n    if (el_gt(close[kk], open[kk])\n        && el_ge(close[kk] - open[kk], bodyFraction * (high[kk] - low[kk]))) {\n        priorBullBars += 1;\n    }\n    if (el_lt(close[kk], open[kk])\n        && el_ge(open[kk] - close[kk], bodyFraction * (high[kk] - low[kk]))) {\n        priorBearBars += 1;\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])) && el_gt(high[0] - low[0], bigBarMultiple * atrValue) && el_ge(priorBullBars, minTrendBars)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])) && el_gt(high[0] - low[0], bigBarMultiple * atrValue) && el_ge(priorBearBars, minTrendBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

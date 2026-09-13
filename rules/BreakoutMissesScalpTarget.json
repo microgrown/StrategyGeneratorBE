@@ -1,0 +1,34 @@
+{
+    "name": "BreakoutMissesScalpTarget",
+    "type": "Entry",
+    "inputVariables": {
+        "swingLookback": "20",
+        "pullbackWindow": "5",
+        "scalpDistance": "1"
+    },
+    "localVariables": {
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Two backward-looking Extremes windows, offset against each other:\n//   recent  = Highest(high, pullbackWindow)          bars 0..pullbackWindow-1\n//   prior   = Highest(high[pullbackWindow], swingLookback)\n//                                bars pullbackWindow..pullbackWindow+swingLookback-1\n// The breakout's travel is the difference. Nothing peeks ahead: the evaluation\n// bar is a bar of the pullback.\n// Extremes is EL SOURCE -- seeded on the window's first bar, strict comparison\n// so a tie keeps the earliest bar, and it carries the relational tolerance.\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (int i = 1; i < (int)pullbackWindow; ++i) {\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n}\npriorHigh = high[(int)pullbackWindow];\npriorLow = low[(int)pullbackWindow];\nfor (int i = (int)pullbackWindow + 1; i < (int)pullbackWindow + (int)swingLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}",
+    "longCondition": "el_lt(recentHigh - priorHigh, scalpDistance)",
+    "shortCondition": "el_lt(priorLow - recentLow, scalpDistance)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

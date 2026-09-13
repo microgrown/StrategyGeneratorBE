@@ -1,0 +1,28 @@
+{
+    "name": "SmallTailsBar",
+    "type": "Entry",
+    "inputVariables": {
+        "tailFraction": "0.15"
+    },
+    "localVariables": {
+        "topTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "botTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: topTail = high - maxlist(open, close); botTail = minlist(open, close) -\n// low. Both measured from the body edge, so the test does not care which way\n// the bar closed. MinList/MaxList are ACCEPTED for tick-grid PRICE operands\n// only (EL_FEATURES.md), and the open and the close are raw prices -- they\n// differ by exactly 0 or by at least one tick, 1e9-1e11x the 2.22e-12\n// relational tolerance -- so the plain ternary stand-in is exact, the same\n// arrangement BarOverlapFraction uses. (<algorithm> is not among the emitted\n// includes, so no std::min/std::max.)\n//\n// No body term and no direction, which is the whole difference from\n// StrongTrendBar: a shaved doji passes this and fails that. Multiplied, never\n// a ratio, so a zero-range bar reads 0 <= 0 on both tails and passes instead\n// of raising EL's runtime divide-by-zero.\ntopTail = high[0] - (open[0] > close[0] ? open[0] : close[0]);\nbotTail = (open[0] < close[0] ? open[0] : close[0]) - low[0];\nbarRange = high[0] - low[0];",
+    "longCondition": "el_le(topTail, tailFraction * barRange) && el_le(botTail, tailFraction * barRange)",
+    "shortCondition": "el_le(topTail, tailFraction * barRange) && el_le(botTail, tailFraction * barRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

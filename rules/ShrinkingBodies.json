@@ -1,0 +1,28 @@
+{
+    "name": "ShrinkingBodies",
+    "type": "Entry",
+    "inputVariables": {
+        "barCount": "3"
+    },
+    "localVariables": {
+        "shrinkUp": {
+            "type": "bool",
+            "init": "true"
+        },
+        "shrinkDown": {
+            "type": "bool",
+            "init": "true"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks stage 1 of the bull-trend weakening checklist: every one of the last\n// barCount bars closed up, and each body is strictly smaller than the body of\n// the bar before it. The comparison spans two bars, so no single-bar body rule\n// can express it, and no pair of panes can either.\n//\n// All-of-N, written the way StrongTrendBarRun writes it -- start true and let\n// any failing bar clear the flag -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. Both sides are\n// computed here rather than in the conditions for the same reason.\n//\n// The pair comparison is guarded by kk <= barCount - 2 INSIDE the single loop\n// rather than run as a second loop over 0..barCount-2, so no loop is ever\n// asked to run with a limit below its start. Deepest bar read is therefore\n// barCount - 1.\n//\n// Bodies are compared as DIFFERENCES, never as a ratio: EL raises a runtime\n// divide-by-zero and a doji body of exactly 0 is legal data.\n//\n// The flags are class members and persist across bars; both are reset at the\n// top of the hook rather than relied on to start true.\nshrinkUp = true;\nshrinkDown = true;\nfor (kk = 0; kk < (int)barCount; ++kk) {\n    if (el_le(close[kk], open[kk])) shrinkUp = false;\n    if (el_ge(close[kk], open[kk])) shrinkDown = false;\n    if (kk <= (int)barCount - 2) {\n        if (el_ge(close[kk] - open[kk], close[kk + 1] - open[kk + 1])) shrinkUp = false;\n        if (el_ge(open[kk] - close[kk], open[kk + 1] - close[kk + 1])) shrinkDown = false;\n    }\n}",
+    "longCondition": "shrinkUp",
+    "shortCondition": "shrinkDown",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

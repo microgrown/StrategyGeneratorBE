@@ -1,0 +1,21 @@
+{
+    "name": "LargeGapVsAverageRange",
+    "type": "Entry",
+    "inputVariables": {
+        "gapRangeFraction": "0.5",
+        "rangeLookback": "20"
+    },
+    "localVariables": {
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgRange = average(h - l, rangeLookback), the window INCLUSIVE of\n// the current bar as the source writes it. Average recomputes from scratch\n// every bar (EL_Summation_Probe, 2,808/2,808) and h - l is a price\n// expression with real history, so this is a fresh loop over price -- not the\n// WFSafe_AvgTrueRange rolling accumulator and not a mirrored variable buffer.\n// Summed newest-first, EL's Summation order.\n//\n// The gap itself is the whole-range non-overlap test (low[0] above high[1]), the\n// same relation TrueGapBar states alone; what this rule adds is the size term,\n// Brooks's 'larger than about half of the average daily range'.\navgRange = 0.0;\nfor (int i = 0; i < (int)rangeLookback; ++i) {\n    avgRange += high[i] - low[i];\n}\navgRange /= (int)rangeLookback;",
+    "longCondition": "el_gt(low[0], high[1]) && el_ge(low[0] - high[1], gapRangeFraction * avgRange)",
+    "shortCondition": "el_lt(high[0], low[1]) && el_ge(low[1] - high[0], gapRangeFraction * avgRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

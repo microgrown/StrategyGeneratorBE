@@ -1,0 +1,23 @@
+{
+    "name": "ExitOnWeakFollowThrough",
+    "type": "Exit",
+    "inputVariables": {
+        "largeBodyFraction": "1",
+        "rangeLookback": "20",
+        "weakBodyFraction": "0.3",
+        "maxBarsAfterSpike": "2"
+    },
+    "localVariables": {
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgRange = Average(high[1] - low[1], rangeLookback) -- the mean bar range\n// over the rangeLookback bars ENDING ONE BAR AGO, the window that produced the\n// spike bar rather than one that includes the weak follow-through bar being\n// judged. The shifted series argument makes Summation read bars 1..rangeLookback.\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808)\n// and high - low is a price expression with real history, so this is a fresh\n// loop over price -- NOT the WFSafe_AvgTrueRange rolling accumulator and not a\n// mirrored variable buffer. Summed newest-first, EL's Summation order.\n// The weak test uses the SIGNED body (close - open), not its absolute value:\n// a bar that closes against the trade is weak whatever its size, which is what\n// the source means. Products, not quotients -- EL raises a runtime\n// divide-by-zero and a bar whose high equals its low is legal data.\navgRange = 0.0;\nfor (int i = 1; i <= (int)rangeLookback; ++i) {\n    avgRange += high[i] - low[i];\n}\navgRange /= (int)rangeLookback;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le((double)ctx.BarsSinceEntry(), maxBarsAfterSpike) && el_gt(close[1], open[1]) && el_ge(close[1] - open[1], largeBodyFraction * avgRange) && (el_lt(close[0] - open[0], weakBodyFraction * (high[0] - low[0])) || el_lt(close[0], close[1]))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le((double)ctx.BarsSinceEntry(), maxBarsAfterSpike) && el_lt(close[1], open[1]) && el_ge(open[1] - close[1], largeBodyFraction * avgRange) && (el_lt(open[0] - close[0], weakBodyFraction * (high[0] - low[0])) || el_gt(close[0], close[1]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

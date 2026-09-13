@@ -1,0 +1,33 @@
+{
+    "name": "OppositeLargeBarPair",
+    "type": "Entry",
+    "inputVariables": {
+        "bigBarMultiple": "1.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: atrValue = WFSafe_AvgTrueRange(atrLookback); the condition reads\n// atrValue for this bar and atrValue[1] for the previous one.\n// atrPrev is taken BEFORE the accumulator is advanced, so it holds exactly what\n// the EL variable's own history would return: 0 for bars before the strategy's\n// first evaluated one (both start at 0.0), the prior bar's value after -- the\n// zero-padded variable warm-up AtrRising documents. Only lag 1 is needed, so a\n// single carried value replaces the ring buffer.\natrPrev = atrValue;\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, and updated\n// thereafter as S += TrueRange - TrueRange[Length] in TWO statements (EL evaluates\n// S[1] + in - out left to right; folding it to S += in - out rounds\n// differently). atrLength != atrLookback re-seeds, as the WFSafe_ wrappers do\n// when a walkforward re-optimization changes the length. See AtrProfitTarget.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\n// The opposite-direction test is written as two explicit branches rather than\n// as a not-equal between two booleans: a doji (close = open) has no direction\n// and satisfies neither branch, which is what 'closed in opposite directions'\n// means, and it keeps the test to ordinary EL relationals -- the same reading\n// OppositeLargeBarsInWindow uses.",
+    "longCondition": "el_ge(high[1] - low[1], bigBarMultiple * atrPrev) && el_ge(high[0] - low[0], bigBarMultiple * atrValue) && ((el_gt(close[1], open[1]) && el_lt(close[0], open[0])) || (el_lt(close[1], open[1]) && el_gt(close[0], open[0])))",
+    "shortCondition": "el_ge(high[1] - low[1], bigBarMultiple * atrPrev) && el_ge(high[0] - low[0], bigBarMultiple * atrValue) && ((el_gt(close[1], open[1]) && el_lt(close[0], open[0])) || (el_lt(close[1], open[1]) && el_gt(close[0], open[0])))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

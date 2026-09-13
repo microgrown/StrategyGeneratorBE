@@ -1,0 +1,37 @@
+{
+  "name": "ShrinkingConsecutiveRanges",
+  "type": "Entry",
+  "inputVariables": {
+    "flagBars": "8",
+    "shrinkFraction": "1"
+  },
+  "localVariables": {
+    "recentSpan": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "priorSpan": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "recentHigh": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "recentLow": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "priorHigh": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "priorLow": {
+      "type": "double",
+      "init": "0.0"
+    }
+  },
+  "preConditionHook": "// EL:\n//   recentSpan = highest(h, flagBars) - lowest(l, flagBars);\n//   priorSpan  = highest(h, flagBars)[flagBars] - lowest(l, flagBars)[flagBars];\n// written lowercase as the feature register does.\n// The recent window INCLUDES the current bar (bars 0..flagBars-1); the prior\n// window is the same window shifted back by its own length (bars\n// flagBars..2*flagBars-1), which is what the [flagBars] offset on a Highest\n// means.\n//\n// highest/lowest bottom out in Extremes(), which is EL SOURCE: seeded at the\n// first bar of its window, scanning the rest with a strict, tolerance-carrying\n// comparison, so a tie keeps the earliest bar. Written out with el_gt/el_lt as\n// Breakout does.\n//\n// Every scratch value is a declared local, not a hook-scope declaration, so a\n// second placement of this rule gets its own prefixed copy.\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (int i = 1; i < (int)flagBars; ++i) {\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n}\npriorHigh = high[(int)flagBars];\npriorLow = low[(int)flagBars];\nfor (int i = (int)flagBars + 1; i < 2 * (int)flagBars; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nrecentSpan = recentHigh - recentLow;\npriorSpan = priorHigh - priorLow;",
+  "longCondition": "el_lt(recentSpan, shrinkFraction * priorSpan)",
+  "shortCondition": "el_lt(recentSpan, shrinkFraction * priorSpan)"
+}

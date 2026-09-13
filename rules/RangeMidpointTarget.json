@@ -1,0 +1,33 @@
+{
+    "name": "RangeMidpointTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "rangeLookback": "40",
+        "toleranceFraction": "0.01"
+    },
+    "localVariables": {
+        "priorRangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorRangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetMid": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetBand": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The magnetic middle: a breakout attempt inside a trading range gets pulled\n// back to the range's midpoint, so take profit there. The window is the N bars\n// ENDING ONE BAR AGO, so the target level does not move with the bar that\n// reaches it.\n//\n// TICK UNITS: the merged pseudocode placed the target toleranceTicks x tickSize\n// short of the midpoint. A tick cannot be converted to price without MinMove /\n// PriceScale, neither of which is registered in EL_FEATURES, so the tolerance\n// is a FRACTION OF THE RANGE HEIGHT instead -- portable across instruments and\n// free, since both extremes are already computed here. At the 0.01 default the\n// band is 1% of the range's own height.\n//\n// EL: highest(high, rangeLookback)[1] -- lowercase, as the feature register\n// writes it -- is the previous bar's highest, the N bars ending one bar ago,\n// i.e. today's high[1..rangeLookback]. It bottoms out in Extremes(), EL SOURCE: seeded at the first bar of its window, scanning\n// the rest with a strict, tolerance-carrying comparison (see Breakout), so this\n// seeds at high[1] and scans high[2..rangeLookback] with el_gt/el_lt --\n// CloseAbovePriorHighestHigh is the reference for the offset window.\npriorRangeHigh = high[1];\npriorRangeLow = low[1];\nfor (int i = 2; i <= (int)rangeLookback; ++i) {\n    if (el_gt(high[i], priorRangeHigh)) priorRangeHigh = high[i];\n    if (el_lt(low[i], priorRangeLow)) priorRangeLow = low[i];\n}\ntargetMid = (priorRangeHigh + priorRangeLow) / 2;\ntargetBand = toleranceFraction * (priorRangeHigh - priorRangeLow);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], targetMid - targetBand)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], targetMid + targetBand)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

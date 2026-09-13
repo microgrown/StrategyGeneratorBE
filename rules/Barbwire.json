@@ -1,0 +1,41 @@
+{
+    "name": "Barbwire",
+    "type": "Entry",
+    "inputVariables": {
+        "barbwireOverlapFraction": "0.5",
+        "dojiBodyFraction": "0.2"
+    },
+    "localVariables": {
+        "middleOverlap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dojiCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "nbHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "nbLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "topEdge": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "botEdge": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's barbwire, mechanized per R22-03: how much of the MIDDLE bar of the\n// last three lies inside the block its two neighbours span, plus a doji\n// somewhere in the three.\n//\n// EL, written lowercase as the feature register does (EasyLanguage is\n// case-insensitive): minlist(high[1], maxlist(high, high[2])) - maxlist(low[1],\n// minlist(low, low[2])). maxlist/minlist are ACCEPTED in EL_FEATURES only for selection\n// among tick-grid PRICE operands, which is exactly this case -- the operands\n// are raw highs and lows, so any two of them are equal or differ by at least a\n// tick, 1e9-1e11x the 2.22e-12 relational tolerance. Whether maxlist carries\n// that tolerance therefore cannot change the selection, and the plain C++\n// comparisons below stand in for it. Every scratch value is a declared local,\n// not a hook-scope declaration, so a second placement of this rule gets its\n// own prefixed copy.\n//\n// No clamp on a non-overlapping middle bar: middleOverlap simply goes negative\n// and the condition's right-hand side is never negative, so the test fails --\n// the same outcome BarOverlapFraction reaches with an explicit clamp, and the\n// EasyLanguage twin is the unclamped expression.\nnbHigh = high[2];\nif (high[0] > nbHigh) nbHigh = high[0];\nnbLow = low[2];\nif (low[0] < nbLow) nbLow = low[0];\ntopEdge = high[1];\nif (nbHigh < topEdge) topEdge = nbHigh;\nbotEdge = low[1];\nif (nbLow > botEdge) botEdge = nbLow;\nmiddleOverlap = topEdge - botEdge;\n// EL: countif(absvalue(close - open) <= dojiBodyFraction * (high - low), 3).\n// countif counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true series, so bar i tests its own body against its own\n// range (EL_FEATURES `countif`, VERIFIED). The counted condition is on prices,\n// which have real history, so no zero-filled variable mirror is needed. The\n// window is 3 because barbwire is a three-bar pattern -- structural, not\n// tunable. dojiBodyFraction's 0.2 default matches the merged DojiBar rule so\n// the corpus agrees on what a doji is.\ndojiCount = 0.0;\nfor (int i = 0; i < 3; ++i) {\n    if (el_le(std::fabs(close[i] - open[i]), dojiBodyFraction * (high[i] - low[i]))) {\n        dojiCount += 1;\n    }\n}",
+    "longCondition": "el_ge(middleOverlap, barbwireOverlapFraction * (high[1] - low[1])) && el_gt(dojiCount, 0)",
+    "shortCondition": "el_ge(middleOverlap, barbwireOverlapFraction * (high[1] - low[1])) && el_gt(dojiCount, 0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

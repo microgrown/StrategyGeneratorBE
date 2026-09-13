@@ -1,0 +1,45 @@
+{
+    "name": "LargestBearBodyVsAverageBullBody",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "bodyMultiple": "1.5"
+    },
+    "localVariables": {
+        "maxDownBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxUpBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sumUpBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sumDownBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The largest COUNTERTREND body of the last lookback bars is smaller than\n// bodyMultiple times the average WITH-trend body over the same window: no\n// outsized bear bar has shown up in the bull move yet. Place it negated for\n// Brooks's 'larger bear bars are appearing', a two-sidedness warning.\n//\n// An extreme against a mean, which is what keeps it apart from both dominance\n// rules (they compare two sums) and from BodyAboveAverageMultiple (which sizes\n// the CURRENT bar against a mean).\n//\n// Non-qualifying bars contribute ZERO rather than being skipped, so both\n// window statistics stay defined over a fixed denominator of lookback bars.\n// The clamp is a plain if against a running 0, NOT MaxList(x, 0): MaxList is\n// ACCEPTED only for selection among tick-grid PRICE operands and a body is a\n// computed difference -- the same call BarOverlapFraction and\n// ConsecutiveBarsLittleOverlap make.\n//\n// The averages are never divided out. 'max < K * sum / N' is written\n// 'max * N < K * sum', so the rule cannot raise EL's runtime divide-by-zero on\n// a degenerate lookback, and both twins evaluate the identical product form.\n//\n// Every scratch value is a declared local rather than a hook-scope\n// declaration, so a second placement of this rule gets its own prefixed copy,\n// and all of them are reset at the top of the hook. Deepest bar read is\n// lookback - 1.\nmaxDownBody = 0.0;\nmaxUpBody = 0.0;\nsumUpBody = 0.0;\nsumDownBody = 0.0;\nfor (kk = 0; kk < (int)lookback; ++kk) {\n    upBody = 0.0;\n    if (el_gt(close[kk], open[kk])) upBody = close[kk] - open[kk];\n    dnBody = 0.0;\n    if (el_lt(close[kk], open[kk])) dnBody = open[kk] - close[kk];\n    if (el_gt(upBody, maxUpBody)) maxUpBody = upBody;\n    if (el_gt(dnBody, maxDownBody)) maxDownBody = dnBody;\n    sumUpBody = sumUpBody + upBody;\n    sumDownBody = sumDownBody + dnBody;\n}",
+    "longCondition": "el_lt(maxDownBody * lookback, bodyMultiple * sumUpBody)",
+    "shortCondition": "el_lt(maxUpBody * lookback, bodyMultiple * sumDownBody)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

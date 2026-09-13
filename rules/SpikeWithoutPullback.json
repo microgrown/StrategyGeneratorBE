@@ -1,0 +1,33 @@
+{
+    "name": "SpikeWithoutPullback",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "5",
+        "maxPullbackBars": "1"
+    },
+    "localVariables": {
+        "downBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "twoDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "twoUp": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CountIF counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true series (EL_FEATURES `countif`, VERIFIED). The counted\n// condition is on PRICES, which have real history back to the chart start,\n// so no zero-filled variable mirror is needed. The counts are EL numeric\n// variables, kept as doubles; every comparison is an EL relational.\ndownBars = 0.0;\nupBars = 0.0;\ntwoDown = false;\ntwoUp = false;\nfor (int i = 0; i < (int)spikeBars; ++i) {\n    if (el_lt(close[i], open[i])) downBars += 1;\n    if (el_gt(close[i], open[i])) upBars += 1;\n}\nfor (int i = 0; i <= (int)spikeBars - 2; ++i) {\n    if (el_lt(close[i], open[i]) && el_lt(close[i + 1], open[i + 1])) twoDown = true;\n    if (el_gt(close[i], open[i]) && el_gt(close[i + 1], open[i + 1])) twoUp = true;\n}",
+    "longCondition": "el_gt(close[0], close[spikeBars]) && el_le(downBars, maxPullbackBars) && !twoDown",
+    "shortCondition": "el_lt(close[0], close[spikeBars]) && el_le(upBars, maxPullbackBars) && !twoUp",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

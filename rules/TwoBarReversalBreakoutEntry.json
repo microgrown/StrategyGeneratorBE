@@ -1,0 +1,24 @@
+{
+    "name": "TwoBarReversalBreakoutEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyFraction": "0.5"
+    },
+    "localVariables": {
+        "pairHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pairLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: pairHigh = MaxList(high[1], high[2]); pairLow = MinList(low[1], low[2]);\n// and the entry test close[2] < open[2] and close[1] > open[1] and\n// close[1] - open[1] >= bodyFraction * (high[1] - low[1]) and close > pairHigh.\n//\n// Entering beyond BOTH bars of the reversal pair is the whole point: it avoids\n// the one-tick trap at the signal bar's extreme, and it makes this a different\n// trigger bar from TwoBarReversal, which fires on the pair itself.\n//\n// MaxList / MinList select among high[1] / high[2] and low[1] / low[2] -- tick\n// grid PRICE operands, the scope the ACCEPTED register row allows, where the\n// two candidates differ by zero or by at least one tick (1e9-1e11 times the\n// 2.22e-12 relational tolerance), so which comparison the selection carries\n// cannot matter and a plain > / < stands in. AverageUpperTailFraction does the\n// same for its body-top selection.\n//\n// The selections persist across bars as class members, so both are assigned\n// unconditionally every bar rather than left over from the last one.\npairHigh = high[1];\nif (high[2] > pairHigh) pairHigh = high[2];\npairLow = low[1];\nif (low[2] < pairLow) pairLow = low[2];",
+    "longCondition": "el_lt(close[2], open[2]) && el_gt(close[1], open[1]) && el_ge(close[1] - open[1], bodyFraction * (high[1] - low[1])) && el_gt(close[0], pairHigh)",
+    "shortCondition": "el_gt(close[2], open[2]) && el_lt(close[1], open[1]) && el_ge(open[1] - close[1], bodyFraction * (high[1] - low[1])) && el_lt(close[0], pairLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,40 @@
+{
+  "name": "TrendingBarBodies",
+  "type": "Entry",
+  "inputVariables": {
+    "trendBars": "3"
+  },
+  "localVariables": {
+    "upBodies": {
+      "type": "bool",
+      "init": "true"
+    },
+    "downBodies": {
+      "type": "bool",
+      "init": "true"
+    },
+    "ii": {
+      "type": "int",
+      "init": "0"
+    },
+    "topNow": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "botNow": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "topPrev": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "botPrev": {
+      "type": "double",
+      "init": "0.0"
+    }
+  },
+  "preConditionHook": "// EL: upBodies/downBodies cleared by any failing pair over 0..trendBars-1,\n// where the pair test is maxlist(o[i], c[i]) vs maxlist(o[i+1], c[i+1]) and\n// the same on minlist (lowercase as the feature register writes it). All-of-N, written as\n// TrendingHighsAndLows writes it: start true, let a failing pair clear it, so\n// a tie on either body edge fails BOTH sides.\n//\n// maxlist/minlist are ACCEPTED in EL_FEATURES only for selection among\n// tick-grid PRICE operands. These operands are raw opens and closes, so any two\n// of them are equal or differ by at least a tick -- 1e9-1e11x the 2.22e-12\n// relational tolerance -- and whether maxlist carries that tolerance cannot\n// change the selection. The plain C++ comparisons here stand in for it, the\n// same substitution Barbwire makes.\n//\n// Every scratch value is a declared local, not a hook-scope declaration, so a\n// second placement of this rule gets its own prefixed copy.\nupBodies = true;\ndownBodies = true;\nfor (ii = 0; ii < (int)trendBars; ++ii) {\n    topNow = open[ii];\n    if (close[ii] > topNow) topNow = close[ii];\n    botNow = open[ii];\n    if (close[ii] < botNow) botNow = close[ii];\n    topPrev = open[ii + 1];\n    if (close[ii + 1] > topPrev) topPrev = close[ii + 1];\n    botPrev = open[ii + 1];\n    if (close[ii + 1] < botPrev) botPrev = close[ii + 1];\n    if (el_le(topNow, topPrev) || el_le(botNow, botPrev)) upBodies = false;\n    if (el_ge(topNow, topPrev) || el_ge(botNow, botPrev)) downBodies = false;\n}",
+  "longCondition": "upBodies",
+  "shortCondition": "downBodies"
+}

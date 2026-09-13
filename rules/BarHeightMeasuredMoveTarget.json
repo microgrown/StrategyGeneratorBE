@@ -1,0 +1,34 @@
+{
+    "name": "BarHeightMeasuredMoveTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "refBar": "1",
+        "multiple": "1",
+        "tolerancePoints": "0.25"
+    },
+    "localVariables": {
+        "barHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "refHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "refLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The single-bar measured move: project one bar's own high-low height beyond\n// that bar's far extreme. PatternHeightMeasuredMoveTarget with the reference\n// window collapsed to one bar, which is why it needs no window state.\n// The reference bar is read UNCONDITIONALLY: EasyLanguage does not\n// short-circuit (EL_LogicalEval_Probe), so the subscript is reached on every\n// bar however it is guarded, and Max Bars Back must cover refBar regardless.\n// Only the freeze is conditional. BarsSinceEntry() is 0 on the fill bar and 0\n// while flat (VERIFIED), so refBar = 1 is the SIGNAL bar under the standing\n// signal-bar-close / next-bar-open convention, and the capture re-arms on\n// every flat bar. Freezing at entry -- rather than recomputing off the rolling\n// offset -- is what holds the target still while the position is open.\n// refBar is a double input used as a subscript; the narrowing is deliberate.\n// tolerancePoints is in PRICE UNITS: MinMove / PriceScale are UNKNOWN.\nbarHigh = high[refBar];\nbarLow = low[refBar];\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    refHigh = barHigh;\n    refLow = barLow;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], refHigh + multiple * (refHigh - refLow) - tolerancePoints)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], refLow - multiple * (refHigh - refLow) + tolerancePoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

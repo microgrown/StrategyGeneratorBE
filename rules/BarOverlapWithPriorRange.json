@@ -1,0 +1,29 @@
+{
+    "name": "BarOverlapWithPriorRange",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "3",
+        "overlapFraction": "0.3"
+    },
+    "localVariables": {
+        "ph": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ov": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: ph = highest(h, lookback)[1]; pl = lowest(l, lookback)[1] -- the block\n// of lookback bars ending one bar ago, i.e. bars 1..lookback.\n// EL highest/lowest bottom out in Extremes(), which is EL SOURCE: seeded at\n// the first bar of the window, scanning the rest with a strict,\n// tolerance-carrying comparison. So the loop below seeds first and uses\n// el_gt/el_lt for the scan (see Breakout and CloseAbovePriorHighestHigh).\nph = high[1];\npl = low[1];\nfor (int i = 2; i <= (int)lookback; ++i) {\n    if (el_gt(high[i], ph)) ph = high[i];\n    if (el_lt(low[i], pl)) pl = low[i];\n}\n// EL: ov = minlist(h, ph) - maxlist(l, pl). Both operands of each selection\n// are traded prices (a bar extreme against a window extreme).\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md): these operands are bar extremes, so they differ by\n// exactly 0 or by at least one tick -- 1e9-1e11x the relational tolerance --\n// and whichever comparison the reserved word carries cannot matter. The\n// plain ternary stand-in is therefore exact, the same arrangement\n// TwoBarRangePosition and AtrProfitTarget use. (<algorithm> is not among\n// the emitted includes, so no std::min/std::max.)\nov = (high[0] < ph ? high[0] : ph) - (low[0] > pl ? low[0] : pl);",
+    "longCondition": "el_le(ov, overlapFraction * (ph - pl))",
+    "shortCondition": "el_le(ov, overlapFraction * (ph - pl))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,447 @@
+{
+ "slice": "06_breakouts.json",
+ "rules": [
+  {
+   "key": "KeyTimeProximity",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's close time is within one bar of any of a short list of scheduled clock times (the book's PST list: 7:00, 7:30, 11:00, 11:30, 12:00) at which breakouts and reversals cluster.",
+   "pseudocode": "isKeyTime = false;\nfor each t in { keyTime1, keyTime2, keyTime3 }: isKeyTime = isKeyTime || absvalue(minutesOf(ctx.Time(0)) - minutesOf(t)) <= windowMinutes;\nreturn isKeyTime",
+   "sides": "same",
+   "parameters": {
+    "keyTime1": 700,
+    "keyTime2": 730,
+    "keyTime3": 1130,
+    "windowMinutes": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a handful of clock comparisons; no session state, no price"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "TimeWindow",
+    "relation": "variant",
+    "note": "TimeWindow is one CONTINUOUS inclusive band; this is proximity to a SET of discrete instants, which AND-ed panes cannot express - the same reason DayOfWeekAnyOf exists alongside DayOfWeekEntry. Three time inputs, repeat a value to use fewer, exactly as DayOfWeekAnyOf does with days."
+   },
+   "sources": [
+    "R15-01"
+   ],
+   "merge_notes": "Topically this is time_session's, but it is this bucket's own candidate and it merges with nothing there (time_session's clock candidates all collapse into the existing continuous TimeWindow), so it is kept here. Book gives five times, of which 7:00 and 7:30 are the U.S. economic-report releases and 11:30 is the strongest of the afternoon set; three inputs cover the useful cases and keep the grid small. HHMM arithmetic must go through minutes - absvalue(730 - 700) is 30 in HHMM but 30 minutes only by accident, and 1200 - 1130 is 70 while the gap is 30.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts_other",
+   "el_words": [
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "NarrowRangeWidth",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The N-bar window ending one bar ago is narrow: its high-low width is at or below a multiple of the ATR. A width test, not a trading-range classification - it says nothing about boundaries, touches or overlap.",
+   "pseudocode": "rangeHeight = highest(high, rangeLookback)[1] - lowest(low, rangeLookback)[1];\nrangeHeight <= tightAtrMultiple * WFSafe_AvgTrueRange(atrLookback)",
+   "sides": "same",
+   "parameters": {
+    "rangeLookback": 10,
+    "tightAtrMultiple": 1.5,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two windowed extremes and an ATR; no state, no boundary detection"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd measures ONE bar's range against a mean-plus-K-sigma band; this measures an N-BAR window's total width against an ATR multiple, and in the opposite sense (narrow, not wide). AtrDollarsBelow is the nearest low-volatility filter but reads the ATR itself, not a window width."
+   },
+   "sources": [
+    "R05-08",
+    "RP4-14"
+   ],
+   "merge_notes": "Three book statements of 'tight range', with three different denominators: 1.5 x ATR over 10 bars (R05-08), 3-4 Emini POINTS (RP4-14), 8 TICKS over 6 bars (V15-10, dropped as a composite). The ATR form wins - the point and tick thresholds are instrument- and era-specific, and Brooks's own numbers are Emini-of-that-decade values. Both surviving candidates use the width negatively (a breakout out of a narrow range is unreliable; stop entries lose in a 3-4 point range), which is the per-placement negate toggle on this rule, not a second rule. IMPORTANT: this is deliberately NOT the tight-trading-range classifier - that is owned by context_regime_trading_range and must be referenced, not redefined here; a window-width proxy and a real range classification only coincide until someone measures them.",
+   "variants_kept_separate": [
+    "OverlappingLargeBarCluster"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_other",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "EntryPriceRetest",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Price comes back to within a few ticks of the open position's entry price -- a probe of the resting breakeven stops from that entry -- and holds: add to or re-enter the position there.",
+   "pseudocode": "ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() + toleranceTicks * tickSize && close[0] >= ctx.EntryPrice() - toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "toleranceTicks": 2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reads live position state (entry price); the level test itself is a plain comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "the catalog has no rule reading EntryPrice; FlatOrOpenLossExceeds is the only entry that reads position state at all"
+   },
+   "sources": [
+    "R00-37",
+    "V00-22",
+    "R28-31",
+    "V24-31",
+    "T18-16"
+   ],
+   "merge_notes": "One rule under five names. R00-37 and R28-31 phrase the level as 'the remembered breakout entry price' with unbounded lookback, which is exactly ctx.EntryPrice() while the position is open; V00-22, V24-31 and T18-16 say so directly. V24-31 and R28-31 add a bull signal bar, T18-16 adds nothing. Tolerances: 1-3 ticks across sources, 2 as default. Kept apart from BreakoutLevelRetest because the level is the trader's own fill, not a chart level, so the two fire on different bars whenever the entry was not exactly at the breakout point.",
+   "variants_kept_separate": [
+    "BreakoutLevelRetest",
+    "BreakevenRetestExit"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FailedBreakoutReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Price closed beyond the extreme of the prior N bars (a breakout) and within a few bars closes back inside that range: the breakout failed, take the opposite side.",
+   "pseudocode": "rangeLow = lowest(low, rangeBars)[k + 1]; exists k in 1..failBars with close[k] < rangeLow && close[0] > rangeLow",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeBars": 20,
+    "failBars": 3
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a window extreme plus a short backward scan holding the broken level; degenerates to fixed three-bar arithmetic at rangeBars=1, failBars=1"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "CloseAbovePriorHighestHigh",
+    "relation": "variant",
+    "note": "the catalog rule fires ON the breakout; this fires on its failure, and needs the broken level held across failBars bars"
+   },
+   "sources": [
+    "T03-03",
+    "T04-02",
+    "T21-79",
+    "V03-13",
+    "R05-05",
+    "T02-07",
+    "V18-03",
+    "R32-06",
+    "T07-17",
+    "T07-26"
+   ],
+   "merge_notes": "T21-79 gives the most mechanizable general form (window extreme + short backward scan) and T03-03 states it identically; T04-02 is the same rule at rangeBars=1, failBars=1 (low[1] < low[2] && close[0] > low[1]) and is trivial arithmetic, so it is the natural default parameterization. V03-13 keys the level to a prior swing high rather than an N-bar window and pairs it with an expected 10-bar/two-leg follow-through; R05-05 adds a strong reversal signal bar (failureWindowBars 5); T02-07 adds a close-in-the-upper-part-of-range term on the reversal bar (that term is the bar_anatomy signal-bar rule, not part of this one); V18-03 requires several bars of follow-through beyond the level before the reversal bar. R32-06 is the single-bar level version (the break of one strong prior trend bar reverses back through its high, trapping countertrend traders) -- same behaviour at rangeBars=1 with the level taken from the opposite side of the triggering bar. Windows across sources: 3 (T21-79), 5 (T03-03, V03-13, R05-05), 8 (T07-18); 3 kept as default.",
+   "variants_kept_separate": [
+    "SmallBreakoutTrapReversal",
+    "ThirdBarConfirmsFailedBreakout",
+    "FailedFailureResumption",
+    "FailedBreakoutOfPriorSessionExtreme"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FailedFailureResumption",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A breakout failed and the failure itself failed: after breakout bar, reversal bar, and a bar reversing back the original way, enter in the original breakout direction as a breakout pullback.",
+   "pseudocode": "close[3] > open[3] && close[3] > highest(high, breakoutLookback)[4] && close[2] < open[2] && close[1] > open[1] && close[0] > high[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "breakoutLookback": 10
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "fixed offsets plus one highest-high window in T15-44's form; the general form needs three-stage state over a variable window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R00-38",
+    "T07-18",
+    "V18-04",
+    "T15-44",
+    "V00-23"
+   ],
+   "merge_notes": "All four are the same three-stage sequence (breakout -> failure -> failure of the failure -> resume). T15-44 wins because it pins the three stages to fixed bar offsets and needs only one Highest window, where R00-38 (breakoutFailedRecently within 5 bars, then close above the highest of the last 3), T07-18 (outside-bar level, maxBarsSince 8) and V18-04 (reversalMaxAge 2, strong trend bar in the original direction) all require remembering two separate events across a variable window. Keep the general form in mind for the authoring pass as a maxBarsSince parameter on top of T15-44's shape.",
+   "variants_kept_separate": [
+    "FailedBreakoutReversal",
+    "ThirdBarConfirmsFailedBreakout",
+    "BreakoutPullbackEntry"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "highest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ShallowPullbackLimitBelowPriorHigh",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "During a strong spike, buy on a limit a couple of ticks below the most recent completed bar's high, anticipating only a very shallow pullback on the next bar.",
+   "pseudocode": "limitPrice = high[1] - pullbackTicks * tickSize; low[0] <= limitPrice",
+   "sides": "mirrored",
+   "parameters": {
+    "pullbackTicks": 2
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "a fixed offset from the prior bar's high, tested on the current bar"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R28-02",
+    "T18-17"
+   ],
+   "merge_notes": "Kept apart from BreakoutPullbackLimitEntry: this fills a couple of ticks below the prior bar's HIGH, that one fills at or below the prior bar's LOW. On any bar with a body those are far apart and fire on different bars. The spike-context qualifier is dropped -- it is research-grade and the offset test stands on its own; per the standing convention the book's intrabar placement is mechanized on the completed bar.",
+   "variants_kept_separate": [
+    "BreakoutPullbackLimitEntry"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "SmallBreakoutTrapReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Price breaks below a recent swing low or N-bar low by no more than a small capped margin and then closes back above it -- a trapped-seller bear trap; mirrored, a capped break above resistance that closes back below is a bull trap.",
+   "pseudocode": "priorLow = lowest(low, lookback)[1]; low[0] < priorLow && low[0] >= priorLow - marginTicks * tickSize && close[0] > priorLow",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 20,
+    "marginTicks": 2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window lowest plus a capped-overshoot comparison, all on the current bar"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V16-05"
+   ],
+   "merge_notes": "Kept apart from FailedBreakoutReversal: the cap on how far price may overshoot the level is the whole point of the trap read (Brooks's 'just a one-tick breakout'), and it fires on the breakout bar itself rather than on a later close back inside. Different bars.",
+   "variants_kept_separate": [
+    "FailedBreakoutReversal"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SpikeWithoutPullback",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars the market has risen and at most one bar closed down, with no two consecutive down closes -- a spike that ran without a pullback, a sign of strength.",
+   "pseudocode": "close[0] > close[spikeBars] && countif(i in 0..spikeBars-1, close[i] < open[i]) <= maxPullbackBars && !exists i in 0..spikeBars-2 with (close[i] < open[i] && close[i+1] < open[i+1])",
+   "sides": "mirrored",
+   "parameters": {
+    "spikeBars": 5,
+    "maxPullbackBars": 1
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a single window loop counting down-close bars, no persistent state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars requires EVERY one of the last N bars to close up; this tolerates up to one down bar as long as no two are adjacent, so the two fire on different bars"
+   },
+   "sources": [
+    "R02-05",
+    "V00-43",
+    "T00-27",
+    "V02-04"
+   ],
+   "merge_notes": "Four restatements of 'the spike ran N bars with no pullback longer than one bar'. V02-04 wins: a plain window scan of down closes, no persistent counter and no trend-bar body threshold. R02-05 and V00-43 phrase it as a persistent consecutive-trend-bar counter tolerating one-bar interruptions; T00-27 counts bars since the breakout with no two-consecutive-bar pullback. Defaults across sources: spikeBars 5 (R02-05, V00-43, V02-04) and 7 (T00-27); 5 kept, grid 5..10 per V02-04's note.",
+   "variants_kept_separate": [
+    "BreakoutRunsWithoutPullback"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ThirdBarConfirmsFailedBreakout",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "When the breakout bar and the reversal bar that follows it are about equally strong, wait one more bar: buy when the third bar trades above the reversal bar's high and closes as a bull trend bar.",
+   "pseudocode": "close[2] < open[2] && close[1] > open[1] && abs((close[1] - open[1]) - (open[2] - close[2])) <= equalTol * (open[2] - close[2]) && high[0] > high[1] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "equalTol": 0.3,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "three fixed-offset bars, arithmetic only"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T15-43"
+   ],
+   "merge_notes": "A confirmation-timing variant of FailedBreakoutReversal, not the same rule: it fires a bar later and only when the two bars are comparably sized, so it deliberately skips the cases FailedBreakoutReversal takes at once.",
+   "variants_kept_separate": [
+    "FailedBreakoutReversal",
+    "FailedFailureResumption"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "WeakFollowThroughBarRequiresPullback",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Block the close-of-bar entry when the follow-through bar after a strong breakout bar is weak (a small body relative to its range) -- wait for a pullback entry instead.",
+   "pseudocode": "close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && abs(close[0] - open[0]) < weakBodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.6,
+    "weakBodyFraction": 0.3
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "a two-bar body-fraction test, arithmetic only"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BodyBelowAtrFraction",
+    "relation": "variant",
+    "note": "the catalog rule measures the body against ATR and reads one bar; this measures it against the bar's own range and requires a strong bar immediately before it"
+   },
+   "sources": [
+    "V15-07"
+   ],
+   "merge_notes": "Stated as a gate on which entry style applies; mechanized as a filter that blocks the immediate entry. Its complement (strong follow-through, take the close) is a bar_anatomy rule, not mined here.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "BreakevenRetestExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit the position with a limit order back at the entry price once the market retraces to retest the level the trade was entered from.",
+   "pseudocode": "ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() + toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "toleranceTicks": 1
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reads the entry price; the book's version wants the FIRST of several scaled-in entries, which the engine's single-entry model reduces to ctx.EntryPrice()"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "not TrailingStop or ProfitProtector -- those measure dollars from the peak, this is an absolute level"
+   },
+   "sources": [
+    "R04-06"
+   ],
+   "merge_notes": "Same level as EntryPriceRetest, opposite action (scratch the fade rather than add to the with-trend position), and an Exit rather than an Entry, so it cannot be the same rule -- exits are ORed and entries ANDed.",
+   "variants_kept_separate": [
+    "EntryPriceRetest"
+   ],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FailedScalpExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "The with-trend entry never got more than N ticks past its trigger and the next bar has fallen back through the signal bar's low: a failed scalp, get out.",
+   "pseudocode": "ctx.BarsSinceEntry() <= 1 && (ctx.MaxPositionProfit() / tickSize) <= failureTicks && low[0] < low[ctx.BarsSinceEntry() + 1]",
+   "sides": "mirrored",
+   "parameters": {
+    "failureTicks": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reads open-position peak profit plus the signal bar's low, which at BarsSinceEntry <= 1 is a fixed offset back"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "NumBarsIfLosing",
+    "relation": "variant",
+    "note": "the catalog rule is a bar count plus a profit sign; this caps the PEAK profit and adds a price level, so it fires on trades that never went anywhere rather than on trades currently losing"
+   },
+   "sources": [
+    "R00-41"
+   ],
+   "merge_notes": "The book's five-tick and four-tick-target figures are Emini-specific; failureTicks generalizes them.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "barssinceentry",
+    "maxpositionprofit"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

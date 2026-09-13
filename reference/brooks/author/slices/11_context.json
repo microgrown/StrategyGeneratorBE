@@ -1,0 +1,599 @@
+{
+ "slice": "11_context.json",
+ "rules": [
+  {
+   "key": "BlockEntriesAfterLosingMonth",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Net profit over the PRIOR completed calendar month was negative — block entries for the current month. Identical both sides.",
+   "pseudocode": "// persistent: monthStartEquity, priorMonthResult\nif (month(date[0]) != month(date[1])) { priorMonthResult = NetProfit - monthStartEquity; monthStartEquity = NetProfit }\npriorMonthResult >= 0",
+   "sides": "same",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a month-boundary detect and two persistent equity marks"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "MonthlyProfitTarget",
+    "relation": "variant",
+    "note": "MonthlyProfitTarget is a Switch reading the CURRENT month's running gain against a target and forcing flat; this reads the PRIOR month's completed result and only refuses new entries"
+   },
+   "sources": [
+    "V25-08"
+   ],
+   "merge_notes": "Brooks scopes it to reversal (countertrend) entries only; the engine cannot tell which pane produced a fill, so the rule is authored as a blanket entry gate and the countertrend scoping is left to placement (put it only in a countertrend template). Recorded as an Entry filter, not a Switch, because it never forces flat.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "date",
+    "month",
+    "netprofit"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BounceFromLowByAtr",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The close has bounced at least K x ATR above the lowest low of the last N bars (long) / fallen K x ATR below the highest high (short) — a bounce large enough that traders read the reversal as underway.",
+   "pseudocode": "close[0] >= lowest(low, lookback) + bounceAtr * atr(atrLookback)",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 10,
+    "bounceAtr": 1.0,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window lowest plus an ATR"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "AtrBandBreakout",
+    "relation": "variant",
+    "note": "AtrBandBreakout measures from the Donchian MIDLINE outward in both directions; this measures upward from the window's LOW only, so in a downtrend the two disagree sharply"
+   },
+   "sources": [
+    "T21-61"
+   ],
+   "merge_notes": "Brooks quotes 'two points above the low' on the Emini; the ATR form is the portable reading and is taken as the default, with the fixed-point form reachable by pinning bounceAtr against a stable ATR.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FailedCountertrendScalpReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A three-bar trap: bar 2 was a bear signal bar (bear body), bar 1 triggered the short by trading below it, and bar 0 closes back above bar 2's high — where the trapped shorts' stops sit. Buy at the next open. Mirrored for the bull-signal-bar trap.",
+   "pseudocode": "close[2] < open[2] && low[1] < low[2] && close[0] > high[2]",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "trivial",
+    "reason": "three fixed-offset bar comparisons"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "not one of the Harris/EEC patterns; no catalog rule reads a signal bar plus its trigger plus its failure"
+   },
+   "sources": [
+    "T21-36"
+   ],
+   "merge_notes": "The candidate carries an always-in-long context; as with DipBelowPriorBarLowByTicks that context is a separate pane, and the bar pattern alone is trivially authorable — which is why this is an A and not a C. Chapter 22's 'failed high 2 becomes a low 2 short' is the same idea with a leg count attached and belongs to leg_counting.",
+   "variants_kept_separate": [
+    "DipBelowPriorBarLowByTicks"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "NoOppositeBarInLastN",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "None of the last N bars closed against the trend: for the long side, no bar in the window closed below its own open. The trend has run N straight bars without even a one-bar pullback.",
+   "pseudocode": "countIf(i, 0, minBarsNoPullback-1, close[i] < open[i]) == 0",
+   "sides": "mirrored",
+   "parameters": {
+    "minBarsNoPullback": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window loop over one open/close comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars requires every bar to close ABOVE its open, so a doji breaks the run; this requires only the ABSENCE of a bar closing below its open, so dojis are tolerated. The two differ on any window containing a tie bar"
+   },
+   "sources": [
+    "T19-10"
+   ],
+   "merge_notes": "The candidate's own note makes the doji distinction, and it is real: on the Emini's M1440 bars an exact open = close is rare, but on intraday bars it is not. Kept as its own rule rather than folded into ConsecutiveUpBars.",
+   "variants_kept_separate": [
+    "ConsecutiveClosesBeyondEmaRun"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "CountertrendScalpPercentTarget",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Take profit once open profit reaches a percentage of the entry price rather than a fixed dollar amount — the countertrend scalp target, since a trade against a strong trend usually only produces a pullback.",
+   "pseudocode": "ctx.MarketPosition() > 0 && close[0] >= ctx.EntryPrice() * (1 + scalpPercent)",
+   "sides": "same",
+   "parameters": {
+    "scalpPercent": 0.015
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "one percentage comparison against the entry price"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TakeProfit",
+    "relation": "variant",
+    "note": "TakeProfit is a fixed-dollar target; this scales with the entry price, so it behaves differently across instruments and across price levels within one instrument — which is the whole point on the weekly and monthly charts of the chapter it comes from"
+   },
+   "sources": [
+    "V22-01"
+   ],
+   "merge_notes": "Brooks says 1 or 2 percent; 1.5 percent is the midpoint default, both book values recorded. Note for the authoring pass: on back-adjusted continuous futures the entry price can be negative, which inverts the comparison — the rule needs an absolute-value guard or a note that it is for cash instruments only.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "entryprice",
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "Barbwire",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Brooks's named barbwire pattern: three bars that largely overlap, at least one of them a doji. Measured as the merge brief's chosen form -- more than half of the MIDDLE bar's height lies inside the range spanned by its two neighbours, and any of the three is a doji. Identical both sides; used negated to suppress breakout entries.",
+   "pseudocode": "middleOverlap = minList(high[1], maxList(high[0], high[2])) - maxList(low[1], minList(low[0], low[2])); middleContained = middleOverlap >= barbwireOverlapFraction * (high[1] - low[1]); hasDoji = DojiBar[0] || DojiBar[1] || DojiBar[2]; middleContained && hasDoji",
+   "sides": "same",
+   "parameters": {
+    "barbwireOverlapFraction": 0.5,
+    "dojiBodyFraction": 0.2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed three-bar containment test plus three doji tests; no variable-length window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "InsideBar is named by R22-03 as a neighbour but tests a strict two-bar containment with no doji term."
+   },
+   "sources": [
+    "R00-19",
+    "R03-08",
+    "R22-03",
+    "T00-08",
+    "R22-17"
+   ],
+   "merge_notes": "One rule from four restatements across two volumes; all four say the same thing (3+ overlapping bars, at least one doji). R22-03's mechanization wins: Brooks gives an explicit measuring guide there ('look at the second of the three bars... if more than half of its height is within the range of the bars before and after it') which turns a variable-length judgement into a fixed three-bar test. The losers all need a variable-length overlap scan: R00-19 defers to a multi-bar TradingRangeOver(N), R03-08 uses a countIf over barbwireBars - 1 pairs, T00-08 is research-graded because 'largely overlap' is left open. Carried as a composite because barbwire is a named Brooks setup Brian would want tested as the book states it. Thresholds: overlap 0.5 (R22-03) vs 0.6 (R03-08); doji body 0.1 (R22-03, T00-08) vs 0.2 (R03-08) -- 0.2 chosen to match the already-merged DojiBar default so the two rules agree on what a doji is.",
+   "variants_kept_separate": [
+    "OverlappingBarRun",
+    "TightRangeBlocksEntries"
+   ],
+   "depends_on_keys": [
+    "OverlappingBarRun",
+    "DojiBar"
+   ],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarsSinceExtremeExceeds",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "No new extreme for N bars: the highest high of the last N bars is below the highest high of the longer window behind it (mirrored for lows). Brooks's test for a pullback that has outgrown its trend and become a trading range.",
+   "pseudocode": "highest(high, rangeBars)[0] < highest(high, rangeBars + priorLookback)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeBars": 10,
+    "priorLookback": 10
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two nested window extremes, no state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "CloseAbovePriorHighestHigh",
+    "relation": "variant",
+    "note": "That rule asks whether the close broke the prior window's extreme; this asks whether the recent window failed to. Related but not a negation -- both windows here are extremes of highs, and neither reads the close."
+   },
+   "sources": [
+    "T21-14"
+   ],
+   "merge_notes": "Brooks frames it as a state machine off the end of a spike ('if the pullback extends for more than 10 bars it has grown into a trading range'). The stateless two-window form is taken instead, per the most-mechanizable rule: it needs no spike detector and no bar counter, and fires on the same bars whenever the spike high is inside the outer window. Pair it with breakouts_signal_strength's StrongTrendBarRun as a separate pane if the spike context is wanted. Brooks's 10 bars is kept as the default for both windows.",
+   "variants_kept_separate": [
+    "DeepPullbackMeansRange"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "EntryBarClosedAgainstPosition",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A position is open and the current bar closed against it (a bull bar while short, a bear bar while long) -- permission to reverse rather than wait for the stop. Reads position state deliberately. Mirrored: the long side fires when short and the bar closed up.",
+   "pseudocode": "ctx.MarketPosition() < 0 && close[0] > open[0]",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reads MarketPosition at signal time plus one bar comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "FlatOrOpenLossExceeds",
+    "relation": "variant",
+    "note": "Both are entries that read position state to decide whether a fresh signal may reverse the open trade. FlatOrOpenLossExceeds gates on dollars of open loss; this gates on the sign of the current bar, so it can fire on the first bar of the trade before any loss has accrued."
+   },
+   "sources": [
+    "R22-10"
+   ],
+   "merge_notes": "Brooks states it inside the barbwire-fade sequence (once the fade is on and its entry bar closes against you, reverse in the breakout direction), but the test itself carries no barbwire term and no breakout term -- it is the generic 'my entry bar failed' permission, so it is carried atomically. Its parent, the fade itself, is already merged in breakouts_pullback_retest as BarbwireBreakoutFade (R12-16, R22-09, T07-32); this is the reversal leg that rule's sources describe, and the two should be placed together.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "marketposition"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "OverlappingBarRun",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last N bars overlaps the bar before it by at least fraction F of that earlier bar's range -- Brooks's bar-overlap reading of 'sideways, two-sided trading'. Identical both sides. At overlapBars = 1 this is his minimum trading range: a single bar largely overlapped by the one before it.",
+   "pseudocode": "for k in 0 .. overlapBars - 1: (minList(high[k], high[k+1]) - maxList(low[k], low[k+1])) >= overlapFraction * (high[k+1] - low[k+1])",
+   "sides": "same",
+   "parameters": {
+    "overlapBars": 4,
+    "overlapFraction": 0.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed-length loop of two-bar arithmetic; MinList/MaxList are on tick-grid price operands, which the register permits"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "Nothing in the catalog measures bar-to-bar range overlap. TwoBarRangePosition builds a two-bar envelope but asks where the close sits inside it."
+   },
+   "sources": [
+    "R00-20",
+    "R00-21",
+    "T01-02",
+    "T03-01",
+    "T07-07"
+   ],
+   "merge_notes": "KEPT DELIBERATELY SEPARATE from RangeWidthBelowAtrMultiple per the merge brief: a range that is tight by bar overlap and one that is tight by N-bar width over ATR are two rules until someone measures that they coincide (three heavily overlapping large bars are wide in ATR terms; a slow drift of small non-overlapping bars is narrow). R00-20 is this rule at overlapBars = 1 -- one rule at a fixed parameter, so merged, not kept apart. R00-21 (4 bars, 0.6) is the same loop with a stricter fraction. T01-02, T03-01 and T07-07 all restate it at 5 bars, 0.5 from three different chapters of the Trends volume. The denominator disagrees: T03-01 divides by min(range(k), range(k+1)), the other four by the older bar's range -- the older bar's range wins, one subtraction rather than a MinList, and it makes an inside bar pass automatically, which is Brooks's intent. Defaults 4 / 0.5 split the difference between R00-21's 4 / 0.6 and the Trends volume's 5 / 0.5.",
+   "variants_kept_separate": [
+    "RangeWidthBelowAtrMultiple"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "RangeExtremeFade",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the bottom fraction of the last N bars' range (long) / the top fraction (short) -- buy the low of a range, sell the high, the inversion of trend logic. Mirrored.",
+   "pseudocode": "rangeHigh = highest(high, rangeLookback)[0]; rangeLow = lowest(low, rangeLookback)[0]; (close[0] - rangeLow) <= nearExtremeFraction * (rangeHigh - rangeLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeLookback": 20,
+    "nearExtremeFraction": 0.25
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window extremes and a ratio"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ClosePercentileRank",
+    "relation": "variant",
+    "note": "ClosePercentileRank ranks the close among the last N CLOSES by counting; this places the close on the high-low envelope of the window. Different windows, different bars. Also near TwoBarRangePosition, which is this measure over a two-bar envelope with the book's epsilon."
+   },
+   "sources": [
+    "R07-11",
+    "R11-26",
+    "V24-17",
+    "V24-49",
+    "R21-08"
+   ],
+   "merge_notes": "Four restatements of one measure. The fade sense is the rule; the blocking sense ('do not buy near the top of a range', V24-49) is the same rule on the opposite side, redundant by construction under the per-placement flip. R11-26 measures the offset in ATR (rangeLow + 0.3 x ATR) rather than as a fraction of the range height; the fraction wins because it needs no second series and degrades gracefully when the range is wide. V24-17 adds a bear reversal signal bar to the fade -- that half is carried by the bar_anatomy_reversal_signal bucket, so only the location test is kept here (atomic beats composite). R07-11 supplies the reason Brooks gives: about 80 percent of attempts to break out of a trading range fail. Defaults: 0.2 (R07-11, V25-01), 0.25 (R17-11), 0.3 (R11-26, RP4-08) -- 0.25 taken as the midpoint. Intended use is AND-ed with RangeWidthBelowAtrMultiple, which is why neither carries the other's terms.",
+   "variants_kept_separate": [
+    "CloseNearSessionExtreme",
+    "RangeMidpointZone"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "RangeMidpointZone",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the middle band of the last N bars' range -- within F of the range height either side of its midpoint. Identical both sides. Brooks uses it negated: do not take a stop entry in the middle of a range, where the fill is bad in both directions.",
+   "pseudocode": "rangeHigh = highest(high, rangeLookback)[0]; rangeLow = lowest(low, rangeLookback)[0]; rangeMid = (rangeHigh + rangeLow) / 2; absValue(close[0] - rangeMid) <= midpointFraction * (rangeHigh - rangeLow)",
+   "sides": "same",
+   "parameters": {
+    "rangeLookback": 20,
+    "midpointFraction": 0.17
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window extremes, a midpoint and one absolute difference"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R32-04",
+    "R21-12"
+   ],
+   "merge_notes": "R21-12 was sent here as a stray from breakouts_signal_strength and fits exactly: it and R32-04 are the same midpoint-distance test with the same intent, differing only in the band width (0.17 of the range, which makes the excluded zone the middle third, vs 0.15). 0.17 kept. NOT the negation of RangeExtremeFade: that rule's negation on the long side still admits the top of the range, whereas this excludes both extremes at once. R21-12's 'limit orders are still reasonable there' carve-out is not modelled -- the corpus has no order-type dimension.",
+   "variants_kept_separate": [
+    "RangeExtremeFade",
+    "RangeMidpointTarget"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "absvalue",
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "RangeWidthBelowAtrMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "CANONICAL TRADING-RANGE CLASSIFICATION for the whole corpus: the height of the last N bars (highest high minus lowest low) is no more than K times the N-bar ATR. Identical both sides. At the loose default (20 bars, 4.0 ATR) this is 'the market is in a trading range'; at a tight setting (15 bars, 1.2 ATR) it is 'tight trading range'. Negate the placement for 'the market is trending'.",
+   "pseudocode": "highest(high, rangeLookback)[0] - lowest(low, rangeLookback)[0] <= rangeAtrMultiple * atr(atrLookback)[0]",
+   "sides": "same",
+   "parameters": {
+    "rangeLookback": 20,
+    "rangeAtrMultiple": 4.0,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window loops plus the existing WFSafe_AvgTrueRange rolling accumulator; no pivots, no persistent state, no session boundary"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "AdxBelowThreshold",
+    "relation": "variant",
+    "note": "Four sources (T00-08, T01-02, T03-01, T07-07, V02-36) name AdxBelowThreshold as the corpus's nearest low-trend proxy. It is a variant, not a duplicate: ADX measures directional movement over a Wilder-smoothed DI spread and can sit low inside a slow drift; this measures the literal height of the window against its own ATR, which is what Brooks describes. Both should be tested."
+   },
+   "sources": [
+    "RP4-01",
+    "V02-36",
+    "R22-01",
+    "R02-21",
+    "VP1-26"
+   ],
+   "merge_notes": "This rule IS the trading-range design decision (see design_decisions). Five candidates offered a definition and the width-over-ATR form won. V02-36 states it outright (20 bars, 4.0 x ATR14) and is the definition kept. R22-01 states the same shape with the recent average DAILY range as the denominator (range height <= 0.24 x ADR); the ATR denominator wins because it needs no second data series and self-scales across instruments and bar sizes -- R22-01's 0.24-of-ADR reading is preserved as the reason the tight setting sits far below the loose one. RP4-01 is the chapter-wide primitive that lists the clue set (bar overlap, swing count, flat MA) without combining them; VP1-26 ('both the bull and bear case were valid') adds no test at all -- both are citations. R02-21 ('in a trading range for several days') is this rule placed on a daily series with rangeLookback about 10; its '3 of the last 10 days' counter is not carried, because a 10-bar width test measures the same thing without one. Brooks's numbers vary by chapter; treat rangeAtrMultiple as the optimizable input and expect the useful band to run roughly 1.0 (barbwire-tight) to 5.0 (a broad range).",
+   "variants_kept_separate": [
+    "OverlappingBarRun",
+    "TightRangeBlocksEntries",
+    "TradingRangeDay"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "RangeMidpointTarget",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit when price reaches the midpoint of the prior N-bar range -- the magnetic middle a failed breakout is pulled back to. Mirrored: the long exits when the high reaches the midpoint from below, the short when the low reaches it from above.",
+   "pseudocode": "rangeMid = (highest(high, rangeLookback)[1] + lowest(low, rangeLookback)[1]) / 2; high[0] >= rangeMid - toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeLookback": 40,
+    "toleranceTicks": 1
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window extremes averaged; the window is offset one bar so the target does not move with the current bar's own extreme"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "No catalog exit targets a computed price level; AtrProfitTarget and TakeProfit both work in open profit."
+   },
+   "sources": [
+    "R10-10",
+    "V07-07",
+    "R15-05"
+   ],
+   "merge_notes": "Three statements of one magnet. V07-07 gives the mechanism (breakout attempts inside a range get pulled back to its middle), R10-10 lists the middle alongside the two extremes as the retested levels -- the extremes half is already carried by breakouts_pullback_retest's BreakoutLevelRetest, so only the midpoint is taken here. R15-05, sent as a stray, is the same target at session scale ('most trading range days close somewhere in the middle') and is absorbed: an N-bar window sized to the session reproduces it without a trading-range-day classifier. R10-10's 'fat area' (a secondary intraday range sitting in the middle) is not modelled -- it needs a nested range detector and Brooks gives no test for it.",
+   "variants_kept_separate": [
+    "RangeMidpointZone",
+    "RangeHeightProjectionTarget"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TightRangeBlocksEntries",
+   "role": "Switch",
+   "is_filter": false,
+   "description": "While the last N bars are unusually tight (height no more than K times the ATR), block all new entries whatever else the chart shows -- Brooks's 'a tight trading range trumps everything'. Identical both sides.",
+   "pseudocode": "highest(high, rangeLookback)[0] - lowest(low, rangeLookback)[0] <= tightAtrMultiple * atr(atrLookback)[0]",
+   "sides": "same",
+   "parameters": {
+    "rangeLookback": 15,
+    "tightAtrMultiple": 1.2,
+    "atrLookback": 20
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "the same window-versus-ATR comparison as RangeWidthBelowAtrMultiple, wired to the Switch role"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "MonthlyProfitTarget",
+    "relation": "variant",
+    "note": "The only existing Switch. Same role plumbing, entirely different trigger. NOTE FOR AUTHORING: MonthlyProfitTarget both blocks entries and forces flat; Brooks wants only the block here ('wait for the breakout'), not a forced exit. If the Switch role cannot block without forcing flat, author it as an Entry filter used negated and say so."
+   },
+   "sources": [
+    "R22-04",
+    "V24-44"
+   ],
+   "merge_notes": "This is the tight-range measure at Switch role, and it is deliberately NOT folded into RangeWidthBelowAtrMultiple even though the arithmetic is identical: the pane system ANDs entries, so an Entry filter can only veto the pane it sits in, while Brooks's claim is a global override across every placement. Same precedent as the catalog's ConsecutiveCloseExit vs MomentumConsecutiveBars -- one condition, two roles, two rules. Defaults are V24-44's (15 bars, 1.2 x the 20-bar average range), the only source that states numbers; R22-04 states the override and defers the measure. R22-04 says all entries, V24-44 says stop entries specifically -- the corpus has no order-type dimension, so all entries is kept.",
+   "variants_kept_separate": [
+    "RangeWidthBelowAtrMultiple",
+    "Barbwire"
+   ],
+   "depends_on_keys": [
+    "RangeWidthBelowAtrMultiple"
+   ],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ConsecutiveTrendBarRun",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The last N bars are all trend bars in the same direction — each closes above its own open with a body at least `bodyFraction` of its range (long side). Brooks's cue that a pullback may never come and that entering at the market beats waiting for one.",
+   "pseudocode": "forall i in 0..strongTrendBars-1: close[i] > open[i] && (close[i] - open[i]) >= bodyFraction * (high[i] - low[i])",
+   "sides": "mirrored",
+   "parameters": {
+    "strongTrendBars": 7,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed-length loop over a body-size test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars requires only close > open on each bar; this adds a body-size threshold, so it fires on a strict subset of the same windows. At bodyFraction = 0 the two coincide, which makes ConsecutiveUpBars a parameterization of this rule rather than the reverse"
+   },
+   "sources": [
+    "RP3-13"
+   ],
+   "merge_notes": "This is the SAME test the always-in flip trigger uses (V15-03 over V15-01, bar_anatomy's bucket) at a larger strongTrendBars — 7 here, 2 there, 4 in TP3-04's bull spike. Recorded once here as the general run; the authoring pass should build one rule and let the count be the input rather than authoring a spike rule and a strong-trend rule separately. The tail test that V15-01 carries is NOT included here: RP3-13 mentions only bodies and overlap, and tails belong to the bar_anatomy strong-trend-bar primitive.",
+   "variants_kept_separate": [
+    "StrongTrendBarCount",
+    "HigherLowStreak"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "StrongTrendBarCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N bars were strong trend bars in the trend's direction — the count form of the strong-trend read, which tolerates the odd inside or doji bar that breaks a consecutive run.",
+   "pseudocode": "countIf(i, 0, contextLookback-1, close[i] > open[i] && (close[i]-open[i]) >= bodyFraction*(high[i]-low[i])) >= minStrongBars",
+   "sides": "mirrored",
+   "parameters": {
+    "contextLookback": 10,
+    "minStrongBars": 3,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a CountIF over the same body test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "TailBarCountDominance counts tail bars over a window, but on a different per-bar condition and with a two-sided comparison"
+   },
+   "sources": [
+    "V16-10",
+    "R01-06",
+    "V15-09",
+    "T04-04",
+    "T18-05",
+    "T21-54"
+   ],
+   "merge_notes": "V16-10's rule is 'only buy a new high of the day when the recent bars show a genuinely strong bull trend'. The session-high half is a session-state test that belongs with the intraday rules and is NOT carried; the strong-trend half is this rule, and peeling them apart is what turns a research-graded candidate into an A. Kept separate from ConsecutiveTrendBarRun on MERGE's run-versus-count principle: one doji resets the run and barely moves the count. Folded the breakouts_signal_strength copy (R01-06, V15-09, T04-04, T18-05, T21-54): identical countIf over strong trend bars. Book windows differ - 4 of 20 in the breakout sources, 3 of 10 in V16-10 - so lookback/minCount are the parameters; default 10/3, the tighter read Brooks states for context.",
+   "variants_kept_separate": [
+    "ConsecutiveTrendBarRun"
+   ],
+   "depends_on_keys": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

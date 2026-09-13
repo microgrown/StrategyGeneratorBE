@@ -1,0 +1,29 @@
+{
+    "name": "ConsecutiveTrendBarsClimaxExit",
+    "type": "Exit",
+    "inputVariables": {
+        "climaxBars": "6",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "allBull": {
+            "type": "bool",
+            "init": "true"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "true"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A climactic-exhaustion profit take: the last climaxBars bars are ALL\n// with-trend trend bars and the position is showing an open profit. Brooks\n// says explicitly to take profits here and NOT to initiate the opposite\n// position, which is why this is an Exit and not an Entry.\n//\n// The profit gate cannot be supplied by another pane -- exits are ORed, so a\n// bare run-of-trend-bars exit would fire in a loss too. Same reason\n// NumBarsIfProfitable exists alongside NumBars, and the reason this is not\n// StrongTrendBarRun placed in the exit pane (an Entry rule cannot sit there).\n// Not ConsecutiveCloseExit either: that counts RISING CLOSES against the prior\n// close, with no body test and no profit gate.\n//\n// All-of-N in the StrongTrendBarRun shape: start true, let a failing bar clear\n// the flag, loop unconditionally so EasyLanguage's lack of short-circuiting\n// cannot matter. Both flags are class members and are reset at the top.\n//\n// ctx.OpenPositionProfit() is NET of the entry side's commission, slippage and\n// accrued swap (VERIFIED -- one side, not the round turn), which is the\n// intended 'actually in profit' reading.\n//\n// Product, not quotient, for the body test: EL raises a runtime\n// divide-by-zero and a zero-range bar is legal data. Deepest bar read is\n// climaxBars - 1.\nallBull = true;\nallBear = true;\nfor (kk = 0; kk < (int)climaxBars; ++kk) {\n    if (el_le(close[kk], open[kk])) allBull = false;\n    if (el_lt(close[kk] - open[kk], bodyFraction * (high[kk] - low[kk]))) allBull = false;\n    if (el_ge(close[kk], open[kk])) allBear = false;\n    if (el_lt(open[kk] - close[kk], bodyFraction * (high[kk] - low[kk]))) allBear = false;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && allBull && el_gt(ctx.OpenPositionProfit(), 0)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && allBear && el_gt(ctx.OpenPositionProfit(), 0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

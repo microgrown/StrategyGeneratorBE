@@ -1,0 +1,32 @@
+{
+    "name": "EntryBarExtremeTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "tolerancePoints": "0.25"
+    },
+    "localVariables": {
+        "prevHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// First target after fading a countertrend bar: the signal bar's own far\n// extreme. The prior bar is read UNCONDITIONALLY -- EasyLanguage does not\n// short-circuit (EL_LogicalEval_Probe) and Max Bars Back has to cover the\n// subscript on every bar anyway -- and only the freeze is conditional.\n// BarsSinceEntry() is 0 on the bar the entry FILLS and 0 while flat, never a\n// -1 sentinel (EL_FEATURES `barssinceentry`, VERIFIED), so on the fill bar\n// bar [1] is the SIGNAL bar the trade was entered from, and the capture simply\n// re-arms on every flat bar. Holding the price rather than re-reading\n// high[BarsSinceEntry + 1] keeps the deepest subscript at 1 instead of the\n// length of the longest trade.\n// tolerancePoints is in PRICE UNITS: MinMove / PriceScale are UNKNOWN.\nprevHigh = high[1];\nprevLow = low[1];\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    sigHigh = prevHigh;\n    sigLow = prevLow;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], sigHigh - tolerancePoints)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], sigLow + tolerancePoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

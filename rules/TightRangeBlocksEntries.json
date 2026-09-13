@@ -1,0 +1,38 @@
+{
+    "name": "TightRangeBlocksEntries",
+    "type": "Switch",
+    "inputVariables": {
+        "rangeLookback": "15",
+        "tightAtrMultiple": "1.2",
+        "atrLookback": "20"
+    },
+    "localVariables": {
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// \"A tight trading range trumps everything\" (R22-04): while the last N bars\n// are unusually tight, no new entry is worth taking whatever else the chart\n// shows. The arithmetic is RangeWidthBelowAtrMultiple's, deliberately: the two\n// are kept apart by ROLE, not by formula, on the same precedent as the\n// catalog's ConsecutiveCloseExit vs MomentumConsecutiveBars. An Entry filter\n// can only veto the pane it sits in, while Brooks's claim is a global override\n// across every placement, and only a Switch is global.\n//\n// DIVERGENCE FROM THE BOOK, recorded rather than hidden: the generator's\n// Switch role both blocks entries AND forces an exit on the same side\n// (strategyWriter.py `_switchLines`). Brooks wants only the block here -- wait\n// for the breakout, do not liquidate. There is no block-without-flat role, so\n// this rule exits open positions when the range goes tight. If that is not\n// wanted, do not place this rule: place RangeWidthBelowAtrMultiple NEGATED in\n// each entry pane with these tight parameters instead, which blocks without\n// forcing flat but only pane by pane.\n//\n// Defaults are V24-44's -- 15 bars, 1.2 x the 20-bar average range.\n//\n// The window extremes mirror EasyLanguage's Extremes(), which Highest()/\n// Lowest() call: seeded at bar 0, scanning bars 1..Length-1, strict\n// comparison. Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the measurement\n// notes; the two details that are load-bearing are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
+    "longCondition": "el_le(rangeHigh - rangeLow, tightAtrMultiple * atr)",
+    "shortCondition": "el_le(rangeHigh - rangeLow, tightAtrMultiple * atr)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

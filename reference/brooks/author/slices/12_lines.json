@@ -1,0 +1,339 @@
+{
+ "slice": "12_lines.json",
+ "rules": [
+  {
+   "key": "AverageBarOverlap",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The mean bar-to-bar overlap fraction over the last N bars is at or below T. Low overlap is a strong channel or spike; high overlap is a weak, two-sided channel.",
+   "pseudocode": "sum = 0; for i in 0..lookback-1: sum += (min(high[i], high[i+1]) - max(low[i], low[i+1])) / (high[i+1] - low[i+1]); (sum / lookback) <= maxAvgOverlap",
+   "sides": "same",
+   "parameters": {
+    "lookback": 10,
+    "maxAvgOverlap": 0.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "window average of a two-bar quantity"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-32"
+   ],
+   "merge_notes": "The only source that gives the overlap idea a number. Direction-agnostic by construction, so sides are 'same'. Note the zero-range-bar divisor: the authoring pass needs the corpus epsilon or a guard. This is the measurable half of V03-08 and V04-14's 'steep channel with very little overlap' and of the ConsecutiveBarsLittleOverlap spike primitive already decided in breakouts_signal_strength -- the authoring pass should check whether it duplicates that one before authoring.",
+   "variants_kept_separate": [
+    "MicroChannelSameColorLowOverlap",
+    "TightChannel"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "CountertrendRunInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Somewhere in the last N bars there was a run of at least K consecutive bars each making a lower high (bull side) -- a broad swing inside the channel, which means the channel is tradable in both directions.",
+   "pseudocode": "exists i in 0..windowBars-swingBars such that for all j in i..i+swingBars-1: high[j] < high[j+1]",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 20,
+    "swingBars": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "nested window loop counting a run of lower highs"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars requires the run to end on the current bar and counts close vs own open; this searches a window for a run of lower highs anywhere in it."
+   },
+   "sources": [
+    "T15-11"
+   ],
+   "merge_notes": "The logical complement of TightChannel, stated by Brooks as its own guideline ('broad swings, some lasting five or even 10 bars ... can be traded in both directions'). Kept as its own rule rather than TightChannel negated because it measures a different thing -- the LENGTH of the deepest countertrend run, not its depth in ATR.",
+   "variants_kept_separate": [
+    "TightChannel"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "MicroChannelBreakoutBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The first bar to violate a confirmed micro channel: the run counter stood at minBars or more on the prior bar and this bar's low is below the prior bar's low.",
+   "pseudocode": "microChannelRunLength[1] >= minBars && low[0] < low[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "minBars": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one comparison against the persisted run counter"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T16-03"
+   ],
+   "merge_notes": "Not folded into MicroChannelRunLength: this fires on the bar the run ENDS, the run rule fires while it holds. Both directions of trade key off this bar (T16-04 fades the break back with the channel, V24-21 waits for the pullback against it), so it earns its own rule.",
+   "variants_kept_separate": [
+    "MicroChannelRunLength",
+    "ShallowDipBelowPriorBarLow"
+   ],
+   "depends_on_keys": [
+    "MicroChannelRunLength"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "MicroChannelFailedBreakoutEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After a micro channel breaks, a bar within the next few bars closes back above the breakout bar's high -- the failed-breakout / high 1 buy that resumes the channel's direction.",
+   "pseudocode": "exists k in 1..maxWaitBars with (microChannelRunLength[k+1] >= minBars && low[k] < low[k+1]) && close[0] > high[k]",
+   "sides": "mirrored",
+   "parameters": {
+    "minBars": 5,
+    "maxWaitBars": 3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a bounded backward scan; maxWaitBars is small and fixed, so no unbounded persisted state is needed"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T16-04"
+   ],
+   "merge_notes": "Stray sent here from bar_anatomy; it fits and is absorbed. The mined form persisted the breakout bar's high indefinitely; a bounded exists-scan over maxWaitBars is the same behaviour with no state, which is why this lands at A rather than B.",
+   "variants_kept_separate": [
+    "ChannelBreakoutPullbackEntry"
+   ],
+   "depends_on_keys": [
+    "MicroChannelBreakoutBar"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "MicroChannelRunLength",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A run of N or more consecutive bars none of which pulled back: every bar's low is at or above the prior bar's low (bull), every bar's high at or below the prior bar's high (bear). Brooks's micro channel, mechanized as a persistent run counter.",
+   "pseudocode": "count = number of consecutive i starting at 0 with low[i] >= low[i+1]; count >= minBars",
+   "sides": "mirrored",
+   "parameters": {
+    "minBars": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a run-length counter over one fixed two-bar comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "LaggedHigherHigh",
+    "relation": "variant",
+    "note": "At minBars = 1 the long side (low[0] >= low[1]) is LaggedHigherHigh(0)'s short side negated. The rule of interest is the RUN (minBars 5-10), which no catalog rule counts; ConsecutiveUpBars counts a different per-bar test (close vs own open)."
+   },
+   "sources": [
+    "T16-01",
+    "T16-02",
+    "T16-07",
+    "R00-46",
+    "R28-17",
+    "V00-61",
+    "VP1-30",
+    "T16-06"
+   ],
+   "merge_notes": "Seven restatements of the micro channel across all three volumes. T16-02's no-lower-low run counter wins: it needs no pivots, no line projection and no tolerance, and T16-01 is the same test at minBars = 1 (merged, not split). The losing definitions are kept as citations: R00-46 and V00-61 define it as 'most bars touch both the trend line and the trend channel line' (needs two projected lines plus a touch-tolerance count), R28-17 and VP1-30 as 'consecutive trend bars with small overlap' with no numbers at all. Defaults: 4 bars (RP3-06, V24-21 'four or more'), 5 (T16-02), 10 (T16-07 'about 10 or more bars ... a type of climax'); minBars = 5 chosen, with 10 the climax setting T16-07 asks for -- one rule, one parameter.",
+   "variants_kept_separate": [
+    "MicroChannelSameColorLowOverlap",
+    "TightChannel"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "MicroChannelSameColorLowOverlap",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars every bar's body is the same colour and each consecutive pair overlaps by no more than a fraction of the later bar's range -- the overlap-based reading of a micro channel.",
+   "pseudocode": "for i in 0..microChannelBars-2: close[i] > open[i] && (min(high[i], high[i+1]) - max(low[i], low[i+1])) <= overlapFraction * (high[i+1] - low[i+1])",
+   "sides": "mirrored",
+   "parameters": {
+    "microChannelBars": 4,
+    "overlapFraction": 0.25
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "fixed-length loop of two-bar colour and overlap comparisons"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP3-06"
+   ],
+   "merge_notes": "Kept apart from MicroChannelRunLength deliberately. The no-lower-low counter and the colour+overlap loop fire on different bars (a bull bar can make a lower low; a doji can hold its low), and nobody has measured that they coincide. RP3-06 is the only source that gives the overlap form numbers.",
+   "variants_kept_separate": [
+    "MicroChannelRunLength",
+    "AverageBarOverlap"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "OppositeBodyCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The number of bars in the last N whose body is against the trend direction is at or below K -- few bear bodies in a bull channel means the channel is still one-sided.",
+   "pseudocode": "countIf(close[i] < open[i], i in 0..lookback-1) <= maxOpposite",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 10,
+    "maxOpposite": 3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window count of a single-bar test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "TailBarCountDominance counts TAIL bars and compares the two counts against each other; this counts bodies only and tests one count against a constant."
+   },
+   "sources": [
+    "T21-31",
+    "T15-27",
+    "R11-20"
+   ],
+   "merge_notes": "The same count stated with opposite senses: T15-27 fires when bear bodies are MANY (selling pressure building in a bull channel), T21-31 when they are FEW (channel still strong). One is the other negated, a per-placement toggle, so one rule. Threshold 3 of 10 (T21-31) chosen over 4 of 10 (T15-27); both are the miners' readings, Brooks gives no count.",
+   "variants_kept_separate": [
+    "AverageBarOverlap"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PullbackFromRecentHigh",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar's low is at least K x ATR below the highest high of the last N bars -- Brooks's 'limit orders at fixed intervals below the most recent high', in ATR rather than cents.",
+   "pseudocode": "highest(high, lookback) - low[0] >= pullbackAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 10,
+    "pullbackAtr": 0.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a highest-high window and an ATR"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "CloseAbovePriorHighestHigh is the breakout side of the same window; this is a retracement depth off it."
+   },
+   "sources": [
+    "T15-25"
+   ],
+   "merge_notes": "Brooks scales in at every interval; the engine takes one entry, so this is the first tranche. A tick-denominated variant (pullbackTicks = 7, from the p273 Emini example) is the same rule with the ATR replaced by a constant -- ATR chosen so the rule ports across instruments.",
+   "variants_kept_separate": [
+    "DipBelowPriorBarLow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TightChannel",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars the market made net progress of at least X x ATR while the deepest pullback from its running extreme stayed within Y x ATR: a tight, small-pullback channel. Brooks's 'tight channel' regime, measured without lines or pivots.",
+   "pseudocode": "runHigh = high[windowBars-1]; maxPullback = 0; for i from windowBars-1 down to 0: runHigh = max(runHigh, high[i]); maxPullback = max(maxPullback, runHigh - low[i]); (close[0] - close[windowBars]) >= netAtr * atr(atrLength) && maxPullback <= pullbackAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 10,
+    "netAtr": 2.0,
+    "pullbackAtr": 1.0,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one window loop tracking a running extreme and the deepest retracement below it, plus an ATR"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T15-10",
+    "T21-30",
+    "R22-02"
+   ],
+   "merge_notes": "This rule carries the bucket's 'tight channel' design decision (see design_decisions). T15-10's net-progress-plus-max-pullback pair wins: it is the only reading that needs neither swing pivots, nor a projected line, nor a daily-range series, and both halves scale in ATR. T21-30 adds 'and no close below the 20 EMA' -- kept out, because it makes the rule depend on an EMA for no measured gain and is itself a separate ema_relations filter that can be ANDed in. R22-02's 'perpendicular width between the fitted channel lines <= 0.24 x average daily range' is the width reading; kept as a citation only, since it needs both projected lines and a daily-range series and nobody has measured that it agrees with the pullback reading. Brooks gives no number anywhere for 'tight'; the defaults (2 ATR of progress, 1 ATR worst pullback, over 10 bars) come from his repeated 'about 10 bars' channel length (T15-10 p261) and are meant to be optimized.",
+   "variants_kept_separate": [
+    "MicroChannelRunLength",
+    "AverageBarOverlap",
+    "ChannelSlopeSteep",
+    "CountertrendRunInWindow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

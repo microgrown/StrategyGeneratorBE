@@ -1,0 +1,38 @@
+{
+    "name": "RangeWidthBelowAtrMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "rangeAtrMultiple": "4",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The canonical trading-range classification: the height of the last N bars is\n// no more than K times the N-bar ATR. At the loose default (20 bars, 4.0 ATR)\n// this is \"the market is in a trading range\"; negate the placement for \"the\n// market is trending\", and pin it tight (15 bars, ~1.2 ATR) for a tight range.\n//\n// The window extremes mirror EasyLanguage's Extremes(), which Highest()/\n// Lowest() call: seeded at bar 0, scanning bars 1..Length-1, strict\n// comparison. Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the measurement\n// notes; the two details that are load-bearing are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
+    "longCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atr)",
+    "shortCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atr)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

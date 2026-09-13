@@ -1,0 +1,38 @@
+{
+    "name": "BlockEntriesAfterLosingMonth",
+    "type": "Entry",
+    "inputVariables": {},
+    "localVariables": {
+        "CurrentEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "CurrentMonth": {
+            "type": "int",
+            "init": "0"
+        },
+        "MonthStartEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "PriorMonthResult": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "PrevMonth": {
+            "type": "int",
+            "init": "0"
+        },
+        "PrevEquity": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The prior COMPLETED calendar month's closed-trade result, latched on the\n// first bar of each new month. MonthlyProfitTarget is the reference for the\n// shape; the differences are deliberate:\n//   * equity is NetProfit alone (closed trades), not NetProfit +\n//     OpenPositionProfit -- a completed month's result is what was booked;\n//   * the reading is of the month that has ENDED, so it never changes inside\n//     the month, where MonthlyProfitTarget's running gain does.\n// PrevMonth/PrevEquity mirror EL's CurrentMonth[1]/CurrentEquity[1]: an EL\n// variable holds its initial 0 before the strategy's first evaluated bar, so\n// both start at 0 and the first evaluated bar latches PriorMonthResult = 0 --\n// which passes, exactly as the EasyLanguage twin does.\nCurrentEquity = ctx.NetProfit();\nCurrentMonth = civil_from_days(day_of(ctx.Time(0))).month;\nif (CurrentMonth != PrevMonth) {\n    PriorMonthResult = PrevEquity - MonthStartEquity;\n    MonthStartEquity = PrevEquity;\n}",
+    "longCondition": "el_ge(PriorMonthResult, 0.0)",
+    "shortCondition": "el_ge(PriorMonthResult, 0.0)",
+    "postConditionHook": "",
+    "endOfFileHook": "PrevMonth = CurrentMonth;\nPrevEquity = CurrentEquity;"
+}

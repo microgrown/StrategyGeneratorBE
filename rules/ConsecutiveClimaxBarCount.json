@@ -1,0 +1,73 @@
+{
+    "name": "ConsecutiveClimaxBarCount",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "30",
+        "minClimaxes": "2",
+        "maxGapBars": "5",
+        "climaxMultiple": "2",
+        "atrLength": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "bullCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "isBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "isBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sepBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sepBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget, including the TWO separate\n// accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLength;\n// The climax test is ClimaxBar's, evaluated at each bar of the window against\n// the CURRENT ATR -- one ATR read, not one per counted bar, which is how\n// LargeTrendBarCountInWindow's family reads it and keeps the rule off the ATR\n// variable's own history. A climax counts only when it is SEPARATED from the\n// run before it: at least one of the maxGapBars bars immediately older than it\n// is not itself a climax of the same direction. Without that clause this rule\n// would be a plain count-in-window, which is not what Brooks means by\n// consecutive climaxes.\nbullCount = 0.0;\nbearCount = 0.0;\nfor (ii = 0; ii < (int)windowBars; ++ii) {\n    isBull = el_gt(close[ii], open[ii])\n        && el_ge(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], climaxMultiple * atrValue);\n    isBear = el_lt(close[ii], open[ii])\n        && el_ge(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], climaxMultiple * atrValue);\n    sepBull = false;\n    sepBear = false;\n    for (jj = ii + 1; jj <= ii + (int)maxGapBars; ++jj) {\n        gapBull = el_gt(close[jj], open[jj])\n            && el_ge(close[jj] - open[jj], bodyFraction * (high[jj] - low[jj]))\n            && el_ge(high[jj] - low[jj], climaxMultiple * atrValue);\n        gapBear = el_lt(close[jj], open[jj])\n            && el_ge(open[jj] - close[jj], bodyFraction * (high[jj] - low[jj]))\n            && el_ge(high[jj] - low[jj], climaxMultiple * atrValue);\n        if (!gapBull) sepBull = true;\n        if (!gapBear) sepBear = true;\n    }\n    if (isBull && sepBull) bullCount += 1;\n    if (isBear && sepBear) bearCount += 1;\n}",
+    "longCondition": "el_ge(bullCount, minClimaxes)",
+    "shortCondition": "el_ge(bearCount, minClimaxes)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

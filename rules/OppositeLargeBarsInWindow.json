@@ -1,0 +1,34 @@
+{
+    "name": "OppositeLargeBarsInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "withinBars": "5",
+        "sizeMultiple": "1.5",
+        "lookback": "20"
+    },
+    "localVariables": {
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hasBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hasBear": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: hasBull = false, hasBear = false; for ii = 0 to withinBars - 1: sum\n// high - low over the lookback bars ending at ii + 1, divide by lookback, and\n// when high[ii] - low[ii] >= sizeMultiple * that mean, flag the bar as a large\n// bull bar if close[ii] > open[ii] and a large bear bar if close[ii] < open[ii].\n// Both flags are required, so the rule is direction-agnostic and the two sides\n// carry the same text. A doji has no direction and counts for neither.\n// 'Large' is measured against the mean bar range of the bars BEFORE the one\n// being judged -- an exclusive benchmark, and high-low rather than an ATR, so\n// gaps stay out of it and there is no second WFSafe_ call site alongside\n// OppositeLargeBarPair. The EL twin writes the mean as an inner loop rather\n// than Average(high - low, lookback)[ii + 1] because a function-history\n// reference at a loop-variable offset is not a behaviour the register covers;\n// Average recomputes fresh every bar over a price expression with real history,\n// so the value is identical. Summed newest-first, EL's Summation order, and\n// divided by the same (int) bound the loop uses.\n// The scratch locals persist across bars, so all four are reset before use.\nhasBull = false;\nhasBear = false;\nfor (int i = 0; i < (int)withinBars; ++i) {\n    rangeSum = 0.0;\n    for (int j = 0; j < (int)lookback; ++j) {\n        rangeSum = rangeSum + (high[i + 1 + j] - low[i + 1 + j]);\n    }\n    avgRange = rangeSum / (int)lookback;\n    if (el_ge(high[i] - low[i], sizeMultiple * avgRange)) {\n        if (el_gt(close[i], open[i])) {\n            hasBull = true;\n        }\n        if (el_lt(close[i], open[i])) {\n            hasBear = true;\n        }\n    }\n}",
+    "longCondition": "hasBull && hasBear",
+    "shortCondition": "hasBull && hasBear",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,33 @@
+{
+    "name": "BarsSinceExtremeExceeds",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeBars": "10",
+        "priorLookback": "10"
+    },
+    "localVariables": {
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outerHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outerLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Two nested Donchian windows, both current-inclusive. The inner one spans\n// rangeBars, the outer rangeBars + priorLookback; the long side fires when the\n// inner window's highest high is strictly below the outer one's, i.e. the\n// market has not made a new high for rangeBars bars -- Brooks's test for a\n// pullback that has outgrown its trend and become a trading range.\n//\n// Both loops mirror EasyLanguage's Extremes(), which Highest()/Lowest() call:\n// seeded at bar 0, scanning bars 1..Length-1, strict comparison. Extremes is\n// EL SOURCE, so its comparison carries the EL tolerance -- el_gt/el_lt, as in\n// Breakout (the reference).\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (int i = 1; i < (int)rangeBars; ++i) {\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n}\nouterHigh = high[0];\nouterLow = low[0];\nfor (int i = 1; i < (int)(rangeBars + priorLookback); ++i) {\n    if (el_gt(high[i], outerHigh)) outerHigh = high[i];\n    if (el_lt(low[i], outerLow)) outerLow = low[i];\n}",
+    "longCondition": "el_lt(recentHigh, outerHigh)",
+    "shortCondition": "el_gt(recentLow, outerLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

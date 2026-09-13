@@ -1,0 +1,25 @@
+{
+    "name": "ExhaustionBarAfterLargeTrendBar",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyShrink": "0.5",
+        "tailFraction": "0.4"
+    },
+    "localVariables": {
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: minlist(open, close) and maxlist(open, close) -- the body's bottom and\n// top, whichever way the bar closed. They select among raw open and close,\n// tick-grid price operands and exactly the scope their ACCEPTED row allows, so\n// plain comparisons stand in for them. Scratch locals, reset every bar, and\n// declared locals rather than hook-scope doubles so a second placement of the\n// rule gets its own prefixed copy.\n//\n// The rule itself: after a bear trend bar, this bar's body shrinks to at most\n// bodyShrink of that prior body AND it shows a lower tail of at least\n// tailFraction of its own range -- exhaustion, read as a countertrend long.\n// Mirrored after a bull bar. The prior body is read DIRECTLY rather than\n// against a window average, which is what the shrink ratio already measures,\n// so the rule needs no window at all.\nbodyTop = open[0];\nif (close[0] > bodyTop) bodyTop = close[0];\nbodyBottom = open[0];\nif (close[0] < bodyBottom) bodyBottom = close[0];",
+    "longCondition": "el_lt(close[1], open[1]) && el_le(std::fabs(close[0] - open[0]), bodyShrink * std::fabs(close[1] - open[1])) && el_ge(bodyBottom - low[0], tailFraction * (high[0] - low[0]))",
+    "shortCondition": "el_gt(close[1], open[1]) && el_le(std::fabs(close[0] - open[0]), bodyShrink * std::fabs(close[1] - open[1])) && el_ge(high[0] - bodyTop, tailFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

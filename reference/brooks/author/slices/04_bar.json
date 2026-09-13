@@ -1,0 +1,513 @@
+{
+ "slice": "04_bar.json",
+ "rules": [
+  {
+   "key": "StrongBodyBarCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N bars had a strong body in one direction - cumulative buying or selling pressure, without needing one dramatic bar.",
+   "pseudocode": "countIf(k in 1..windowBars: close[k] < open[k] && (open[k] - close[k]) >= strongBodyFraction * (high[k] - low[k])) >= minCount // bear-pressure form; mirror for bull",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 6,
+    "minCount": 3,
+    "strongBodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window count of a per-bar classification"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "Same CountIF-over-a-derived-series shape as TailBarCountDominance, but it counts strong BODIES rather than tails and has no opposite-side dominance comparison."
+   },
+   "sources": [
+    "T05-18"
+   ],
+   "merge_notes": "The mining agent guessed an existing rule named 'MajorityOppositeBodiesBlockEntry'; no such rule is in rules/CATALOG.md, so this is new. Authoring note: the counted condition is a true series, so its offsets shift per counted bar, exactly as in TailBarCountDominance.",
+   "variants_kept_separate": [
+    "UpperTailCountInWindow",
+    "RecentDirectionalPressureConfirmation"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TwoBarReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A bear trend bar immediately followed by a bull trend bar of comparable size that closes back above the bear bar's midpoint - the pair acts as one bull reversal bar (mirror for bear).",
+   "pseudocode": "close[1] < open[1] && close[0] > open[0] && close[0] > (high[1] + low[1]) / 2 && (high[0] - low[0]) >= sizeRatio * (high[1] - low[1])",
+   "sides": "mirrored",
+   "parameters": {
+    "sizeRatio": 0.5
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "two-bar OHLC arithmetic"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R05-13",
+    "R08-21",
+    "T06-05",
+    "T11-05",
+    "T21-80"
+   ],
+   "merge_notes": "Five restatements of Brooks's central two-bar reversal, differing only in how 'about the same size' and 'closes back into' are read. The winning definition is the midpoint form (R05-13/R08-21) plus a single range-ratio input: fewest terms, no derived trend-bar classification. Losing readings kept as citations - T06-05 uses an overlap fraction (0.5 of the smaller range) AND a body-size band (0.5-2.0x); T11-05 requires both bars to have bodies >= 0.5 of range and compares against the BODY midpoint; T21-80 uses close[0] > open[1] plus low[0] <= low[1] + 2 ticks. Book size values 0.5 (R05-13, T11-05) and 0.7 (R08-21); default 0.5. T06-06's beyond-both-bars trigger is carried separately.",
+   "variants_kept_separate": [
+    "TwoBarReversalAtNewExtreme",
+    "TwoBarReversalBreakoutEntry",
+    "TwoBarReversalContinuationFade"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "TwoBarReversalBreakoutEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After a bear-bar/bull-bar two-bar reversal pair, enter only when a later bar closes beyond the HIGHER of the two bars' highs (mirror: below the lower of the two lows) - entering beyond both bars avoids the one-tick trap at the signal bar's extreme.",
+   "pseudocode": "close[2] < open[2] && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] > max(high[1], high[2])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.5
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "three fixed-offset bars, no state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T06-06",
+    "T15-48",
+    "V09-05"
+   ],
+   "merge_notes": "T15-48 gives the full three-bar mechanization. T06-06's pseudocode was only 'TwoBarReversal[0]', but its description, quote and book_order_type are all about entering beyond the extreme of BOTH bars rather than the signal bar alone, so it merges here rather than into TwoBarReversal. Distinct from TwoBarReversal: a different trigger level, so the two fire on different bars.",
+   "variants_kept_separate": [
+    "TwoBarReversal",
+    "PriorHighBreakoutWithOffset"
+   ],
+   "depends_on_keys": [
+    "TwoBarReversal"
+   ],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "UpperTailCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N bars had an upper tail of at least a fraction of that bar's range - repeated selling pressure at a level (mirror: lower tails).",
+   "pseudocode": "countIf(k in 0..windowBars-1: (high[k] - max(open[k], close[k])) >= tailFraction * (high[k] - low[k])) >= minCount",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 10,
+    "minCount": 4,
+    "tailFraction": 0.33
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window count of a per-bar classification"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "TailBarCountDominance counts bull-tail vs bear-tail bars and requires the counted side to BEAT the other as well as clear a threshold, and its counted condition also demands an up close and a higher high. This is the one-sided count with no dominance test and no close/extreme terms."
+   },
+   "sources": [
+    "T15-29"
+   ],
+   "merge_notes": "Kept apart from AverageUpperTailFraction on purpose: a count of bars past a per-bar threshold and a mean of the per-bar fraction are different statistics, and neither dominates the other (four huge tails among ten bars passes the count and can fail the mean, and vice versa). The authoring pass should see the pair.",
+   "variants_kept_separate": [
+    "AverageUpperTailFraction",
+    "StrongBodyBarCountInWindow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "AverageTailFractionBelow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The average tail fraction of the last N bars - the part of each bar's range that is not body - is at or below a threshold: urgency, bars with small tails. Identical both sides.",
+   "pseudocode": "average((high - low - abs(close - open)) / (high - low + epsilon), tailBars) <= maxTailFraction",
+   "sides": "same",
+   "parameters": {
+    "tailBars": 5,
+    "maxTailFraction": 0.25,
+    "epsilon": 1e-06
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window average of a per-bar ratio"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "TailBarCountDominance counts bars whose wick beats their body and compares the two directions; this averages the tail fraction over the window with no direction at all."
+   },
+   "sources": [
+    "T00-29"
+   ],
+   "merge_notes": "The epsilon guards a zero-range bar, following the corpus convention set by CloseRangePosition and EecSecondVerse (Brian's 2026-08-31 call). Direction-agnostic on purpose: Brooks's sign is 'bars with no tails or small tails in EITHER direction'.",
+   "variants_kept_separate": [
+    "ShavedTopBar",
+    "OpenNearBarLow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarRangeAboveAtrMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's high-low range is at least K times the N-bar ATR: an outsized bar. Identical both sides; negate the placement for the 'small bar' and 'not climactic' forms.",
+   "pseudocode": "(high[0] - low[0]) >= rangeMultiple * atr(atrLookback)",
+   "sides": "same",
+   "parameters": {
+    "rangeMultiple": 1.5,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one ATR window plus a single-bar comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd uses mean + K standard deviations of the range; this uses a plain multiple of the ATR, which reacts differently when range dispersion changes. Also near AtrDollarsBelow, which compares the ATR itself to a dollar figure rather than this bar to the ATR."
+   },
+   "sources": [
+    "T02-06",
+    "T07-04",
+    "T11-03",
+    "T13-06",
+    "T19-08"
+   ],
+   "merge_notes": "One rule with a parameter and a negate toggle covers the whole family: 'large / climactic bar' (T02-06 at 2.0, T13-06 at 2.0), 'not climactic' (T11-03 at 2.0 negated, T19-08 at 1.5 negated) and 'small bar' (T07-04 at 0.5 negated). Sources are split on the denominator: T13-06 and T11-03 say ATR, T02-06, T07-04 and T19-08 say Average(High - Low, N). ATR wins because WFSafe_AvgTrueRange is already the corpus's standing ATR and it counts overnight gaps, which Brooks explicitly wants counted (T13-06 treats a gap open as a one-bar trend); see the design decision. T13-06's second disjunct ('or the bar is a session gap open') is dropped - a session-gap test belongs to time_session and an OR of two entry conditions is not expressible in the AND-ed entry pane.",
+   "variants_kept_separate": [
+    "LargeBarCountInWindow",
+    "LargeTrendBarCountInWindow",
+    "BarRangeHighestOfWindow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarRangeHighestOfWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "This bar's high-low range is the largest of the last N bars. Identical both sides.",
+   "pseudocode": "(high[0] - low[0]) >= highest(high - low, lookback)[0]",
+   "sides": "same",
+   "parameters": {
+    "lookback": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a Highest window over a per-bar expression"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "A rank test against the window's maximum rather than an absolute threshold over its mean; the current bar is included, so it is an el_ge against a bar-0-seeded extreme, like Breakout."
+   },
+   "sources": [
+    "T07-27"
+   ],
+   "merge_notes": "T07-27 is 'three of the last five bars were bull trend bars, and this one is the strongest of them - biggest range, smallest tails'. Carried atomically: the count half is TrendBarCountInWindow, the tail half is AverageTailFractionBelow, and this rule is the part neither of those can express. Self-inclusive Highest, so it is true on any bar that ties the window maximum.",
+   "variants_kept_separate": [
+    "BarRangeAboveAtrMultiple"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "highest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BodyAboveAverageMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A bull bar (short: bear) whose body is at least K times the average absolute body of the last N bars - a body that dominates its recent peers, not just its own range.",
+   "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyMultiple * average(abs(close - open), bodyLookback)",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyLookback": 10,
+    "bodyMultiple": 1.0
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window average of a per-bar expression plus a single-bar comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "Nothing in the catalog measures the body against other bars' bodies; BodyBelowAtrFraction measures it against the ATR (a range statistic) and CloseRangePosition against this bar's own range."
+   },
+   "sources": [
+    "T02-05"
+   ],
+   "merge_notes": "Brooks: 'the body about the same size as or larger than the median body size over the past five or 10 bars'. The MEAN was chosen over the median: a median needs the window sorted every bar, the mean is a running sum, and Brooks's point is comparative size, not the exact statistic. Book value 'about the same size' = multiple 1.0 over 10 bars (he offers 5 or 10). Kept apart from BarRangeAboveAtrMultiple: a large body inside a large bar is common, a large body inside an average-sized bar is Brooks's point.",
+   "variants_kept_separate": [
+    "BarRangeAboveAtrMultiple",
+    "ShrinkingBodies",
+    "TrendBarBody"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BullBearBodyDominanceInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars, the total size of the up bodies exceeds K times the total size of the down bodies (short: mirrored) - buying pressure by body volume, not bar count.",
+   "pseudocode": "sumIf(close[i] - open[i], close[i] > open[i], lookback) > dominanceMultiple * sumIf(open[i] - close[i], close[i] < open[i], lookback)",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 20,
+    "dominanceMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two conditional summations over one window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V00-47"
+   ],
+   "merge_notes": "The body-weighted twin of TrendBarCountDominanceInWindow; both are kept until someone measures how often they disagree. No body-fraction test on the individual bars - the sum itself does the weighting, which is what makes it different from the count form.",
+   "variants_kept_separate": [
+    "TrendBarCountDominanceInWindow",
+    "LargestBearBodyVsAverageBullBody"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "ConsecutiveTrendBars",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last N bars is a bull trend bar (long) / bear trend bar (short): body at least a fraction of its own range, closing in the same direction. A Brooks spike.",
+   "pseudocode": "for k in 0..consecutiveBars-1: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k])",
+   "sides": "mirrored",
+   "parameters": {
+    "consecutiveBars": 3,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed-length loop applying the single-bar trend-bar test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars is exactly this rule at bodyFraction = 0 (each bar merely closes above its own open). Kept as a separate rule because the body-size threshold is the whole point of Brooks's 'trend bar' and because ConsecutiveUpBars cannot express it."
+   },
+   "sources": [
+    "R08-19",
+    "RP4-04",
+    "T02-08",
+    "T10-05",
+    "T11-02",
+    "T15-51",
+    "T15-52",
+    "TP1-08"
+   ],
+   "merge_notes": "Eight statements of one counter. Book run lengths: 2 (T02-08, 'a second or third trend bar before believing the always-in flipped'), 3 (RP4-04, R08-19), 4 (T10-05, T11-02, T15-52), 5 (T10-05 alternate), 8 (T15-51, TP1-08); default 3. R08-19, RP4-04, T10-05 and T15-52 state it as a BLOCK on countertrend entries ('do not fade after N consecutive trend bars') - that is this rule negated, a per-placement toggle. T15-52 counts close < open with no body test, which is this rule at bodyFraction = 0 and hence ConsecutiveUpBars; merged as a fixed parameter. TP1-08 grades itself research because 'extreme' is undefined, but the test it mines is this exact counter at N = 8, so the merged rule is not research-grade. The persistent-counter form was preferred over any pivot-based reading of 'spike'.",
+   "variants_kept_separate": [
+    "TrendBarCountInWindow",
+    "SpikeTrendBarsLowOverlap",
+    "ConsecutiveStrongTrendBars",
+    "TrendBarRunWithinWindow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "DojiBar",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's body is at most a small fraction of its own high-low range: a doji, Brooks's one-bar trading range. Identical both sides; negate the placement for the 'body dominates the range' / 'not a doji signal bar' forms.",
+   "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+   "sides": "same",
+   "parameters": {
+    "dojiFraction": 0.2
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "single-bar arithmetic on open/high/low/close"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BodyBelowAtrFraction",
+    "relation": "variant",
+    "note": "BodyBelowAtrFraction measures the body against the N-bar ATR; Brooks's doji measures it against the bar's OWN range, so a small body on a small bar is a doji here but not there. Different bars, kept apart."
+   },
+   "sources": [
+    "R00-02",
+    "R03-06",
+    "R08-03",
+    "R11-04",
+    "T00-03",
+    "TP1-02",
+    "T02-02",
+    "T10-11",
+    "T15-02",
+    "T21-04",
+    "V00-02",
+    "V25-07",
+    "R32-05",
+    "T06-15",
+    "TP3-20"
+   ],
+   "merge_notes": "Fifteen restatements. Book values 0.1 (T00-03, T02-02, V00-02), 0.15 (T06-15), 0.2 (R00-02, R08-03, T10-11, T21-04), 0.25 (T15-02), 0.3 (R11-04, TP1-02, R32-05); default 0.2. V25-07 ('never use a doji as the signal bar'), T06-15 ('doji bars are rarely good signal bars') and TP3-20 ('buy the close of any bar whose body dominates its range, bull or bear') are this rule NEGATED, which is a per-placement toggle, so they are citations rather than rules. R32-05 and V25-07 test the body at bar [1]; under the corpus convention bar 0 IS the signal bar (close, then enter at the next open), so no lag parameter is needed. T06-15's 'unless the market is in a strong trend spike' exception is a research-grade context filter and is not carried.",
+   "variants_kept_separate": [
+    "TrendBarBody",
+    "DojiCountInWindow",
+    "TrendingDojiRun",
+    "FirstBarOfSessionDoji"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "DojiCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N bars are doji bars - a sign of two-sided trading. Identical both sides; negate for 'few dojis', Brooks's strong-trend sign.",
+   "pseudocode": "countIf(abs(close[i] - open[i]) <= dojiFraction * (high[i] - low[i]), i in 0..lookback-1) >= minCount",
+   "sides": "same",
+   "parameters": {
+    "lookback": 10,
+    "minCount": 3,
+    "dojiFraction": 0.2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a CountIF over a window on a single-bar classification"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "Same CountIF-over-a-window shape, counting dojis; direction-agnostic, with no opposing count."
+   },
+   "sources": [
+    "T16-11",
+    "T21-33"
+   ],
+   "merge_notes": "T16-11 states it positively (at least 2 dojis in 10 = two-sided trading, dojiFraction 0.25); T21-33 states it negatively (at most 3 dojis in 10 = a strong trend, dojiFraction 0.2). Same test, one negated; default from T21-33. Also the cheapest available proxy for the tight-trading-range decision below.",
+   "variants_kept_separate": [
+    "DojiBar",
+    "TrendingDojiRun"
+   ],
+   "depends_on_keys": [
+    "DojiBar"
+   ],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "LargeBarCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N bars have a range of at least M times the recent average range - outsized bars are present, regardless of direction. Identical both sides; negate for Brooks's 'not many large bars appear' sign of an orderly trend.",
+   "pseudocode": "countIf((high[i] - low[i]) >= largeMultiple * atr(atrLookback), i in 0..lookback-1) >= minCount",
+   "sides": "same",
+   "parameters": {
+    "lookback": 10,
+    "minCount": 2,
+    "largeMultiple": 1.5,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a CountIF over a window against an ATR threshold"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd tests only the current bar; this counts how many of the last N were outsized."
+   },
+   "sources": [
+    "T00-30"
+   ],
+   "merge_notes": "Direction-agnostic, so kept apart from LargeTrendBarCountInWindow, whose counted condition also requires the bar to close with the trend. Brooks states it negated ('not many large bars appear, not even large trend bars'); the negate toggle covers that.",
+   "variants_kept_separate": [
+    "LargeTrendBarCountInWindow",
+    "BarRangeAboveAtrMultiple"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "countif",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

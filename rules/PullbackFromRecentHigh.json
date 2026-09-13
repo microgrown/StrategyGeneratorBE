@@ -1,0 +1,38 @@
+{
+    "name": "PullbackFromRecentHigh",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "pullbackAtr": "0.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "hh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ll": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and thereafter updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding it\n// to S += in - out rounds differently (@OJ 2015-02-20).\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\n// The highest high and lowest low over lookback bars, the window INCLUSIVE of the\n// current bar. Mirrors EL Extremes(), which the highest/lowest words both call: seeded\n// at bar 0, scanning bars 1..Length-1, strict comparison so a tie keeps the\n// earliest bar. Extremes is EL SOURCE, so its comparisons carry the relational\n// tolerance -- el_gt/el_lt, not > and < (see Breakout).\nhh = high[0];\nll = low[0];\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_gt(high[i], hh)) hh = high[i];\n    if (el_lt(low[i], ll)) ll = low[i];\n}",
+    "longCondition": "el_ge(hh - low[0], pullbackAtr * atrVal)",
+    "shortCondition": "el_ge(high[0] - ll, pullbackAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

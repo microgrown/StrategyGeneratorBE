@@ -1,0 +1,30 @@
+{
+    "name": "AverageBarOverlap",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "maxAvgOverlap": "0.5",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "ovBar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovAvg": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: ovBar = minlist(h[kk], h[kk+1]) - maxlist(l[kk], l[kk+1]), clamped at 0,\n//     ovSum accumulated as ovBar / (h[kk+1] - l[kk+1] + epsilon),\n//     ovAvg = ovSum / lookback.\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md): these operands are bar extremes, so they differ by exactly\n// 0 or by at least one tick -- 1e9-1e11x the relational tolerance -- and\n// whichever comparison the reserved word carries cannot matter. The plain\n// ternary stand-in is therefore exact, the same arrangement BarOverlapFraction\n// and AtrProfitTarget use. (<algorithm> is not among the emitted includes, so\n// no std::min/std::max.)\n// The gap clamp is written as an EL if-clamp rather than maxlist(0, ...)\n// because 0 against a price DIFFERENCE is a computed operand, outside\n// minlist/maxlist's ACCEPTED scope; an ordinary EL relational is VERIFIED and\n// carries the measured tolerance. Same reasoning as BarOverlapFraction.\n// The epsilon guards a zero-range reference bar: EL raises a runtime\n// divide-by-zero error on a zero denominator (EL_FEATURES.md), so it is an\n// input rather than a nicety.\n// The accumulation order is oldest-index-last, matching the EL loop statement\n// for statement; a mean of ratios is not associative in floating point.\novSum = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    ovBar = (high[i] < high[i + 1] ? high[i] : high[i + 1])\n            - (low[i] > low[i + 1] ? low[i] : low[i + 1]);\n    if (el_lt(ovBar, 0.0)) ovBar = 0.0;\n    ovSum = ovSum + ovBar / (high[i + 1] - low[i + 1] + epsilon);\n}\novAvg = ovSum / lookback;",
+    "longCondition": "el_le(ovAvg, maxAvgOverlap)",
+    "shortCondition": "el_le(ovAvg, maxAvgOverlap)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,21 @@
+{
+    "name": "BarRangeBelowAverageMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "avgRangeLookback": "20",
+        "maxRangeMultiple": "1.5"
+    },
+    "localVariables": {
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgRange = average(high - low, avgRangeLookback)[1] -- the mean bar\n// range over the avgRangeLookback bars ending ONE BAR AGO, so the signal bar\n// is not in its own benchmark. Same indexed-Average idiom LargeOutsideBar\n// uses.\n//\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808),\n// and high - low is a price expression with real history, so this is a FRESH\n// loop over price -- not the WFSafe_AvgTrueRange rolling accumulator and not a\n// mirrored variable buffer. Summed newest-first, EL's Summation order.\n//\n// Not NarrowRangeBar: that one's window INCLUDES the current bar (so an\n// oversized signal bar raises its own benchmark) and it is a fraction, not a\n// multiple. Not BarRangeAboveStd, whose band is mean + K standard deviations\n// over a zero-filled variable history and which fires in the LARGER sense --\n// negating it gives a different band, since the sd term moves with the\n// volatility of volatility.\navgRange = 0.0;\nfor (int i = 0; i < (int)avgRangeLookback; ++i) {\n    avgRange += high[1 + i] - low[1 + i];\n}\navgRange /= (int)avgRangeLookback;",
+    "longCondition": "el_le(high[0] - low[0], maxRangeMultiple * avgRange)",
+    "shortCondition": "el_le(high[0] - low[0], maxRangeMultiple * avgRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

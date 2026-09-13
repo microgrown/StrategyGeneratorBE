@@ -266,9 +266,50 @@ Brooks the blocking words over the 515 authorable rules were SwingHigh/SwingLow
 MinPositionProfit (an engine primitive, not an EL word). Four probes unblock almost
 everything that is not A already.
 
-Pass 3 authoring agents get disjoint slices of the A list, write only `rules/*.json`
-and their TS twins, and return CATALOG / EL_FEATURES rows as text for the
-orchestrator to append, so they never collide on shared files.
+## 7. Pass 3: probes, then authoring
+
+1. **Probes first, one agent.** The post-merge triage names the unregistered words;
+   one Opus agent writes all the probes per `author-rule` §4 (template in the engine
+   repo, one file per word family, UNKNOWN rows added to `rules/EL_FEATURES.md`). It
+   is the only agent allowed to edit the register. Brooks: Swing*, MinMove/PriceScale,
+   TLValue, XAverage. Brian runs the probes in TradeStation; nothing that needs those
+   words is authored until the rows flip. Ask the probe agent to also check what the
+   engine exposes: for Brooks it found tick size never reaches strategies and that
+   MinPositionProfit is not an EL word, both engine work rather than probes.
+2. **Split the A list by blockage, not by hand.** A script reads `merged/*.json`,
+   normalizes each A rule's `el_words_needed`, looks them up via
+   `lintElFeatures.loadRegistry()`, and writes `author/A_QUEUE.json` with `unblocked`
+   and `blocked` lists. Brooks: 228 A rules → 176 unblocked, 52 blocked (32 on tick
+   size, 14 on XAverage).
+3. **Slice the unblocked list by bucket family, ~12–15 rules per slice**, into
+   `author/slices/NN_<family>.json`, plus `author/A_KEYS.md` listing every key so each
+   agent can check sibling slices for duplicates. Run different families in parallel,
+   not two slices of the same family.
+4. **Brief:** `reference/brooks/AUTHORING.md`. The load-bearing points: every rule is
+   two files, the C++ in `rules/` and the EasyLanguage twin in
+   `../StrategyGeneratorTS/rules/` (the lint reads the EL twin as its primary source,
+   so write EL first); the per-rule gate is duplicate check, register check,
+   `validateRule`, `lintElFeatures.py <Key>`; agents write only their own rule files
+   and a rows file under `author/rows/`, never `CATALOG.md` or `EL_FEATURES.md`; tick
+   thresholds become price or ATR inputs until MinMove is registered.
+5. **Agents: Opus, three concurrent**, one slice each. After each completion the
+   orchestrator appends the rows file to `rules/CATALOG.md` and launches the next
+   slice. Finish with `lintElFeatures.py` over the whole corpus and the engine
+   Release build, which is the real check on the C++.
+6. **Cross-slice duplicates are the main failure mode.** Agents stop on a suspected
+   duplicate, as the skill requires, and two slices routinely defer the same rule to
+   each other so neither writes it (Brooks: `BounceFromLowByAtr`/`DistanceAboveRecentLow`,
+   `BodyGapBar`/`BarOpensAbovePriorClose`). Mitigations that worked: tell every prompt
+   which sibling keys are already on disk (point at `author/rows/*.md`); keep a
+   `author/DECISIONS.md` and make each deferral an explicit assignment to a named
+   slice; a `SendMessage` to a still-running agent lands at its next tool round and
+   can hand it a rule; give any leftover orphan to the last slice. Agents also flag
+   near-neighbours they wrote anyway; collect those pairs for one dedup review agent
+   after the last slice, before the commit.
+7. **Per-slice cost:** 12–14 rules, both twins, validated and linted, ran 145k–180k
+   Opus tokens and 10–15 minutes each. Rows files append cleanly with
+   `reference/brooks/appendRows.py`, which skips keys already in the catalog.
+
 
 ---
 

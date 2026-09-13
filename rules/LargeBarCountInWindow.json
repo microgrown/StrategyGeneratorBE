@@ -1,0 +1,35 @@
+{
+    "name": "LargeBarCountInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "minCount": "2",
+        "largeMultiple": "1.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "largeCount": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget, ClimaxBar and BarRangeAtrMultiple,\n// including the TWO separate accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently and lands on the other side of a threshold.\n// The accumulator stays in the hook, which the generator emits unconditionally:\n// EasyLanguage does not short-circuit and/or, so a stateful call in a condition\n// would advance every bar in EL and only on some bars in C++.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\n// One ATR value for the whole window, read at the CURRENT bar. The EL twin\n// writes the count as an explicit loop rather than CountIF precisely so the ATR\n// is not re-evaluated at each counted offset -- CountIF's argument is a true\n// series and would shift the function call with it. The count is otherwise\n// identical: bars 0..lookback-1, current bar INCLUDED.\n// Direction-agnostic, so both sides read the same count; Brooks's 'not many\n// large bars appear' is this rule negated, a per-placement toggle.\n// largeCount is a class member and persists across bars, so it is reset first.\nlargeCount = 0.0;\nfor (int k = 0; k < (int)lookback; ++k) {\n    if (el_ge(high[k] - low[k], largeMultiple * atrValue)) {\n        largeCount = largeCount + 1;\n    }\n}",
+    "longCondition": "el_ge(largeCount, minCount)",
+    "shortCondition": "el_ge(largeCount, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

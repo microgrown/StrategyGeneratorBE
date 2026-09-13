@@ -1,0 +1,25 @@
+{
+    "name": "CloseInRangePosition",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "bottomFraction": "0.2"
+    },
+    "localVariables": {
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: rangeLow = lowest(low, lookback), rangeHigh = highest(high, lookback),\n// the window INCLUSIVE of the current bar as the source states it. Buy the\n// bottom of the range, sell the top -- a fade with no reversal-bar\n// requirement.\n//\n// Highest/Lowest bottom out in EL's Extremes(), which is EL SOURCE: seeded at\n// the window's first bar, scanning the rest, STRICT comparison so a tie keeps\n// the earliest bar; being EL source, its relational operator carries the same\n// 2.22e-12 tolerance, hence el_lt/el_gt in the scan.\n//\n// The condition is the MULTIPLIED form of the stochastic ratio\n// (close - LL) / (HH - LL) <= bottomFraction. Written that way so an N-bar\n// block of identical bars cannot divide by zero -- EasyLanguage raises a\n// RUNTIME divide-by-zero error on a zero denominator -- and so no epsilon\n// input is needed. Degenerate case HH == LL: 0 <= 0, both sides fire, which is\n// the honest reading of a range with no height.\n//\n// Not CloseRangePosition, which places the close inside the CURRENT BAR's own\n// range. Not ClosePercentileRank, which ranks the close among the last N\n// CLOSES by counting -- this reads the high-low envelope, so wicks move it and\n// not the rank. Not RangeMidpointZone, which is a band around the midpoint.\nrangeLow = low[0];\nrangeHigh = high[0];\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n}",
+    "longCondition": "el_le(close[0] - rangeLow, bottomFraction * (rangeHigh - rangeLow))",
+    "shortCondition": "el_le(rangeHigh - close[0], bottomFraction * (rangeHigh - rangeLow))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

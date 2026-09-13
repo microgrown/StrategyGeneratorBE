@@ -1,0 +1,25 @@
+{
+    "name": "BullReversalBarAtNewLow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "5",
+        "closeFraction": "0.6"
+    },
+    "localVariables": {
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: priorLow = lowest(low, lookback)[1], priorHigh = highest(high,\n// lookback)[1] -- the extreme of the lookback bars ENDING ONE BAR AGO, so the\n// reversal bar is compared against what it reversed and not against itself.\n//\n// Highest/Lowest bottom out in EL's Extremes(), which is EL SOURCE: seeded at\n// the window's first bar, scanning the rest, STRICT comparison so a tie keeps\n// the earliest bar. Being EL source, its relational operator carries the same\n// 2.22e-12 tolerance every other EL comparison does, so the scan uses\n// el_lt/el_gt rather than < and >. Written out as the loop it bottoms out in,\n// the way Breakout and LargestTrendBarOfTheRun do.\npriorLow = low[1];\npriorHigh = high[1];\nfor (int i = 2; i <= (int)lookback; ++i) {\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n}",
+    "longCondition": "el_le(low[0], priorLow) && el_gt(close[0], open[0]) && el_ge(close[0] - low[0], closeFraction * (high[0] - low[0]))",
+    "shortCondition": "el_ge(high[0], priorHigh) && el_lt(close[0], open[0]) && el_ge(high[0] - close[0], closeFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

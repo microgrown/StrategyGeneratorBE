@@ -1,0 +1,26 @@
+{
+    "name": "TrendBarCountDominanceInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "dominance": "3",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "bullTrendBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearTrendBars": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks: 'the bull trend bars were clearly more prominent than the bear trend\n// bars in the range' -- read as a COUNT difference, one side's tally minus the\n// other's against a margin. Structurally TailBarCountDominance with trend bars\n// substituted for tail bars, and its counted-series handling is copied here.\n//\n// Not TrendBarCountInWindow, which tests one side against an ABSOLUTE count\n// and says nothing about the other side. Not BullBearBodyDominanceInWindow,\n// which weighs the same idea by body SIZE: three small bull bars beat two big\n// bear bars here and not there.\n//\n// The EasyLanguage twin uses CountIF, which counts bars 0..N-1 INCLUDING the\n// current bar and whose argument is a true SERIES whose offsets shift with the\n// counted bar (EL_FEATURES `countif`, VERIFIED). Every operand is a raw price\n// at offset 0, so the loop below is that count bar for bar. Prices have real\n// history back to the chart start, so no zero-filled variable mirror is\n// needed. The counts are EL numeric variables, kept as doubles.\n//\n// The body test is a product, never a quotient: EL raises a runtime\n// divide-by-zero and a zero-range bar is legal data.\nbullTrendBars = 0.0;\nbearTrendBars = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_gt(close[i], open[i])\n        && el_ge(close[i] - open[i], bodyFraction * (high[i] - low[i]))) {\n        bullTrendBars += 1;\n    }\n    if (el_lt(close[i], open[i])\n        && el_ge(open[i] - close[i], bodyFraction * (high[i] - low[i]))) {\n        bearTrendBars += 1;\n    }\n}",
+    "longCondition": "el_ge(bullTrendBars - bearTrendBars, dominance)",
+    "shortCondition": "el_ge(bearTrendBars - bullTrendBars, dominance)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

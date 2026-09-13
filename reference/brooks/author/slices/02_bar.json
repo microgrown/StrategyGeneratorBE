@@ -1,0 +1,465 @@
+{
+ "slice": "02_bar.json",
+ "rules": [
+  {
+   "key": "SpikePauseBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar either failed to make a higher high or closed below its open, the pause that Brooks says ends a bull spike (mirrored for a bear spike).",
+   "pseudocode": "high[0] <= high[1] || close[0] < open[0]",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "trivial",
+    "reason": "two single-bar comparisons ORed"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "No pause-bar rule in the catalog."
+   },
+   "sources": [
+    "R07-01",
+    "T21-06"
+   ],
+   "merge_notes": "T21-06's three disjuncts collapse to two: an inside bar always fails to make a higher high. R07-01 substitutes doji-or-large-opposite-tail for the no-higher-high leg; those bar shapes belong to bar_anatomy_trend_doji, so the simpler test won. Being an OR it cannot be composed in the ANDing entry pane, so it is kept whole.",
+   "variants_kept_separate": [
+    "PauseBarNoNewExtreme",
+    "NarrowRangeBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_inside_outside",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "ThinAreaLowBarOverlap",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Every one of the last N bar pairs overlaps by at most a fraction of the earlier bar's range, Brooks's thin one-sided breakout area.",
+   "pseudocode": "for i in 0..spikeBars-1: (minList(high[i], high[i+1]) - maxList(low[i], low[i+1])) <= overlapFraction * (high[i+1] - low[i+1])",
+   "sides": "same",
+   "parameters": {
+    "spikeBars": 3,
+    "overlapFraction": 0.25
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window loop of two-bar comparisons, no division"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "No bar-overlap rule in the catalog."
+   },
+   "sources": [
+    "R08-18"
+   ],
+   "merge_notes": "Kept apart from AverageBarOverlapWindow: an all-pairs quantifier is not a mean, and one wide bar pair fails this test while barely moving the mean. Multiplied form, so no epsilon is needed.",
+   "variants_kept_separate": [
+    "AverageBarOverlapWindow",
+    "BarOverlapFraction"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_inside_outside",
+   "el_words": [
+    "maxlist",
+    "minlist"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "AverageUpperTailFraction",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The mean upper-tail fraction over the last N bars is below a threshold - as a long filter, the absence of persistent selling pressure (mirror: mean lower-tail fraction).",
+   "pseudocode": "average((high - max(open, close)) / (high - low), windowBars) < maxTailFraction",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 10,
+    "maxTailFraction": 0.3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window average of a per-bar ratio"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "TP3-26"
+   ],
+   "merge_notes": "Authoring note carried from the source: guard zero-range bars in the ratio, the way CloseRangePosition uses an epsilon. Stated as the long filter (mean BELOW the threshold); the per-placement negate toggle gives the two-sidedness sign the book actually describes.",
+   "variants_kept_separate": [
+    "UpperTailCountInWindow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarRangeBelowAverageMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The signal bar's high-low range is no more than K times the average bar range of the last N bars - an oversized signal bar would put the entry too far from the level being faded.",
+   "pseudocode": "(high[0] - low[0]) <= maxRangeMultiple * average(high - low, avgRangeLookback)[1]",
+   "sides": "same",
+   "parameters": {
+    "avgRangeLookback": 20,
+    "maxRangeMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a window average of bar range"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd compares the range against mean + K standard deviations and fires when it is LARGER; this is a plain multiple of the mean in the smaller-than sense. Negating BarRangeAboveStd gives a different band, since its standard-deviation term moves with the volatility of volatility."
+   },
+   "sources": [
+    "RP4-10"
+   ],
+   "merge_notes": "Also close in spirit to the catalog's AtrDollarsBelow (a size cap), but that one is ATR in dollars, not this bar's range against the mean range. Kept as the bare range test; T05-11 pairs the same idea with a body test inside a negated AND and is carried separately.",
+   "variants_kept_separate": [
+    "SmallWeakSignalBarBlock",
+    "BreakoutBarLargeBodyLargeRange"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BreakoutBarLargeBodyLargeRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar has a body that is a large fraction of its own range AND a range at or above the recent average range - the book's 'strong breakout bar'.",
+   "pseudocode": "abs(close[0] - open[0]) >= strongBodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= average(high - low, rangeLookback)[1]",
+   "sides": "same",
+   "parameters": {
+    "strongBodyFraction": 0.7,
+    "rangeLookback": 10
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a single-bar ratio plus a window average of bar range"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd uses mean + K standard deviations of range; this is a plain mean comparison AND-ed with a body-fraction test the catalog has no rule for."
+   },
+   "sources": [
+    "T00-26"
+   ],
+   "merge_notes": "Kept whole rather than split into a body-fraction rule and a range-vs-average rule: neither half appears alone anywhere in this bucket, and the pair is the book's single named 'large trend body, and the larger the bar the more likely the breakout succeeds'. Stated on the signal bar (offset 1) in the source; recorded at offset 0 so a placement can lag it.",
+   "variants_kept_separate": [
+    "BarRangeBelowAverageMultiple",
+    "BodyAboveAverageBody"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "absvalue",
+    "average"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BullReversalBarAtNewLow",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar makes a new low over the prior N bars yet closes up and in the upper part of its own range - a bull reversal bar that actually reversed something (mirror: new N-bar high, weak close).",
+   "pseudocode": "low[0] <= lowest(low, lookback)[1] && close[0] > open[0] && (close[0] - low[0]) >= closeFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 5,
+    "closeFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a lowest-low window plus single-bar close-location arithmetic"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "CloseRangePosition",
+    "relation": "variant",
+    "note": "Adds the new-N-bar-low term, which CloseRangePosition has no way to express."
+   },
+   "sources": [
+    "R05-03",
+    "R09-01",
+    "T10-02"
+   ],
+   "merge_notes": "Same rule at three lookbacks: T10-02 uses the prior bar only (lookback = 1), R05-03 uses 5, R09-01 uses 10. One rule with a lookback input; default 5 as the middle book value. R09-01 omits the close[0] > open[0] term - kept anyway, since Brooks's minimum reversal bar needs either a bull body or a strong close and the closeFraction 0.6 term already carries the latter. Distinct from BullReversalBarWithTail, which has no new-low requirement.",
+   "variants_kept_separate": [
+    "BullReversalBarWithTail",
+    "StopRunReversalBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BullReversalBarShape",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A strong bull reversal bar by body/tail shape: bull close, body at least a fraction of the bar's range, and BOTH tails at most a fraction of the range (mirror for bear).",
+   "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) <= tailFraction * (high[0] - low[0]) && (open[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.6,
+    "tailFraction": 0.2
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "single-bar arithmetic"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "CloseRangePosition",
+    "relation": "variant",
+    "note": "CloseRangePosition tests only where the close sits in the range; this tests the body as a fraction of range and caps both tails, which the catalog rule cannot express."
+   },
+   "sources": [
+    "VP1-02",
+    "V02-01"
+   ],
+   "merge_notes": "VP1-02 and V02-01 are character-for-character the same test at the same 0.6/0.2 defaults; V02-01 is the definition the rest of the reversals book cites. Kept apart from BullReversalBarWithTail on purpose: this one REQUIRES a small lower tail, that one REQUIRES a substantial lower tail, so they are near-disjoint under the same book name.",
+   "variants_kept_separate": [
+    "BullReversalBarWithTail",
+    "ReversalBarTailFraction",
+    "SmallTailsBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "BullReversalBarWithTail",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A bull reversal bar by close position and rejection tail: bull close, close in the upper part of the bar's range, and a lower tail of at least a fraction of the range (mirror for bear).",
+   "pseudocode": "close[0] > open[0] && (close[0] - low[0]) >= closePositionMin * (high[0] - low[0]) && (open[0] - low[0]) >= lowerTailMin * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "closePositionMin": 0.7,
+    "lowerTailMin": 0.2
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "single-bar arithmetic"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "CloseRangePosition",
+    "relation": "variant",
+    "note": "The close-position term alone is CloseRangePosition(0.7) without its epsilon; the lower-tail requirement is new and is what makes it a 'reversal' bar rather than just a strong close."
+   },
+   "sources": [
+    "T04-06",
+    "T06-19",
+    "T07-03",
+    "TP4-09"
+   ],
+   "merge_notes": "T04-06, T06-19 and T07-03 are literally identical pseudocode at 0.7/0.2 - the trends volume redefines it once per chapter per the mining brief. TP4-09 substitutes a body fraction (0.4) for the close-position term and adds an upper-tail cap (0.25); kept in sources as a citation, the close-position form wins because it is the reading the other three share and it needs one fewer term.",
+   "variants_kept_separate": [
+    "BullReversalBarShape",
+    "BullReversalBarAtNewLow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "CloseInRangePosition",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the bottom (long) / top (short) fraction of the N-bar high-low range - fading a range extreme with no reversal-bar requirement.",
+   "pseudocode": "(close[0] - lowest(low, lookback)) / (highest(high, lookback) - lowest(low, lookback)) <= bottomFraction",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 20,
+    "bottomFraction": 0.2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a Highest and a Lowest window plus a ratio"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ClosePercentileRank",
+    "relation": "variant",
+    "note": "ClosePercentileRank ranks the close among the last N CLOSES by counting; this is the close's position within the N-bar HIGH-LOW range (a stochastic %K), a different number with a different sensitivity to wicks. Also not CloseRangePosition, which uses the current bar's own range."
+   },
+   "sources": [
+    "V02-37"
+   ],
+   "merge_notes": "The source warns it fades every strong trend when used alone; that is a placement concern, not a reason to downgrade the rule - the corpus ANDs it with whatever regime filter the strategy carries. Windows are current-bar-inclusive as stated.",
+   "variants_kept_separate": [
+    "OpenNearHighCloseNearLow"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ExhaustionBarAfterLargeTrendBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After a bear trend bar, the current bar's body shrinks to a fraction of that prior body and it shows a lower tail of at least a fraction of its own range - exhaustion, read as a countertrend long (mirror after a bull spike).",
+   "pseudocode": "close[1] < open[1] && abs(close[0] - open[0]) <= bodyShrink * abs(close[1] - open[1]) && (min(open[0], close[0]) - low[0]) >= tailFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyShrink": 0.5,
+    "tailFraction": 0.4
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "two-bar arithmetic once the prior body is read directly rather than against an average"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-60"
+   ],
+   "merge_notes": "T21-60 also carried a sizeMultiple(2.0) for 'large bear trend bar' against an average range; dropped in favour of the direct prior-body comparison, which is what the bodyShrink ratio already measures and which needs no window. Distinct from SmallBodyLargeOppositeTailBar: that one is about a single bar's own shape, this one is relative to the bar before it.",
+   "variants_kept_separate": [
+    "SmallBodyLargeOppositeTailBar",
+    "BodyAboveAverageBody"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "absvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "GrowingTopTails",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "This bar has a nonzero top tail and that tail is larger than the prior bar's top tail - tails starting to form and grow at the top of a move (mirror at the bottom).",
+   "pseudocode": "topTail0 = high[0] - max(open[0], close[0]); topTail1 = high[1] - max(open[1], close[1]); topTail0 > 0 && topTail0 > topTail1",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "trivial",
+    "reason": "two-bar tail comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R11-02"
+   ],
+   "merge_notes": "A first difference of tail size rather than a level test, so it is distinct from every other tail rule in the bucket. No parameters in the source; the authoring pass may want a lag input the way LaggedHigherHigh has one.",
+   "variants_kept_separate": [
+    "UpperTailCountInWindow",
+    "AverageUpperTailFraction"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "LargeOppositeTailWeakensReversal",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Block a bull reversal entry when the bar has a large tail on TOP, unless its body is still reasonably strong (mirror: a bear reversal bar with a large bottom tail).",
+   "pseudocode": "!((high[0] - max(open[0], close[0])) >= largeTailFraction * (high[0] - low[0])) || abs(close[0] - open[0]) >= minBodyOverride * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "largeTailFraction": 0.35,
+    "minBodyOverride": 0.4
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "single-bar arithmetic"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T05-10"
+   ],
+   "merge_notes": "An OR with an override clause, so not composable from panes; carried whole for the same reason as SmallWeakSignalBarBlock. Distinct from ReversalBarTailFraction's oppositeTailMax term, which is an unconditional cap with no body escape hatch.",
+   "variants_kept_separate": [
+    "ReversalBarTailFraction",
+    "SmallBodyLargeOppositeTailBar"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "absvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "LowHoldsPriorClose",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The bar's low never traded more than a few ticks below the previous bar's close (mirror: the high never traded more than a few ticks above it) -- the buyers did not let the prior close be tested, a one-bar sign of underlying pressure.",
+   "pseudocode": "low[0] >= close[1] - toleranceTicks * tickSize",
+   "sides": "mirrored",
+   "parameters": {
+    "toleranceTicks": 1
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "two-bar comparison"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "the corpus compares closes and highs/lows, not the low against the prior close"
+   },
+   "sources": [
+    "V02-06"
+   ],
+   "merge_notes": "Single source, kept because it is atomic and trivially mechanizable; it is the close-anchored cousin of ReversalBarOpenNearPriorClose, which tests the OPEN against the prior close.",
+   "variants_kept_separate": [
+    "ReversalBarOpenNearPriorClose"
+   ],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  }
+ ]
+}

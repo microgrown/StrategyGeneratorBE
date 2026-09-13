@@ -1,0 +1,25 @@
+{
+    "name": "FailedFollowThroughCount",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "6",
+        "minCount": "3"
+    },
+    "localVariables": {
+        "bullFail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearFail": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: bullFail = CountIF(close[1] < open[1] and close > open, lookback);\n//     bearFail = CountIF(close[1] > open[1] and close < open, lookback);\n// CountIF counts over bars 0..N-1 INCLUDING the current bar, and the counted\n// condition is a true SERIES: its own [1] offsets shift with the counted bar\n// (EL_FEATURES `countif`, VERIFIED -- the frozen-offset model was refuted), so\n// position i tests close[i+1]/open[i+1] against close[i]/open[i]. That is the\n// TailBarCountDominance construction, and the deepest bar read is lookback.\n// The counted operands are prices, which have real history back to the chart\n// start, so no zero-filled variable mirror is needed. The counts are EL numeric\n// variables and stay doubles. A tie bar closes in neither direction and\n// satisfies neither half of a pair.\n// Both counters persist across bars, so they are reset before the loop.\nbullFail = 0.0;\nbearFail = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_lt(close[i + 1], open[i + 1]) && el_gt(close[i], open[i])) {\n        bullFail += 1;\n    }\n    if (el_gt(close[i + 1], open[i + 1]) && el_lt(close[i], open[i])) {\n        bearFail += 1;\n    }\n}",
+    "longCondition": "el_ge(bullFail, minCount)",
+    "shortCondition": "el_ge(bearFail, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

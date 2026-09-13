@@ -1,0 +1,21 @@
+{
+  "name": "DeepPullbackRetracementFilter",
+  "type": "Entry",
+  "inputVariables": {
+    "legLookback": "30",
+    "retracementThreshold": "0.75"
+  },
+  "localVariables": {
+    "legHigh": {
+      "type": "double",
+      "init": "0.0"
+    },
+    "legLow": {
+      "type": "double",
+      "init": "0.0"
+    }
+  },
+  "preConditionHook": "// EL, lowercase as the feature register writes it: legHigh = highest(h,\n// legLookback)[1] and legLow = lowest(l, legLookback)[1] --\n// the previous bar's Highest/Lowest, i.e. the N bars ENDING ONE BAR AGO\n// (today's high[1..legLookback]). highest/lowest bottom out in Extremes(),\n// which is EL SOURCE: seeded at the first bar of its window, scanning the rest\n// with a strict, tolerance-carrying comparison -- so this seeds at high[1] /\n// low[1] and scans 2..legLookback with el_gt/el_lt, exactly as\n// CloseAbovePriorHighestHigh does.\nlegHigh = high[1];\nlegLow = low[1];\nfor (int i = 2; i <= (int)legLookback; ++i) {\n    if (el_gt(high[i], legHigh)) legHigh = high[i];\n    if (el_lt(low[i], legLow)) legLow = low[i];\n}",
+  "longCondition": "el_ge(close[0] - legLow, retracementThreshold * (legHigh - legLow))",
+  "shortCondition": "el_ge(legHigh - close[0], retracementThreshold * (legHigh - legLow))"
+}

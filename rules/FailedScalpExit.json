@@ -1,0 +1,28 @@
+{
+    "name": "FailedScalpExit",
+    "type": "Exit",
+    "inputVariables": {
+        "failureDollars": "100"
+    },
+    "localVariables": {
+        "sigOffset": {
+            "type": "int",
+            "init": "1"
+        },
+        "sigLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BarsSinceEntry is 0 on the fill bar and never a -1 sentinel (VERIFIED), so\n// BarsSinceEntry + 1 addresses the SIGNAL bar: the fill bar's predecessor at 0,\n// the bar before that at 1. EasyLanguage does not short-circuit its AND\n// (EL_LogicalEval_Probe.txt), so the twin cannot put that subscript in the\n// condition -- it would reach back BarsSinceEntry + 1 bars on EVERY bar of an\n// open position. Both twins clamp it here instead, in branching control flow,\n// which keeps the deepest reference at 2 and changes nothing the condition can\n// see: the rule only fires at BarsSinceEntry <= 1.\nsigOffset = ctx.BarsSinceEntry() + 1;\nif (sigOffset > 2) sigOffset = 2;\nsigLow = low[sigOffset];\nsigHigh = high[sigOffset];",
+    "longCondition": "el_eq(ctx.MarketPosition(), 1) && el_le((double)ctx.BarsSinceEntry(), 1) && el_le(ctx.MaxPositionProfit(), failureDollars) && el_lt(low[0], sigLow)",
+    "shortCondition": "el_eq(ctx.MarketPosition(), -1) && el_le((double)ctx.BarsSinceEntry(), 1) && el_le(ctx.MaxPositionProfit(), failureDollars) && el_gt(high[0], sigHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

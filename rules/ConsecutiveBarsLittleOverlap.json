@@ -1,0 +1,33 @@
+{
+    "name": "ConsecutiveBarsLittleOverlap",
+    "type": "Entry",
+    "inputVariables": {
+        "consecutiveBars": "3",
+        "maxOverlapFraction": "0.3"
+    },
+    "localVariables": {
+        "ovTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovBottom": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "smallRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "littleOverlap": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: littleOverlap = true; for kk = 0 to consecutiveBars - 1:\n//       ovTop = MinList(high[kk], high[kk+1]);\n//       ovBottom = MaxList(low[kk], low[kk+1]);\n//       smallRange = the smaller of the two bars' high-low ranges;\n//       littleOverlap = false whenever\n//           ovTop - ovBottom > maxOverlapFraction * smallRange.\n// EVERY pair must pass -- the all-of-N run form, not AverageBarOverlap's mean.\n// The divisor is the SMALLER of the two ranges (ThinAreaLowBarOverlap and\n// OverlappingBarRun use the earlier bar's range instead), so when the newer bar\n// is the smaller one this rule is the stricter test.\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md), which bar extremes are: they differ by exactly 0 or by at\n// least one tick, 1e9-1e11x the 2.22e-12 relational tolerance, so whichever\n// comparison the reserved word carries cannot matter and the plain ternary\n// stand-in is exact (no <algorithm> among the emitted includes anyway).\n// The smaller RANGE is picked with el_lt rather than MinList: a range is a\n// computed operand and outside minlist's accepted scope, while an ordinary EL\n// relational is VERIFIED and carries the measured tolerance -- so a tie inside\n// the tolerance takes the else branch in both twins alike. Same arrangement as\n// AverageBarOverlap's gap clamp.\n// A product, not a quotient: EL raises a runtime divide-by-zero and a zero-range\n// bar is legal data. A gap makes ovTop - ovBottom negative, which passes.\n// littleOverlap persists across bars, so it is reset before the loop.\nlittleOverlap = true;\nfor (int i = 0; i < (int)consecutiveBars; ++i) {\n    ovTop = high[i] < high[i + 1] ? high[i] : high[i + 1];\n    ovBottom = low[i] > low[i + 1] ? low[i] : low[i + 1];\n    if (el_lt(high[i] - low[i], high[i + 1] - low[i + 1])) {\n        smallRange = high[i] - low[i];\n    } else {\n        smallRange = high[i + 1] - low[i + 1];\n    }\n    if (el_gt(ovTop - ovBottom, maxOverlapFraction * smallRange)) {\n        littleOverlap = false;\n    }\n}",
+    "longCondition": "littleOverlap",
+    "shortCondition": "littleOverlap",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

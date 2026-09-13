@@ -1,0 +1,28 @@
+{
+    "name": "BarOverlapFraction",
+    "type": "Entry",
+    "inputVariables": {
+        "overlapThreshold": "0.5"
+    },
+    "localVariables": {
+        "ovTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ov": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: ovTop = minlist(h, h[1]); ovBot = maxlist(l, l[1]).\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md): these operands are bar extremes, so they differ by\n// exactly 0 or by at least one tick -- 1e9-1e11x the relational tolerance --\n// and whichever comparison the reserved word carries cannot matter. The\n// plain ternary stand-in is therefore exact, the same arrangement\n// TwoBarRangePosition and AtrProfitTarget use. (<algorithm> is not among\n// the emitted includes, so no std::min/std::max.)\novTop = high[0] < high[1] ? high[0] : high[1];\novBot = low[0] > low[1] ? low[0] : low[1];\nov = ovTop - ovBot;\n// A gap clamps to zero overlap. Written as an EL if-clamp rather than\n// maxlist(0, ...) because 0 against a price DIFFERENCE is a computed\n// operand, outside minlist/maxlist's ACCEPTED scope; an ordinary EL\n// relational operator is VERIFIED and carries the measured tolerance.\nif (el_lt(ov, 0.0)) ov = 0.0;",
+    "longCondition": "el_ge(ov, overlapThreshold * (high[1] - low[1]))",
+    "shortCondition": "el_ge(ov, overlapThreshold * (high[1] - low[1]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

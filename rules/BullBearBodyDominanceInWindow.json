@@ -1,0 +1,25 @@
+{
+    "name": "BullBearBodyDominanceInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "dominanceMultiple": "1.5"
+    },
+    "localVariables": {
+        "bullBodySum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearBodySum": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: one pass over bars 0..lookback-1 (current bar INCLUDED, CountIF's\n// convention) accumulating close - open on up bars into bullBodySum and\n// open - close on down bars into bearBodySum; and\n// bullBodySum > dominanceMultiple * bearBodySum on the long side.\n//\n// Buying pressure by body size rather than bar count -- the body-weighted\n// twin of TrendBarCountDominanceInWindow, where one big bull bar can carry the\n// window and cannot there. No body-fraction test on the individual bars: the\n// sum itself does the weighting, which is what makes it a different rule.\n// A tie bar (close == open within the EL tolerance) adds nothing to either\n// side.\n//\n// Summed over price expressions with real history, so a fresh loop -- not the\n// WFSafe_ rolling accumulator and not a zero-filled variable mirror -- and\n// newest-first, EasyLanguage's Summation order.\n//\n// Both accumulators are class members and persist across bars, so they are\n// reset before the loop; both are computed here rather than in the conditions\n// because EasyLanguage does not short-circuit.\nbullBodySum = 0.0;\nbearBodySum = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_gt(close[i], open[i])) bullBodySum = bullBodySum + (close[i] - open[i]);\n    if (el_lt(close[i], open[i])) bearBodySum = bearBodySum + (open[i] - close[i]);\n}",
+    "longCondition": "el_gt(bullBodySum, dominanceMultiple * bearBodySum)",
+    "shortCondition": "el_gt(bearBodySum, dominanceMultiple * bullBodySum)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

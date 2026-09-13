@@ -1,0 +1,34 @@
+{
+    "name": "AverageUpperTailFraction",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "10",
+        "maxTailFraction": "0.3",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "avgUpperTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgLowerTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgUpperTail = average((high - maxlist(open, close)) / (high - low +\n// epsilon), windowBars), and the mirror over the lower tail for the short\n// side. The window is INCLUSIVE of the current bar.\n//\n// Average recomputes from scratch every bar (EL_Summation_Probe, 2,808/2,808)\n// and the averaged quantity is a price EXPRESSION with real history -- not an\n// EL variable -- so this is a fresh loop over price, NOT the\n// WFSafe_AvgTrueRange rolling accumulator and NOT the zero-filled variable\n// mirror BarRangeAboveStd needs. Summed newest-first, EL's Summation order.\n//\n// The epsilon is the corpus's zero-range guard (the literal CloseRangePosition\n// carries): EasyLanguage raises a RUNTIME divide-by-zero error on a zero\n// denominator, so it is added inside the ratio rather than branched around,\n// and it is an input so the ratio's low bits match the twin's.\n//\n// maxlist/minlist select among open and close -- tick-grid price operands,\n// the scope their ACCEPTED row allows -- so plain comparisons stand in.\navgUpperTail = 0.0;\navgLowerTail = 0.0;\nfor (int i = 0; i < (int)windowBars; ++i) {\n    bodyTop = open[i];\n    if (close[i] > bodyTop) bodyTop = close[i];\n    bodyBottom = open[i];\n    if (close[i] < bodyBottom) bodyBottom = close[i];\n    avgUpperTail += (high[i] - bodyTop) / (high[i] - low[i] + epsilon);\n    avgLowerTail += (bodyBottom - low[i]) / (high[i] - low[i] + epsilon);\n}\navgUpperTail /= (int)windowBars;\navgLowerTail /= (int)windowBars;",
+    "longCondition": "el_lt(avgUpperTail, maxTailFraction)",
+    "shortCondition": "el_lt(avgLowerTail, maxTailFraction)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

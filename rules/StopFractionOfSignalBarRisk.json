@@ -1,0 +1,24 @@
+{
+    "name": "StopFractionOfSignalBarRisk",
+    "type": "Exit",
+    "inputVariables": {
+        "stopFraction": "0.3"
+    },
+    "localVariables": {
+        "sigLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Signal bar = the bar before the entry bar = bar [1] on the fill bar, where\n// BarsSinceEntry() is 0 (EL_FEATURES.md `barssinceentry`, VERIFIED). Captured\n// once instead of indexed by the position's age every bar, which keeps the\n// deepest subscript at 1.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    sigLow = low[1];\n    sigHigh = high[1];\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le(close[0], sigLow + stopFraction * (ctx.EntryPrice() - sigLow))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(close[0], sigHigh - stopFraction * (sigHigh - ctx.EntryPrice()))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

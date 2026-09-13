@@ -1,0 +1,30 @@
+{
+    "name": "LargeTailedBarCount",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "8",
+        "minCount": "4",
+        "bodyFractionMax": "0.5"
+    },
+    "localVariables": {
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tailedCount": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: tailedCount = 0; for kk = 0 to lookback - 1: sum high - low over the\n// lookback bars ending at kk + 1, divide by lookback, and count bar kk when its\n// range is at or above that mean AND AbsValue(close[kk] - open[kk]) is no more\n// than bodyFractionMax of its own range.\n// Both terms are inside one count on purpose: two separate count panes could be\n// satisfied by two different bars, which is not the claim.\n// The EL twin writes the count as an explicit loop rather than CountIF because\n// the large-bar benchmark shifts with the counted bar and a function-history\n// reference nested in a CountIF true-series argument is not a behaviour the\n// register covers. The count is the same either way: CountIF counts bars\n// 0..N-1, current-inclusive, which is this loop.\n// Average recomputes fresh every bar over a price expression with real history,\n// so the inner sum is a plain loop -- not the WFSafe_ rolling accumulator --\n// summed newest-first, EL's Summation order, and divided by the same (int)\n// bound the loop uses. Products, not quotients, for the body test: EL raises a\n// runtime divide-by-zero and a zero-range bar is legal data.\n// The scratch locals persist across bars, so all three are reset before use.\ntailedCount = 0.0;\nfor (int k = 0; k < (int)lookback; ++k) {\n    rangeSum = 0.0;\n    for (int j = 0; j < (int)lookback; ++j) {\n        rangeSum = rangeSum + (high[k + 1 + j] - low[k + 1 + j]);\n    }\n    avgRange = rangeSum / (int)lookback;\n    if (el_ge(high[k] - low[k], avgRange)\n        && el_le(std::fabs(close[k] - open[k]), bodyFractionMax * (high[k] - low[k]))) {\n        tailedCount = tailedCount + 1;\n    }\n}",
+    "longCondition": "el_ge(tailedCount, minCount)",
+    "shortCondition": "el_ge(tailedCount, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

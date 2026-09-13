@@ -1,0 +1,33 @@
+{
+    "name": "TightenStopToEntryBarIfStrong",
+    "type": "Exit",
+    "inputVariables": {
+        "strongBodyFrac": "0.6",
+        "stopOffset": "0.25"
+    },
+    "localVariables": {
+        "entryBarOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "entryBarHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "entryBarLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "entryBarClose": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The entry bar is bar [0] on the bar the entry fills, where BarsSinceEntry()\n// is 0 (EL_FEATURES.md `barssinceentry`, VERIFIED). Its four prices are\n// captured there and read on every later bar of the position, so the stop\n// never indexes back by the position's age.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    entryBarOpen = open[0];\n    entryBarHigh = high[0];\n    entryBarLow = low[0];\n    entryBarClose = close[0];\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1.0) && el_gt(entryBarClose, entryBarOpen) && el_ge(entryBarClose - entryBarOpen, strongBodyFrac * (entryBarHigh - entryBarLow)) && el_le(close[0], entryBarLow - stopOffset)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1.0) && el_lt(entryBarClose, entryBarOpen) && el_ge(entryBarOpen - entryBarClose, strongBodyFrac * (entryBarHigh - entryBarLow)) && el_ge(close[0], entryBarHigh + stopOffset)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

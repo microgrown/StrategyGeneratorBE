@@ -1,0 +1,22 @@
+{
+    "name": "DojiCountInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "minCount": "3",
+        "dojiFraction": "0.2"
+    },
+    "localVariables": {
+        "dojiCount": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: dojiCount = CountIF(AbsValue(close - open)\n//         <= dojiFraction * (high - low), lookback).\n//\n// The counted condition is DojiBar's, applied bar by bar. CountIF counts bars\n// 0..N-1 INCLUDING the current bar and the counted condition is a true SERIES\n// (EL_FEATURES `countif`, VERIFIED) -- every price term shifts with the counted\n// bar, which is what this loop does. The terms are prices with real history, so\n// no zero-filled variable mirror is needed.\n//\n// Direction-agnostic: both sides are identical text, and 'few dojis' (Brooks's\n// strong-trend sign) is this rule NEGATED, a per-placement toggle.\n//\n// A product, not a quotient: EasyLanguage raises a runtime divide-by-zero error\n// on a zero denominator and a zero-range bar is legal data -- it counts as a\n// doji, its body being zero as well.\n// The count is an EL numeric variable, so a double here, and it persists across\n// bars, so it is reset before the loop.\ndojiCount = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_le(std::fabs(close[i] - open[i]), dojiFraction * (high[i] - low[i]))) {\n        dojiCount = dojiCount + 1;\n    }\n}",
+    "longCondition": "el_ge(dojiCount, minCount)",
+    "shortCondition": "el_ge(dojiCount, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

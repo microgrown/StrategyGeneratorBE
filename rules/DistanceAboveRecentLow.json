@@ -1,0 +1,38 @@
+{
+    "name": "DistanceAboveRecentLow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "resumeAtr": "0.25",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget, including the TWO separate\n// accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently. It stays in the hook, which the generator\n// emits unconditionally, because EasyLanguage does not short-circuit and/or.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLength;\n// Mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call: seeded at\n// bar 0 (the window INCLUDES the current bar), scanning bars 1..Length-1 with a\n// strict comparison so a tie keeps the earliest bar. Extremes is EL SOURCE, so\n// its comparisons carry the ordinary relational tolerance and use el_gt/el_lt.\n// The distance is measured to the closing price, not to this bar's own low or high:\n// Brooks reads the resumption from where the bar settled. That is also what\n// separates this rule from PullbackFromRecentHigh, whose two sides are these\n// two exchanged and taken to the bar's extreme.\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n}",
+    "longCondition": "el_ge(close[0] - recentLow, resumeAtr * atrValue)",
+    "shortCondition": "el_ge(recentHigh - close[0], resumeAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

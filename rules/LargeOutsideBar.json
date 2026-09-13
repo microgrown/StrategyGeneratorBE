@@ -1,0 +1,22 @@
+{
+    "name": "LargeOutsideBar",
+    "type": "Entry",
+    "inputVariables": {
+        "lag": "1",
+        "largeMultiple": "1.5",
+        "rangeLookback": "10"
+    },
+    "localVariables": {
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: avgRange = average(h - l, rangeLookback)[lag + 1] -- the mean bar\n// range over the rangeLookback bars ending at bar lag+1, so the outside bar\n// itself is not in its own benchmark. Average recomputes from scratch every\n// bar (EL_Summation_Probe, 2,808/2,808), so this is a FRESH loop and NOT the\n// WFSafe_AvgTrueRange rolling accumulator. h - l is a price expression\n// with real history, not an EL variable, so the loop reads price directly --\n// contrast BarRangeAboveStd, which has to mirror a variable's zero-filled\n// warm-up. Summed newest-first, EL's Summation order. Indexing the function\n// result by a bar offset follows CloseAbovePriorHighestHigh's reading: the\n// same statistic over the window shifted back by that many bars.\navgRange = 0.0;\nfor (int i = 0; i < (int)rangeLookback; ++i) {\n    avgRange += high[(int)lag + 1 + i] - low[(int)lag + 1 + i];\n}\navgRange /= (int)rangeLookback;",
+    "longCondition": "el_ge(high[lag], high[lag + 1]) && el_le(low[lag], low[lag + 1]) && el_ge(high[lag] - low[lag], largeMultiple * avgRange)",
+    "shortCondition": "el_ge(high[lag], high[lag + 1]) && el_le(low[lag], low[lag + 1]) && el_ge(high[lag] - low[lag], largeMultiple * avgRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

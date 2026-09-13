@@ -1,0 +1,52 @@
+{
+    "name": "PatternHeightMeasuredMoveTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "refBars": "20",
+        "multiple": "1",
+        "startFromOpen": "0",
+        "endAtClose": "0",
+        "tolerancePoints": "0.25"
+    },
+    "localVariables": {
+        "winHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "winLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetShort": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The workhorse measured move: height = the high-low span of the refBars bars\n// that produced the breakout, projected a multiple of itself beyond the broken\n// extreme. Spike, channel, trading range, wedge, triangle, flag, double\n// top/bottom and head-and-shoulders are all this same arithmetic; the\n// projection anchor coincides for every one of them, because the level broken\n// IS the window's own extreme.\n// EL Highest(high[1], refBars) / Lowest(low[1], refBars): the window ENDS ONE\n// BAR AGO, bars 1..refBars, so the signal bar cannot define its own pattern.\n// Extremes is EL SOURCE -- seeded on the window's first bar, strict comparison\n// so a tie keeps the earliest bar, carrying the relational tolerance, hence\n// el_gt/el_lt rather than >/<.\n// Two double toggles select the book's alternate anchor pair: startFromOpen\n// replaces the window's far side with the open of its first bar, endAtClose\n// replaces the near side with the close of its last bar and anchors the\n// projection there.\n// Every subscript is read UNCONDITIONALLY -- EasyLanguage does not\n// short-circuit (EL_LogicalEval_Probe), so Max Bars Back must cover refBars on\n// every bar -- and only the projection is frozen at entry. BarsSinceEntry() is\n// 0 on the fill bar and 0 while flat (VERIFIED), so the capture re-arms on\n// every flat bar. Frozen at entry, not re-read every bar, which is what\n// separates it from AtrProfitTarget's running distance.\n// tolerancePoints is in PRICE UNITS: the source's 'tested within one tick'\n// convention cannot be spelled in ticks while MinMove / PriceScale are UNKNOWN.\nwinHigh = high[1];\nwinLow = low[1];\nfor (int i = 2; i <= (int)refBars; ++i) {\n    if (el_gt(high[i], winHigh)) winHigh = high[i];\n    if (el_lt(low[i], winLow)) winLow = low[i];\n}\nlongTop = winHigh;\nlongBot = winLow;\nshortTop = winHigh;\nshortBot = winLow;\nif (el_gt(startFromOpen, 0.0)) {\n    longBot = open[refBars];\n    shortTop = open[refBars];\n}\nif (el_gt(endAtClose, 0.0)) {\n    longTop = close[1];\n    shortBot = close[1];\n}\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    targetLong = longTop + multiple * (longTop - longBot);\n    targetShort = shortBot - multiple * (shortTop - shortBot);\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], targetLong - tolerancePoints)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], targetShort + tolerancePoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

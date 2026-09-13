@@ -1,0 +1,25 @@
+{
+    "name": "ExitAtPriorRangeExtreme",
+    "type": "Exit",
+    "inputVariables": {
+        "channelBars": "20",
+        "tolerancePoints": "0.5"
+    },
+    "localVariables": {
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: Highest(high[1], channelBars) / Lowest(low[1], channelBars) -- the window\n// ENDS ONE BAR BACK, bars 1..channelBars, so the current bar cannot define the\n// level it is being tested against. The shifted series argument makes Extremes\n// scan Price[0] .. Price[channelBars - 1], i.e. bars 1..channelBars.\n// Extremes is EL SOURCE: seeded on the window's first bar, scanning the rest\n// with a strict comparison (a tie keeps the earliest bar) that carries the\n// relational tolerance -- hence el_gt/el_lt rather than >/<.\n// Same window arithmetic as HighestHighBreakout, but in the EXIT role and\n// reaching the OPPOSITE extreme with a tolerance offset: a countertrend short\n// covers at the bottom of the channel, a long sells at the top.\n// tolerancePoints is in PRICE UNITS -- MinMove / PriceScale are UNKNOWN.\nrangeHigh = high[1];\nrangeLow = low[1];\nfor (int i = 2; i <= (int)channelBars; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], rangeHigh - tolerancePoints)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], rangeLow + tolerancePoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

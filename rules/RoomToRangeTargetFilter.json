@@ -1,0 +1,25 @@
+{
+    "name": "RoomToRangeTargetFilter",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeBars": "20",
+        "minRoomPoints": "2.5"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: priorHigh = Highest(high[1], rangeBars) -- the window ENDS ONE BAR BACK,\n// bars 1..rangeBars, so the signal bar cannot define the level it is measured\n// against. Passing the shifted series high[1] makes Extremes scan Price[0] ..\n// Price[rangeBars - 1], i.e. high[1] .. high[rangeBars].\n// Extremes is EL SOURCE: seeded on the first bar of the window, scanning the\n// rest with a strict comparison so a tie keeps the earliest bar, and its\n// comparisons carry the relational tolerance -- hence el_gt/el_lt, not >/<.\n// minRoomPoints is in PRICE UNITS: the source counts ticks and tick size needs\n// MinMove / PriceScale, both UNKNOWN in EL_FEATURES.md.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)rangeBars; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}",
+    "longCondition": "el_ge(priorHigh - close[0], minRoomPoints)",
+    "shortCondition": "el_ge(close[0] - priorLow, minRoomPoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

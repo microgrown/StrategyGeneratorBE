@@ -1,0 +1,26 @@
+{
+    "name": "StrongBodyBarCountInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "6",
+        "minCount": "3",
+        "strongBodyFraction": "0.6"
+    },
+    "localVariables": {
+        "bullStrongBodies": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearStrongBodies": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: bullStrongBodies = CountIF(close > open and\n//     close - open >= strongBodyFraction * (high - low), windowBars),\n// and the mirror on bear bodies for the short side.\n// CountIF counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true SERIES (EL_FEATURES `countif`, VERIFIED) -- every price\n// term inside it shifts with the counted bar, which is what this loop does.\n// The counted condition is on PRICES, which have real history back to the\n// chart start, so no zero-filled variable mirror is needed; the same\n// arrangement OppositeBodyCountInWindow uses.\n// A tie bar (close == open within the EL tolerance) counts for neither side.\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero error\n// on a zero denominator and a zero-range bar is legal data.\n// The counts are EL numeric variables, so they are doubles here and the\n// threshold comparison is an ordinary EL relational. They persist across bars,\n// so both are reset before the loop.\nbullStrongBodies = 0.0;\nbearStrongBodies = 0.0;\nfor (int i = 0; i < (int)windowBars; ++i) {\n    if (el_gt(close[i], open[i])\n        && el_ge(close[i] - open[i], strongBodyFraction * (high[i] - low[i]))) {\n        bullStrongBodies = bullStrongBodies + 1;\n    }\n    if (el_lt(close[i], open[i])\n        && el_ge(open[i] - close[i], strongBodyFraction * (high[i] - low[i]))) {\n        bearStrongBodies = bearStrongBodies + 1;\n    }\n}",
+    "longCondition": "el_ge(bullStrongBodies, minCount)",
+    "shortCondition": "el_ge(bearStrongBodies, minCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
