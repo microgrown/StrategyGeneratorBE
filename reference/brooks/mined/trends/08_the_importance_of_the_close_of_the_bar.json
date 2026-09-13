@@ -1,0 +1,46 @@
+{
+  "source": {
+    "book": "Trading Price Action Trends",
+    "book_key": "trends",
+    "author": "Al Brooks",
+    "chapter": 8,
+    "chapter_title": "The Importance of the Close of the Bar",
+    "text_file": "reference/brooks/text/trends/08_the_importance_of_the_close_of_the_bar.txt",
+    "pdf_pages": [199, 202],
+    "mined": "2026-09-12"
+  },
+  "conventions": "stop entries mechanized as signal-bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode. tick = instrument minimum price move (structural constant).",
+  "candidates": [
+    {
+      "id": "T08-01",
+      "name": "WeakFollowThroughScalpExit",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [200],
+      "quote": "If the entry bar is six ticks tall, you would much prefer seeing the body suddenly increase from a body that was two ticks to one that was four ticks in the final seconds of the bar... This is true for the next couple of bars as well. If there are strong closes, you should be more willing to swing more contracts and hold them for more points than if these bars had weak closes.",
+      "description": "The chapter's one genuinely bar-level, position-management idea: how strongly the entry bar and the bar right after it close (in the trade's direction) should govern whether to take a quick scalp or hold for a larger target. Since this engine has no position-sizing primitive, the sizing decision is mechanized as a binary exit: take the available profit now (a quick scalp) when the entry bar or the very next bar did NOT close as a strong trend bar in the trade's direction; otherwise let it run toward a larger target.",
+      "pseudocode": "n = ctx.BarsSinceEntry(); entryBarWeak = (close[n] - open[n]) < strongBodyFraction * (high[n] - low[n]) || close[n] <= open[n]; nextBarWeak = (n >= 1) && ((close[n-1] - open[n-1]) < strongBodyFraction * (high[n-1] - low[n-1]) || close[n-1] <= open[n-1]); (n == 0 && entryBarWeak) || (n == 1 && nextBarWeak) && ctx.OpenPositionProfit() > 0",
+      "sides": "same",
+      "parameters": { "strongBodyFraction": 0.6 },
+      "book_order_type": "exit at the market (or scale out) as soon as the weak close is confirmed, rather than holding for a larger swing target",
+      "timeframe": "any",
+      "complexity": { "grade": "moderate", "reason": "needs to index back to the entry bar and the bar right after it using BarsSinceEntry, and reuses the corpus's trend-bar body-fraction test" },
+      "el_words_needed": ["BarsSinceEntry", "OpenPositionProfit"],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": ["This is an approximation: Brooks's actual point is about position SIZE (how many contracts to hold/scale out), which the engine's Entry/Exit boolean framework cannot express directly; it is recast here as a binary quick-scalp-vs-hold exit decision.", "The rest of this short chapter is almost entirely about intrabar (sub-bar) price behavior in the final seconds before a bar closes, which is data below the bar and is rejected below."]
+    }
+  ],
+  "rejected": [
+    { "pages": [199], "quote": "If you enter before the bar closes, you might occasionally make a tick or so more on your trade. However, once or twice every day, the signal that you thought was going to happen does not and you will lose about eight ticks.", "reason": "requires intrabar (sub-bar) price action to decide whether to enter before the bar closes -- tick data below the bar" },
+    { "pages": [200], "quote": "The price is hanging near the high of the bar for a couple of minutes... but then with one to five seconds remaining before the bar closes, the price collapses and the bar closes on its low.", "reason": "requires intrabar price action within the forming bar -- tick data below the bar" },
+    { "pages": [200], "quote": "You then move your protective stop up to one tick below that bar, and just before the bar closes, the market drops and hits your stop, only to pop up several ticks in the final two seconds of the bar.", "reason": "requires intrabar price action to model the stop being adjusted and hit mid-bar -- tick data below the bar" },
+    { "pages": [201], "quote": "many institutional traders place orders based on value and not price action, and when they look at charts, the charts are line charts, which are based on the close.", "reason": "background reasoning about why the close matters, not itself a bar-level condition" },
+    { "pages": [201, 202], "quote": "Smaller time frame charts allow for smaller stops but have a greater risk of stopping a trader out of a good trade... Stop runs on the 3 minute chart are much more common than on the 5 minute chart.", "reason": "a chart-timeframe-selection heuristic (trade a larger bar interval to reduce stop-outs), not a condition evaluable on a single fixed bar series" },
+    { "pages": [202], "quote": "It is always better to just watch and trade off one chart because sometimes things happen too quickly for traders to think fast enough to place their orders if they are watching two charts.", "reason": "workflow/discretion advice about monitoring multiple charts, no bar-level test" }
+  ],
+  "chapter_summary": "A short, mostly cautionary chapter: don't act on a bar's apparent shape before it closes, and don't move stops or bail out based on intrabar price wiggling in the final seconds -- both the early-entry temptation and the getting-stopped-out-then-missing-the-move examples are fundamentally about sub-bar (tick-level) price action that this bar-close-only engine cannot see, so nearly the whole chapter is rejected on that basis. The one bar-level idea worth keeping is that the strength of the entry bar's close and the bar right after it should govern whether to scalp out quickly or hold for a bigger target (T08-01), recast here as a binary exit since the engine has no position-sizing concept. The chapter also argues, via a 3-minute-vs-5-minute chart comparison, that trading a smaller bar interval increases stop-run risk relative to a larger one -- a timeframe-choice heuristic rather than a per-bar rule, so it is rejected too rather than forced into a spurious condition."
+}

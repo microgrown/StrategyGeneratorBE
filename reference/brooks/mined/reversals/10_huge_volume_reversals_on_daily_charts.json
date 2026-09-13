@@ -1,0 +1,113 @@
+{
+  "source": {
+    "book": "Trading Price Action Reversals",
+    "book_key": "reversals",
+    "author": "Al Brooks",
+    "chapter": 10,
+    "chapter_title": "Huge Volume Reversals on Daily Charts",
+    "text_file": "reference/brooks/text/reversals/10_huge_volume_reversals_on_daily_charts.txt",
+    "pdf_pages": [285, 288],
+    "mined": "2026-09-12"
+  },
+  "conventions": "stop entries mechanized as signal-bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode",
+  "candidates": [
+    {
+      "id": "V10-01",
+      "name": "HugeVolumeCapitulationReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [285],
+      "quote": "When a stock is in a steep bear trend on the daily chart and then has a day with volume that is five to 10 times its recent average, the bulls may have capitulated and a tradable bottom may be present... if it has a strong bull close, the odds of a profitable long increase.",
+      "description": "In a steep bear trend on the daily chart, a bar whose volume is a large multiple of its recent average and which closes as a strong bull (trend) bar signals capitulation and a tradable bottom for a swing long.",
+      "pseudocode": "volume[0] >= volumeMultiple * average(volume, n)[1] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": { "volumeMultiple": 5, "n": 20, "bodyFraction": 0.6 },
+      "book_order_type": "buy at the close of the huge-volume bull bar, or more cautiously on a stop above its high",
+      "timeframe": "daily-ok",
+      "complexity": { "grade": "moderate", "reason": "combines an N-bar average-volume ratio with a trend-bar body test and an implicit prior-bear-trend context" },
+      "el_words_needed": ["Average"],
+      "likely_existing_rule": "VolumeAboveAverageMultiple",
+      "confidence": "medium",
+      "notes": [
+        "Composes VolumeAboveAverageMultiple-style volume ratio with the BullReversalBarShape-style trend-bar primitive from Chapter 2; a prior-bear-trend context gate is assumed but not defined here.",
+        "Brooks expects at least a two-legged move to the moving average to follow, which is a separate exit/target idea, not captured as its own candidate here."
+      ]
+    },
+    {
+      "id": "V10-02",
+      "name": "HugeVolumeBarIntraday",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [285],
+      "quote": "On a 1 minute Emini chart that is in a strong bear trend, if there is a huge volume bar (about 25,000 contracts), it is unlikely to be the end of the bear trend, but often is a sign that a pullback will come soon.",
+      "description": "Primitive: the current bar's volume exceeds an absolute huge-volume threshold (illustrated at about 25,000 contracts on the 1 minute Emini) - flags a bar as a volume-climax candidate within a strong intraday bear trend.",
+      "pseudocode": "volume[0] >= hugeVolumeThreshold",
+      "sides": "same",
+      "parameters": { "hugeVolumeThreshold": 25000 },
+      "book_order_type": "n/a (context flag, not itself an order)",
+      "timeframe": "intraday-only",
+      "complexity": { "grade": "trivial", "reason": "single fixed-threshold comparison on volume[0]" },
+      "el_words_needed": [],
+      "likely_existing_rule": "VolumeAboveAverageMultiple",
+      "confidence": "medium",
+      "notes": [
+        "Absolute-contract-count threshold is instrument-specific (illustrated for the Emini); would need rescaling for other markets.",
+        "Brooks explicitly warns volume is unreliable intraday on the 5 minute chart he otherwise recommends for trading - kept for recall, confidence medium/low on usefulness."
+      ]
+    },
+    {
+      "id": "V10-03",
+      "name": "VolumeDivergenceLowerLowReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": ["V10-02"],
+      "depends_on": ["V10-02"],
+      "pages": [285],
+      "quote": "[a huge volume bar]... often is a sign that a pullback will come soon, usually after one or two lower lows on less volume (volume divergence).",
+      "description": "After an intraday huge-volume bar in a bear trend, the market makes one or two further lower lows on progressively lower volume (volume divergence); the first such lower low with reduced volume is a buy signal for a pullback.",
+      "pseudocode": "hadHugeVolumeBarWithinLookback && low[0] < low[1] && volume[0] < divergenceFraction * recordedHugeVolume",
+      "sides": "mirrored",
+      "parameters": { "divergenceFraction": 0.5, "lookback": 5 },
+      "book_order_type": "buy at the close of the lower-low, lower-volume bar or on a stop above its high",
+      "timeframe": "intraday-only",
+      "complexity": { "grade": "moderate", "reason": "cross-bar state: must remember the volume of the most recent qualifying huge-volume bar and compare it against later bars' volume and lower lows" },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": ["Brooks gives no precise divergence ratio or bar count (\"one or two lower lows\"); divergenceFraction and lookback are readings."]
+    },
+    {
+      "id": "V10-04",
+      "name": "TrendChannelLineBreakStrongCloseContinuation",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [287],
+      "quote": "The huge bear trend bar closed well below the line, confirming the strength of the trend channel line failure to contain the bear trend... Climactic volume in the absence of bullish price action is no reason to fade a strong bear trend.",
+      "description": "When a bar breaks a trend channel line but closes well beyond it in the trend direction (a strong trend-direction close, not a reversal-shaped bar), that confirms trend strength rather than a reversal - a filter against fading the trend even on huge volume.",
+      "pseudocode": "brokeTrendChannelLine[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": { "bodyFraction": 0.6 },
+      "book_order_type": "n/a (context filter against a countertrend entry)",
+      "timeframe": "daily-ok",
+      "complexity": { "grade": "hard", "reason": "requires trend-channel-line detection/projection from pivots, in addition to the trend-bar body test" },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": ["Direct contrast case to V10-01: same volume-climax setup, but the bar's shape (strong trend-direction close, not a reversal bar) argues against taking the reversal."]
+    }
+  ],
+  "rejected": [
+    { "pages": [286, 287], "quote": "Months later, LEH went out of business.... Since this chart was printed, BSC was bought out by JPMorgan Chase (JPM) for a tiny fraction of its market capitalization", "reason": "post-hoc historical outcome narrative, not a bar-level condition available to the engine" }
+  ],
+  "chapter_summary": "A short chapter contrasting two real capitulation-volume examples (LEH which reversed, BSC which did not) to argue that huge volume alone is not a reversal signal - it needs a strong bull-bodied close to be tradable, and a strong trend-direction close through a broken trend channel line argues the opposite way. It also notes an intraday analogue (a huge single-bar volume spike on the 1 minute Emini) that more often precedes a pullback via volume divergence over the next bar or two rather than an immediate reversal, while cautioning that volume is generally unreliable on the 5 minute intraday chart Brooks recommends for trading."
+}

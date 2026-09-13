@@ -1,0 +1,125 @@
+{
+  "source": {
+    "book": "Trading Price Action Trading Ranges",
+    "book_key": "ranges",
+    "author": "Al Brooks",
+    "chapter": 25,
+    "chapter_title": "Mathematics of Trading: Should I Take This Trade? Will I Make Money If I Take This Trade?",
+    "text_file": "reference/brooks/text/ranges/25_mathematics_of_trading_should_i_take_this_trade.txt",
+    "pdf_pages": [171, 186],
+    "mined": "2026-09-12"
+  },
+  "conventions": "stop entries/exits mechanized as signal-bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode",
+  "candidates": [
+    {
+      "id": "R25-01",
+      "name": "MinRewardToRiskAtSignalBar",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [171, 181, 182],
+      "quote": "Almost all traders should only take trades where the reward is at least as large as the risk... the minimum starting point always should be a reward that is equal to the risk.",
+      "description": "Pre-trade gate: use the signal bar's own range as a proxy for the planned risk (stop placed one tick beyond the bar) and require the planned points target to be at least a multiple of that range before taking the trade. Brooks ties the multiple to his subjective probability estimate (about 0.5x at 70%+ probability scalps, 1x at ~60% probability, 1.5x at ~50%, 2x at ~40% or less) but the probability itself cannot be read off OHLCV, so only the deterministic reward>=multiple*risk floor is mechanized here, defaulted to his most-repeated baseline of 1x (\"reward at least as large as risk\").",
+      "pseudocode": "targetPoints >= rewardRiskMultiple * (high[0] - low[0])",
+      "sides": "same",
+      "parameters": { "targetPoints": 2.0, "rewardRiskMultiple": 1.0 },
+      "book_order_type": "n/a (pre-trade math check on the planned stop-entry/stop-exit, not itself an order)",
+      "timeframe": "any",
+      "complexity": { "grade": "trivial", "reason": "single-bar arithmetic on high[0]/low[0] against two fixed parameters" },
+      "el_words_needed": [],
+      "likely_existing_rule": "TakeProfitWithRatioStop",
+      "confidence": "medium",
+      "notes": [
+        "Brooks states four probability tiers with matching minimum reward:risk floors (page 171): ~70% prob -> 0.5x, ~60% -> 1x, ~50% -> 1.5x, ~40% or less -> 2x. Only the ratio test is mechanized; picking the tier requires the probability estimate itself, which is the research-grade R25-04.",
+        "Page 182 gives the same test concretely sized off the signal bar: 'the bar is six ticks tall, the stop will be eight ticks from the entry price, and they should use a profit target that is at least eight ticks away.'",
+        "Also discussed: commissions and slippage erode small scalps enough to flip a nominally-positive reward:risk gate negative (pages 177-178, 802-806); not mechanized separately since the book gives no fixed formula, only worked examples specific to instrument tick value."
+      ]
+    },
+    {
+      "id": "R25-02",
+      "name": "TightenStopToPriorBarLow",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [178],
+      "quote": "They might raise their protective stops to one tick below the low of the current bar, even before the bar closes, and this might be only three ticks below their entry price.",
+      "description": "As a trade moves favorably, Brooks has traders repeatedly move their protective stop to just beyond the most recently completed bar's extreme rather than leaving it at the original signal-bar level. Mechanized as: the position exits if the current bar trades back through the prior bar's low (long) minus a small offset, at the signal bar's close, filled at the next bar's open per the stop-exit convention.",
+      "pseudocode": "close[0] <= low[1] - stopOffsetPoints",
+      "sides": "mirrored",
+      "parameters": { "stopOffsetPoints": 0.25 },
+      "book_order_type": "protective stop order placed one tick below the low of the most recently completed bar, moved forward each bar",
+      "timeframe": "any",
+      "complexity": { "grade": "simple", "reason": "compares the current and previous bar's extreme with a fixed offset; no persistent state is kept, so it is a loose approximation of Brooks's manual ratchet (a true trail would only ever move the stop toward the trade, never away from it)" },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": [
+        "Brooks describes this being done continuously and manually, sometimes intrabar ('even before the bar closes'); the close-and-next-open mechanization per MINING conventions is a simplification.",
+        "Because this only looks at low[1] rather than a persisted best-stop-so-far, the level can move down again after a pullback bar; a true monotonic trail would need cross-bar state (a 'never loosen' variable), which the authoring pass should consider as a variant.",
+        "May duplicate a swing/trail-stop primitive already mined from the Trends volume; flagging for the dedup pass rather than guessing an id."
+      ]
+    },
+    {
+      "id": "R25-03",
+      "name": "ExitOnRewardRiskDeterioration",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [178],
+      "quote": "If the trader's equation ever becomes marginal, he should try to exit quickly with as much profit as he can. If the trader's equation becomes negative, he should get out immediately, even if he ends up with a loss.",
+      "description": "Position management: recompute the remaining reward (distance from the current close to the original planned target) and the remaining risk (distance from the current close down to the original planned stop) every bar, and exit once the remaining reward falls below a required multiple of the remaining risk -- the mechanizable half of Brooks's continuous re-evaluation of the trader's equation as price moves (dropping the probability term, which is not computable from bars).",
+      "pseudocode": "remainingReward = (ctx.EntryPrice() + targetPoints) - close[0]; remainingRisk = close[0] - (ctx.EntryPrice() - stopPoints); remainingRisk > 0 && remainingReward < minRewardRiskMultiple * remainingRisk",
+      "sides": "mirrored",
+      "parameters": { "targetPoints": 2.0, "stopPoints": 2.0, "minRewardRiskMultiple": 1.0 },
+      "book_order_type": "discretionary early exit, no fixed order type in the book (traders exit at market or tighten and let the existing stop/target work)",
+      "timeframe": "any",
+      "complexity": { "grade": "moderate", "reason": "needs the position's entry price and the originally planned fixed target/stop distances as inputs, recomputed against the live close every bar" },
+      "el_words_needed": ["EntryPrice"],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": [
+        "Illustrated concretely on page 178-179 with a scalp example: 'raise their protective stops to one tick below the low of the current bar... this reduces the risk of the original trade to three ticks. They now might have an 80 percent chance of making the remaining two ticks while risking three ticks.'",
+        "Pairs naturally with R25-02 (a trailing stop shrinks remainingRisk over time, which keeps this test satisfied); the book does not separate the two, but they are independently mechanizable so kept split per the one-condition-per-candidate convention.",
+        "targetPoints/stopPoints reuse the same planned-trade parameters as R25-01; the authoring pass may want to share those inputs across a composite rather than duplicating them."
+      ]
+    },
+    {
+      "id": "R25-04",
+      "name": "DirectionalProbabilityOfEquidistantMove",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [172, 181],
+      "quote": "At every moment, there is a probability attached to the direction of the next tick... This is the current directional probability of an equidistant move where the size of that move is one tick.",
+      "description": "The chapter's central concept: at any moment there is an estimated probability that price moves a given distance in one direction before the same distance in the other, and this probability drifts with context (near 50% mid-range or mid-channel, rising toward 60-70% during a spike or at a well-tested trading-range extreme, falling back as a move approaches its measured-move target). The whole trader's-equation gate in R25-01/R25-03 is only sound once this probability is estimated, but Brooks gives no formula -- only chart-reading judgment (trend strength, position within a range, spike size, quality of the signal bar). Recorded as a real, important, but not-yet-codable primitive.",
+      "pseudocode": "n/a -- no bar-level formula given; would need a defined OHLCV-derived proxy (e.g., a normalized-momentum or position-within-recent-range score) before it could gate anything",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": { "grade": "research", "reason": "Brooks explicitly treats this as a subjective, continuously-changing estimate read from chart context; a design decision is needed on what OHLCV-derived proxy should stand in for it before any pseudocode can be written" },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": [
+        "This is the piece that makes the whole chapter 'not mechanizable' at its core; R25-01 and R25-03 only capture the deterministic reward:risk arithmetic that remains once probability is dropped or fixed at a default.",
+        "Chapter gives many worked numeric probability tiers (e.g. page 181: 'about a 60 percent chance ... of making two points while using a two-point protective stop') but always as the trader's chosen assumption, never as something derived from a formula over prior bars."
+      ]
+    }
+  ],
+  "rejected": [
+    { "pages": [175], "quote": "Why would an institution ever take a trade that is a losing strategy? They never would.", "reason": "philosophical/zero-sum-game argument about institutional order flow and market microstructure; no bar-level test, and the engine has no view of who is on the other side of a trade." },
+    { "pages": [177], "quote": "if you are trading a small-cap stock and usually have about 10 cents of slippage on stop orders in that stock, and you are using a 50 cent protective stop, then your risk is about 60 cents plus your commission.", "reason": "requires real execution/fill and slippage data the engine does not simulate at the tick level." },
+    { "pages": [180], "quote": "If you were to throw a deck of cards up in the air 10 times and then record which cards landed face up, you would discover that some cards landed face up nine out of the 10 times.", "reason": "a methodological caution about data-mining/overfitting bias, not itself a bar-level trading condition." },
+    { "pages": [184, 185, 186], "quote": "shorting anytime during the strong three-bar bear spike down to bar 15 had maybe a 70 percent chance that the market would fall X more points before rallying that same amount.", "reason": "a discretionary walkthrough of one specific example chart's numbered bars (Figures 25.2/25.3); it applies the already-captured probability/reward-risk concepts to a single unreproducible chart rather than stating a new general rule." }
+  ],
+  "chapter_summary": "This chapter has almost no bar-pattern content; it is Brooks's exposition of the 'trader's equation' (probability x reward vs. (1-probability) x risk) and how professional traders size risk and reward and decide whether a setup is worth taking. The only genuinely mechanizable pieces are the reward-must-be-at-least-a-multiple-of-risk gate sized off the signal bar (R25-01), a loose prior-bar-low trailing stop (R25-02), and a live remaining-reward-vs-remaining-risk exit (R25-03). The chapter's real center of gravity -- estimating the 'directional probability of an equidistant move' from chart context -- is recorded as a research-grade primitive (R25-04) since Brooks never reduces it to a bar-level formula. The remainder is institutional-psychology argument, statistical-bias caution, and a chart-specific numbered-bar walkthrough, all rejected as non-mechanical."
+}

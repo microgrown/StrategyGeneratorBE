@@ -1,0 +1,1683 @@
+{
+  "source": {
+    "book": "Trading Price Action Reversals",
+    "book_key": "reversals",
+    "author": "Al Brooks",
+    "chapter": 24,
+    "chapter_title": "The Best Trades: Putting It All Together",
+    "text_file": "reference/brooks/text/reversals/24_the_best_trades_putting_it_all_together.txt",
+    "pdf_pages": [
+      483,
+      554
+    ],
+    "mined": "2026-09-12"
+  },
+  "conventions": "stop entries mechanized as signal-bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode; sides field states mirrored/same",
+  "candidates": [
+    {
+      "id": "V24-01",
+      "name": "TrendBarBody",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        483
+      ],
+      "quote": "the reversal signal bar should be strong",
+      "description": "Classifies the current bar as a strong bull (or bear) trend bar: it closes near its high (low) and its body is most of its range. Used throughout this chapter as the signal-bar quality test for every setup listed below.",
+      "pseudocode": "close[0] > open[0] && (close[0]-open[0]) >= bodyFraction*(high[0]-low[0]) && (high[0]-close[0]) <= tailFraction*(high[0]-low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic on OHLC"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "TrendBarBodyFraction",
+      "confidence": "high",
+      "notes": [
+        "Foundational primitive; every setup below that requires 'a strong signal bar' depends on this."
+      ]
+    },
+    {
+      "id": "V24-02",
+      "name": "SignalBarDirectionRequirement",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489
+      ],
+      "quote": "Buy only above bull bars and short below bear bars.",
+      "description": "A long entry is only valid if the signal bar (the bar the stop-entry price is measured from) itself closed as a bull bar; mirrored for shorts. This gates every stop-entry setup in the chapter.",
+      "pseudocode": "close[1] > open[1] && high[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single prior-bar close/open comparison plus current-bar breakout"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": [
+        "Stated as its own guideline, separate from any specific pattern; used as a blanket filter on all stop entries."
+      ]
+    },
+    {
+      "id": "V24-03",
+      "name": "PullbackLegCount",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        485,
+        507
+      ],
+      "quote": "look for high 2 and wedge... setups",
+      "description": "Counts how many separate down-legs (for a bull pullback) or up-legs (for a bear pullback) have occurred since the most recent swing extreme, where a leg ends when price makes a new extreme beyond the prior pullback low/high. Returned as an integer used by the High-1/2 and Low-1/2 setups below.",
+      "pseudocode": "int legs = countLegsSinceSwingExtreme(direction, lookback)  // helper: increments when a new local extreme against 'direction' forms, separated by at least one bar that closed back toward 'direction'",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs swing-pivot detection and leg segmentation over a variable-length window"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": [
+        "Brooks never gives a precise algorithm for 'a leg'; this is a design decision the authoring pass must make once and reuse."
+      ]
+    },
+    {
+      "id": "V24-04",
+      "name": "PullbackEntryOneLeg",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-03",
+        "V24-01"
+      ],
+      "depends_on": [],
+      "pages": [
+        487,
+        496
+      ],
+      "quote": "Buying a high 1 pullback in a strong bull spike in a bull trend, but not after a strong buy climax.",
+      "description": "In a bull trend, buy one tick above the high of the first pullback bar after a new swing high (a 'high 1'); mirrored: in a bear trend, sell one tick below the low of the first pullback bar after a new swing low ('low 1').",
+      "pseudocode": "ctx.AlwaysInLong() && PullbackLegCount(down,lookback)==1 && TrendBarBody(bull) && close[0] < high[highestSince(1)] && high[1] > high[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "depends on leg counting (V24-03) and an always-in read"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "High1LowSetup",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-05",
+      "name": "PullbackEntryTwoLeg",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-03",
+        "V24-01"
+      ],
+      "depends_on": [],
+      "pages": [
+        487,
+        497,
+        508
+      ],
+      "quote": "Buying a high 2 pullback to the moving average in a bull trend.",
+      "description": "In a bull trend, buy one tick above the high of the second down-leg pullback bar ('high 2'), especially when that bar touches or penetrates the 20-bar EMA; mirrored 'low 2' for bear trends.",
+      "pseudocode": "ctx.AlwaysInLong() && PullbackLegCount(down,lookback)==2 && TrendBarBody(bull) && low[0] <= ema[0]+maTouchTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30,
+        "maTouchTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "leg counting plus an EMA-touch test"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "High2LowSetup",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-06",
+      "name": "TwoBarReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        508,
+        546
+      ],
+      "quote": "Bar 7 was a two-bar reversal buy setup because it was a high 2 down from bar 6 and a double bottom bull flag with bar 5.",
+      "description": "A two-bar reversal: bar[1] made a new extreme in the prevailing direction, and bar[0] closes strongly the opposite way with a range overlapping bar[1], forming a combined signal. Buy above the high of bar[0].",
+      "pseudocode": "low[1] < lowest(low,swingLookback,2) && close[0] > open[0] && close[0] > close[1] && low[0] <= low[1]+overlapTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "swingLookback": 20,
+        "overlapTicks": 2
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "cross-bar comparison against a short local extreme, no full swing detection needed"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-07",
+      "name": "DoubleTopBottom",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        513,
+        528
+      ],
+      "quote": "Bar 25 was a two-bar reversal, and it formed a double bottom with bar 23.",
+      "description": "Price forms two swing lows (highs) within a lookback window at approximately the same level, with a bounce between them; the second touch is the signal for a reversal or fade.",
+      "pseudocode": "double = abs(swingLow(0) - swingLow(1)) <= tolTicks*tickSize && barsBetween(swingLow(0),swingLow(1)) <= maxLegBars",
+      "sides": "mirrored",
+      "parameters": {
+        "tolTicks": 4,
+        "maxLegBars": 25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "requires swing-pivot detection and comparing two pivots for level and spacing"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-08",
+      "name": "WedgeFlagPullback",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487,
+        526
+      ],
+      "quote": "Buying a wedge bull flag pullback in a bull trend.",
+      "description": "A three-push pullback against the trend (wedge) where each push is a marginal new extreme with decreasing momentum; buy the failure of the third push. Mirrored for bear-trend wedge flags.",
+      "pseudocode": "pushCount(direction,lookback)==3 && each push is a marginal new extreme (within tolerance) beyond the prior push && TrendBarBody(counterTrend) on the 3rd push",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 40,
+        "tolTicks": 6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "requires pivot/push detection with a marginal-new-extreme test across three legs"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-09",
+      "name": "FinalFlagReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487,
+        546
+      ],
+      "quote": "Strong final flag reversal after a swing up or down in a trading range or weak channel.",
+      "description": "A small, tight consolidation (flag) that forms at the end of an extended trend leg or trading-range swing and then breaks in the opposite direction, signaling exhaustion of that leg.",
+      "pseudocode": "isSmallFlag(lookback) && barsSinceLegStart(direction) >= minLegBars && TrendBarBody(oppositeOfLeg) && close[0] beyond flag boundary against 'direction'",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 8,
+        "minLegBars": 8
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs both a tight-consolidation test and identification of the preceding leg's length"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-10",
+      "name": "BreakoutPullbackEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        488,
+        510
+      ],
+      "quote": "Buying a breakout pullback after a breakout from a bull flag in a bull trend.",
+      "description": "After a bull (bear) bar closes above (below) a prior flag/range, the very next pullback that holds is a buy (sell) setup one tick beyond that pullback bar.",
+      "pseudocode": "brokeOutAbove = close[1] > highest(high,flagLookback,2) && TrendBarBody(bull)[1] && !brokeOutAboveFlaggedYet && close[0] < close[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "flagLookback": 15
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "cross-bar state tracking a recent breakout plus one pullback bar"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "BreakoutPullback",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-11",
+      "name": "MovingAverageGapBar",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        512,
+        546
+      ],
+      "quote": "the bar 25 first moving average gap bar in the larger bull trend, which is often a buy signal",
+      "description": "The first bar in a trend that gaps to the opposite side of the 20-bar EMA (e.g. the first bear-trend bar whose entire range is below the EMA) after a run of bars mostly on the trend side, signaling renewed momentum; entry is one tick beyond that bar in the trend direction.",
+      "pseudocode": "allBarsAbove = high[1] > ema[1] // prior N bars mostly above ema; gapBar = high[0] < ema[0] && close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "priorBarsLookback": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EMA comparison plus a short run-state check on prior bars"
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-12",
+      "name": "AlwaysInDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        484,
+        501
+      ],
+      "quote": "the market probably became always-in long as it traded above the strong bar 5 reversal bar",
+      "description": "A persistent read of which side (long/short/flat) is currently in control based on the balance of trend bars, breakouts, and failures; used as a context gate for every with-trend entry in this chapter (e.g. 'once always-in long, buy pullbacks').",
+      "pseudocode": "ctx.AlwaysInLong() // design-decision helper: some function of recent trend-bar count, breakout success, and swing structure",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "Brooks defines this qualitatively as a discretionary read of overall control; a concrete bar-level algorithm needs a design decision before coding"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "AlwaysIn",
+      "confidence": "low",
+      "notes": [
+        "This is the single most load-bearing gate in the chapter; nearly every 'best trade' bullet is conditioned on an always-in read."
+      ]
+    },
+    {
+      "id": "V24-13",
+      "name": "TrendLineBreak",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        485,
+        526
+      ],
+      "quote": "Following a strong break of the trend line, look for a weak trend resumption to fail on a test of the trend's extreme",
+      "description": "Price closes beyond a trend line drawn across the most recent swing pivots in the trend direction, signaling the trend's momentum has broken.",
+      "pseudocode": "trendLine = projectLine(pivots(direction,lookback)); broke = (direction==up ? close[0] < trendLine[0] : close[0] > trendLine[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs pivot detection and line projection from at least two pivots"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-14",
+      "name": "MajorTrendReversalSetup",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-13",
+        "V24-01"
+      ],
+      "depends_on": [],
+      "pages": [
+        487,
+        496,
+        526
+      ],
+      "quote": "Major trend reversal: Following a strong break of the trend line, look for a weak trend resumption to fail on a test of the trend's extreme; the reversal signal bar should be strong. After a bear trend, look to buy a higher low, double bottom, or lower low.",
+      "description": "A major trend reversal: (1) a strong trend-line break with momentum, (2) a subsequent test of the trend's extreme that fails (higher low / double bottom / lower low after a downtrend; mirrored for an uptrend), (3) a strong reversal signal bar on that test.",
+      "pseudocode": "TrendLineBreak(direction) && barsSince(TrendLineBreak) <= testWindow && priceTestsExtreme(direction, tolTicks) && TrendBarBody(oppositeOfDirection)",
+      "sides": "mirrored",
+      "parameters": {
+        "testWindow": 25,
+        "tolTicks": 6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "composes a trend-line break, a swing-extreme test, and a signal-bar quality check"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "MajorTrendReversal",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-15",
+      "name": "MeasuredMoveTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487,
+        513
+      ],
+      "quote": "Trading when the channel in a spike and channel day or the breakout in a trending trading range day reaches a measured move target and the move is weakening.",
+      "description": "Project a profit target (or reversal expectation) equal to the height of the initial spike/leg, added to (subtracted from) the breakout point; treat arrival at that level plus a weakening signal bar as an exit or fade cue.",
+      "pseudocode": "spikeHeight = highest(high,spikeLookback)-lowest(low,spikeLookback); target = breakoutPrice + spikeHeight; exitOrFade = close[0] >= target && TrendBarBody(opposite)",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window high/low measurement projected forward from a known breakout price"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "MeasuredMove",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-16",
+      "name": "StairsPatternReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487
+      ],
+      "quote": "Buying a third or fourth push down in a bear stairs pattern for a test of the low of the prior push down.",
+      "description": "In a 'stairs' trend (a series of small pushes each making a marginal new extreme with a brief pause between), fade the third or fourth consecutive push, targeting a test of the low (high) of the push before it. Mirrored for a bull stairs pattern.",
+      "pseudocode": "pushCount(direction,lookback) >= 3 && pushCount(direction,lookback) <= 4 && eachPushIsMarginalNewExtreme(tolTicks) && TrendBarBody(opposite)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30,
+        "tolTicks": 4
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a push-counter over marginal new extremes, similar to wedge detection but without convergence"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-17",
+      "name": "TradingRangeBoundaryFade",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487,
+        500
+      ],
+      "quote": "Shorting at the top of a trading range, especially if it is a second entry. Buying at the bottom of a trading range, especially if it is a second entry.",
+      "description": "Fade a touch of the top (bottom) of an established N-bar trading range: sell (buy) on a reversal signal bar there.",
+      "pseudocode": "rangeHigh = highest(high,rangeLookback); rangeLow = lowest(low,rangeLookback); atTop = high[0] >= rangeHigh - tolTicks*tickSize; fade = atTop && TrendBarBody(bear)",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 40,
+        "tolTicks": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a highest/lowest window comparison plus a signal-bar test"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "TradingRangeFade",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-18",
+      "name": "SecondEntrySignal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        487,
+        500
+      ],
+      "quote": "Shorting at the top of a trading range, especially if it is a second entry.",
+      "description": "A first signal in a given direction fails (price does not follow through and returns to test the same level); the second occurrence of the same setup within a short window is taken with higher confidence.",
+      "pseudocode": "firstSignalFailed = (barsSinceFirstSignal <= maxGapBars) && !firstSignalFollowedThrough; secondSignal = sameSetupPattern[0] && firstSignalFailed",
+      "sides": "mirrored",
+      "parameters": {
+        "maxGapBars": 8
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "cross-bar state remembering that a prior instance of the same setup occurred and failed"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "SecondEntry",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-19",
+      "name": "ExpandingTriangleReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        512,
+        528,
+        539
+      ],
+      "quote": "Expanding triangle bottoms are always major trend reversal setups.",
+      "description": "A reversal pattern of three (or more) swing pivots in the same direction where each new pivot is a larger extreme than the last (expanding, not converging like a wedge); the failure of the final, most extreme push is the entry.",
+      "pseudocode": "pushCount(direction,lookback)>=3 && eachPushExceedsPriorByAtLeast(minExpansionTicks) && TrendBarBody(opposite)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 40,
+        "minExpansionTicks": 4
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection with a strictly-increasing-amplitude test across three or more legs"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-20",
+      "name": "ClimaxBar",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        509,
+        527,
+        546
+      ],
+      "quote": "Whenever there is a trend of 10 or 20 or more bars and it then has a huge bull trend bar, the bar often represents exhaustion.",
+      "description": "After an extended run in one direction, a single trend bar whose range is a large multiple of the recent average range signals likely exhaustion (a buy or sell climax) and increases the chance of at least a two-legged correction.",
+      "pseudocode": "extendedRun = barsSinceTrendStart(direction) >= minRunBars; climax = (high[0]-low[0]) >= climaxMultiple*averageRange(rangeLookback) && TrendBarBody(direction)",
+      "sides": "mirrored",
+      "parameters": {
+        "minRunBars": 10,
+        "climaxMultiple": 2.0,
+        "rangeLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "an average-range window comparison plus a bar-count-since-trend-start state"
+      },
+      "el_words_needed": [
+        "AvgTrueRange"
+      ],
+      "likely_existing_rule": "ClimaxBar",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-21",
+      "name": "MicroChannelBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-10"
+      ],
+      "depends_on": [],
+      "pages": [
+        485,
+        511
+      ],
+      "quote": "If there is a bear micro channel down to the bottom of the range, wait for the bull breakout and look to buy the pullback",
+      "description": "A micro channel is 4+ consecutive same-direction, heavily overlapping trend bars with no real pullback. Do not enter on its first breakout; wait for the breakout to hold and enter on the first pullback from it (a form of BreakoutPullbackEntry gated by a preceding micro-channel).",
+      "pseudocode": "microChannelBars = countConsecutiveOverlappingTrendBars(direction) >= 4; brokeOut = microChannelBars[1] && close[0] closes beyond channel against direction; entry = brokeOut[1] && pullback[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "minChannelBars": 4
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a consecutive-bar counter with an overlap test, then reuses the breakout-pullback primitive"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "MicroChannel",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-22",
+      "name": "MinRewardToRiskFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489,
+        495
+      ],
+      "quote": "Take a trade only where you are going for a reward that is at least as large as your risk.",
+      "description": "Before entering, require that the planned profit target distance is at least a multiple of the planned protective-stop distance (the multiple is 1x for scalps, 2x for swings per the guidelines below).",
+      "pseudocode": "plannedReward = abs(targetPrice - entryPrice); plannedRisk = abs(entryPrice - stopPrice); plannedReward >= minRewardMultiple*plannedRisk",
+      "sides": "same",
+      "parameters": {
+        "minRewardMultiple": 1.0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a comparison of two already-known price distances, no bar history needed"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-23",
+      "name": "MaxTradesPerDaySwitch",
+      "role": "Switch",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489,
+        505
+      ],
+      "quote": "Look for only three to five reasonable trades a day. If in doubt, stay out.",
+      "description": "Once the count of trades taken today reaches a cap, block further entries for the rest of the session.",
+      "pseudocode": "ctx.TradesToday() >= maxTradesPerDay",
+      "sides": "same",
+      "parameters": {
+        "maxTradesPerDay": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "intraday-only",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "requires a persistent same-session trade counter reset at each new day"
+      },
+      "el_words_needed": [
+        "Date",
+        "BarsSinceEntry"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-24",
+      "name": "OpeningRangeSwingReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-06",
+        "V24-14",
+        "V24-09",
+        "V24-22"
+      ],
+      "depends_on": [],
+      "pages": [
+        487
+      ],
+      "quote": "Opening reversals where the setup is strong: Swing for a reward that is at least twice the risk: the probability of success is 50 to 60 percent.",
+      "description": "During the opening range, a strong reversal signal (composes the general reversal/signal-bar primitives) taken with a swing profit target at least twice the planned risk.",
+      "pseudocode": "isOpeningRange(barsSinceOpen,openingRangeBars) && (TwoBarReversal || MajorTrendReversalSetup || FinalFlagReversal) && MinRewardToRiskFilter(2.0)",
+      "sides": "mirrored",
+      "parameters": {
+        "openingRangeBars": 6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "intraday-only",
+      "complexity": {
+        "grade": "hard",
+        "reason": "inherits the hard complexity of the reversal primitives it composes, gated to the opening bars"
+      },
+      "el_words_needed": [
+        "Time"
+      ],
+      "likely_existing_rule": "OpeningRangeReversal",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-25",
+      "name": "OpeningRangeScalpReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-06",
+        "V24-14",
+        "V24-09",
+        "V24-22"
+      ],
+      "depends_on": [],
+      "pages": [
+        487
+      ],
+      "quote": "Scalp for a reward that is at least as large as the risk: the probability is about 60 to 70 percent.",
+      "description": "Same opening-range reversal setup as V24-24 but scalped with a 1x reward-to-risk target instead of 2x.",
+      "pseudocode": "isOpeningRange(barsSinceOpen,openingRangeBars) && (TwoBarReversal || MajorTrendReversalSetup || FinalFlagReversal) && MinRewardToRiskFilter(1.0)",
+      "sides": "mirrored",
+      "parameters": {
+        "openingRangeBars": 6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "intraday-only",
+      "complexity": {
+        "grade": "hard",
+        "reason": "same composition as V24-24 with a different reward multiple"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-26",
+      "name": "PullbackNotAfterClimaxFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [
+        "V24-04",
+        "V24-20"
+      ],
+      "depends_on": [],
+      "pages": [
+        488
+      ],
+      "quote": "Buying a high 1 pullback in a strong bull spike in a bull trend, but not after a strong buy climax.",
+      "description": "Blocks a one-leg pullback entry (V24-04) when the most recent trend bar was a climax bar (V24-20); the high 1 (low 1) is only taken while the spike has not yet exhausted itself.",
+      "pseudocode": "PullbackEntryOneLeg && !ClimaxBar[lookbackBars]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookbackBars": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a small backward-looking check on the climax-bar primitive"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-27",
+      "name": "SpikeEntryDuringBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        488
+      ],
+      "quote": "Buying a bull spike in a strong bull breakout at the market or on a limit order at or below the low of the prior bar (entering in spikes requires a wider stop and the spike happens quickly).",
+      "description": "During a strong multi-bar bull trend-bar spike, enter at the market on the close of any spike bar, or on a limit order at/below the prior bar's low, rather than waiting for a pullback. Mirrored for bear spikes.",
+      "pseudocode": "consecutiveTrendBars(bull) >= 2 && TrendBarBody(bull) // entry at close[0], or resting limit at low[1]-limitOffsetTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "limitOffsetTicks": 0
+      },
+      "book_order_type": "market on the bar's close, or a resting limit order at/below the prior bar's low",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a short consecutive-trend-bar counter"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-28",
+      "name": "WeakSignalBarLimitEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-04",
+        "V24-05"
+      ],
+      "depends_on": [],
+      "pages": [
+        488
+      ],
+      "quote": "Buying at or below a low 1 or 2 weak signal bar on a limit order in a possible new bull trend after a strong reversal up or at the bottom of a trading range.",
+      "description": "Rather than waiting for a stop entry above/below a weak pullback signal bar, place a resting limit order at or below (above) that bar's low (high) when the broader context (fresh strong reversal, or range extreme) favors the trade.",
+      "pseudocode": "(PullbackEntryOneLeg || PullbackEntryTwoLeg) && signalBarIsWeak(tailFraction) // resting limit at low[0]-limitOffsetTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "tailFraction": 0.4,
+        "limitOffsetTicks": 0
+      },
+      "book_order_type": "resting limit order at/below (at/above) the weak signal bar's low (high)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reuses the pullback primitives plus a weak-bar (large tail) test"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-29",
+      "name": "QuietFlagLimitEntryAtMA",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        488
+      ],
+      "quote": "Buying at or below the prior bar on a limit order in a quiet bull flag at the moving average.",
+      "description": "In an established trend, when price is consolidating quietly (small overlapping bars, low range) at the moving average, rest a limit order at or below the prior bar's low (above the prior bar's high for shorts) rather than waiting for a stop entry.",
+      "pseudocode": "ctx.AlwaysInLong() && abs(close[0]-ema[0]) <= maTouchTicks*tickSize && (high[0]-low[0]) <= quietRangeMultiple*averageRange(rangeLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "maTouchTicks": 3,
+        "quietRangeMultiple": 0.7,
+        "rangeLookback": 20
+      },
+      "book_order_type": "resting limit order at/below the prior bar's low",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA-distance test plus a below-average-range 'quiet' test"
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-30",
+      "name": "AnticipatedBreakoutPullbackLimitEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-10"
+      ],
+      "depends_on": [],
+      "pages": [
+        488,
+        524
+      ],
+      "quote": "Buying below a bull bar that breaks above a bull flag, anticipating a breakout pullback.",
+      "description": "As soon as a bull (bear) bar closes breaking out above (below) a flag/range, immediately rest a limit order below (above) that breakout bar rather than waiting for the pullback bar to actually form, anticipating BreakoutPullbackEntry (V24-10).",
+      "pseudocode": "close[0] > highest(high,flagLookback,1) && TrendBarBody(bull) // resting limit at low[0]-limitOffsetTicks*tickSize placed immediately on this bar's close",
+      "sides": "mirrored",
+      "parameters": {
+        "flagLookback": 15,
+        "limitOffsetTicks": 0
+      },
+      "book_order_type": "resting limit order placed at the breakout bar's close, below its low",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a breakout-bar test identical to V24-10's trigger, but the order is placed one bar earlier"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-31",
+      "name": "BreakoutTestAddOn",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489,
+        531
+      ],
+      "quote": "When trying for a swing in a bull trend, buying or buying more on a breakout test, which is an attempt to run breakeven stops from an earlier long entry.",
+      "description": "While holding (or after) a long swing entry, if price pulls back to retest the entry price area (running likely breakeven stops) and then shows a bull signal bar, add to or re-enter the long.",
+      "pseudocode": "ctx.MarketPosition()>0 && low[0] <= ctx.EntryPrice()+breakevenTestTicks*tickSize && TrendBarBody(bull)",
+      "sides": "mirrored",
+      "parameters": {
+        "breakevenTestTicks": 2
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "uses position-history state (entry price) plus a signal-bar test"
+      },
+      "el_words_needed": [
+        "EntryPrice"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-32",
+      "name": "FixedTickPullbackEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489
+      ],
+      "quote": "Buying a pullback in a strong bull trend at a fixed number of ticks down equal to or slightly less than the average prior pullbacks.",
+      "description": "In a strong trend, rest a limit order a fixed number of ticks away from the market (set to the average size of the trend's prior pullbacks so far) rather than waiting for a specific pattern.",
+      "pseudocode": "avgPullback = average(pullbackDepths(direction,tradeCountToday)); limitPrice = high[highestSince(1)] - avgPullback*avgPullbackFraction",
+      "sides": "mirrored",
+      "parameters": {
+        "avgPullbackFraction": 0.9
+      },
+      "book_order_type": "resting limit order at a fixed tick offset from the current swing extreme",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "requires tracking and averaging the depth of prior pullbacks during the current trend"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-33",
+      "name": "FailedAlwaysInFlipFade",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [
+        "V24-12",
+        "V24-01"
+      ],
+      "depends_on": [],
+      "pages": [
+        489
+      ],
+      "quote": "When a bear trend is about to break into a bull trend and needs one more bull trend bar to confirm the always-in reversal, and the breakout does not look strong, sell the close of the bull breakout bar, expecting the follow-through bar not to confirm the always-in flip and the bear trend to resume.",
+      "description": "When price closes what would be a confirming breakout bar for an always-in flip, but that bar is weak (small body / large tail), fade it immediately at its close, betting the flip fails and the prior trend resumes.",
+      "pseudocode": "ctx.AlwaysInShort() && wouldConfirmAlwaysInFlip(bull) && !TrendBarBody(bull) // sell at close[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "market order at the close of the weak breakout bar",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "depends entirely on the always-in read (V24-12), which itself is a design decision"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-34",
+      "name": "PostClimaxReentryDelay",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [
+        "V24-09",
+        "V24-03"
+      ],
+      "depends_on": [],
+      "pages": [
+        511
+      ],
+      "quote": "After a final flag, traders usually wait for at least a 10-bar, two-legged pullback to the moving average before buying again.",
+      "description": "After a final-flag or climax exhaustion signal, suppress with-trend re-entries until at least N bars have passed and the pullback has shown two legs to the moving average.",
+      "pseudocode": "barsSinceFinalFlag <= minWaitBars || PullbackLegCount(down,lookback) < 2 => blockEntry",
+      "sides": "mirrored",
+      "parameters": {
+        "minWaitBars": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a bar-count-since-event gate combined with the leg-count primitive"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-35",
+      "name": "InitialStopBeyondSignalBar",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489,
+        508
+      ],
+      "quote": "Always have a protective stop in the market... If a trader bought above bar 5, his initial stop was below bar 5.",
+      "description": "The initial protective stop is placed one tick beyond the signal bar's extreme in the direction opposite the trade.",
+      "pseudocode": "stopPrice = low[signalBarOffset] - stopOffsetTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "signalBarOffset": 1,
+        "stopOffsetTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed offset from one identified bar"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "StopBeyondSignalBar",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-36",
+      "name": "TightenStopToEntryBarOnConfirmation",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        509,
+        516
+      ],
+      "quote": "Once the market traded above the strong bar 7 two-bar reversal, he would tighten his stop to one tick below the bar 7 low.",
+      "description": "Once the bar immediately following entry (or a subsequent confirming bar) closes as a trend bar in the trade's direction, move the protective stop to one tick beyond that bar's extreme, tightening the initial risk.",
+      "pseudocode": "ctx.BarsSinceEntry()>=1 && TrendBarBody(direction)[0] && newStop = low[0]-stopOffsetTicks*tickSize; if newStop > currentStop then currentStop = newStop",
+      "sides": "mirrored",
+      "parameters": {
+        "stopOffsetTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "cross-bar state tracking the current stop level and only ratcheting it tighter"
+      },
+      "el_words_needed": [
+        "BarsSinceEntry"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-37",
+      "name": "BreakevenStopAtProfitThreshold",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        520
+      ],
+      "quote": "Typically, traders should not move their stops to breakeven on a trade like this until there has been about 60 to 80 cents of open profit.",
+      "description": "Move the protective stop to breakeven (or a small amount worse) once open position profit reaches a minimum tick threshold.",
+      "pseudocode": "ctx.MarketPosition()>0 && ctx.OpenPositionProfit() >= minProfitTicks*tickSize*ctx.MarketPosition() => stopPrice = max(stopPrice, ctx.EntryPrice()-breakevenSlackTicks*tickSize)",
+      "sides": "same",
+      "parameters": {
+        "minProfitTicks": 8,
+        "breakevenSlackTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a direct read of open position profit against a fixed threshold"
+      },
+      "el_words_needed": [
+        "OpenPositionProfit",
+        "EntryPrice"
+      ],
+      "likely_existing_rule": "BreakevenStop",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-38",
+      "name": "BreakevenStopAtHalfTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        517
+      ],
+      "quote": "Some traders move their protective stop to breakeven once the trade reaches about halfway to their profit target.",
+      "description": "Move the protective stop to breakeven once open profit reaches half of the originally planned profit target distance.",
+      "pseudocode": "ctx.OpenPositionProfit() >= 0.5*plannedTargetDistance => stopPrice = ctx.EntryPrice()",
+      "sides": "same",
+      "parameters": {
+        "halfTargetFraction": 0.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "compares current open profit to a precomputed fraction of the planned target"
+      },
+      "el_words_needed": [
+        "OpenPositionProfit",
+        "EntryPrice"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-39",
+      "name": "ScaleOutHalfAtRiskEqualsReward",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        497,
+        509,
+        521
+      ],
+      "quote": "On bar 6, traders would have been able to exit half of their shares with $1.00 profit... At this point, they would have moved their protective stop to breakeven.",
+      "description": "Take partial profit (half the position) once open profit equals the amount originally risked, then move the stop on the remainder to breakeven and trail it.",
+      "pseudocode": "ctx.OpenPositionProfit() >= plannedRiskDistance => exitHalfAtMarketOrLimit(); stopPriceRemainder = ctx.EntryPrice()-breakevenSlackTicks*tickSize",
+      "sides": "same",
+      "parameters": {
+        "breakevenSlackTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the originally-planned risk distance carried as position state, plus partial-exit bookkeeping"
+      },
+      "el_words_needed": [
+        "OpenPositionProfit",
+        "EntryPrice"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-40",
+      "name": "TrailStopBeyondPriorSwing",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        497,
+        545
+      ],
+      "quote": "They should trail this protective stop beyond swing lows on the 5 minute chart, and take a little more off at two dollars' profit.",
+      "description": "Once swinging the remainder of a winning position, trail the protective stop to just beyond the most recent confirmed swing low (high for shorts).",
+      "pseudocode": "stopPrice = max(stopPrice, swingLow(1)-trailOffsetTicks*tickSize)",
+      "sides": "mirrored",
+      "parameters": {
+        "trailOffsetTicks": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "requires ongoing swing-pivot detection to identify each new confirmed swing low"
+      },
+      "el_words_needed": [
+        "SwingLow"
+      ],
+      "likely_existing_rule": "TrailingSwingStop",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-41",
+      "name": "WiderStopForSpikeEntry",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        497,
+        522
+      ],
+      "quote": "If they used a wide stop, they would have to reduce their position size... entering in spikes requires a wider stop and the spike happens quickly.",
+      "description": "When entering during a strong multi-bar spike (V24-27) rather than on a pullback, size the protective stop as a multiple of the normal signal-bar stop distance (and correspondingly reduce position size).",
+      "pseudocode": "stopDistance = normalStopDistance * spikeStopMultiplier",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeStopMultiplier": 2.0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed multiplier applied to an existing stop-distance calculation"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-42",
+      "name": "SwingRewardAtLeastTwiceRisk",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        489,
+        502
+      ],
+      "quote": "When starting out, focus on trades where the reward is at least twice as large as the risk.",
+      "description": "For swing-classified trades, set the profit target at least two times the planned protective-stop distance.",
+      "pseudocode": "plannedTargetDistance >= 2.0*plannedRiskDistance",
+      "sides": "same",
+      "parameters": {
+        "swingRewardMultiple": 2.0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a comparison of two known price distances"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "MinRewardToRiskFilter",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-43",
+      "name": "AvoidCountertrendScalpInWeakChannel",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [
+        "V24-12",
+        "V24-01"
+      ],
+      "depends_on": [],
+      "pages": [
+        493,
+        522
+      ],
+      "quote": "Countertrend scalps are most tempting in weak channels, where the with-trend setups just don't look strong enough... An impatient trader who buys above the bull reversal bar on a stop will consistently lose money.",
+      "description": "Block a counter-trend reversal-bar entry (e.g. a bull reversal bar in an established bear channel) that fades a new trend extreme, since these setups have a demonstrated negative trader's equation.",
+      "pseudocode": "ctx.AlwaysInShort() && TrendBarBody(bull) && low[0] <= lowest(low,channelLookback,1) => blockEntry(long)",
+      "sides": "mirrored",
+      "parameters": {
+        "channelLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "depends on the always-in read plus a qualitative 'weak channel' judgment Brooks never fully formalizes"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-44",
+      "name": "AvoidStopEntryInTightTradingRange",
+      "role": "Switch",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        486,
+        519
+      ],
+      "quote": "If the market enters a tight trading range, wait for the breakout, because tight trading ranges trump everything... Using stop entries in a tight trading range is a losing strategy.",
+      "description": "Block all stop entries while the recent N-bar range is unusually tight (small relative to the recent average range), regardless of any pattern that would otherwise trigger.",
+      "pseudocode": "(highest(high,rangeLookback)-lowest(low,rangeLookback)) <= tightRangeMultiple*averageRange(atrLookback) => blockAllStopEntries",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 15,
+        "tightRangeMultiple": 1.2,
+        "atrLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window range compared against an average-range baseline"
+      },
+      "el_words_needed": [
+        "AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "TightTradingRangeFilter",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-45",
+      "name": "MajorityBarsOnMASideFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        493
+      ],
+      "quote": "They should look to buy only when the market is mostly above the moving average and sell when most of the recent bars are below the moving average.",
+      "description": "Only allow long entries when a clear majority of the last N bars have closed above the 20-bar EMA (mirrored: shorts only when a majority closed below).",
+      "pseudocode": "countBarsAbove = countBars(close[i] > ema[i], lookback); countBarsAbove >= majorityFraction*lookback",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "majorityFraction": 0.6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window loop counting bars against an EMA compared to a fraction threshold"
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "MajorityBarsAboveMA",
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "V24-46",
+      "name": "ConsecutiveClimaxBarsExpectCorrection",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [
+        "V24-20"
+      ],
+      "depends_on": [],
+      "pages": [
+        527
+      ],
+      "quote": "Consecutive buy climaxes are usually followed by at least a two-legged correction.",
+      "description": "When two or more climax bars (V24-20) occur within a short span in the same direction, treat the next opposite-direction signal bar as higher-confidence, expecting at least a two-legged correction.",
+      "pseudocode": "climaxCountRecent(direction,shortLookback) >= 2 => boost confidence of the next TrendBarBody(opposite) signal",
+      "sides": "mirrored",
+      "parameters": {
+        "shortLookback": 8
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a short-window count of the climax-bar primitive"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": []
+    },
+    {
+      "id": "V24-47",
+      "name": "ExtendedOneSidedRangeMoveFavorsFade",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        552
+      ],
+      "quote": "In general, when the market is in a trading range and it is up for five to 10 bars, traders should only look for shorts.",
+      "description": "While price is judged to be inside a trading range, if the current leg has moved in one direction for at least N consecutive bars without a real pullback, only allow fade entries against that leg (blocking with-leg entries).",
+      "pseudocode": "isTradingRange(rangeLookback) && consecutiveBarsInDirection(direction) >= minLegBars => allowOnly(fadeDirection = opposite(direction))",
+      "sides": "mirrored",
+      "parameters": {
+        "minLegBars": 5,
+        "rangeLookback": 40
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "depends on a 'the market is in a trading range' read, which is itself a design decision, plus a consecutive-bar-in-direction counter"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-48",
+      "name": "LimitOrderOnlyWithAlwaysInDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [
+        "V24-12"
+      ],
+      "depends_on": [],
+      "pages": [
+        488
+      ],
+      "quote": "Traders should only use limit orders to trade in the direction of the trend... he should only [buy on a limit] if the market is always-in long.",
+      "description": "Block any limit-order (as opposed to stop) entry unless it is in the same direction as the current always-in read.",
+      "pseudocode": "orderType==limit && direction != ctx.AlwaysInDirection() => blockEntry",
+      "sides": "same",
+      "parameters": {},
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "depends entirely on the always-in primitive"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    },
+    {
+      "id": "V24-49",
+      "name": "TradingRangeVsTrendEntryBias",
+      "role": "Entry",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        485,
+        501
+      ],
+      "quote": "When the market is clearly bullish, buying near the high and exiting higher is an effective strategy... When it is in a trading range, buying near the high is usually a mistake, and traders should instead try to buy near the low.",
+      "description": "Switches entry bias by market regime: in a trend, buy strength (near recent highs) and sell weakness (near recent lows); in a trading range, buy near the range low and sell near the range high (invert the bias).",
+      "pseudocode": "isTrending() ? (buyNearRecentHigh() ; sellNearRecentLow()) : (buyNearRangeLow() ; sellNearRangeHigh())",
+      "sides": "same",
+      "parameters": {},
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "requires a trend-vs-trading-range classifier, one of the qualitative design decisions Brooks leaves undefined"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": []
+    }
+  ],
+  "rejected": [
+    {
+      "pages": [
+        489,
+        499
+      ],
+      "quote": "Trade only a small position size. If you think that you can trade 300 shares, you should trade only 100 shares so that you are in ‘I don’t care’ mode.",
+      "reason": "account-level position-sizing/psychology advice, not a bar-level OHLCV condition"
+    },
+    {
+      "pages": [
+        494,
+        506
+      ],
+      "quote": "They actually have to win on about 80 percent of their tiny scalps to make a living at it... The reality is that they will never become that good.",
+      "reason": "pure discretionary/statistical commentary about trader skill, no bar-level test"
+    },
+    {
+      "pages": [
+        490,
+        494,
+        505
+      ],
+      "quote": "Look for simple strategies. If something is not clear, wait.",
+      "reason": "pure discretion with no bar-level test ('trade what makes sense')"
+    },
+    {
+      "pages": [
+        491
+      ],
+      "quote": "If the market is moving too fast for a trader to consider the math of the current setup, he should not take the trade.",
+      "reason": "depends on the trader's own processing speed, not any market data the engine has"
+    },
+    {
+      "pages": [
+        495
+      ],
+      "quote": "Although the forex market is essentially a 24-hour market and has no real open, it otherwise behaves like stocks and futures and should be traded in the same way.",
+      "reason": "general market-structure commentary, not a testable condition"
+    },
+    {
+      "pages": [
+        499,
+        506,
+        507
+      ],
+      "quote": "You determine the probability, which can never be known with precision... assume that there is a 50 percent chance... If you are confident about the trade, assume that the odds are 60-40.",
+      "reason": "subjective probability assessment based on the trader's confidence, not derivable from OHLCV"
+    },
+    {
+      "pages": [
+        505
+      ],
+      "quote": "Print out weeks of charts of the time frame and market they plan to trade and see if their setups appear to be valid.",
+      "reason": "a study/practice instruction to the trader, not a market condition"
+    },
+    {
+      "pages": [
+        506,
+        507
+      ],
+      "quote": "If you trade 25 Emini contracts and net just two points a day, you will make $500,000 a year.",
+      "reason": "an account-sizing/earnings illustration, not a trading condition"
+    },
+    {
+      "pages": [
+        491
+      ],
+      "quote": "I saw a video on YouTube where the trader carefully explained that he always traded a second Emini contract, scalping it at a one tick profit...",
+      "reason": "an anecdote about another trader's account setup, not a chart-derivable rule"
+    },
+    {
+      "pages": [
+        493
+      ],
+      "quote": "Another common mistake is to look at 1 minute charts or other smaller time frame charts, like tick and volume charts...",
+      "reason": "a timeframe-selection preference/discretionary commentary, not itself a bar-level entry/exit condition"
+    },
+    {
+      "pages": [
+        543
+      ],
+      "quote": "An obvious example is the incredible bull market that took place when the Republicans took control of Congress in 1994... Was this bear trend and panic sell-off caused by the subprime mess, or was it the direct result of the country realizing that Barack Obama was going to win the White House?",
+      "reason": "political/fundamental commentary, data the engine cannot have"
+    },
+    {
+      "pages": [
+        553,
+        554
+      ],
+      "quote": "Many traders will use a limit order that is one tick less than usual, knowing that the market often hits the obvious target price, but reverses instead of filling the profit-taking limit orders.",
+      "reason": "a single anecdotal order-placement trick tied to a specific holiday-week context, not a generalizable bar-level rule"
+    }
+  ],
+  "chapter_summary": "Chapter 24 is the trilogy's capstone: a discursive essay on trader's-equation math and discipline, a large bulleted catalog of 'best trade' setups (opening reversals, major trend reversals, stairs patterns, measured-move exhaustion, high/low 1 and 2 pullbacks, wedge and breakout pullbacks, second entries at range extremes, and several limit-order variants), followed by 24 worked chart examples (Figures 24.1-24.24) that narrate specific numbered bars on charts not included in this text extract. Almost every pattern named (high 1/2, low 1/2, two-bar reversal, double top/bottom, wedge, final flag, breakout pullback, moving-average gap bar, always-in, trend-line break, measured move, expanding triangle, climax, micro channel) is a primitive this chapter reuses rather than introduces, so the primitives defined here (V24-01..V24-23) are expected to be near-duplicates of primitives defined in earlier chapters of all three books; the dedup pass should treat this file as confirmation/parameter-refinement of those, not a new source of unique patterns. The genuinely new material is concentrated in explicit trade-management numbers (breakeven timing, scale-out-half-at-risk, wider stops for spike entries, post-climax reentry delay) and a handful of context filters (avoid countertrend scalps in weak channels, avoid stop entries in tight ranges, majority-of-bars-vs-MA filter, extended one-sided range move favors a fade) that were stated only in narrative prose elsewhere in the book."
+}
