@@ -327,4 +327,11 @@ everything that is not A already.
   still landed complete); a Sonnet agent died on the 64k output cap. 1635 → 548 rules
   (A 228, B 212, C 75, D 33). Five design decisions settled by bucket owners and
   recorded in CANDIDATES.md for Brian to ratify: always-in, leg counter, trading range,
-  tight channel, trend-line construction. Pass 3 not started.
+  tight channel, trend-line construction.
+- **2026-09-13, Brooks pass 3.** One Opus agent wrote four probes and nine UNKNOWN
+  register rows. 228 A rules → 176 unblocked; 14 Opus slices (145k–200k tokens each,
+  10–16 min, 3–4 concurrent) authored 148 rules with twins, 28 dropped as cross-slice
+  or catalog duplicates, one existing rule gained an input. A dedup-review agent
+  removed 3 more and corrected 24 catalog rows; the corpus went 92 → 240 rules, lint
+  and 319 tests clean, engine Release build clean via compileCheck.py. 52 A rules and
+  all B rules wait on the probes; the tick-size ones also need a ctx accessor.
