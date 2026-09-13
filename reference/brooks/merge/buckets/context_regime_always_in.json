@@ -1,0 +1,2058 @@
+[
+  {
+    "id": "R00-48",
+    "name": "AlwaysInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      11,
+      16
+    ],
+    "quote": "always in: If you have to be in the market at all times, either long or short, this is whatever your current position is... With trend: In general, the direction of the most recent 5 minute chart signal should be assumed to be the trend's direction. Also, if most of the past 10 or 20 bars are above the moving average, trend setups and trades are likely on the buy side.",
+    "description": "Global regime concept gating every entry: the market's presumed always-in direction, read here as a proxy -- bullish when most of the last N bars closed above the EMA, else bearish. A design decision is needed before this can be coded exactly as Brooks means it (the most recent significant signal's direction).",
+    "pseudocode": "countCloseAboveEma(lookback) >= majorityFraction * lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "emaLength": 20,
+      "majorityFraction": 0.5
+    },
+    "book_order_type": "n/a (global context filter used to permit/deny with-trend vs countertrend entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks defines always-in by trader judgment of the 'most recent signal'; the bar-count-above-EMA proxy is one of several possible codings and needs a design decision"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "MINING.md cites this exact concept as the canonical research-grade example."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-50",
+    "name": "DeepPullbackTreatedAsNewTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      23
+    ],
+    "quote": "the odds that a pullback will get back to the prior trend's extreme fall substantially if the pullback retraces 75 percent or more. For a pullback in a bear trend, at that point, a trader is better off thinking of the pullback as a new bull trend rather than a pullback in an old bear trend.",
+    "description": "Filter: once a countertrend pullback has retraced at least X% of the prior trend's range (trend start to trend extreme), stop assuming with-trend continuation is likely and instead treat the pullback as a possible new trend in the opposite direction.",
+    "pseudocode": "retracement = (trendExtreme - close[0]) / (trendExtreme - trendStart); retracement >= deepRetracementFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "deepRetracementFraction": 0.75
+    },
+    "book_order_type": "n/a (context filter shifting entry bias)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the remembered start and extreme of the identified prior trend leg"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "RP1-01",
+    "name": "AlwaysInTrendContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      30
+    ],
+    "quote": "“Always in” ... means that if you had to be in the market at all times, either long or short, the always-in position is whatever your current position is.",
+    "description": "Shared primitive: a persistent regime state, whether the market's inferred ‘always-in’ direction is long or short. Used throughout the chapter to gate which side of a breakout is with-trend. Coded here as a simple EMA-side proxy; a real implementation may prefer a design-level always-in variable shared across chapters.",
+    "pseudocode": "close[0] > ema(emaLength)[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20
+    },
+    "book_order_type": "n/a (regime classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "‘always-in’ is a persistent regime concept Brooks reserves for detailed treatment in book 3; any single-bar or EMA-side proxy is a design decision, not a direct mechanization."
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Every other RP1 candidate that says ‘in a bull trend’ or ‘in a bear trend’ depends on this primitive."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01-part_i_breakouts_transitioning_into_a_new_trend.json",
+    "chapter_title": "Part I: Breakouts: Transitioning into a New Trend"
+  },
+  {
+    "id": "R08-24",
+    "name": "TrendDayWithTrendOnly",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      78
+    ],
+    "quote": "at that point the day was clearly a bear trend day and traders should only be shorting unless there was a clear and strong long scalp",
+    "description": "Filter: on a trend day (session close-to-date far from session open, most closes on one side of the EMA), take only with-trend entries.",
+    "pseudocode": "(close[0] - sessionOpen) >= trendDayAtr * atr(atrLookback) && fractionOfSessionBarsAboveEma >= minFraction  (bull trend day; allows longs only)",
+    "sides": "mirrored",
+    "parameters": {
+      "trendDayAtr": 2.0,
+      "atrLookback": 14,
+      "emaLength": 20,
+      "minFraction": 0.8
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trend day' needs a design decision; the pseudocode is one proxy"
+    },
+    "el_words_needed": [
+      "OpenD",
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R10-01",
+    "name": "CountertrendOnlyAfterPriorStrengthNearMagnet",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-15"
+    ],
+    "pages": [
+      81
+    ],
+    "quote": "When a market is trending toward a magnet, it is prudent to trade with the trend until the magnet is tested and preferably overshot. Do not trade countertrend at the magnet unless there has been some prior countertrend strength like a trend line break, or unless the move is a pullback in a higher time frame trend.",
+    "description": "Filter, generalized from R08-15: at any magnet level, permit a countertrend entry only if there was prior countertrend strength (e.g. an earlier trend-line break) or the move is itself a pullback within a higher-time-frame trend.",
+    "pseudocode": "atMagnetLevel && (R08-15 || pullbackInHigherTimeframeTrend)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'magnet level' is generic across the many families listed in this chapter, and 'higher time frame trend' needs a design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Umbrella restatement of R08-15 applied to every magnet type in this chapter, not just the measured-move target."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/10_other_magnets.json",
+    "chapter_title": "Other Magnets"
+  },
+  {
+    "id": "R12-11",
+    "name": "ConsecutiveClimaxesImplyCountertrendCorrection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      96,
+      99
+    ],
+    "quote": "Consecutive climaxes are usually followed by at least a two-legged countertrend move and often a reversal.",
+    "description": "Filter: after two or more consecutive climactic spikes (each a burst of several same-direction trend bars) with minimal intervening pullback, expect at least a two-legged countertrend move of a minimum duration -- withhold fresh with-trend entries and look for the countertrend setup instead.",
+    "pseudocode": "climaxCount(spikeBars, bodyFraction) >= minConsecutiveClimaxes",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "bodyFraction": 0.6,
+      "minConsecutiveClimaxes": 2,
+      "minCorrectionBars": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'climax' classification and leg-counting the resulting correction are both unresolved design decisions"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Figure 12.6's deeper discussion counts a third consecutive sell climax expecting a correction of at least 10 bars."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/12_double_top_bear_flags_and_double_bottom_bull.json",
+    "chapter_title": "Double Top Bear Flags and Double Bottom Bull Flags"
+  },
+  {
+    "id": "R17-16",
+    "name": "CountertrendMicroSignalMustFailFirst",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      112
+    ],
+    "quote": "High 1 and low 1 patterns are with-trend setups, so if one occurs within a pullback in a trend but in the direction of the pullback and not the trend, do not take the trade. Instead, wait for it to fail and then enter with the trend on the breakout pullback.",
+    "description": "If a High 1/Low 1-shaped bar forms in the direction of a pullback (against the larger trend) rather than with the trend, do not trade it directly; require it to fail first, then take the resulting with-trend breakout-pullback entry instead.",
+    "pseudocode": "counterTrendCountBar(R17-01) -> do not enter directly; wait for FailedBreakoutReversalEntry-style continuation with the trend",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (redirects the trade to the with-trend breakout-pullback entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires knowing the larger trend direction plus the breakout-pullback primitives from chapter 5"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BreakoutPullbackTestBuyEntry",
+    "confidence": "low",
+    "notes": [
+      "References R05-02/R05-04 (ranges chapter 5's breakout-pullback entries)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/17_bar_counting_high_and_low_1_2_3_and_4_patterns.json",
+    "chapter_title": "Bar Counting: High and Low 1, 2, 3, and 4 Patterns and ABC Corrections"
+  },
+  {
+    "id": "R20-06",
+    "name": "AvoidNaiveReversalPatternCountertrendEntry",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R20-01",
+      "R20-03"
+    ],
+    "pages": [
+      131
+    ],
+    "quote": "It is a mistake to see every top or bottom as a great reversal setup, because if you take all of those countertrend entries, the majority of your trades will be losers... However, if you are selective and look for other evidence that a trend might reverse, these can be effective setups.",
+    "description": "Because double tops/bottoms and head-and-shoulders patterns are trading ranges that continue the larger trend far more often than they reverse it, do not take every countertrend breakout of one of these patterns (R20-02/R20-04); only take it when there is additional selective evidence that the trend might actually reverse.",
+    "pseudocode": "// research: 'other evidence' that a trend might reverse is left undefined in this chapter\nallowCountertrendReversalEntry = (isDoubleTop[0] || isHeadAndShouldersTop[0]) && reversalConfidenceScore[0] >= reversalConfidenceThreshold;",
+    "sides": "same",
+    "parameters": {
+      "reversalConfidenceThreshold": null
+    },
+    "book_order_type": "n/a (gates whether R20-02/R20-04 may be taken at all)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"other evidence that a trend might reverse\" has no stated bar-level test; a design decision is needed before this can be coded"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/20_reversal_patterns_double_tops_and_bottoms_and.json",
+    "chapter_title": "“Reversal” Patterns: Double Tops and Bottoms and Head and Shoulders Tops and Bottoms"
+  },
+  {
+    "id": "RP4-24",
+    "name": "AlwaysInFlipEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      145,
+      146
+    ],
+    "quote": "As a general rule, as soon as traders decide that there is now a bull trend underway, they should buy at least a small position at the market or on a tiny pullback... because the directional probability of an equidistant move is probably at least 60 percent.",
+    "description": "As soon as the always-in direction is judged to have flipped to long, buy at least a small position immediately (at market, or on a minor pullback) rather than waiting for a full pullback entry, since the directional probability of an equidistant move is judged to be materially above 50%.",
+    "pseudocode": "// research: 'always-in flips to long' is the MINING.md canonical research example; no bar-level test is given for the flip itself\nalwaysInDirection = alwaysInDirection[0]; // design-decision output, e.g. sign of a persistent state variable\njustFlippedToLong = alwaysInDirection == LONG && alwaysInDirection[1] != LONG;\nenterLongAtMarketOrMinorPullback = justFlippedToLong;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order, or a limit order on a minor (sub-bar or lower-timeframe) pullback",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"always-in direction\" is the MINING.md canonical research-grade example -- a design decision is needed before the flip itself can be detected at all"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R22-13",
+    "name": "AvoidFading1MinuteBarsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      157
+    ],
+    "quote": "You should rarely, if ever, fade off 1 minute bars, because the 3 and 5 minute bars provide better winning percentages.",
+    "description": "Do not take fade (countertrend scalp) entries when the chart's bar interval is 1 minute; prefer 3-minute or 5-minute bars for these setups.",
+    "pseudocode": "allowFadeEntry = barIntervalMinutes >= minFadeBarIntervalMinutes;",
+    "sides": "same",
+    "parameters": {
+      "minFadeBarIntervalMinutes": 3
+    },
+    "book_order_type": "n/a (bar-interval gate)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a constant comparison against the chart's configured bar interval"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R26-02",
+    "name": "NoCountertrendInSteepTrendUnlessPriorBreakOrOvershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      187
+    ],
+    "quote": "if there is a steep trend, never trade countertrend, even if there is a high or low 2 or 4, unless there was first a prior significant trend line break or trend channel overshoot and reversal.",
+    "description": "Block any countertrend entry (including counting setups like high2/high4) while the trend is steep, unless a significant trend-line break or a trend-channel overshoot-and-reversal has already occurred first.",
+    "pseudocode": "// research/hard: 'steep trend' and 'significant trend line break' need a trend-line/channel-line projection and a slope threshold\nallowCountertrendEntry = !isSteepTrend[0] || priorSignificantTrendLineBreak[0] || priorTrendChannelOvershootReversal[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (blocks other countertrend entry candidates)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a trend-steepness measure plus trend-line/channel-line break and overshoot detection from pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Also notes it is 'far better' if the trend line break had strong momentum rather than a sideways drift; recorded as a strengthening condition, not split into its own candidate."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R28-07",
+    "name": "AlwaysInFlipPrimitive",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192
+    ],
+    "quote": "When a bull trend bar that is not particularly large flips the market to always-in long, buy on a limit order at one tick above the high of the bar before it...",
+    "description": "Shared primitive: the always-in direction flips to long when a bull trend bar closes in a way that makes a continued down move implausible to most traders (a design decision left to the authoring pass); flips to short on the mirror bear trend bar.",
+    "pseudocode": "// research: 'always-in' has no bar-level definition in this chapter; this is the corpus-wide always-in design decision\nalwaysInFlippedLong[0]; // true on the bar the always-in direction becomes long",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in' is explicitly flagged as a research-grade concept requiring a design decision before it can be coded"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Likely duplicates an always-in primitive already mined in the trends book (e.g. chapter 3, breakouts/trading-ranges/tests/reversals); defined locally here for this chapter's several always-in-flip entries."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-11",
+    "name": "BuyFadeUnconfirmedAlwaysInFlipDown",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "R28-07"
+    ],
+    "depends_on": [
+      "R28-07"
+    ],
+    "pages": [
+      192
+    ],
+    "quote": "When there is a bear spike in a bull market and the bears need the next bar to be a bear bar to confirm a flip of the always-in trade to down, buy the close of the last bear trend bar in the spike before the follow-through bar forms, at and below the low of the bear trend bar, and at the close of the next bar if it does not have a bear body (and buy on a stop above its high). A pullback is more likely than a bear spike and channel.",
+    "description": "During a bear spike inside a bull market that would need one more bear bar to confirm an always-in flip to short, buy at the close of the last bear trend bar, at/below its low, and -- if the following bar fails to close bearish -- at that bar's close as well (or on a stop above its high).",
+    "pseudocode": "needsConfirmationBarForFlipDown = isBearSpike[0] && isBullMarket[0] && wouldFlipAlwaysInShortIfNextBarBearish[0];\nlimitPriceAtClose = close[0];\nlimitPriceAtLow = low[0];\nenterLongOnLimitNextBar = needsConfirmationBarForFlipDown && (low[1] <= limitPriceAtLow);\n// if bar[1] closes without a bear body, also buy its close, and place a stop entry above its high",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy at the close of the bear bar, at/below its low, at the close of the next bar if it lacks a bear body, and on a stop above that next bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "multi-condition setup combining the research-grade always-in-flip concept with a conditional next-bar body test and three different order placements"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Kept whole rather than split further since the three order placements (close, low, next-bar-conditional) are all part of one described trading plan."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-25",
+    "name": "FadeCountertrendScalpersLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "In a strong bull trend, fade short scalps, since most will fail. When there is a strong bull trend and then a short scalp setup, buy on a limit order at two or three ticks above where the short scalpers are looking to take profits.",
+    "description": "In a strong bull trend, when a short-scalp setup forms, place a buy-limit order a few ticks above the level where short scalpers would take profit (a fixed distance below the bear signal bar), expecting their scalp to fail.",
+    "pseudocode": "bearScalpTargetPrice = bearSignalBarLow[0] - scalperTargetTicks * tickSize;\nlimitPrice = bearScalpTargetPrice + fadeOffsetTicks * tickSize;\nenterLongOnLimitNextBar = isStrongBullTrend[0] && isShortScalpSetup[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "scalperTargetTicks": 6,
+      "fadeOffsetTicks": 2,
+      "riskTicks": 3
+    },
+    "book_order_type": "buy limit order two or three ticks above the short scalpers' expected profit-take level",
+    "timeframe": "any",
+    "confidence": "medium",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines a research-grade strong-trend context with a short-scalp-setup classification and a fixed-offset price projection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R30-03",
+    "name": "AvoidCountertrendScalpInStrongTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      209
+    ],
+    "quote": "Once you believe there is a trend, you must accept that 80 percent of reversal attempts will fail and evolve into flags. This makes it almost impossible for most traders to enter countertrend trades on stops and consistently make a profit.",
+    "description": "Do not take a countertrend scalp entry against a trend judged to be strong; the large majority of reversal attempts fail and become flags (continuations) instead.",
+    "pseudocode": "// research: 'strong trend' and 'reversal (countertrend) attempt' classification are not reduced to a bar-level test in this chapter\nblockCountertrendEntry = strongTrendContext[0] && isCountertrendSignal[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (blocks a countertrend entry signal from being taken)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"strong trend\" and \"countertrend reversal attempt\" have no stated bar-level test in this chapter; a design decision (e.g., an always-in-direction concept) is needed first"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/30_profit_taking_and_profit_targets.json",
+    "chapter_title": "Profit Taking and Profit Targets"
+  },
+  {
+    "id": "R31-02",
+    "name": "ScaleInCountertrendAtFixedIntervalsFadingRangeExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      212,
+      217
+    ],
+    "quote": "I have a friend who is an expert at scaling into countertrend trades in channels... he would start to short on limit orders at the most recent swing high, and add to his position at the next one or two new highs in the channel, as long as each new entry was at least two points higher than the prior.",
+    "description": "Fade the extreme of a channel or trading range with multiple countertrend units, adding another unit each time price makes a new extreme at least a fixed point/tick distance beyond the prior entry -- reliable only when the day/channel is not a strong trend.",
+    "pseudocode": "// research: multiple independently priced countertrend units are a multi-unit feature the engine does not model, and 'not a strong trend day' is a context test this chapter does not reduce to a bar-level rule\nmadeNewChannelExtreme = high[0] >= lastScaleInPrice + minIntervalPoints;\nallowScaleInShort = madeNewChannelExtreme && !strongTrendDayContext[0];",
+    "sides": "mirrored",
+    "parameters": {
+      "minIntervalPoints": 2
+    },
+    "book_order_type": "additional sell limit at each new swing high at least minIntervalPoints above the prior entry",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "needs both a multi-unit position (not modeled) and a 'not a strong trend day' context classification this chapter leaves undefined"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "R32-03",
+    "name": "FadeCountertrendSignalDuringStrongOppositeTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      221
+    ],
+    "quote": "Bar 18 was a low 2 short setup, but the market was still in a strong bull channel and now was going sideways for six bars. This low 2 was likely to fail, so bulls bought its low for a scalp... Bar 16 was a low 1 short setup after five bull trend bars and therefore likely to fail. Bulls would have bought at the low of the bar.",
+    "description": "A countertrend low 1/low 2 short setup (or high 1/high 2 long setup) that forms while the larger trend is still judged strongly in the opposite direction is likely to fail; fade it (take the with-trend side at the setup bar's extreme) instead of the literal countertrend signal.",
+    "pseudocode": "// research: 'still in a strong bull channel/trend' is a context classification this chapter assumes but does not reduce to a bar-level test\nisCountertrendSetup = lowNSetupPrimitive[0]; strongOppositeTrend = strongBullTrendContext[0]; fadeShort = isCountertrendSetup && strongOppositeTrend; allowLongAtSetupLow = fadeShort;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy limit/stop at the failing countertrend setup bar's extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"still in a strong trend\" is not defined mechanically in this chapter and needs the same always-in/trend-strength design decision flagged elsewhere in this corpus"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Overlaps R32-02 conceptually (both fade a setup that 'should' fail); this candidate isolates the specific 'strong opposite trend' reason, as distinct from the 'weak spike' reason."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/32_getting_trapped_in_or_out_of_a_trade.json",
+    "chapter_title": "Getting Trapped In or Out of a Trade"
+  },
+  {
+    "id": "VP1-12",
+    "name": "AlwaysInDirectionFlip",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      67,
+      68,
+      80,
+      81,
+      82,
+      96
+    ],
+    "quote": "A reversal at some point makes the majority of traders believe that the always-in position has reversed, and this almost always requires some kind of breakout.",
+    "description": "Concept: a formal notion of the market's assumed always-in direction, which flips on sufficiently strong breakouts/spikes; used throughout the book to gate reversal conviction but never reduced to a bar-level test.",
+    "pseudocode": "n/a - design-level concept referenced by many other candidates as alwaysInDirection()",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "explicitly called out in MINING.md as a concept needing a design decision before it is codable"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The single most recurring concept in this chapter; defined once here for the whole file."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V02-35",
+    "name": "NoCountertrendInStrongTrendWithoutBreak",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "V02-10",
+      "V02-21"
+    ],
+    "depends_on": [],
+    "pages": [
+      109,
+      110
+    ],
+    "quote": "When there is a strong trend, traders should not be taking countertrend trades until there has been a trend line break or at least a climactic reversal from a trend channel line overshoot.",
+    "description": "Filter: a long against a bear trend is allowed only if a bear trend line break or a trend-channel-line overshoot reversal has occurred within the lookback.",
+    "pseudocode": "barsSince(BearTrendLineBreak) <= lookback || barsSince(TrendChannelLineOvershootReversal) <= lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 30
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "both components need pivots and line projection"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "The single most repeated rule of the trilogy; expect it in every reversals chapter."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V07-15",
+    "name": "ExceptionallyStrongMomentumOnlyTradeWithTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      230
+    ],
+    "quote": "When the bullish momentum is exceptionally strong, it is better to look only for buy setups and not shorts until after there has been some significant sign of strength by the bears.",
+    "description": "When trend momentum is exceptionally strong, suppress all countertrend (reversal) entries until the opposing side shows a significant, explicit sign of strength - a final-flag reversal signal alone is not enough.",
+    "pseudocode": "// research: 'exceptionally strong momentum' and 'significant sign of strength' are both undefined\nsuppressShortEntries = momentumScore[0] >= exceptionallyStrongThreshold && !bearsShowedSignificantStrength;",
+    "sides": "mirrored",
+    "parameters": {
+      "exceptionallyStrongThreshold": null
+    },
+    "book_order_type": "n/a (global suppression filter on countertrend entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "both 'exceptionally strong momentum' and 'significant sign of strength' have no stated bar-level test; a design decision is needed for both"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Likely duplicate of NoCountertrendInStrongTrendWithoutBreak (V02-35); dedup pass should compare."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/07_final_flags.json",
+    "chapter_title": "Final Flags"
+  },
+  {
+    "id": "V11-07",
+    "name": "AlwaysInTrendTradeAfterEstablished",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      291
+    ],
+    "quote": "Once the always-in direction has been established, then look to take the trend trade. Even though you might miss the first bar or two, if the trend is strong, there will be plenty of points left in the trade.",
+    "description": "Once the always-in direction for the day has been established, take with-trend entries even after missing the earliest bars of the move.",
+    "pseudocode": "// depends on the always-in primitive, itself flagged research-grade (Chapter 15, 'Always In')",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends entirely on the always-in-direction concept, which the mining brief itself names as a research-grade design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "'Always in' is defined in this book's Chapter 15; not redefined here."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/11_key_times_of_the_day.json",
+    "chapter_title": "Key Times of the Day"
+  },
+  {
+    "id": "V15-02",
+    "name": "AlwaysInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      321,
+      328
+    ],
+    "quote": "If you had to be in the market at all times, either long or short, the always-in position is whatever your current position is.",
+    "description": "Primitive context concept: the market's presumed always-in direction, the side a trader would be forced to choose right now. Approximated as being above the EMA and above the close N bars ago (a proxy for 'the short-term trend'); Brooks explicitly says the true test is trader consensus, not a bar formula.",
+    "pseudocode": "close[0] > ema(emaLength) && close[0] > close[alwaysInLookback]",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "alwaysInLookback": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the chapter's own definition is 'whatever a forced trader would choose right now', a consensus judgment; the EMA-plus-momentum test is one workable proxy, not Brooks's definition"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Same primitive as T00-01 (Trends front matter) and R01-?? (Ranges); this is the chapter that treats it as the central topic, so it is redefined here as the canonical reversals-book source.",
+      "The concrete flip tests V15-03..V15-10 are how the chapter actually operationalizes this concept."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-11",
+    "name": "AlwaysInBlocksCountertrendEntries",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "V15-02"
+    ],
+    "depends_on": [
+      "V15-02"
+    ],
+    "pages": [
+      333
+    ],
+    "quote": "If you believe that there is an always-in direction, you should not take countertrend trades.",
+    "description": "Filter: once the always-in direction is established, only trade with that direction - a long entry is allowed only when the always-in direction is long, and vice versa.",
+    "pseudocode": "AlwaysInDirection[0] == currentSideIsLong",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "inherits the research-grade always-in primitive it gates on"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the plainest statement of the trilogy's most repeated filter (see V02-35 in this book's chapter 2); recorded again here since this chapter is the concept's canonical source."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-15",
+    "name": "AlwaysInConceptComposite",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "V15-02",
+      "V15-03",
+      "V15-05",
+      "V15-08",
+      "V15-09",
+      "V15-11"
+    ],
+    "depends_on": [],
+    "pages": [
+      321,
+      322,
+      328,
+      333
+    ],
+    "quote": "This might be the single most important concept in trading. Traders should constantly assess whether the market is trending, and an \"always-in\" approach can help a trader to make that important determination.",
+    "description": "Research-grade composite for the chapter's central concept: a persistent always-in direction state that starts undefined, flips on a two-strong-trend-bar breakout with adequate follow-through confirmation (no opposite close, adequate extension), persists through pullbacks that fail to produce an opposing strong trend bar, and blocks countertrend entries while it holds.",
+    "pseudocode": "// research: state machine combining V15-02 (proxy direction), V15-03 (flip trigger), V15-05/V15-08 (confirmation strength), V15-09 (persistence), V15-11 (the resulting entry gate)\nalwaysInLong[0] = (alwaysInLong[1] && !AlwaysInFlipTwoConsecutiveStrongTrendBars_bear[0]) || AlwaysInFlipTwoConsecutiveStrongTrendBars_bull[0];",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (the concept underlying every always-in entry in this chapter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the always-in direction is explicitly a design decision that composes several lower-grade tests into a persistent state machine; no single bar-level formula is authoritative"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is the chapter's thesis; the authoring pass should decide whether to implement it as one stateful indicator/filter or leave it decomposed into V15-03/V15-05/V15-08/V15-09/V15-11 used directly."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "VP3-03",
+    "name": "YesterdayCloseAlwaysInCarriesOverBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      360
+    ],
+    "quote": "Yesterday's always-in direction going into the close often carries over into the open of today.",
+    "description": "Context filter: if yesterday's session closed in a clear always-in direction, bias today's opening entries toward that same direction until price action contradicts it.",
+    "pseudocode": "close[priorSessionCloseOffset] > ema[priorSessionCloseOffset] && close[priorSessionCloseOffset] > close[priorSessionCloseOffset+alwaysInLookback]",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "alwaysInLookback": 20,
+      "priorSessionCloseOffset": 1
+    },
+    "book_order_type": "n/a (directional bias filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in direction' is the trilogy's own example of a concept needing a design decision before it can be coded; this is that same primitive read at yesterday's close and carried forward"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Mirrors the AlwaysInDirection primitive pattern used elsewhere in the trilogy (e.g. the trends volume's front matter)."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "V19-10",
+    "name": "StrongInitialMoveMayReturnLaterFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      405
+    ],
+    "quote": "if the market sells off strongly for the first four bars of the day and then reverses up into a strong bull trend, you should remember the initial bear trend and not assume that the bulls will control the market until the close.",
+    "description": "Context filter: after a strong opening move reverses into an opposite trend, do not fully discount the original direction -- keep a reduced-confidence bias that it could reassert later in the session (e.g. relaxing the always-in-long filter's exclusivity, or being quicker to accept a later bear signal).",
+    "pseudocode": "consecutiveTrendBarSpike(sessionAge, spikeBars, down) /* the original spike, now sessionAge bars in the past */",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 4
+    },
+    "book_order_type": "n/a (soft bias filter, not an order)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'may return later in the day' has no concrete trigger condition in the text; a design decision is needed for what re-arms this bias and when it expires"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Recorded at high recall per instructions even though it is closer to a trading heuristic than a decidable test."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V21-01",
+    "name": "CorrectionLengthAtLeastHalfTrendDuration",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      433
+    ],
+    "quote": "After a bear channel that lasted 20 or 30 bars, the correction was likely to have at least half as many bars as a general rule.",
+    "description": "After a trend leg that lasted N bars, do not expect the countertrend correction to be complete (and a resumption/second-leg entry to be high probability) until the correction itself has lasted at least a fraction F of N bars.",
+    "pseudocode": "barsSinceTrendLegStart(trendLegLength) && barsSinceCorrectionStart >= correctionFraction * trendLegLength",
+    "sides": "same",
+    "parameters": {
+      "correctionFraction": 0.5
+    },
+    "book_order_type": "n/a (a timing filter on when a continuation setup is trusted, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a swing/leg detector to know when the prior trend leg started and ended, plus a persistent bar counter for the correction; the comparison itself is a trivial ratio once those counts exist"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives 'about half' as a general rule, not an exact fraction; 0.5 is a reading of the text.",
+      "This chapter is heavy with worked chart examples that reuse pattern vocabulary already mined elsewhere in this book: two-bar reversal (01_example_of_how_to_trade_a_reversal.json V01), wedge/three-pushes (00_front_matter.json, 01-part_i..., 05_wedges...), trend-channel-line overshoot (00_front_matter.json V00, 01-part_i..., 02_signs..., 04_climactic...), always-in flips (15_always_in.json), moving-average gap bars (00_front_matter.json, 01_example...), double top/bottom flags (01_example_of_how_to_trade_a_reversal.json), H1/H2 leg counting (00_front_matter.json High1Leg/High2Leg), failed breakouts (09_failures.json, 18_patterns_related_to_yesterday_breakouts.json), final flags (01-part_i... FinalFlagReversalSetup), doji/inside/outside bars (00_front_matter.json), and trend-line breaks (01_example..., 03_major_trend_reversal.json). None of those are redefined here; only genuinely new statements from this chapter are recorded below."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/21_detailed_day_trading_examples.json",
+    "chapter_title": "Detailed Day Trading Examples"
+  },
+  {
+    "id": "V22-01",
+    "name": "CountertrendScalpPercentTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      444
+    ],
+    "quote": "When trading counter to a strong trend, the goal should be a scalp of 1 or 2 percent, since most countertrend trades just result in pullbacks that become with-trend entries.",
+    "description": "For a countertrend position (against a strong prevailing trend), take profit once open profit reaches a small percentage of the entry price (1-2%), rather than a fixed dollar or point target, since countertrend trades usually only produce a brief pullback.",
+    "pseudocode": "ctx.MarketPosition() > 0 && close[0] >= ctx.EntryPrice() * (1 + scalpPercent)",
+    "sides": "mirrored",
+    "parameters": {
+      "scalpPercent": 0.015
+    },
+    "book_order_type": "n/a (a limit/profit-taking exit near a small percentage move)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a single percentage comparison against the entry price"
+    },
+    "el_words_needed": [
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "TakeProfit",
+    "confidence": "medium",
+    "notes": [
+      "rules/CATALOG.md's TakeProfit is a fixed-dollar target; this is a percent-of-entry-price target, which behaves differently across instruments and price levels and is meant for daily/weekly/monthly charts where a fixed-dollar target does not scale.",
+      "This chapter is another worked-examples chapter (charts of the DJIA 1932-33, AAPL, SPY weekly, monthly gold, monthly dollar index, AAPL round-number stalls, wheat, DNDN) narrated with the same recurring vocabulary already mined elsewhere in this book: two-bar reversals, wedges/three pushes, trend-channel-line overshoots, always-in flips, moving-average gap bars, double top/bottom flags, low2/high2 and breakout-pullback counting, measured-move targets, head-and-shoulders patterns, and trading-range uncertainty. None of those are redefined here; only the chapter's new, generalizable statements are recorded below."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/22_daily_weekly_and_monthly_charts.json",
+    "chapter_title": "Daily, Weekly, and Monthly Charts"
+  },
+  {
+    "id": "V24-12",
+    "name": "AlwaysInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      484,
+      501
+    ],
+    "quote": "the market probably became always-in long as it traded above the strong bar 5 reversal bar",
+    "description": "A persistent read of which side (long/short/flat) is currently in control based on the balance of trend bars, breakouts, and failures; used as a context gate for every with-trend entry in this chapter (e.g. 'once always-in long, buy pullbacks').",
+    "pseudocode": "ctx.AlwaysInLong() // design-decision helper: some function of recent trend-bar count, breakout success, and swing structure",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks defines this qualitatively as a discretionary read of overall control; a concrete bar-level algorithm needs a design decision before coding"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AlwaysIn",
+    "confidence": "low",
+    "notes": [
+      "This is the single most load-bearing gate in the chapter; nearly every 'best trade' bullet is conditioned on an always-in read."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-33",
+    "name": "FailedAlwaysInFlipFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V24-12",
+      "V24-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      489
+    ],
+    "quote": "When a bear trend is about to break into a bull trend and needs one more bull trend bar to confirm the always-in reversal, and the breakout does not look strong, sell the close of the bull breakout bar, expecting the follow-through bar not to confirm the always-in flip and the bear trend to resume.",
+    "description": "When price closes what would be a confirming breakout bar for an always-in flip, but that bar is weak (small body / large tail), fade it immediately at its close, betting the flip fails and the prior trend resumes.",
+    "pseudocode": "ctx.AlwaysInShort() && wouldConfirmAlwaysInFlip(bull) && !TrendBarBody(bull) // sell at close[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order at the close of the weak breakout bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends entirely on the always-in read (V24-12), which itself is a design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-48",
+    "name": "LimitOrderOnlyWithAlwaysInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V24-12"
+    ],
+    "depends_on": [],
+    "pages": [
+      488
+    ],
+    "quote": "Traders should only use limit orders to trade in the direction of the trend... he should only [buy on a limit] if the market is always-in long.",
+    "description": "Block any limit-order (as opposed to stop) entry unless it is in the same direction as the current always-in read.",
+    "pseudocode": "orderType==limit && direction != ctx.AlwaysInDirection() => blockEntry",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends entirely on the always-in primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V25-08",
+    "name": "BlockReversalEntriesAfterLosingMonth",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      563
+    ],
+    "quote": "If you lost money last month, do not trade any reversals.",
+    "description": "If the account's net profit over the prior calendar month was negative, block reversal (countertrend) entries for the current month.",
+    "pseudocode": "monthlyNetProfit(priorMonth) < 0 -> block reversal-type entries this month",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (a monthly performance-gated entry filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires tracking net profit over the prior completed calendar month, a variant of the trailing-equity read rules/CATALOG.md's MonthlyProfitTarget already performs (there, on the current month's running total instead)"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MonthlyProfitTarget",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from MonthlyProfitTarget (a Switch that blocks all entries once the current month's gain hits a target): this reads the PRIOR month's result and only blocks a specific class of entry (reversals), not all trading."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/25_trading_guidelines.json",
+    "chapter_title": "Trading Guidelines"
+  },
+  {
+    "id": "T00-01",
+    "name": "AlwaysInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      13
+    ],
+    "quote": "If at any time you are forced to decide between initiating a long or a short trade and are confident in your choice, then the market is in always-in mode.",
+    "description": "Primitive context filter: the market's presumed always-in direction, approximated as being above the EMA and above the close N bars ago (a spike in the trend direction, per the glossary's own hedge that confidence 'almost always' requires one).",
+    "pseudocode": "close[0] > ema[0] && close[0] > close[alwaysInLookback]",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "alwaysInLookback": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in' is explicitly a design decision in Brooks's own wording ('if you have to be'); this EMA-plus-momentum test is one workable proxy, not a definition"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Same underlying idea as T07-08 StrongTrendContext (chapter 7) and duplicates it; kept here since this is the canonical glossary source."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T01-03",
+    "name": "FadeCountertrendInTrendFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T01-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      85
+    ],
+    "quote": "If it is in a trend, most attempts to reverse it will fail.",
+    "description": "Block a long entry while the market classifies as a bear trend (MarketInTrend's short-side condition true), and mirror for shorts against a live bull trend.",
+    "pseudocode": "!(MarketInTrend.bear)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "inherits MarketInTrend's design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01_the_spectrum_of_price_action_extreme_trends_to.json",
+    "chapter_title": "The Spectrum of Price Action: Extreme Trends to Extreme Trading Ranges"
+  },
+  {
+    "id": "T01-07",
+    "name": "TrendResumptionDayContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T01-01",
+      "T01-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      87
+    ],
+    "quote": "Whenever there is a strong trend on the open and then a tight trading range for several hours, the chances for a trend resumption day are good.",
+    "description": "Session-level context filter: if the market opened with a strong trend and then entered a tight trading range for several hours, favor with-trend continuation entries in the opening trend's direction over fresh countertrend fades.",
+    "pseudocode": "MarketInTrend(openBars) && MarketInTradingRange(rangeBarsAfterOpen) -> trendResumptionBias = openTrendDirection",
+    "sides": "mirrored",
+    "parameters": {
+      "openBars": 12,
+      "rangeBarsAfterOpen": 30
+    },
+    "book_order_type": "n/a (day-type filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "session day-type classification carried forward across bars is a design decision, built on two other research-grade primitives"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is a preview of the 'trend from the open' and 'trend resumption day' patterns fleshed out later in the trilogy (Part IV of this book)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01_the_spectrum_of_price_action_extreme_trends_to.json",
+    "chapter_title": "The Spectrum of Price Action: Extreme Trends to Extreme Trading Ranges"
+  },
+  {
+    "id": "T03-14",
+    "name": "AlwaysInDirectionFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T03-13"
+    ],
+    "depends_on": [],
+    "pages": [
+      111
+    ],
+    "quote": "This is a very important concept, and most traders should trade only in the always-in direction.",
+    "description": "Block a long entry unless the always-in direction (T03-13) is currently up; mirrored for shorts.",
+    "pseudocode": "alwaysIn > 0",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "MINING.md's own example of a research-grade concept: 'always-in direction' needs a design decision before the state machine can be coded"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T05-13",
+    "name": "AlwaysInFlipOnStrongReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T05-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      128,
+      129
+    ],
+    "quote": "A single strong reversal that reverses many closes and lows, like bar 29, can flip the always-in direction.",
+    "description": "Treat a very strong reversal bar (one whose close reverses the closes and lows/highs of many prior bars) as flipping the market's 'always-in' direction, downgrading the reliability of any still-open pullback setups (high 1/high 2, low 1/low 2) in the old direction.",
+    "pseudocode": "ReversalBarStrengthByClosesBeyondPriorBars(closeLookback, highLookback) -> alwaysInDirection = sign(close[0] - open[0])",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in direction' is a design decision per the mining brief's own example; this chapter gives one concrete trigger for flipping it"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Bar 29's worked example reverses the closes of the prior 13 bars and the lows of the prior 12; kept generic rather than hard-coding those two numbers.",
+      "Brooks then expects trapped with-trend traders to place limit orders that themselves fail (high 1/high 2 as sell setups) -- narrative, not separately mined as a distinct bar-level test."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/05_signal_bars_reversal_bars.json",
+    "chapter_title": "Signal Bars: Reversal Bars"
+  },
+  {
+    "id": "T10-07",
+    "name": "CountertrendNeedsPriorPush",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      208
+    ],
+    "quote": "Before taking a countertrend trade, it is always better to see some evidence in the preceding several bars that the bulls were able to move more than just a couple of ticks above the prior bar.",
+    "description": "Gate for a countertrend LONG: within the last N bars, at least one bar's high exceeded the previous bar's high by more than K ticks.",
+    "pseudocode": "countTrue((high[i] - high[i+1]) > minPushTicks * tickSize for i in 1..lookback) >= 1",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 5,
+      "minPushTicks": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window scan of adjacent-bar high differences"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "LaggedHigherHigh",
+    "confidence": "high",
+    "notes": [
+      "Figure 10.1: the tight bear channel from bar 8 had no such push, so the bar 10 long was suspect."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T15-09",
+    "name": "AlwaysInLong",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-03"
+    ],
+    "pages": [
+      253,
+      273,
+      276
+    ],
+    "quote": "The market is always-in long and they should not be looking to short, even though there will be many signals that look acceptable.",
+    "description": "Context filter: the market is always-in long. Proxy: close above the EMA and the EMA rising, or a recent strong bull spike (>= spikeBars consecutive bull trend bars) with no strong bear spike since.",
+    "pseudocode": "close[0] > ma && ma > ma[maSlopeBars] /* proxy; true always-in needs the spike/flip state machine */",
+    "sides": "mirrored",
+    "parameters": {
+      "maLength": 20,
+      "maSlopeBars": 5,
+      "spikeBars": 3
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks's always-in is a judgment that flips on strong spikes; a proxy must be chosen before it can be coded"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "CloseAboveAverage",
+    "confidence": "low",
+    "notes": [
+      "p253 gives the flip-to-short test: a strong bear spike that breaks below the channel and the EMA with follow-through, then a lower high with a bear signal bar (see T15-24)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-24",
+    "name": "NoCountertrendUntilAlwaysInFlips",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-03",
+      "T15-09",
+      "T15-04"
+    ],
+    "pages": [
+      253,
+      273
+    ],
+    "quote": "That will usually require a strong bear spike that breaks below the channel and below the moving average and has follow-through, and then has a lower high with a bear signal bar.",
+    "description": "Filter for short entries in a bull channel: allowed only after (a) a bear spike of >= spikeBars consecutive bear trend bars closing below the trend line and the EMA, (b) at least one more bar of follow-through, and (c) a lower swing high with a bear signal bar. Until then, longs only.",
+    "pseudocode": "spike = spikeBars consecutive bear trend bars with close < ma && close < trendLine; followThrough = close[spikeEnd-1] < close[spikeEnd]; lowerHigh = swingHigh(1).price < swingHigh(2).price formed after spike; spike && followThrough && lowerHigh && close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2,
+      "maLength": 20,
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "defines the always-in flip; a multi-stage state machine across pivots, EMA and spike detection"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p273 restates it: in a tight bull channel do not short below a bar unless there was a climactic reversal after a breakout of the top, and even then wait for a sell-off followed by a lower high (T15-61)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-30",
+    "name": "CountertrendOnlyEarlyInDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "If you are scaling into shorts in that bull channel, it is best to do this only in the first two-thirds of the day.",
+    "description": "Time filter for countertrend channel entries: the bar's close time is before cutoffTime (two-thirds through the session). After it, only with-trend channel trades (buy below prior bar's low, above bull reversal bars at the EMA).",
+    "pseudocode": "time[0] < cutoffTime",
+    "sides": "same",
+    "parameters": {
+      "cutoffTime": 1400
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single Time comparison"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "high",
+    "notes": [
+      "Default assumes a 0930-1615 ET session; two-thirds is about 1400."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T17-07",
+    "name": "ScalpOnlyCountertrendOnMinimalMomentum",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T17-06"
+    ],
+    "pages": [
+      302
+    ],
+    "quote": "since these are countertrend and there was only minimal countertrend momentum on the trend line breaks, these trades are not strong and should only be scalps.",
+    "description": "When the trend-line break preceding a countertrend fade (T17-06) was itself small/slow, cap the trade's target to a scalp distance instead of a swing target.",
+    "pseudocode": "(high[breakBar] - low[breakBar]) < minBreakAtrMultiple * atr(atrLength) -> exit at scalpTicks profit instead of a swing target",
+    "sides": "same",
+    "parameters": {
+      "minBreakAtrMultiple": 1.0,
+      "atrLength": 14,
+      "scalpTicks": 4
+    },
+    "book_order_type": "limit at the scalp target",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a single ATR-relative size test on an already-identified break bar, then a fixed-tick target"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/17_horizontal_lines_swing_points_and_other_key.json",
+    "chapter_title": "Horizontal Lines: Swing Points and Other Key Price Levels"
+  },
+  {
+    "id": "T17-09",
+    "name": "MiddayCountertrendTrapWithTrendReentry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T17-08"
+    ],
+    "depends_on": [],
+    "pages": [
+      302
+    ],
+    "quote": "They were after 11:30 a.m., when there is often a strong countertrend move that traps traders out of the trend and into the wrong direction. This sets up a reliable with-trend trade that usually results in a new extreme and often lasts into the close.",
+    "description": "Intraday: after cutoffTime (late morning), a countertrend move that closes through the EMA (trapping with-trend traders out) but then resumes in the original trend direction is a high-quality with-trend re-entry.",
+    "pseudocode": "time[0] >= cutoffTime && low[0] <= ma && close[0] > ma",
+    "sides": "mirrored",
+    "parameters": {
+      "cutoffTime": 1130
+    },
+    "book_order_type": "buy stop above the touch bar (mechanized: next bar open)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a time gate plus an EMA touch-and-hold test"
+    },
+    "el_words_needed": [
+      "Time",
+      "XAverage"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/17_horizontal_lines_swing_points_and_other_key.json",
+    "chapter_title": "Horizontal Lines: Swing Points and Other Key Price Levels"
+  },
+  {
+    "id": "TP3-03",
+    "name": "AlwaysInLong",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      306,
+      308
+    ],
+    "quote": "It is when the market becomes clearly always-in long in the eyes of most traders if the trend is a new bull trend, or always-in short in the case of a new bear trend.",
+    "description": "Shared primitive / context filter: the market is 'always-in long', meaning a trader forced to hold a position would hold a long. Brooks ties the flip to a strong breakout spike (see TP3-04). A design decision is needed: candidate proxies are (a) the last spike of N consecutive trend bars was bullish, (b) close above the EMA for the majority of the last M bars, (c) trending swings (TP3-08).",
+    "pseudocode": "alwaysInLong = lastSpikeDirection == up  // proxy: the most recent run of spikeBars consecutive trend bars (TP3-04) closed up, and no opposite spike has since occurred",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in' is a discretionary read; a proxy must be chosen before it can be coded"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Gates most with-trend candidates in Chapters 18 to 20. Book 2 gives more detail; the dedup pass should merge all AlwaysIn definitions."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-11",
+    "name": "WithTrendOnly",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP3-03"
+    ],
+    "pages": [
+      307,
+      321
+    ],
+    "quote": "Depending on how you define a trend and a reversal attempt, about 80 percent of attempts to reverse a trend will fail.",
+    "description": "Context filter: take entries only in the direction of the established trend (long side allowed when always-in long). Blocks all countertrend entries.",
+    "pseudocode": "alwaysInLong",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "inherits the always-in definition problem"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Concrete proxies: close > EMA(close, 20) for k of the last n bars; TP3-08 TrendingSwings."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T18-21",
+    "name": "AlwaysInLongBlocksShorts",
+    "role": "Switch",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      321,
+      328,
+      331
+    ],
+    "quote": "A trader can always be long, short, or flat. At any moment during a trend, only two of those choices are compatible with being a successful trader. If the market is in a bull trend, successful traders are only long or flat.",
+    "description": "While the market is classified 'always-in long' (a bull trend is in effect), block new short entries and prefer flat over short.",
+    "pseudocode": "// needs a design decision on how 'always-in direction' is classified from bars (the concept itself is central to the trilogy but never reduced to a formula here)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (a global gate on entries, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in direction' is the canonical example of a concept that needs a design decision before it can be coded (per MINING.md)"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T19-10",
+    "name": "NoPullbackForNBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      338
+    ],
+    "quote": "the market will often go for five or more bars without a pullback.",
+    "description": "None of the last N bars was a countertrend (bear) bar in a bull trend -- the trend has run N straight bars with no pullback at all.",
+    "pseudocode": "countIf(i, 0, minBarsNoPullback - 1, close[i] < open[i]) == 0",
+    "sides": "mirrored",
+    "parameters": {
+      "minBarsNoPullback": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop over a per-bar open/close comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "Different from ConsecutiveUpBars: this only requires the ABSENCE of an opposite-direction bar, not that every bar close above its own open."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T20-03",
+    "name": "ABCPullbackPattern",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T20-01"
+    ],
+    "depends_on": [
+      "T20-01"
+    ],
+    "pages": [
+      349
+    ],
+    "quote": "There is a countertrend move, a small with-trend move that usually does not go beyond the trend's extreme, and then a second countertrend move that usually extends deeper than the first.",
+    "description": "The classic three-step ABC pullback: leg A countertrend, leg B a small with-trend bounce that fails to exceed the trend's prior extreme, leg C a second countertrend move that goes deeper than leg A -- entry with the trend once leg C completes.",
+    "pseudocode": "// legA = first countertrend leg since the trend's last extreme; legB.extreme < priorTrendExtreme (bull case: legB high stays below the swing high); legC.extreme beyond legA.extreme (deeper low); enter beyond the signal bar that ends legC",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "stop entry one tick beyond the signal bar ending leg C, mechanized as signal-bar-close then next-bar-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "same leg-detection dependency as T20-02, plus an added constraint on leg B's extreme relative to the prior trend extreme"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "A more specific, three-leg-with-constraints variant of T20-02; 'composite' since it names three distinct legs (composes T20-01 three times conceptually, listed once)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/20_two_legs.json",
+    "chapter_title": "Two Legs"
+  },
+  {
+    "id": "TP4-08",
+    "name": "WithTrendOnlyOnTrendDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "TP4-07"
+    ],
+    "depends_on": [
+      "TP4-03",
+      "TP4-06"
+    ],
+    "pages": [
+      353
+    ],
+    "quote": "you should be trying to take every with-trend entry, no matter how weak the setup looks",
+    "description": "Filter: when a trend-day pattern has been recognized (opening range small or large, per TP4-03/TP4-06), only allow entries in the day's trend direction. Long side: day trend is up.",
+    "pseudocode": "trendDayRecognized && dayTrendUp",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on the research-grade DayTrendDirection primitive"
+    },
+    "el_words_needed": [
+      "Date",
+      "OpenD"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Corollary on page 354: if no pattern is recognized, assume a trading range day and allow both directions; that is simply this filter being false."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "TP4-13",
+    "name": "MaxCountertrendTradesPerSession",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP4-07"
+    ],
+    "pages": [
+      353
+    ],
+    "quote": "you should not find more than two or three countertrend trades in the day",
+    "description": "Filter: block a countertrend entry once the number of countertrend entries taken this session has reached the maximum.",
+    "pseudocode": "countertrendEntriesThisSession < maxCountertrend  /* counter reset on Date change, incremented when an entry is filled against dayTrend */",
+    "sides": "same",
+    "parameters": {
+      "maxCountertrend": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "persistent per-session counter fed by position-history reads"
+    },
+    "el_words_needed": [
+      "Date",
+      "TotalTrades",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "TP4-14",
+    "name": "VeryStrongTrendNoCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      354
+    ],
+    "quote": "In a very strong trend, all trades should be with-trend swings (scalping out part) and no trades should be countertrend scalps",
+    "description": "Filter: when the trend is very strong (proxy: the close has stayed above the EMA for at least N consecutive bars), block any short entry; long side of the mirrored rule is 'trend is very strongly up, longs allowed'.",
+    "pseudocode": "barsAboveEma = consecutive bars with close > ema(close, emaLength); barsAboveEma >= strongBars",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "strongBars": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an EMA and a counter persisting between bars"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [
+      "Chapter 21 page 365 gives the 20-bars-above-the-moving-average proxy for 'very strong'; used here as the default."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "T21-08",
+    "name": "AlwaysInLong",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      355,
+      358
+    ],
+    "quote": "it signals that the market is breaking into a clear always-in situation",
+    "description": "Research primitive: the market is always-in long. Proxy candidates: a bull spike has occurred and the close has not fallen below the spike start since; or close above the EMA with a higher low structure. Every with-trend-only filter in this chapter depends on it.",
+    "pseudocode": "spikeSeenUp && lowest(low, barsSinceSpike) > spikeStart  /* or: close[0] > ema(close, 20) */",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'always-in' is a judgment; the proxy is a design decision"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "Lowest"
+    ],
+    "likely_existing_rule": "CloseAboveAverage",
+    "confidence": "low",
+    "notes": [
+      "Page 358: 'As long as the pullback from the spike is not strong enough to flip the always-in trade to the opposite direction, the market will likely continue the trend' - the spike-start test is a reading of that."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-35",
+    "name": "NoCountertrendScaleInLateSession",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      362,
+      372
+    ],
+    "quote": "it is risky to scale into a countertrend position in a channel in the second half of the day, because you will often run out of time",
+    "description": "Filter: countertrend entries are blocked once the session time is past a cutoff (the second half / final couple of hours of the day).",
+    "pseudocode": "Time < countertrendCutoffTime",
+    "sides": "same",
+    "parameters": {
+      "countertrendCutoffTime": 1100
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a Time comparison"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "high",
+    "notes": [
+      "Default is PST for the Emini session (06:30-13:15); adjust per instrument."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-36",
+    "name": "FailedCountertrendScalpWithTrendEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T21-08"
+    ],
+    "pages": [
+      361
+    ],
+    "quote": "The failures of these countertrend scalps are great with-trend setups. Just enter on a stop where the countertrend traders are exiting with their protective stops.",
+    "description": "Entry: in a bull channel, a countertrend short was triggered (a bar fell below the low of a bear signal bar) and now a bar closes above that bear signal bar's high, where the shorts' stops sit; buy at the next open.",
+    "pseudocode": "alwaysInLong && close[2] < open[2] /* bear signal bar */ && low[1] < low[2] /* short triggered */ && close[0] > high[2]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the bear signal bar high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "three-bar comparisons; context from the always-in filter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Chapter 22 page 404 'failed high 2 ... low 2 short' is the same idea on the short side with a count."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-61",
+    "name": "BounceOfFixedSizeFromLow",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      372
+    ],
+    "quote": "Some will buy on a stop two points above the low, seeing a bounce of that size as a sign that the reversal in underway.",
+    "description": "Entry (countertrend, long side): after a decline, the close is at least a fixed distance (points or ATR multiple) above the lowest low of the last N bars.",
+    "pseudocode": "close[0] >= lowest(low, lookback) + bounceAtr * atr",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "bounceAtr": 1.0
+    },
+    "book_order_type": "buy stop a fixed amount above the low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window lowest plus ATR"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks quotes 'two points' in the Emini; ATR scaling is the portable form."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T23-17",
+    "name": "AvoidEntryAtScheduledReportTime",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      418
+    ],
+    "quote": "Computers have a huge edge on reports...therefore should rarely enter at the moment a report is released.",
+    "description": "Filter: block new entries within a short window of a known recurring report time (e.g. 7:00 a.m. PST economic data); wait for the bar containing the report to close and for the always-in direction to become clear.",
+    "pseudocode": "abs(Time - reportTime) <= reportBlockMinutes -> block new entries this bar",
+    "sides": "same",
+    "parameters": {
+      "reportTime": 700,
+      "reportBlockMinutes": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a Time comparison, but the report time is instrument/market-specific and not itself in OHLCV data -- treated as a fixed recurring parameter"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "low",
+    "notes": [
+      "One-off events like an FOMC announcement do not recur at a fixed daily time and cannot be captured this way; only regularly scheduled data releases fit this pattern."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T25-03",
+    "name": "TightMiddayRangePredictsResumption",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T25-01",
+      "T25-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      453,
+      454
+    ],
+    "quote": "Whenever this happens and especially if the sideways action is in a very tight trading range, the day is likely becoming a trend resumption day.",
+    "description": "Filter: after a qualifying morning trend leg (T25-02), the market has stayed inside a tight range for at least H hours; the tighter that midday range relative to the average daily range, the more likely a late-session resumption of the morning trend. Enables the trap-fade (T25-04) and blocks new countertrend entries.",
+    "pseudocode": "morningLegDirection != 0 && barsSinceMorningLeg >= minMiddayBars && (middayRangeHigh - middayRangeLow) <= tightRangeFraction * avgDailyRange",
+    "sides": "mirrored",
+    "parameters": {
+      "minMiddayBars": 36,
+      "tightRangeFraction": 0.3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "combines two stateful primitives plus a running midday range measurement"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 454: the midday action does not have to be a flat range -- a weakly trending countertrend move for a couple of hours that ultimately fails is a variant of this same setup; tightRangeFraction is a proxy for either form."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/25_trend_resumption_day.json",
+    "chapter_title": "Trend Resumption Day"
+  }
+]

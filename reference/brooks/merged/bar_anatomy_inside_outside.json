@@ -1,0 +1,939 @@
+{
+  "bucket": "bar_anatomy_inside_outside",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "InsideBarInclusive",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar N bars ago is inside the bar before it, using Brooks's inclusive at-or-beyond boundary.",
+      "pseudocode": "high[lag] <= high[lag+1] && low[lag] >= low[lag+1]",
+      "sides": "same",
+      "parameters": {
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar price comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "InsideBar",
+        "relation": "variant",
+        "note": "Catalog InsideBar is STRICT (high[N+1] > high[N] && low[N+1] < low[N]); Brooks's own glossary is inclusive (<=, >=). The two differ on every bar that ties the prior high or low, which on tick-grid futures bars is common. Same lag convention, so this is the catalog rule with the boundary flipped to inclusive."
+      },
+      "sources": [
+        "R00-03",
+        "V00-03",
+        "T00-04",
+        "T07-05"
+      ],
+      "merge_notes": "Four identical restatements of the glossary definition, all inclusive. Kept the catalog's lag input so the pattern rules below can reference the bar at any offset. Every source flagged the boundary difference against the catalog rule itself.",
+      "variants_kept_separate": [
+        "InsideBodyBar",
+        "ConsecutiveInsideBars"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "InsideBodyBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's body (open-to-close) nests inside the prior bar's body even though its tails may extend beyond the prior bar's range.",
+      "pseudocode": "maxList(open[lag], close[lag]) <= maxList(open[lag+1], close[lag+1]) && minList(open[lag], close[lag]) >= minList(open[lag+1], close[lag+1])",
+      "sides": "same",
+      "parameters": {
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison on body extremes"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MaxList",
+        "MinList"
+      ],
+      "catalog_match": {
+        "rule": "InsideBar",
+        "relation": "variant",
+        "note": "Same containment idea measured on bodies, not on high/low; Brooks calls it explicitly the weaker form. Fires on bars InsideBar cannot and vice versa."
+      },
+      "sources": [
+        "R03-13",
+        "V22-05"
+      ],
+      "merge_notes": "R03-13 writes strict inequalities, V22-05 inclusive; inclusive chosen to match InsideBarInclusive. Brooks calls it a bodies-only ii/iii variant and says it is weaker than a true inside bar. MinList/MaxList are on tick-grid price operands, which the register permits.",
+      "variants_kept_separate": [
+        "InsideBarInclusive"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OutsideBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar N bars ago engulfs the bar before it, reaching at or beyond both extremes and strictly beyond at least one, with an optional tick tolerance for an almost-outside bar.",
+      "pseudocode": "high[lag] >= high[lag+1] - toleranceTicks * tickSize && low[lag] <= low[lag+1] + toleranceTicks * tickSize && (high[lag] > high[lag+1] || low[lag] < low[lag+1])",
+      "sides": "same",
+      "parameters": {
+        "lag": 0,
+        "toleranceTicks": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison plus a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No outside-bar rule in the catalog."
+      },
+      "sources": [
+        "R00-04",
+        "V00-05",
+        "T00-05",
+        "T07-01",
+        "V09-04",
+        "V16-06",
+        "T07-34",
+        "R00-06",
+        "T21-68"
+      ],
+      "merge_notes": "R00-04 and V00-05 make both sides inclusive, which lets an identical-range bar be inside AND outside at once; T00-05 and T07-01 require strictly beyond on one side, and that reading won. V16-06's near-outside bar is toleranceTicks 1. V09-04 is the same test at lag 1, placed negated to block breakout entries off an outside bar. Absorbed the directional variants: T07-34 (outside bull bar completing a two-bar reversal), R00-06 (outside DOWN bar) and T21-68 (outside UP bar) are OutsideBar ANDed with the bar body direction, which the pane system supplies per placement, so they are not separate rules.",
+      "variants_kept_separate": [
+        "LargeOutsideBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveInsideBars",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "N consecutive inside relations ending at the bar N bars ago: insideBarCount 2 is Brooks's ii, 3 is iii.",
+      "pseudocode": "for k in 0..insideBarCount-1: high[lag+k] <= high[lag+k+1] && low[lag+k] >= low[lag+k+1]",
+      "sides": "same",
+      "parameters": {
+        "insideBarCount": 2,
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed short loop of two-bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "InsideBar",
+        "relation": "variant",
+        "note": "At insideBarCount 1 it degenerates to InsideBarInclusive; the catalog rule tests one relation only and does so strictly."
+      },
+      "sources": [
+        "R00-07",
+        "R00-08",
+        "R28-05",
+        "R28-46",
+        "V00-04",
+        "T00-06",
+        "T06-10",
+        "T06-11",
+        "T10-17",
+        "T15-60"
+      ],
+      "merge_notes": "Ten restatements of ii and iii; T00-06's counted form won because it covers both with one input. V00-04 is named TripleInsideBars but codes only two relations (ii). R28-05, R28-46 and T15-60 use strict inequalities; inclusive won per Brooks p137, 'of the same size or smaller'. T06-11 adds only stop placement.",
+      "variants_kept_separate": [
+        "InsideBarInclusive",
+        "InsideBodyBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "IoiPattern",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Inside bar, then an outside bar, then an inside bar over three consecutive bars ending at the bar N bars ago.",
+      "pseudocode": "InsideBarInclusive[lag+2] && OutsideBar[lag+1] && InsideBarInclusive[lag]",
+      "sides": "same",
+      "parameters": {
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset two-bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No three-bar inside/outside pattern in the catalog."
+      },
+      "sources": [
+        "R00-09",
+        "V00-07",
+        "T06-12",
+        "T06-13",
+        "T07-19"
+      ],
+      "merge_notes": "R00-09 and V00-07 check only outside-then-inside, leaving the leading inside bar implicit; T06-12 and T07-19 check all three relations, which is Brooks's literal i-o-i, so that reading won. T07-19's close-above-the-inside-bar term is CloseAbovePriorHigh and is left to the pane. T06-13 adds only order placement.",
+      "variants_kept_separate": [
+        "OioPattern"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "InsideBarInclusive",
+        "OutsideBar"
+      ]
+    },
+    {
+      "key": "OioPattern",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Outside bar, then an inside bar, then an outside bar over three consecutive bars ending at the bar N bars ago.",
+      "pseudocode": "OutsideBar[lag+2] && InsideBarInclusive[lag+1] && OutsideBar[lag]",
+      "sides": "same",
+      "parameters": {
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset two-bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No three-bar inside/outside pattern in the catalog."
+      },
+      "sources": [
+        "R00-10",
+        "V00-09",
+        "T00-07"
+      ],
+      "merge_notes": "R00-10 checks only inside-then-outside; V00-09 and T00-07 check all three relations and won. T00-07 also requires a bull body on the last bar to pick the side, which is ConsecutiveUpBars(1) ANDed in the pane, so it is not carried here. Direction comes from the breakout, hence sides same.",
+      "variants_kept_separate": [
+        "IoiPattern"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "InsideBarInclusive",
+        "OutsideBar"
+      ]
+    },
+    {
+      "key": "PauseBarNoNewExtreme",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar failed to extend the move: its high is at or below the prior bar's high plus a small tick tolerance (mirrored for the short side).",
+      "pseudocode": "high[0] <= high[1] + pauseTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "pauseTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison plus a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "At pauseTicks 0 this is exactly LaggedHigherHigh(lookback 0) placed negated. The tick tolerance is Brooks's 'or only a tick or so higher', which is what makes it a separate rule; at the default 1 it fires on bars LaggedHigherHigh negated does not."
+      },
+      "sources": [
+        "R00-13"
+      ],
+      "merge_notes": "Only clean statement of the no-new-extreme pause in the bucket. Brooks scopes it to a bull trend and to small bars after a strong trend bar; both of those are separate filters and are left to the pane.",
+      "variants_kept_separate": [
+        "SpikePauseBar",
+        "NarrowRangeBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SpikePauseBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar either failed to make a higher high or closed below its open, the pause that Brooks says ends a bull spike (mirrored for a bear spike).",
+      "pseudocode": "high[0] <= high[1] || close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two single-bar comparisons ORed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No pause-bar rule in the catalog."
+      },
+      "sources": [
+        "R07-01",
+        "T21-06"
+      ],
+      "merge_notes": "T21-06's three disjuncts collapse to two: an inside bar always fails to make a higher high. R07-01 substitutes doji-or-large-opposite-tail for the no-higher-high leg; those bar shapes belong to bar_anatomy_trend_doji, so the simpler test won. Being an OR it cannot be composed in the ANDing entry pane, so it is kept whole.",
+      "variants_kept_separate": [
+        "PauseBarNoNewExtreme",
+        "NarrowRangeBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NarrowRangeBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's high-low range is at most a fraction of the mean bar range over the last N bars.",
+      "pseudocode": "(high[0] - low[0]) <= rangeFraction * average(high - low, rangeLookback)[0]",
+      "sides": "same",
+      "parameters": {
+        "rangeFraction": 0.5,
+        "rangeLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window mean of the bar range"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BodyBelowAtrFraction",
+        "relation": "variant",
+        "note": "That rule measures the BODY against the ATR; this measures the whole RANGE against the mean high-low range, which is neither the same numerator nor the same denominator. Also the opposite sense of BarRangeAboveStd, which uses a standard-deviation band."
+      },
+      "sources": [
+        "R04-08"
+      ],
+      "merge_notes": "Brooks's small pause bar sized against recent bars. Window is current-bar-inclusive as the source wrote it. Plain mean of high-low, not true range, so this is Average over a price expression rather than WFSafe_AvgTrueRange.",
+      "variants_kept_separate": [
+        "PauseBarNoNewExtreme",
+        "SpikePauseBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarOverlapFraction",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar's range overlaps at least a fraction of the prior bar's range, Brooks's one-bar trading-range clue.",
+      "pseudocode": "overlap = maxList(0, minList(high[0], high[1]) - maxList(low[0], low[1])); overlap >= overlapThreshold * (high[1] - low[1])",
+      "sides": "same",
+      "parameters": {
+        "overlapThreshold": 0.5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar arithmetic, no window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No bar-overlap rule in the catalog."
+      },
+      "sources": [
+        "RP4-05",
+        "TP3-05",
+        "T21-03"
+      ],
+      "merge_notes": "RP4-05's prior-bar denominator won, matching Brooks's wording 'overlap 50 percent or more of the range of the prior bar'; TP3-05 and T21-03 divide by the current bar's range and read the test the other way, as the little-overlap spike sign. Written as a multiplication so a zero-range prior bar cannot divide by zero. Place negated for the spike sense.",
+      "variants_kept_separate": [
+        "AverageBarOverlapWindow",
+        "ThinAreaLowBarOverlap",
+        "BarOverlapWithPriorRange",
+        "BarOverlapIncreasing"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AverageBarOverlapWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The mean overlap between consecutive bars over the last N bars, as a fraction of each prior bar's range, is at least a threshold.",
+      "pseudocode": "ov(i) = maxList(0, minList(high[i], high[i+1]) - maxList(low[i], low[i+1])) / (high[i+1] - low[i+1] + epsilon); (sum over i in 0..windowBars-1 of ov(i)) / windowBars >= overlapThreshold",
+      "sides": "same",
+      "parameters": {
+        "windowBars": 5,
+        "overlapThreshold": 0.5,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window loop over two-bar overlaps"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No bar-overlap rule in the catalog."
+      },
+      "sources": [
+        "T15-41",
+        "TP3-27"
+      ],
+      "merge_notes": "Same measurement in both: T15-41 divides by the prior bar's range, TP3-27 by the current bar's; the prior-bar divisor was taken to match BarOverlapFraction. Both state it as the low-overlap momentum test, so place negated for that sense. The epsilon guards a zero-range bar; a multiplied form is not available because of the division inside the mean.",
+      "variants_kept_separate": [
+        "BarOverlapFraction",
+        "ThinAreaLowBarOverlap",
+        "BarOverlapWithPriorRange",
+        "BarOverlapIncreasing"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThinAreaLowBarOverlap",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Every one of the last N bar pairs overlaps by at most a fraction of the earlier bar's range, Brooks's thin one-sided breakout area.",
+      "pseudocode": "for i in 0..spikeBars-1: (minList(high[i], high[i+1]) - maxList(low[i], low[i+1])) <= overlapFraction * (high[i+1] - low[i+1])",
+      "sides": "same",
+      "parameters": {
+        "spikeBars": 3,
+        "overlapFraction": 0.25
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window loop of two-bar comparisons, no division"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No bar-overlap rule in the catalog."
+      },
+      "sources": [
+        "R08-18"
+      ],
+      "merge_notes": "Kept apart from AverageBarOverlapWindow: an all-pairs quantifier is not a mean, and one wide bar pair fails this test while barely moving the mean. Multiplied form, so no epsilon is needed.",
+      "variants_kept_separate": [
+        "AverageBarOverlapWindow",
+        "BarOverlapFraction"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarOverlapWithPriorRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar overlaps the combined high-low range of the prior N bars by at most a fraction of that range.",
+      "pseudocode": "ph = highest(high, lookback)[1]; pl = lowest(low, lookback)[1]; (minList(high[0], ph) - maxList(low[0], pl)) <= overlapFraction * (ph - pl)",
+      "sides": "same",
+      "parameters": {
+        "lookback": 3,
+        "overlapFraction": 0.3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a highest/lowest window plus two-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No bar-overlap rule in the catalog."
+      },
+      "sources": [
+        "R00-17"
+      ],
+      "merge_notes": "Distinct measurement from the pairwise overlap rules: the bar is compared against a block range, not against its immediate predecessor, so it stays low even when the bar overlaps one neighbour heavily. Brooks's signal-bar quality test, 'not much overlap with the prior bar or bars'.",
+      "variants_kept_separate": [
+        "BarOverlapFraction",
+        "ThinAreaLowBarOverlap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarOverlapIncreasing",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar overlaps its predecessor by a larger fraction than the bar N bars ago overlapped its own predecessor.",
+      "pseudocode": "ov(k) = (minList(high[k], high[k+1]) - maxList(low[k], low[k+1])) / (high[k+1] - low[k+1] + epsilon); ov(0) > ov(lagBars)",
+      "sides": "same",
+      "parameters": {
+        "lagBars": 4,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two overlap readings at fixed offsets"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No bar-overlap rule in the catalog."
+      },
+      "sources": [
+        "R11-03"
+      ],
+      "merge_notes": "A change in overlap, not a level, so it cannot be reached by any threshold on BarOverlapFraction. Brooks's stage-3 sign that a trend is deteriorating into a trading range. Epsilon guards a zero-range reference bar.",
+      "variants_kept_separate": [
+        "BarOverlapFraction",
+        "AverageBarOverlapWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeOutsideBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar N bars ago is an outside bar whose range is at least a multiple of the mean bar range over the preceding window.",
+      "pseudocode": "OutsideBar[lag] && (high[lag] - low[lag]) >= largeMultiple * average(high - low, rangeLookback)[lag+1]",
+      "sides": "same",
+      "parameters": {
+        "lag": 1,
+        "largeMultiple": 1.5,
+        "rangeLookback": 10
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "the outside-bar test plus a window mean of the bar range"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "BarRangeAboveStd measures a range against a mean-plus-K-sigma band, not a multiple of the mean, and does not test the outside-bar shape."
+      },
+      "sources": [
+        "T07-10"
+      ],
+      "merge_notes": "Authored as the positive composite so the per-placement negate toggle reproduces Brooks's rule, which is a veto: never enter on the breakout of a large outside bar because the protective stop sits too far away. The pane ANDs, so NOT(outside AND large) is not reachable from the two parts separately.",
+      "variants_kept_separate": [
+        "OutsideBar",
+        "NarrowRangeBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "OutsideBar"
+      ]
+    },
+    {
+      "key": "OutsideBarInMidRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar N bars ago is an outside bar whose midpoint sits in the middle band of the recent M-bar high-low range.",
+      "pseudocode": "rh = highest(high, rangeBars)[lag]; rl = lowest(low, rangeBars)[lag]; pos = ((high[lag] + low[lag]) / 2 - rl) / (rh - rl + epsilon); OutsideBar[lag] && pos > lowerBand && pos < upperBand",
+      "sides": "same",
+      "parameters": {
+        "lag": 1,
+        "rangeBars": 20,
+        "lowerBand": 0.33,
+        "upperBand": 0.67,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "the outside-bar test plus a highest/lowest window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "CloseRangePosition places the close inside its own bar; this places a bar's midpoint inside a multi-bar range."
+      },
+      "sources": [
+        "T07-15"
+      ],
+      "merge_notes": "Positive composite, placed negated to reproduce Brooks's veto: an outside bar in the middle of a trading range is meaningless and should not generate trades. The inner midpoint-in-range test would also be a usable atomic rule on its own; flagged for the authoring pass.",
+      "variants_kept_separate": [
+        "OutsideBar",
+        "LargeOutsideBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "OutsideBar"
+      ]
+    },
+    {
+      "key": "OutsideBarWithoutPriorSignalBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar is an outside bar and the bar before it was not a decent bull reversal bar (a bull body closing near its high).",
+      "pseudocode": "OutsideBar[0] && !(close[1] > open[1] && (high[1] - close[1]) <= closeNearFraction * (high[1] - low[1]))",
+      "sides": "mirrored",
+      "parameters": {
+        "closeNearFraction": 0.25
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "the outside-bar test plus a single-bar body and close-position test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "The reversal-bar half resembles CloseRangePosition but is measured on the prior bar and combined with a body sign."
+      },
+      "sources": [
+        "T07-13"
+      ],
+      "merge_notes": "Positive composite, placed negated to reproduce Brooks's rule that a reversal entry on an outside bar needs a decent signal bar before it. The reversal-bar definition is inlined from bar_anatomy_trend_doji's family and should be reconciled with whatever that bucket names it.",
+      "variants_kept_separate": [
+        "OutsideBar"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "OutsideBar"
+      ]
+    },
+    {
+      "key": "OutsideBarCounterTrend",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The prior bar is an outside bar and the always-in direction is not long, the case in which Brooks allows only the with-trend breakout.",
+      "pseudocode": "OutsideBar[1] && AlwaysInDirection() != +1",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the always-in state, a persistent cross-bar read"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No always-in or outside-bar rule in the catalog."
+      },
+      "sources": [
+        "T07-24"
+      ],
+      "merge_notes": "Positive composite, placed negated so only with-trend breakouts of an outside bar survive. Uses the agreed always-in definition (AlwaysInDirection, two consecutive strong trend bars), so it is not blocked on a design decision; it is B only because that primitive has to exist first.",
+      "variants_kept_separate": [
+        "OutsideBar"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "OutsideBar",
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "LargeOrCentredIoiInsideBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "An ioi pattern completed one bar ago whose final inside bar is large relative to the outside bar or whose midpoint sits near the outside bar's centre.",
+      "pseudocode": "IoiPattern[1] && ((high[1] - low[1]) >= maxInsideFraction * (high[2] - low[2]) || abs((high[1] + low[1]) / 2 - (high[2] + low[2]) / 2) <= centreBand * (high[2] - low[2]))",
+      "sides": "same",
+      "parameters": {
+        "maxInsideFraction": 0.5,
+        "centreBand": 0.15
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "fixed-offset arithmetic on the pattern's bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No ioi rule in the catalog."
+      },
+      "sources": [
+        "T07-21"
+      ],
+      "merge_notes": "Positive composite, placed negated to reproduce Brooks's veto: skip the ioi breakout when the second inside bar is too large (you buy the top or sell the bottom of a range) or sits in the middle of the outside bar (barbwire). An OR inside an AND, so it cannot be split across panes.",
+      "variants_kept_separate": [
+        "IoiPattern"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "IoiPattern"
+      ]
+    },
+    {
+      "key": "SessionOpenNoPauseRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the session's first N bars extended the move with no pause, every one making a higher high than the bar before it (mirrored down).",
+      "pseudocode": "barsSinceSessionStart >= noPauseBars && for i in 0..noPauseBars-1: high[i] > high[i+1]",
+      "sides": "mirrored",
+      "parameters": {
+        "noPauseBars": 4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs a session-bar counter reset on each new date, plus a short window loop"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No session-structure rule in the catalog; CalendarBoundaryExit reads Date but for a different purpose."
+      },
+      "sources": [
+        "T23-16"
+      ],
+      "merge_notes": "Brooks says the odds of a reversal rise when the market has not paused by the third or fourth bar; the tradeable form is this run test placed negated (or used as a countertrend permission). Only the odds statement is discretionary, the bar test is not. Low source confidence, so treat the defaults as a starting point.",
+      "variants_kept_separate": [
+        "PauseBarNoNewExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R00-05",
+      "reason": "composition of OutsideBar + ConsecutiveUpBars(1) (an outside up bar is an outside bar with a bull body)"
+    },
+    {
+      "id": "R00-06",
+      "reason": "composition of OutsideBar + ConsecutiveUpBars(1); the short side of R00-05, produced by the same two placements"
+    },
+    {
+      "id": "V00-06",
+      "reason": "composition of OutsideBar + ConsecutiveUpBars(1)"
+    },
+    {
+      "id": "VP1-10",
+      "reason": "composition of OutsideBar + ConsecutiveUpBars(1)"
+    },
+    {
+      "id": "T21-68",
+      "reason": "composition of OutsideBar + CloseAbovePriorHigh(1)"
+    },
+    {
+      "id": "R04-09",
+      "reason": "composition of NarrowRangeBar + a prior-significant-high proximity test (swing_structure)"
+    },
+    {
+      "id": "RP3-08",
+      "reason": "composition of PauseBarNoNewExtreme + NarrowRangeBar + a large-trend-bar context (bar_anatomy_trend_doji)"
+    },
+    {
+      "id": "R28-06",
+      "reason": "composition of ConsecutiveInsideBars + a strong-trend context; the limit price one tick above the ii's low is order placement, not a bar condition"
+    },
+    {
+      "id": "V01-19",
+      "reason": "composition of NarrowRangeBar + a prior-swing-level test; also a partial-position exit, which the engine cannot express"
+    },
+    {
+      "id": "V04-12",
+      "reason": "composition of a breakout bar + InsideBarInclusive(1) + an opposite-body trend bar"
+    },
+    {
+      "id": "VP3-13",
+      "reason": "composition of BarOverlapFraction + a close-near-the-middle-of-bar test (bar_anatomy_trend_doji owns the close-position family)"
+    },
+    {
+      "id": "TP1-04",
+      "reason": "composition of a breakout trend bar + InsideBarInclusive(1) + NarrowRangeBar + CloseAbovePriorHigh(1)"
+    },
+    {
+      "id": "T07-09",
+      "reason": "composition of OutsideBar(lag 1) + CloseAbovePriorHigh(1)"
+    },
+    {
+      "id": "T07-12",
+      "reason": "composition of a bull reversal bar + OutsideBar + CloseAbovePriorHigh(1)"
+    },
+    {
+      "id": "T07-16",
+      "reason": "composition of OutsideBar(lag 1) + NarrowRangeBar + a proximity-to-the-outside-bar-extreme test"
+    },
+    {
+      "id": "T07-20",
+      "reason": "composition of IoiPattern + a new-N-bar-extreme term + CloseRangePosition on the inside bar"
+    },
+    {
+      "id": "T07-22",
+      "reason": "composition of OutsideBar + a prior-strong-trend / reversal-underway context + a higher-low term"
+    },
+    {
+      "id": "T07-25",
+      "reason": "composition of OutsideBar(lag 1) + CloseAbovePriorHigh(1) + a strong-trend-bar body test"
+    },
+    {
+      "id": "T07-30",
+      "reason": "composition of OutsideBar + a new-N-bar-extreme term + CloseRangePosition"
+    },
+    {
+      "id": "T07-34",
+      "reason": "composition of OutsideBar + ConsecutiveUpBars(1) + a prior down-close term"
+    },
+    {
+      "id": "T07-35",
+      "reason": "composition of OutsideBar + CloseAbovePriorHighestHigh(K) + a bull-trend-bar-within-K term"
+    },
+    {
+      "id": "T07-37",
+      "reason": "composition of OutsideBar + CloseRangePosition + a count of bull bodies over N bars (bar_anatomy_trend_doji)"
+    },
+    {
+      "id": "T07-42",
+      "reason": "composition of a large climactic trend bar at a new extreme + InsideBarInclusive + an opposite-body test"
+    },
+    {
+      "id": "T07-43",
+      "reason": "composition of a bear reversal bar + OutsideBar + CloseAbovePriorHigh(1) + ConsecutiveUpBars(1)"
+    },
+    {
+      "id": "T10-18",
+      "reason": "composition of ConsecutiveInsideBars(2, lag 1) + CloseAbovePriorHigh(1) + a bear-trend-bar count (bar_anatomy_trend_doji)"
+    },
+    {
+      "id": "T11-06",
+      "reason": "composition of a two-bar reversal + InsideBarInclusive(1) + CloseAbovePriorHigh(1)"
+    },
+    {
+      "id": "TP3-14",
+      "reason": "composition of InsideBarInclusive(1) + CloseAbovePriorHigh(1) + StrongTrendBarRun (the spike)"
+    },
+    {
+      "id": "T21-69",
+      "reason": "composition of CloseAbovePriorHighestHigh at bar 2 + InsideBarInclusive(1) + CloseAbovePriorHigh(1); the catalog already has EecQuickPullbackPattern for the book-whole form"
+    },
+    {
+      "id": "T21-70",
+      "reason": "composition of ConsecutiveInsideBars(3, lag 1) + CloseAbovePriorHigh(1)"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R00-11",
+      "belongs_in": "three_push_patterns",
+      "note": "the oo pattern; three_push_patterns owns OutsideOutsidePattern"
+    },
+    {
+      "id": "V00-08",
+      "belongs_in": "three_push_patterns",
+      "note": "the oo pattern, same definition as R00-11"
+    },
+    {
+      "id": "T07-28",
+      "belongs_in": "three_push_patterns",
+      "note": "the oo pattern used negated as a breakout block; same pattern, owned there"
+    },
+    {
+      "id": "R03-15",
+      "belongs_in": "leg_counting",
+      "note": "an outside bar resetting the H1/H2 counter; a counter side effect, not a bar test"
+    },
+    {
+      "id": "V03-15",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "gates an ii breakout on a prior trend-line break; the ii half is already merged here"
+    },
+    {
+      "id": "V04-02",
+      "belongs_in": "climax_reversal",
+      "note": "defines where a run of climax bars ends, in terms of the V04-01 climax bar"
+    },
+    {
+      "id": "V04-06",
+      "belongs_in": "climax_reversal",
+      "note": "an overshoot tolerance on V04-05's one-bar final flag between climaxes"
+    },
+    {
+      "id": "T07-17",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a failed-breakout fade; the outside bar is only the reference bar"
+    },
+    {
+      "id": "T07-26",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a failed-breakout fade of an ioi; the ioi half is already merged here"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "inside/outside bar boundary inclusivity",
+      "options": [
+        "strict, as the catalog InsideBar has it (high[N+1] > high[N] && low[N+1] < low[N])",
+        "inclusive at-or-beyond, as Brooks's glossary states it (<=, >=)"
+      ],
+      "recommended": "inclusive for the Brooks family (InsideBarInclusive, ConsecutiveInsideBars, IoiPattern, OioPattern), authored alongside the existing strict InsideBar rather than replacing it — the two differ on every tied high or low, which is frequent on tick-grid futures bars, and Brooks's own definition is the inclusive one. For OutsideBar the mirror-image inclusive reading is degenerate (an equal-range bar would be both inside and outside), so OutsideBar additionally requires strictly beyond on one side.",
+      "gates": [
+        "InsideBarInclusive",
+        "ConsecutiveInsideBars",
+        "IoiPattern",
+        "OioPattern",
+        "OutsideBar"
+      ]
+    }
+  ],
+  "bucket_summary": "Seventy-nine bucket candidates plus seven strays collapsed to twenty rules: the inside/outside bar primitives (each restated four to ten times across the three volumes), the ii/iii/ioi/oio patterns, three pause-bar definitions, five distinct bar-overlap measurements, and five outside-bar veto filters from Trends ch7 that are kept whole because the entry pane ANDs and cannot express NOT(A AND B). Twenty-nine candidates were dropped as compositions — most of Trends ch7 is an outside bar ANDed with a trend-bar, close-position or new-extreme test that other rules already provide — and nine went to other buckets, including all three oo statements to three_push_patterns. Seventeen rules are priority A and none is blocked on a design decision; the one decision recorded is the inclusive-versus-strict boundary against the catalog's InsideBar."
+}

@@ -1,0 +1,2097 @@
+{
+  "bucket": "bar_anatomy_reversal_signal",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "ReversalBarMinimum",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The floor test for a bull reversal signal bar: the bar closes above its own open OR above its own midpoint (mirror for a bear reversal bar).",
+      "pseudocode": "close[0] > open[0] || close[0] > (high[0] + low[0]) / 2",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic on O/H/L/C"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars, CloseRangePosition",
+        "relation": "variant",
+        "note": "The two disjuncts are ConsecutiveUpBars(1) and CloseRangePosition(0.5), but the pane system ANDs entries, so their OR cannot be composed from the catalog. That OR is the whole point of Brooks's 'minimum' wording."
+      },
+      "sources": [
+        "R00-15",
+        "V00-30",
+        "T00-39",
+        "T05-01"
+      ],
+      "merge_notes": "All four are the same sentence restated in three volumes; identical pseudocode in every one. This is the most-cited primitive in the bucket. No parameters in any source. R00-15 adds 'to be ANDed with opposite-of-trend context', which is a placement concern, not part of the rule.",
+      "variants_kept_separate": [
+        "CloseAboveMidpoint",
+        "BullReversalBarShape",
+        "BullReversalBarWithTail"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseAboveMidpoint",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar closes in the upper half of its own high-low range (mirror: lower half).",
+      "pseudocode": "close[0] > (high[0] + low[0]) / 2",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "duplicate",
+        "note": "Exactly CloseRangePosition at threshold 0.5 (the epsilon in the denominator does not change the sign of the comparison for any non-degenerate bar). Do not author again."
+      },
+      "sources": [
+        "R03-11"
+      ],
+      "merge_notes": "Kept out of ReversalBarMinimum deliberately: R03-11 states only the midpoint half, with no OR against the body test, so it is a strictly different set of bars, and it happens to be an exact catalog duplicate.",
+      "variants_kept_separate": [
+        "ReversalBarMinimum"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalBarOpenNearPriorClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Quality marker of a strong bull reversal bar: it opens at or below the prior bar's close (no gap against the reversal) and closes above both its own open and the prior bar's close.",
+      "pseudocode": "open[0] <= close[1] + nearTicks * tickSize && close[0] > open[0] && close[0] > close[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "nearTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar arithmetic plus a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V00-31",
+        "T00-40",
+        "T05-02"
+      ],
+      "merge_notes": "One rule from the same book sentence in two volumes. The threshold differs only in how 'near' is read: V00-31 and T00-40 use 1 tick, T05-02 reads 'near' as at-or-below and uses 0. Default 1, since 0 makes the tolerance input pointless; nearTicks = 0 recovers T05-02 exactly. tickSize is MinMove/PriceScale.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalBarTailFraction",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Quality marker of a strong bull reversal bar: its lower tail is between a third and a half of the bar's range, and its upper tail is small or absent (mirror for a bear reversal bar).",
+      "pseudocode": "lowerTail = min(open[0], close[0]) - low[0]; upperTail = high[0] - max(open[0], close[0]); barRange = high[0] - low[0]; lowerTail >= minTailFraction * barRange && lowerTail <= maxTailFraction * barRange && upperTail <= oppositeTailMax * barRange",
+      "sides": "mirrored",
+      "parameters": {
+        "minTailFraction": 0.33,
+        "maxTailFraction": 0.5,
+        "oppositeTailMax": 0.1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-16",
+        "V00-32",
+        "T00-41",
+        "T05-03"
+      ],
+      "merge_notes": "Four restatements of the same book sentence ('a lower tail that is about one-third to one-half the height of the bar and a small or nonexistent upper tail'). Book values: minTailFraction 0.33 everywhere; maxTailFraction 0.5 in V00-32/T00-41/T05-03 and absent in R00-16; oppositeTailMax 0.1 (V00-32, T05-03) vs 0.15 (R00-16, T00-41) - default 0.1. The min/max(open,close) tail definition (V00-32/T00-41/T05-03) wins over R00-16's open-only/close-only form: it is the correct tail for either body colour and costs nothing extra.",
+      "variants_kept_separate": [
+        "SmallTailsBar",
+        "BullReversalBarWithTail",
+        "LargeOppositeTailWeakensReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalBarLowOverlap",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's range overlaps the prior bar's range by no more than a fraction of that prior bar's range - a reversal bar that mostly overlaps its predecessor is just part of a trading range.",
+      "pseudocode": "overlap = min(high[0], high[1]) - max(low[0], low[1]); overlap <= maxOverlapFraction * (high[1] - low[1])",
+      "sides": "same",
+      "parameters": {
+        "maxOverlapFraction": 0.5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V00-33",
+        "T00-42",
+        "T05-04"
+      ],
+      "merge_notes": "T00-42 and T05-04 are the identical prior-bar test at 0.5. V00-33 states the same idea as an overlap fraction against the prior TWO bars at 0.3; the prior-bar form wins per the mechanizability rule (no window overlap accumulation, no ambiguity about how overlap against several bars is summed), and V00-33 is that form at lookback = 1. T05-04 notes the book also uses this inverted, which the per-placement negate toggle covers.",
+      "variants_kept_separate": [
+        "ExcessiveOverlapMidpointFilter"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExcessiveOverlapMidpointFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block a bull reversal entry when the reversal bar's midpoint sits above the prior bar's low - the book's stated 'excessive overlap' test (mirror: bear reversal bar's midpoint below the prior bar's high).",
+      "pseudocode": "!((high[0] + low[0]) / 2 > low[1])",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one computed midpoint against one prior extreme"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T05-08"
+      ],
+      "merge_notes": "Transcribed literally from p.122 and kept separate from ReversalBarLowOverlap because it is a different comparison, not a different threshold. As printed it is near-degenerate: almost any bull reversal bar that does not gap down below the prior bar's low satisfies it, which reads oddly for a test named 'excessive overlap'. The mining agent flagged that Brooks may have meant the prior bar's HIGH. Blocked on that reading.",
+      "variants_kept_separate": [
+        "ReversalBarLowOverlap"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "excessive-overlap reference extreme"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BullReversalBarShape",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A strong bull reversal bar by body/tail shape: bull close, body at least a fraction of the bar's range, and BOTH tails at most a fraction of the range (mirror for bear).",
+      "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) <= tailFraction * (high[0] - low[0]) && (open[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "CloseRangePosition tests only where the close sits in the range; this tests the body as a fraction of range and caps both tails, which the catalog rule cannot express."
+      },
+      "sources": [
+        "VP1-02",
+        "V02-01"
+      ],
+      "merge_notes": "VP1-02 and V02-01 are character-for-character the same test at the same 0.6/0.2 defaults; V02-01 is the definition the rest of the reversals book cites. Kept apart from BullReversalBarWithTail on purpose: this one REQUIRES a small lower tail, that one REQUIRES a substantial lower tail, so they are near-disjoint under the same book name.",
+      "variants_kept_separate": [
+        "BullReversalBarWithTail",
+        "ReversalBarTailFraction",
+        "SmallTailsBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BullReversalBarWithTail",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A bull reversal bar by close position and rejection tail: bull close, close in the upper part of the bar's range, and a lower tail of at least a fraction of the range (mirror for bear).",
+      "pseudocode": "close[0] > open[0] && (close[0] - low[0]) >= closePositionMin * (high[0] - low[0]) && (open[0] - low[0]) >= lowerTailMin * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "closePositionMin": 0.7,
+        "lowerTailMin": 0.2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "The close-position term alone is CloseRangePosition(0.7) without its epsilon; the lower-tail requirement is new and is what makes it a 'reversal' bar rather than just a strong close."
+      },
+      "sources": [
+        "T04-06",
+        "T06-19",
+        "T07-03",
+        "TP4-09"
+      ],
+      "merge_notes": "T04-06, T06-19 and T07-03 are literally identical pseudocode at 0.7/0.2 - the trends volume redefines it once per chapter per the mining brief. TP4-09 substitutes a body fraction (0.4) for the close-position term and adds an upper-tail cap (0.25); kept in sources as a citation, the close-position form wins because it is the reading the other three share and it needs one fewer term.",
+      "variants_kept_separate": [
+        "BullReversalBarShape",
+        "BullReversalBarAtNewLow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BullReversalBarAtNewLow",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar makes a new low over the prior N bars yet closes up and in the upper part of its own range - a bull reversal bar that actually reversed something (mirror: new N-bar high, weak close).",
+      "pseudocode": "low[0] <= lowest(low, lookback)[1] && close[0] > open[0] && (close[0] - low[0]) >= closeFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 5,
+        "closeFraction": 0.6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a lowest-low window plus single-bar close-location arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "Adds the new-N-bar-low term, which CloseRangePosition has no way to express."
+      },
+      "sources": [
+        "R05-03",
+        "R09-01",
+        "T10-02"
+      ],
+      "merge_notes": "Same rule at three lookbacks: T10-02 uses the prior bar only (lookback = 1), R05-03 uses 5, R09-01 uses 10. One rule with a lookback input; default 5 as the middle book value. R09-01 omits the close[0] > open[0] term - kept anyway, since Brooks's minimum reversal bar needs either a bull body or a strong close and the closeFraction 0.6 term already carries the latter. Distinct from BullReversalBarWithTail, which has no new-low requirement.",
+      "variants_kept_separate": [
+        "BullReversalBarWithTail",
+        "StopRunReversalBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallTailsBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Both tails of the bar are small relative to its range - a decisive bar showing urgency, direction-agnostic.",
+      "pseudocode": "(high[0] - max(open[0], close[0])) <= tailFraction * (high[0] - low[0]) && (min(open[0], close[0]) - low[0]) <= tailFraction * (high[0] - low[0])",
+      "sides": "same",
+      "parameters": {
+        "tailFraction": 0.15
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T02-15",
+        "T19-02",
+        "TP3-06"
+      ],
+      "merge_notes": "T02-15 (0.15) and T19-02 (0.10) are the identical per-tail test at two readings of 'small'; default 0.15. TP3-06 states the SUM of the two tails against 0.3 of range - the per-tail form wins (it is the stricter, unambiguous statement, and TP3-06's 0.3 sum is close to 2 x 0.15). Authoring note: guard a zero-range bar.",
+      "variants_kept_separate": [
+        "ShavedBothEnds",
+        "ReversalBarTailFraction"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShavedBodyTop",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar has (near) zero tail above its body: the high is within N ticks of the higher of open and close - a shaved top (mirror: shaved bottom).",
+      "pseudocode": "(high[0] - max(open[0], close[0])) <= tailTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "tailTicks": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic against a tick tolerance"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-12"
+      ],
+      "merge_notes": "R00-12 is declared 'same' sides but its own note says the shaved-bottom test is the mirror, so it is recorded here as mirrored - the per-placement side handling gets both. Body-based, unlike CloseNearBarExtreme which measures from the close; the two coincide only on bars whose close is the body extreme.",
+      "variants_kept_separate": [
+        "CloseNearBarExtreme",
+        "ShavedBothEnds"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShavedBothEnds",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar has (near) zero tail at BOTH ends - open and close sit at or within N ticks of the high and the low.",
+      "pseudocode": "(high[0] - max(open[0], close[0])) <= shaveTicks * tickSize && (min(open[0], close[0]) - low[0]) <= shaveTicks * tickSize",
+      "sides": "same",
+      "parameters": {
+        "shaveTicks": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T04-09"
+      ],
+      "merge_notes": "Not composable from ShavedBodyTop: that rule is mirrored, so a single placement can only ever test one end per side, and no combination of placements ANDs the top and bottom tests on the same side. Kept as its own direction-agnostic rule, which is also how the book states it ('no tail at either the top or the bottom').",
+      "variants_kept_separate": [
+        "ShavedBodyTop",
+        "SmallTailsBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseNearBarExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar closes on, or within N ticks of, its own high (mirror: its own low) - urgency into the close.",
+      "pseudocode": "(high[0] - close[0]) <= nearTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "nearTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic against a tick tolerance"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "Same intent as a very high CloseRangePosition threshold, but this is an absolute tick tolerance, not a fraction of the bar's range - on a large bar the two disagree sharply."
+      },
+      "sources": [
+        "V00-46",
+        "T06-22",
+        "V02-08"
+      ],
+      "merge_notes": "Identical test in both volumes, both at 1 tick. T06-22 calls it a shaved bar; V00-46 calls it a spike bar closing on its high. Kept apart from ShavedBodyTop because that one measures from max(open, close), which differs from the close on every bear bar.",
+      "variants_kept_separate": [
+        "ShavedBodyTop"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TwoBarReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A bear trend bar immediately followed by a bull trend bar of comparable size that closes back above the bear bar's midpoint - the pair acts as one bull reversal bar (mirror for bear).",
+      "pseudocode": "close[1] < open[1] && close[0] > open[0] && close[0] > (high[1] + low[1]) / 2 && (high[0] - low[0]) >= sizeRatio * (high[1] - low[1])",
+      "sides": "mirrored",
+      "parameters": {
+        "sizeRatio": 0.5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar OHLC arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R05-13",
+        "R08-21",
+        "T06-05",
+        "T11-05",
+        "T21-80"
+      ],
+      "merge_notes": "Five restatements of Brooks's central two-bar reversal, differing only in how 'about the same size' and 'closes back into' are read. The winning definition is the midpoint form (R05-13/R08-21) plus a single range-ratio input: fewest terms, no derived trend-bar classification. Losing readings kept as citations - T06-05 uses an overlap fraction (0.5 of the smaller range) AND a body-size band (0.5-2.0x); T11-05 requires both bars to have bodies >= 0.5 of range and compares against the BODY midpoint; T21-80 uses close[0] > open[1] plus low[0] <= low[1] + 2 ticks. Book size values 0.5 (R05-13, T11-05) and 0.7 (R08-21); default 0.5. T06-06's beyond-both-bars trigger is carried separately.",
+      "variants_kept_separate": [
+        "TwoBarReversalAtNewExtreme",
+        "TwoBarReversalBreakoutEntry",
+        "TwoBarReversalContinuationFade"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TwoBarReversalAtNewExtreme",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A two-bar reversal that occurs at a new N-bar extreme: the prior bar made a new N-bar low, and this bar closes up, above the prior close, while still overlapping the prior bar's low (mirror at a top).",
+      "pseudocode": "low[1] <= lowest(low, swingLookback)[2] && close[0] > open[0] && close[0] > close[1] && low[0] <= low[1] + overlapTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "swingLookback": 20,
+        "overlapTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a lowest-low window plus two-bar arithmetic; no pivot detection needed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V01-07",
+        "V24-06"
+      ],
+      "merge_notes": "Kept apart from TwoBarReversal because the new-N-bar-extreme requirement is a behaviourally different rule, not a threshold: the plain two-bar reversal fires anywhere, this one only at a leg extreme. V01-07 states it from the bear side (a new high, close back below the two-bar midpoint) with lookback 10; V24-06 with 20. Default 20. Both replace Brooks's swing-pivot language with a plain lowest/highest window, which is the mechanizable reading.",
+      "variants_kept_separate": [
+        "TwoBarReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TwoBarReversalBreakoutEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a bear-bar/bull-bar two-bar reversal pair, enter only when a later bar closes beyond the HIGHER of the two bars' highs (mirror: below the lower of the two lows) - entering beyond both bars avoids the one-tick trap at the signal bar's extreme.",
+      "pseudocode": "close[2] < open[2] && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] > max(high[1], high[2])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset bars, no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T06-06",
+        "T15-48",
+        "V09-05"
+      ],
+      "merge_notes": "T15-48 gives the full three-bar mechanization. T06-06's pseudocode was only 'TwoBarReversal[0]', but its description, quote and book_order_type are all about entering beyond the extreme of BOTH bars rather than the signal bar alone, so it merges here rather than into TwoBarReversal. Distinct from TwoBarReversal: a different trigger level, so the two fire on different bars.",
+      "variants_kept_separate": [
+        "TwoBarReversal",
+        "PriorHighBreakoutWithOffset"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TwoBarReversal"
+      ]
+    },
+    {
+      "key": "TwoBarReversalFadeInChannel",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a strong bear channel, sell into a forming two-bar-reversal-up as the second bar rallies back to the first bar's high, expecting the reversal never to trigger (mirror in a bull channel).",
+      "pseudocode": "isStrongBearChannel[1] && close[1] < open[1] && close[0] > open[0] && high[0] >= high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "riskTicks": 3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the fade is an intrabar limit fill on the still-forming second bar, and it is gated on a channel-strength classification"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-37"
+      ],
+      "merge_notes": "The only source in the bucket that deliberately breaks the standing signal-bar-close/next-bar-open convention: Brooks fades the pattern before it completes. Blocked on the trend/channel-strength classification, and on whether the corpus will model an intrabar limit at all.",
+      "variants_kept_separate": [
+        "TwoBarReversal",
+        "TwoBarReversalContinuationFade"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "trend and channel strength classification"
+      ],
+      "depends_on_keys": [
+        "TwoBarReversal"
+      ]
+    },
+    {
+      "key": "TwoBarReversalContinuationFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "When the two-bar reversal shape forms AGAINST an established strong trend, trade WITH the prior trend instead of with the pattern: treat the countertrend bar as a one-bar flag and enter back through it.",
+      "pseudocode": "establishedTrend[2] && close[1] > open[1] && close[0] < open[0] && overlap(0, 1) >= overlapFraction * min(range(0), range(1)) // then buy above high[0], the mirror of what the pattern implies",
+      "sides": "mirrored",
+      "parameters": {
+        "establishedTrendBars": 10,
+        "overlapFraction": 0.5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the shape test is trivial; the trend-establishment judgement that flips the entry side is not"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "MomentumConsecutiveBars",
+        "relation": "variant",
+        "note": "MomentumConsecutiveBars is the closest catalog proxy for 'established trend', but Brooks's condition is about trend strength, not a run of higher closes."
+      },
+      "sources": [
+        "T06-07"
+      ],
+      "merge_notes": "Same shape as TwoBarReversal but the entry side is its mirror, which is exactly the case MERGE.md says to keep separate. Blocked on the trend-strength decision that chooses which side to take.",
+      "variants_kept_separate": [
+        "TwoBarReversal",
+        "TwoBarReversalFadeInChannel"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "trend and channel strength classification"
+      ],
+      "depends_on_keys": [
+        "TwoBarReversal"
+      ]
+    },
+    {
+      "key": "ReversalBarFailure",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar after a bull reversal bar breaks out of the WRONG side - it trades below the reversal bar's low instead of above its high. The trapped longs make it a short signal; mirror for a bear reversal bar failure.",
+      "pseudocode": "bullReversalBar[1] && low[0] < low[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "the reversal-bar primitive plus one comparison on the following bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T04-07",
+        "T06-20",
+        "T06-21"
+      ],
+      "merge_notes": "T06-20 defines the event, T06-21 is the same event used as the fade entry (one tick beyond the failure bar) - one rule, since in this engine the entry IS the condition. T04-07 states the same with close[0] < low[1] rather than low[0] < low[1]; the low form wins because it matches the book's 'trades below'. Direction note for the authoring pass: the FAILURE of a bull reversal bar is a SHORT signal, so the sides are inverted relative to the reversal-bar primitive it reads.",
+      "variants_kept_separate": [
+        "SmallTickFailedBreakoutReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "BullReversalBarWithTail"
+      ]
+    },
+    {
+      "key": "ReversalBarReversesPriorBars",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Strength gauge for a reversal bar: its close is above the closes of each of the last N bars AND its high is above the highs of each of the last M bars - the more bars it reverses on both counts, the stronger the reversal.",
+      "pseudocode": "close[0] > highest(close, closeLookback)[1] && high[0] > highest(high, highLookback)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "closeLookback": 8,
+        "highLookback": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two Highest windows"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHighestHigh is close > Highest(High, N)[1] - one window, comparing the close to HIGHS. This ANDs a close-vs-closes window with a high-vs-highs window, and the two windows have independent lengths."
+      },
+      "sources": [
+        "T05-05",
+        "V00-35",
+        "V03-16"
+      ],
+      "merge_notes": "V03-16 states this as a SCORE (the min of the two counts of bars reversed); as a rule that is exactly this test with closeLookback = highLookback = the score threshold, so it merges. V00-35 is the same at 2/2 (Brooks's stated minimum, 'more than one bar'); T05-05 gives the book's concrete strong example, 8 closes and 5 highs, kept as the defaults since they are his only numbers. V00-35 compares close[0] against the prior HIGHS for one of its two terms - the highest-close form wins, since it is what 'reverses the closes' means and what T05-05 and V03-16 both state.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SecondReversalSignal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "This bar is a bull reversal bar and another bull reversal bar formed within the last N bars with at least one non-signal bar between them - take only the second attempt (mirror for bear).",
+      "pseudocode": "bullReversalBar[0] && !bullReversalBar[1] && countTrue(bullReversalBar[k] for k in 2..windowBars) >= 1",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a window scan of a derived per-bar classification, so the classification must be evaluated at every offset in the window rather than at a fixed one"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "MRO",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "Structurally the same shape as TailBarCountDominance (a CountIF over a derived per-bar series), but the counted condition and the use are different."
+      },
+      "sources": [
+        "V02-20",
+        "T10-03"
+      ],
+      "merge_notes": "Two volumes, one 'second entry' idea. Window 6 (V02-20) vs 10 (T10-03); default 10. V02-20 additionally requires the first signal to have FAILED (a later bar broke its low); T10-03's simpler 'the trend resumed for a bar or two' reading wins on mechanizability, and the strict failure test is the harder FailedReversalAttempt rule. Authoring note: the counted condition is a true series, so its offsets shift per counted bar, as in TailBarCountDominance.",
+      "variants_kept_separate": [
+        "FailedReversalAttempt"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "BullReversalBarWithTail"
+      ]
+    },
+    {
+      "key": "SignalBarBodyMatchesTradeDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The signal bar closed in the trade direction - buy only above bull bars, short only below bear bars. A blanket gate on every stop-entry setup.",
+      "pseudocode": "close[lag] > open[lag]",
+      "sides": "mirrored",
+      "parameters": {
+        "lag": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison on one bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "parameterization",
+        "note": "ConsecutiveUpBars(consecutiveBars = 1) is this rule at lag = 0. The lag input is what is new - the catalog rule cannot test the PRIOR bar's body, which is the only form Brooks ever states, since the signal bar is never the entry bar."
+      },
+      "sources": [
+        "R01-10",
+        "V24-02"
+      ],
+      "merge_notes": "R01-10 states the bare body test at lag 0; V24-02 states it at lag 1 and ANDs the trigger (high[0] > high[1], which is catalog LaggedHigherHigh at lookback 0). The trigger half is dropped as already carried; the lagged body gate is the rule. Default lag 1, matching Brooks's 'buy only above bull bars'.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallBodyLargeOppositeTailBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Sign of weakness in a bull bar: only a modest body plus a prominent tail on TOP, against the direction the bar closed (mirror for a bear bar with a large lower tail).",
+      "pseudocode": "close[0] > open[0] && (close[0] - open[0]) < bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) >= tailFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.3
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar OHLC arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-18",
+        "R03-12"
+      ],
+      "merge_notes": "Not the negation of BullReversalBarShape: this requires a bull CLOSE with a big tail above it, a specific weak-breakout-bar shape rather than the absence of a strong one. Kept whole because the body cap and the opposite-tail floor together are the book's single 'weak breakout bar' idea.",
+      "variants_kept_separate": [
+        "LargeOppositeTailWeakensReversal",
+        "ExhaustionBarAfterLargeTrendBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExhaustionBarAfterLargeTrendBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a bear trend bar, the current bar's body shrinks to a fraction of that prior body and it shows a lower tail of at least a fraction of its own range - exhaustion, read as a countertrend long (mirror after a bull spike).",
+      "pseudocode": "close[1] < open[1] && abs(close[0] - open[0]) <= bodyShrink * abs(close[1] - open[1]) && (min(open[0], close[0]) - low[0]) >= tailFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyShrink": 0.5,
+        "tailFraction": 0.4
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar arithmetic once the prior body is read directly rather than against an average"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-60"
+      ],
+      "merge_notes": "T21-60 also carried a sizeMultiple(2.0) for 'large bear trend bar' against an average range; dropped in favour of the direct prior-body comparison, which is what the bodyShrink ratio already measures and which needs no window. Distinct from SmallBodyLargeOppositeTailBar: that one is about a single bar's own shape, this one is relative to the bar before it.",
+      "variants_kept_separate": [
+        "SmallBodyLargeOppositeTailBar",
+        "BodyAboveAverageBody"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutBarLargeBodyLargeRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar has a body that is a large fraction of its own range AND a range at or above the recent average range - the book's 'strong breakout bar'.",
+      "pseudocode": "abs(close[0] - open[0]) >= strongBodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= average(high - low, rangeLookback)[1]",
+      "sides": "same",
+      "parameters": {
+        "strongBodyFraction": 0.7,
+        "rangeLookback": 10
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a single-bar ratio plus a window average of bar range"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd uses mean + K standard deviations of range; this is a plain mean comparison AND-ed with a body-fraction test the catalog has no rule for."
+      },
+      "sources": [
+        "T00-26"
+      ],
+      "merge_notes": "Kept whole rather than split into a body-fraction rule and a range-vs-average rule: neither half appears alone anywhere in this bucket, and the pair is the book's single named 'large trend body, and the larger the bar the more likely the breakout succeeds'. Stated on the signal bar (offset 1) in the source; recorded at offset 0 so a placement can lag it.",
+      "variants_kept_separate": [
+        "BarRangeBelowAverageMultiple",
+        "BodyAboveAverageBody"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallWeakSignalBarBlock",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block an entry when the signal bar is BOTH much smaller than recent bars AND small-bodied; a small bar with a strong body still passes.",
+      "pseudocode": "!((high[0] - low[0]) <= smallRangeMultiple * average(high - low, rangeLookback)[1] && abs(close[0] - open[0]) <= smallBodyFraction * (high[0] - low[0]))",
+      "sides": "same",
+      "parameters": {
+        "smallRangeMultiple": 0.6,
+        "rangeLookback": 10,
+        "smallBodyFraction": 0.4
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window average of range plus two comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T05-11"
+      ],
+      "merge_notes": "The negation of an AND, which is an OR - not composable from two panes, so it is carried whole. The 'unless the body is strong' override is exactly the second disjunct, and it is what distinguishes this from simply negating BarRangeBelowAverageMultiple.",
+      "variants_kept_separate": [
+        "BarRangeBelowAverageMultiple",
+        "BodyAboveAverageBody"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeOppositeTailWeakensReversal",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block a bull reversal entry when the bar has a large tail on TOP, unless its body is still reasonably strong (mirror: a bear reversal bar with a large bottom tail).",
+      "pseudocode": "!((high[0] - max(open[0], close[0])) >= largeTailFraction * (high[0] - low[0])) || abs(close[0] - open[0]) >= minBodyOverride * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "largeTailFraction": 0.35,
+        "minBodyOverride": 0.4
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T05-10"
+      ],
+      "merge_notes": "An OR with an override clause, so not composable from panes; carried whole for the same reason as SmallWeakSignalBarBlock. Distinct from ReversalBarTailFraction's oppositeTailMax term, which is an unconditional cap with no body escape hatch.",
+      "variants_kept_separate": [
+        "ReversalBarTailFraction",
+        "SmallBodyLargeOppositeTailBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StrongBodyBarCountInWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K of the last N bars had a strong body in one direction - cumulative buying or selling pressure, without needing one dramatic bar.",
+      "pseudocode": "countIf(k in 1..windowBars: close[k] < open[k] && (open[k] - close[k]) >= strongBodyFraction * (high[k] - low[k])) >= minCount // bear-pressure form; mirror for bull",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 6,
+        "minCount": 3,
+        "strongBodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window count of a per-bar classification"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "Same CountIF-over-a-derived-series shape as TailBarCountDominance, but it counts strong BODIES rather than tails and has no opposite-side dominance comparison."
+      },
+      "sources": [
+        "T05-18"
+      ],
+      "merge_notes": "The mining agent guessed an existing rule named 'MajorityOppositeBodiesBlockEntry'; no such rule is in rules/CATALOG.md, so this is new. Authoring note: the counted condition is a true series, so its offsets shift per counted bar, exactly as in TailBarCountDominance.",
+      "variants_kept_separate": [
+        "UpperTailCountInWindow",
+        "RecentDirectionalPressureConfirmation"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "UpperTailCountInWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K of the last N bars had an upper tail of at least a fraction of that bar's range - repeated selling pressure at a level (mirror: lower tails).",
+      "pseudocode": "countIf(k in 0..windowBars-1: (high[k] - max(open[k], close[k])) >= tailFraction * (high[k] - low[k])) >= minCount",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 10,
+        "minCount": 4,
+        "tailFraction": 0.33
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window count of a per-bar classification"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "TailBarCountDominance counts bull-tail vs bear-tail bars and requires the counted side to BEAT the other as well as clear a threshold, and its counted condition also demands an up close and a higher high. This is the one-sided count with no dominance test and no close/extreme terms."
+      },
+      "sources": [
+        "T15-29"
+      ],
+      "merge_notes": "Kept apart from AverageUpperTailFraction on purpose: a count of bars past a per-bar threshold and a mean of the per-bar fraction are different statistics, and neither dominates the other (four huge tails among ten bars passes the count and can fail the mean, and vice versa). The authoring pass should see the pair.",
+      "variants_kept_separate": [
+        "AverageUpperTailFraction",
+        "StrongBodyBarCountInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AverageUpperTailFraction",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The mean upper-tail fraction over the last N bars is below a threshold - as a long filter, the absence of persistent selling pressure (mirror: mean lower-tail fraction).",
+      "pseudocode": "average((high - max(open, close)) / (high - low), windowBars) < maxTailFraction",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 10,
+        "maxTailFraction": 0.3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window average of a per-bar ratio"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-26"
+      ],
+      "merge_notes": "Authoring note carried from the source: guard zero-range bars in the ratio, the way CloseRangePosition uses an epsilon. Stated as the long filter (mean BELOW the threshold); the per-placement negate toggle gives the two-sidedness sign the book actually describes.",
+      "variants_kept_separate": [
+        "UpperTailCountInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GrowingTopTails",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "This bar has a nonzero top tail and that tail is larger than the prior bar's top tail - tails starting to form and grow at the top of a move (mirror at the bottom).",
+      "pseudocode": "topTail0 = high[0] - max(open[0], close[0]); topTail1 = high[1] - max(open[1], close[1]); topTail0 > 0 && topTail0 > topTail1",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar tail comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R11-02"
+      ],
+      "merge_notes": "A first difference of tail size rather than a level test, so it is distinct from every other tail rule in the bucket. No parameters in the source; the authoring pass may want a lag input the way LaggedHigherHigh has one.",
+      "variants_kept_separate": [
+        "UpperTailCountInWindow",
+        "AverageUpperTailFraction"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RecentDirectionalPressureConfirmation",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Within the last N bars there is evidence of directional pressure at this level: either at least K bars with a prominent tail on the relevant side, OR at least K bars with a strong same-direction body.",
+      "pseudocode": "countIf(k in 0..pressureLookback-1: (high[k] - max(open[k], close[k])) >= minTailFraction * (high[k] - low[k])) >= minPressureBars || countIf(k in 0..pressureLookback-1: close[k] < open[k] && (open[k] - close[k]) >= minBodyFraction * (high[k] - low[k])) >= minPressureBars",
+      "sides": "mirrored",
+      "parameters": {
+        "pressureLookback": 10,
+        "minTailFraction": 0.4,
+        "minBodyFraction": 0.6,
+        "minPressureBars": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two window counts of two different per-bar classifications, combined with an OR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "Same CountIF machinery; different counted conditions, and an OR between two counts rather than a comparison between them."
+      },
+      "sources": [
+        "RP4-16"
+      ],
+      "merge_notes": "This is UpperTailCountInWindow OR StrongBodyBarCountInWindow at their own thresholds. Normally a composite would be dropped in favour of its parts, but the pane system ANDs entries, so the OR cannot be composed - carried whole for that reason, with both parts also carried separately.",
+      "variants_kept_separate": [
+        "UpperTailCountInWindow",
+        "StrongBodyBarCountInWindow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "UpperTailCountInWindow",
+        "StrongBodyBarCountInWindow"
+      ]
+    },
+    {
+      "key": "PriorHighBreakoutEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The base stop-entry mechanism: the close is above the prior bar's high (mirror: below its low). Every bar is a potential signal bar.",
+      "pseudocode": "close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one fixed-offset comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "duplicate",
+        "note": "Exactly CloseAbovePriorHigh at lookback = 1. Do not author again."
+      },
+      "sources": [
+        "T04-01"
+      ],
+      "merge_notes": "Recorded so the coverage check has a home for the primitive the rest of the trends chapter 4 candidates build on; it is already in the corpus.",
+      "variants_kept_separate": [
+        "PriorHighBreakoutWithOffset"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PriorHighBreakoutWithOffset",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close clears the prior bar's high by an extra tick offset before the entry counts - a guard against one-tick traps (mirror below the prior low).",
+      "pseudocode": "close[0] > high[1] + offsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "offsetTicks": 2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one fixed-offset comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHigh has only a bar-lookback input, no price offset, so the tick buffer cannot be reached from it. Not CloseNearPriorLow either - that compares against the opposite extreme in the opposite sense."
+      },
+      "sources": [
+        "T04-14"
+      ],
+      "merge_notes": "The offset is instrument-specific (Brooks says a couple of ticks for stocks, one tick generally), which is how CloseNearPriorLow's XX is already handled in the corpus. At offsetTicks = 0 this degenerates to the catalog rule.",
+      "variants_kept_separate": [
+        "PriorHighBreakoutEntry",
+        "NoGapThroughSignalBarStop"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NoGapThroughSignalBarStop",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Take a stop entry above the signal bar's high only if the entry bar OPENED below that stop level and then traded through it - skip the entry if the market gapped above the level (mirror for shorts).",
+      "pseudocode": "open[0] < high[1] + entryTicks * tickSize && high[0] >= high[1] + entryTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "entryTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "the current bar's open and high against the prior bar's high plus an offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R18-06"
+      ],
+      "merge_notes": "General entry hygiene, not specific to the wedge chapter it was mined from - it applies to every signal-bar breakout setup in the corpus. Distinct from PriorHighBreakoutWithOffset: this one adds a cap on the OPEN, which is the whole content of the rule.",
+      "variants_kept_separate": [
+        "PriorHighBreakoutWithOffset"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallTickFailedBreakoutReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The prior bar poked only a few ticks beyond the bar before it and this bar falls back through that level - a small failed breakout, common at the end of a protracted move and a signal in the opposite direction.",
+      "pseudocode": "high[1] >= high[2] + failTicks * tickSize && low[0] < high[2] // short signal; mirror for the long",
+      "sides": "mirrored",
+      "parameters": {
+        "failTicks": 5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset bars, once the reference extreme is taken as the bar before the poke rather than a remembered signal bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V00-24",
+        "R24-01"
+      ],
+      "merge_notes": "Both sources state the same Emini-tuned five-or-nine-tick failed extension. V00-24 gives 5, R24-01 gives 9 with a 'near the end of a protracted trend' gate; that gate is dropped (it is the always-in/trend-duration decision, and V00-24 states the pattern without it), so this stays priority A rather than C. The fixed-offset reading of the reference extreme wins over 'the signal bar's high carried forward', per the mechanizability rule. failTicks is instrument-specific like CloseNearPriorLow's XX.",
+      "variants_kept_separate": [
+        "NearMissLevelReversal",
+        "ReversalBarFailure"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NearMissLevelReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's low comes within a few ticks of the N-bar lowest low without breaking it, and the bar closes up - the 'perfect test' that misses the clustered stops by a tick (mirror at a high).",
+      "pseudocode": "priorLow = lowest(low, lookback)[1]; low[0] >= priorLow - marginTicks * tickSize && low[0] <= priorLow + marginTicks * tickSize && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "marginTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a Lowest window plus a margin-band comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V16-04"
+      ],
+      "merge_notes": "Deliberately the opposite of a failed breakout: the point is that price did NOT trade through the level. Kept separate from SmallTickFailedBreakoutReversal for that reason, and from StopRunReversalBar, which requires the break.",
+      "variants_kept_separate": [
+        "SmallTickFailedBreakoutReversal",
+        "StopRunReversalBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseInRangePosition",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the bottom (long) / top (short) fraction of the N-bar high-low range - fading a range extreme with no reversal-bar requirement.",
+      "pseudocode": "(close[0] - lowest(low, lookback)) / (highest(high, lookback) - lowest(low, lookback)) <= bottomFraction",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "bottomFraction": 0.2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a Highest and a Lowest window plus a ratio"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "ClosePercentileRank",
+        "relation": "variant",
+        "note": "ClosePercentileRank ranks the close among the last N CLOSES by counting; this is the close's position within the N-bar HIGH-LOW range (a stochastic %K), a different number with a different sensitivity to wicks. Also not CloseRangePosition, which uses the current bar's own range."
+      },
+      "sources": [
+        "V02-37"
+      ],
+      "merge_notes": "The source warns it fades every strong trend when used alone; that is a placement concern, not a reason to downgrade the rule - the corpus ANDs it with whatever regime filter the strategy carries. Windows are current-bar-inclusive as stated.",
+      "variants_kept_separate": [
+        "OpenNearHighCloseNearLow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OpenNearHighCloseNearLow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar opened near its low and closed near its high (mirror: opened near its high and closed near its low) - the shape of a trend day read off a single bar.",
+      "pseudocode": "openPos = (open[0] - low[0]) / (high[0] - low[0] + epsilon); closePos = (close[0] - low[0]) / (high[0] - low[0] + epsilon); openPos <= 1 - nearExtreme && closePos >= nearExtreme",
+      "sides": "mirrored",
+      "parameters": {
+        "nearExtreme": 0.8,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic on the bar's own O/H/L/C"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "CloseRangePosition tests only the close's position; this ANDs the OPEN's position, which the catalog rule has no input for. Same epsilon convention as the catalog rule."
+      },
+      "sources": [
+        "R19-05"
+      ],
+      "merge_notes": "The source states the bear form on a daily bar (open near high, close near low); recorded mirrored so the long side is open-near-low / close-near-high. Timeframe daily-ok rather than daily-only - the same shape reads as a trend bar on any series.",
+      "variants_kept_separate": [
+        "CloseInRangePosition",
+        "BullReversalBarShape"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StopRunReversalBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "One or more bars break below the recent N-bar low, then the next bar closes back above that level with a bull body - a stop run that reversed (mirror at a high).",
+      "pseudocode": "level = lowest(low, lookback)[2]; low[1] < level && close[0] > level && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a Lowest window plus a two-bar break-and-reverse comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-03"
+      ],
+      "merge_notes": "The source asks for a tracked swing-low pivot; replaced with a plain Lowest window per the mechanizability rule, which drops the rule from moderate to simple and removes the pivot-confirmation lag. Kept in this bucket rather than sent to swing_structure for that reason - once the level is a window extreme, the rule is a bar-shape test.",
+      "variants_kept_separate": [
+        "NearMissLevelReversal",
+        "BullReversalBarAtNewLow",
+        "ReversalBarStrongerThanBreakoutBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalBarStrongerThanBreakoutBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A bear breakout bar (a bear trend bar closing below the N-bar lowest low) is immediately followed by a bull bar whose body is at least K times the breakout bar's body - a failed breakout worth fading (mirror at a high).",
+      "pseudocode": "close[1] < open[1] && close[1] < lowest(low, breakoutLookback)[2] && close[0] > open[0] && (close[0] - open[0]) >= strengthRatio * (open[1] - close[1])",
+      "sides": "mirrored",
+      "parameters": {
+        "breakoutLookback": 10,
+        "strengthRatio": 1.0
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two adjacent bars plus a Lowest window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T15-42"
+      ],
+      "merge_notes": "Kept apart from StopRunReversalBar: that one asks whether the close got back above the broken level, this one compares the two bars' BODY sizes and says nothing about the level. The source notes the negation (a reversal bar weaker than the breakout bar) predicts continuation, which the per-placement negate toggle gives for free.",
+      "variants_kept_separate": [
+        "StopRunReversalBar",
+        "TwoBarReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarRangeBelowAverageMultiple",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The signal bar's high-low range is no more than K times the average bar range of the last N bars - an oversized signal bar would put the entry too far from the level being faded.",
+      "pseudocode": "(high[0] - low[0]) <= maxRangeMultiple * average(high - low, avgRangeLookback)[1]",
+      "sides": "same",
+      "parameters": {
+        "avgRangeLookback": 20,
+        "maxRangeMultiple": 1.5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window average of bar range"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd compares the range against mean + K standard deviations and fires when it is LARGER; this is a plain multiple of the mean in the smaller-than sense. Negating BarRangeAboveStd gives a different band, since its standard-deviation term moves with the volatility of volatility."
+      },
+      "sources": [
+        "RP4-10"
+      ],
+      "merge_notes": "Also close in spirit to the catalog's AtrDollarsBelow (a size cap), but that one is ATR in dollars, not this bar's range against the mean range. Kept as the bare range test; T05-11 pairs the same idea with a body test inside a negated AND and is carried separately.",
+      "variants_kept_separate": [
+        "SmallWeakSignalBarBlock",
+        "BreakoutBarLargeBodyLargeRange"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "WeakSignalBarClosePosition",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The signal bar is weak: its close sits in the wrong part of its own range for the direction it is supposed to signal - a bear short-signal bar that closed in the upper part of its range, and the mirror.",
+      "pseudocode": "(close[0] - low[0]) / (high[0] - low[0] + epsilon) < weakCloseThreshold",
+      "sides": "mirrored",
+      "parameters": {
+        "weakCloseThreshold": 0.5,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "duplicate",
+        "note": "This is CloseRangePosition's short side, or its long side under the per-placement negate toggle, at the same epsilon and the same 0.5 default. Same bars; do not author again."
+      },
+      "sources": [
+        "R26-09",
+        "R28-24"
+      ],
+      "merge_notes": "Both sources define 'weak signal bar' with exactly this ratio and the same epsilon literal. Extracted as the shared primitive of the whole weak-signal-bar-fade family (R21-10, V07-12, V11-03, V24-28, T18-13 plus R26-09/R28-24's own entry wrappers), all of which are dropped as compositions of this test with the leg-counting Low1/Low2 setups and a trading-range-extreme filter. Its being a catalog duplicate is the useful finding: that fade family needs no new bar-anatomy rule at all, only the leg counter and a range-location rule from other buckets.",
+      "variants_kept_separate": [
+        "BullReversalBarWithTail",
+        "CloseInRangePosition"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackNotAfterStrongOppositeReversalBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar that started the current pullback (the last up-close bar before the run of down closes) was NOT a strong bear reversal bar that made a higher high - a pullback that began without an opposing signal is likelier to resume the trend.",
+      "pseudocode": "k = count of consecutive down closes ending at bar 1; !(bearReversalBarShape[k] && high[k] > high[k+1])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a bounded backward scan to locate the pullback's first bar, then a shape test at that dynamic offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V02-15"
+      ],
+      "merge_notes": "A negation of BullReversalBarShape's mirror evaluated at a bar the rule has to find, which is what makes it moderate rather than trivial. The authoring pass will need a cap on the backward scan, since the corpus needs a fixed Max Bars Back.",
+      "variants_kept_separate": [
+        "BullReversalBarShape",
+        "PullbackEndReversalBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "BullReversalBarShape"
+      ]
+    },
+    {
+      "key": "PullbackEndReversalBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar that ends a pullback within an existing bull leg - the first bar to make a higher high after at least one down close - is itself a strong bull reversal bar (mirror in a bear leg).",
+      "pseudocode": "close[1] < open[1] && high[0] > high[1] && bullReversalBarShape[0] && close[0] > close[pullbackLookback]",
+      "sides": "mirrored",
+      "parameters": {
+        "pullbackLookback": 10,
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the shape test plus a pullback-end test plus a momentum context term"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "Momentum",
+        "relation": "variant",
+        "note": "The close[0] > close[pullbackLookback] term is exactly Momentum(pullbackLookback); the rest is new."
+      },
+      "sources": [
+        "V02-23"
+      ],
+      "merge_notes": "The source records this as the High-1 proxy WITHOUT the leg counter - the mechanizable reading MERGE.md asks for, so it stays here rather than going to leg_counting. The Momentum term is a carried catalog rule and could be split off at authoring time; kept in the pseudocode because without it the rule fires on every pullback in a downtrend too.",
+      "variants_kept_separate": [
+        "BullReversalBarShape",
+        "PullbackNotAfterStrongOppositeReversalBar"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "BullReversalBarShape"
+      ]
+    },
+    {
+      "key": "StrongBullReversalBarComposite",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Brooks's 'best bull reversal bar': the minimum reversal-bar test plus at least M of the open/tail/overlap quality sub-tests. An M-of-N score, not an AND.",
+      "pseudocode": "reversalBarMinimum[0] && countTrue(reversalBarOpenNearPriorClose[0], reversalBarTailFraction[0], reversalBarLowOverlap[0]) >= minQualitiesRequired",
+      "sides": "mirrored",
+      "parameters": {
+        "minQualitiesRequired": 2,
+        "nearTicks": 1,
+        "minTailFraction": 0.33,
+        "maxTailFraction": 0.5,
+        "oppositeTailMax": 0.1,
+        "maxOverlapFraction": 0.5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an M-of-N count over otherwise trivial sub-tests; each sub-test is cheap but the scoring shape is new to the corpus"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T00-44"
+      ],
+      "merge_notes": "Carried as a composite under the named-Brooks-setup exception: 'the best bull reversal bars have more than one of the following' is the book's own scoring statement, and an M-of-N count is not reachable by ANDing panes. Graded by its hardest part, which is the count itself. The source also folds in a follow-through-bar term; that is dropped with V00-34 as a look-ahead condition.",
+      "variants_kept_separate": [
+        "ReversalBarMinimum",
+        "BullReversalBarShape"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ReversalBarMinimum",
+        "ReversalBarOpenNearPriorClose",
+        "ReversalBarTailFraction",
+        "ReversalBarLowOverlap"
+      ]
+    },
+    {
+      "key": "SignalBarQualityRequiredCountertrendOnly",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The signal-bar quality requirement is conditional on context: demand a strong signal bar only when the entry is countertrend to the prevailing direction; with-trend entries may use weak or even opposite-coloured signal bars.",
+      "pseudocode": "isWithTrendEntry[0] || strongSignalBarShape[0]",
+      "sides": "same",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2,
+        "weakThreshold": 0.2,
+        "strongThreshold": 0.8
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'with-trend' is the always-in direction, and T04-13 additionally wants a continuous signal-bar strength SCORE rather than a boolean"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T04-13",
+        "V16-08",
+        "T23-10"
+      ],
+      "merge_notes": "Three statements of one meta-rule: T04-13 grades the requirement continuously with how countertrend the entry is; V16-08 states the boolean form (quality needed only countertrend); T23-10 states the same relaxation gated on the small-pullback-trend-day regime instead of on always-in. The boolean form (V16-08) is the mechanizable one and wins. Blocked on the always-in decision; T04-13's strength score is a second decision the boolean form sidesteps.",
+      "variants_kept_separate": [
+        "BullReversalBarShape",
+        "StrongBullReversalBarComposite"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction",
+        "signal-bar strength score"
+      ],
+      "depends_on_keys": [
+        "BullReversalBarShape"
+      ]
+    },
+    {
+      "key": "FailedReversalAttempt",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A reversal signal bar whose stop entry triggered but never reached a minimum favourable move before price made a new extreme beyond the signal bar - a failed reversal attempt.",
+      "pseudocode": "sb = a bull reversal bar at some offset; triggered = high reached high[sb] + tick within failureWindow bars; failed = a later bar within that window made low < low[sb] without price having first reached high[sb] + minMoveTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "failureWindow": 10,
+        "minMoveTicks": 10
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "must remember a signal bar's trigger price and index and scan the bars after it to decide success versus failure"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R09-02"
+      ],
+      "merge_notes": "Same underlying decision as FailedSignalReversalEntry: what counts as a trackable signal, and how 'never reached a scalper's profit' is measured for a signal the engine may never have filled. The cheap version tracks only the engine's own last entry signal per placement. Kept apart from SecondReversalSignal, which approximates the same thing with a plain window count and is therefore authorable now.",
+      "variants_kept_separate": [
+        "SecondReversalSignal",
+        "ReversalBarFailure"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "tracking a signal that triggered and then failed"
+      ],
+      "depends_on_keys": [
+        "BullReversalBarAtNewLow"
+      ]
+    },
+    {
+      "key": "FailedSignalReversalEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Meta-rule: any entry signal that fails to reach a scalper's profit within N bars, and is then followed by price breaking beyond that signal bar's opposite extreme on a reversal-quality bar, becomes a fresh signal in the opposite direction.",
+      "pseudocode": "signalFailed(S) = within failBars of S, price never moved scalpTicks favourably from S's trigger; then fire when close[0] passes beyond S's opposite extreme on a reversal bar",
+      "sides": "same",
+      "parameters": {
+        "failBars": 5,
+        "scalpTicks": 4
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'signal' is unspecified - which setups count as trackable, and how failure is measured for an unfilled signal, are both design decisions"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T12-01",
+        "T12-02"
+      ],
+      "merge_notes": "The general form of FailedReversalAttempt and of the whole failed-breakout family, applied to any pattern rather than to reversal bars. Same design decision. The narrow codable version the source itself names - track only the engine's own last Entry signal per placement - is what that decision should probably settle on.",
+      "variants_kept_separate": [
+        "FailedReversalAttempt",
+        "ReversalBarFailure"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "tracking a signal that triggered and then failed"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LowHoldsPriorClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's low never traded more than a few ticks below the previous bar's close (mirror: the high never traded more than a few ticks above it) -- the buyers did not let the prior close be tested, a one-bar sign of underlying pressure.",
+      "pseudocode": "low[0] >= close[1] - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus compares closes and highs/lows, not the low against the prior close"
+      },
+      "sources": [
+        "V02-06"
+      ],
+      "merge_notes": "Single source, kept because it is atomic and trivially mechanizable; it is the close-anchored cousin of ReversalBarOpenNearPriorClose, which tests the OPEN against the prior close.",
+      "variants_kept_separate": [
+        "ReversalBarOpenNearPriorClose"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R05-06",
+      "reason": "composition of BullReversalBarAtNewLow + a position-state reversal permission already carried by the catalog's FlatOrOpenLossExceeds"
+    },
+    {
+      "id": "R21-06",
+      "reason": "composition of StopRunReversalBar + BullReversalBarWithTail + a trading-range-location filter + the final-flag primitive (three_push_patterns)"
+    },
+    {
+      "id": "R21-10",
+      "reason": "composition of WeakSignalBarClosePosition + leg-counting Low1/Low2 + a trading-range-location filter"
+    },
+    {
+      "id": "R21-11",
+      "reason": "composition of a research-grade 'start of a strong swing' context with the bare test close[0] < open[0] (catalog ConsecutiveUpBars negated); no bar-level content of its own"
+    },
+    {
+      "id": "R25-04",
+      "reason": "not mechanizable - Brooks states the directional probability of an equidistant move as a subjective, continuously revised estimate and gives no OHLCV formula anywhere in the chapter"
+    },
+    {
+      "id": "V00-34",
+      "reason": "look-ahead: the condition is about the bar AFTER the entry decision; as a bar-0 test it is a composition of BullReversalBarShape + catalog InsideBar negated"
+    },
+    {
+      "id": "V07-12",
+      "reason": "composition of WeakSignalBarClosePosition + leg-counting Low1/Low2 + a research-grade 'trend suspected reversing' context"
+    },
+    {
+      "id": "V07-16",
+      "reason": "composition of StrongBodyBarCountInWindow (the spike run) + SmallBodyLargeOppositeTailBar (the tail-or-opposite-body bar)"
+    },
+    {
+      "id": "V11-03",
+      "reason": "composition of WeakSignalBarClosePosition + leg-counting High1/High2 + a trading-range-extreme filter + a mid-session time window"
+    },
+    {
+      "id": "V14-03",
+      "reason": "not mechanizable - requires comparing the signal bar's own timeframe against the strategy's bar series, which the engine has no representation for"
+    },
+    {
+      "id": "V24-28",
+      "reason": "composition of WeakSignalBarClosePosition + the leg-counting pullback-entry primitives"
+    },
+    {
+      "id": "T18-13",
+      "reason": "composition of WeakSignalBarClosePosition + leg-counting Low1/Low2 + a 'possible new trend or range bottom' context"
+    },
+    {
+      "id": "T03-05",
+      "reason": "composition of SwingPointTestHolds + BullReversalBar; both parts are carried as rules"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R00-62",
+      "belongs_in": "leg_counting",
+      "note": "a failed Low-4 shifting control; pure leg-counter state, no bar anatomy"
+    },
+    {
+      "id": "R17-03",
+      "belongs_in": "leg_counting",
+      "note": "High 1 entry off the H/L bar counter"
+    },
+    {
+      "id": "R17-04",
+      "belongs_in": "leg_counting",
+      "note": "High 2 entry off the H/L bar counter"
+    },
+    {
+      "id": "R17-06",
+      "belongs_in": "leg_counting",
+      "note": "High 4 entry off the H/L bar counter"
+    },
+    {
+      "id": "R17-12",
+      "belongs_in": "leg_counting",
+      "note": "exit on a failed High-N count; needs the counter's remembered signal-bar extreme"
+    },
+    {
+      "id": "V00-55",
+      "belongs_in": "leg_counting",
+      "note": "failed fourth leg; the same Low-4 failure as R00-62 and T00-48"
+    },
+    {
+      "id": "T00-48",
+      "belongs_in": "leg_counting",
+      "note": "Low-4 failure blocking further entries until a trend-line break; leg counter plus a trend line"
+    },
+    {
+      "id": "RP1-11",
+      "belongs_in": "volume",
+      "note": "reversal-bar volume multiple; a volume rule, and a likely duplicate of catalog VolumeAboveAverageMultiple"
+    },
+    {
+      "id": "RP1-12",
+      "belongs_in": "volume",
+      "note": "absolute contract-count threshold on the reversal bar"
+    },
+    {
+      "id": "R07-12",
+      "belongs_in": "exits_targets",
+      "note": "session-open magnet target; merged in exits_targets as SessionOpenPriceTarget"
+    },
+    {
+      "id": "VP3-09",
+      "belongs_in": "time_session",
+      "note": "fading breakouts of the session's first bar when it has prominent tails; the session-boundary primitive dominates"
+    },
+    {
+      "id": "R15-05",
+      "belongs_in": "context_regime_trading_range",
+      "note": "trading-range days close near the middle of the day's range; a day-type target"
+    },
+    {
+      "id": "R21-12",
+      "belongs_in": "context_regime_trading_range",
+      "note": "blocks stop entries in the middle third of the range; a range-location filter"
+    },
+    {
+      "id": "R09-03",
+      "belongs_in": "support_resistance_levels",
+      "note": "the highest failed-attempt signal-bar high as a magnet; a level-memory rule"
+    },
+    {
+      "id": "R28-14",
+      "belongs_in": "support_resistance_levels",
+      "note": "a limit at the original spike signal bar's high held indefinitely; a level-memory rule"
+    },
+    {
+      "id": "R24-03",
+      "belongs_in": "exits_stops",
+      "note": "tighten the stop to the entry bar's extreme after it closes"
+    },
+    {
+      "id": "R29-04",
+      "belongs_in": "exits_stops",
+      "note": "money-management stop placed a fraction up from the signal bar's low"
+    },
+    {
+      "id": "R29-16",
+      "belongs_in": "exits_stops",
+      "note": "whether to keep the signal-bar stop when the entry bar closes against the trade"
+    },
+    {
+      "id": "V01-18",
+      "belongs_in": "exits_stops",
+      "note": "stop distance sized to the signal bar's own range"
+    },
+    {
+      "id": "T07-11",
+      "belongs_in": "exits_stops",
+      "note": "a fixed-dollar money stop; already the catalog's StopLoss"
+    },
+    {
+      "id": "T11-07",
+      "belongs_in": "exits_stops",
+      "note": "ratcheted trailing stop to the last add-on signal bar's low"
+    },
+    {
+      "id": "R26-05",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "trend-line overshoot as a sufficient single reason; needs line projection from pivots"
+    },
+    {
+      "id": "T13-07",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "fading the break of a one-bar trend line"
+    },
+    {
+      "id": "T13-12",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "fitting the trend line to bodies rather than tails; a line-construction variant"
+    },
+    {
+      "id": "TP4-11",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "countertrend entries allowed only after a trend-line break; the reversal-bar term is already carried here"
+    },
+    {
+      "id": "V08-07",
+      "belongs_in": "swing_structure",
+      "note": "an entry bar's low serving as a double bottom's first extreme"
+    },
+    {
+      "id": "R28-26",
+      "belongs_in": "ema_relations",
+      "note": "buying the close of a small bear bar a tick or two below the moving average"
+    },
+    {
+      "id": "V00-17",
+      "belongs_in": "breakouts_volume_gap",
+      "note": "a bar trading back into an opening gap; the gap primitive is the rule"
+    },
+    {
+      "id": "V02-02",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "same rule as breakouts_signal_strength BodyAboveAverageBody at consecutiveBars = 1; folded there in reconciliation"
+    },
+    {
+      "id": "T07-44",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "same rule as breakouts_signal_strength BodyAboveAverageBody at consecutiveBars = 1; folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "always-in direction",
+      "options": [
+        "the boolean 'is this entry with the prevailing direction' proxy V16-08 assumes",
+        "a continuous signal-bar strength score graded against how countertrend the entry is (T04-13)",
+        "a named regime flag such as the small-pullback-trend-day of T23-10"
+      ],
+      "recommended": "the boolean with-trend test (V16-08), whatever the corpus eventually adopts as its always-in proxy - it is the only one of the three that needs a single decision rather than two, and T04-13's score and T23-10's regime flag both reduce to it",
+      "gates": [
+        "SignalBarQualityRequiredCountertrendOnly"
+      ]
+    },
+    {
+      "topic": "signal-bar strength score",
+      "options": [
+        "a boolean shape test (BullReversalBarShape) used as the gate",
+        "a 0..1 continuous score over body fraction, tail fractions, close position and overlap",
+        "an M-of-N count of the book's quality sub-tests, as StrongBullReversalBarComposite does"
+      ],
+      "recommended": "the M-of-N count (T00-44), since it is the only scoring form Brooks actually states and its parts are already carried as authorable rules; a continuous score would be invented, not mined",
+      "gates": [
+        "SignalBarQualityRequiredCountertrendOnly",
+        "StrongBullReversalBarComposite"
+      ]
+    },
+    {
+      "topic": "tracking a signal that triggered and then failed",
+      "options": [
+        "track every bar that qualifies as a signal bar, with its trigger price and a failure window",
+        "track only the engine's own last Entry signal per placement (its trigger price and bar index)",
+        "approximate with a plain window count of qualifying bars, as SecondReversalSignal does"
+      ],
+      "recommended": "track only the engine's own last Entry signal per placement - the narrow version T12-01 itself names; it needs no new pattern registry, and SecondReversalSignal already covers the cheap approximation",
+      "gates": [
+        "FailedReversalAttempt",
+        "FailedSignalReversalEntry"
+      ]
+    },
+    {
+      "topic": "trend and channel strength classification",
+      "options": [
+        "a run of N consecutive strong trend bars (catalog MomentumConsecutiveBars as the proxy)",
+        "whatever the always-in decision settles on, reused here",
+        "an explicit channel construction from pivots (the lines_channels buckets)"
+      ],
+      "recommended": "reuse the always-in decision rather than adding a second context concept; both gated rules only need to know which side is with-trend, not where the channel lines sit",
+      "gates": [
+        "TwoBarReversalFadeInChannel",
+        "TwoBarReversalContinuationFade"
+      ]
+    },
+    {
+      "topic": "excessive-overlap reference extreme",
+      "options": [
+        "the book's printed form: a bull reversal bar's midpoint above the PRIOR BAR'S LOW",
+        "the reading the mining agent suspects Brooks meant: midpoint above the prior bar's HIGH",
+        "drop T05-08 and rely on ReversalBarLowOverlap, which measures overlap directly"
+      ],
+      "recommended": "drop it in favour of ReversalBarLowOverlap - the printed form is satisfied by nearly every bull reversal bar that does not gap down, so it filters almost nothing, and the alternative reading is a guess at the book",
+      "gates": [
+        "ExcessiveOverlapMidpointFilter"
+      ]
+    }
+  ],
+  "bucket_summary": "127 candidates about signal-bar and reversal-bar anatomy, drawn from all three volumes, collapsed to 50 rules. Most of the collapse is the reversal-bar primitive itself: three volumes each redefine the minimum test, the open-near-prior-close marker, the one-third-to-one-half tail marker and the low-overlap marker, and each of those four became one rule with parameters. Two more families collapsed hard - five statements of the two-bar reversal into one rule (with three behaviourally distinct siblings kept apart), and three statements of 'the reversal bar reverses N prior closes and M prior highs' into one. The A-list is 37 rules and is almost all trivial or simple single-bar and two-bar arithmetic that can be authored immediately: the four reversal-bar quality markers, the two competing bull-reversal-bar shapes, TwoBarReversal and its entry variants, the tail and body window counts, and the entry-mechanics rules (offset breakout, no-gap-through-stop, small-tick failed breakout). Three catalog duplicates surfaced, the useful one being WeakSignalBarClosePosition - the whole weak-signal-bar-fade family reduces to CloseRangePosition plus leg counting, so it needs no new bar-anatomy rule. Five design decisions were raised, three of which are really one (the always-in direction), and 29 strays were sent out, mostly to leg_counting (the High/Low-N counter and its failures) and exits_stops (six stop-placement rules mined from reversal-bar chapters)."
+}

@@ -1,0 +1,1675 @@
+{
+  "bucket": "exits_targets",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "PatternHeightMeasuredMoveTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The workhorse Brooks measured move: capture a reference height at entry (the highest high minus the lowest low of the N bars that produced the breakout -- spike, channel, trading range, wedge, triangle, flag, double top/bottom, head-and-shoulders are all the same arithmetic) and exit when price has travelled a multiple of that height beyond the breakout extreme. Two toggles select the book's alternate anchor pair: startFromOpen uses the open of the first reference bar instead of its low, endAtClose uses the close of the last bar instead of its high (and then anchors the projection at that close).",
+      "pseudocode": "atEntry: refHigh = highest(high, refBars)[1]; refLow = lowest(low, refBars)[1]; height = (endAtClose ? close[1] : refHigh) - (startFromOpen ? open[refBars] : refLow); anchor = endAtClose ? close[1] : refHigh; target = anchor + multiple * height;  then each bar: ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "refBars": 20,
+        "multiple": 1.0,
+        "startFromOpen": false,
+        "endAtClose": false,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a Highest/Lowest window captured once at entry and held as position state; no pivots in the winning definition"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "Same shape as AtrProfitTarget (profit target as a multiple of a measured distance), but the distance is the entry-time N-bar range rather than the running ATR, and it is frozen at entry instead of re-read every bar."
+      },
+      "sources": [
+        "RP1-07",
+        "R02-34",
+        "R03-03",
+        "R07-02",
+        "R08-22",
+        "R08-27",
+        "R12-06",
+        "R17-17",
+        "R20-07",
+        "R23-03",
+        "RP4-25",
+        "V01-14",
+        "V04-15",
+        "V05-02",
+        "V05-03",
+        "T02-12",
+        "T15-33",
+        "T15-34",
+        "T15-58",
+        "T16-13",
+        "TP3-37",
+        "T21-46",
+        "T24-10",
+        "T25-07",
+        "T26-09",
+        "V24-15",
+        "R07-03",
+        "R08-12",
+        "TP2-06"
+      ],
+      "merge_notes": "Twenty-six restatements across all three volumes, differing only in what the reference window is called (spike RP1-07/R08-22/RP4-25/T21-46/T25-07/V24-15, micro channel T16-13, channel T15-33, trading range T15-34/V01-14, wedge R03-03/V05-02/V05-03/T24-10/T26-09, triangle R23-03, double top/H&S R20-07/R08-27, failed double bottom R12-06, failed bar-count pattern R17-17, generic pattern V04-15/TP3-37) and in where the projection is anchored. T15-34's definition wins: a fixed Highest/Lowest window captured at entry, no swing pivots, confidence high, and it degenerates to every other member. The projection anchor coincides for all of them -- for a range breakout the level broken IS the window's highest high, and for a spike the spike's ending high IS the window's highest high. R02-34/R07-02 (open of the first spike bar to the close of the last) and T15-58 (open of the first to the high of the last) are the same rule with startFromOpen/endAtClose set; T25-07 prints exactly that toggle as `useBody`. R03-02 enumerates the four cells of that 2x2 as separate targets -- see dropped. T02-12 anchors at the entry price rather than the breakout extreme, which is the same test written as open profit >= multiple * height. Book multiples are all 1.0; toleranceTicks 1 is Brooks's 'tested within one tick' convention (R08-05 p76).",
+      "variants_kept_separate": [
+        "BarHeightMeasuredMoveTarget",
+        "LegOneEqualsLegTwoTarget",
+        "GapMidpointMeasuredMoveTarget",
+        "OpeningRangeMeasuredMoveTarget",
+        "PriorSwingExtremeTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarHeightMeasuredMoveTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The single-bar measured move: project one bar's own high-low height beyond that bar's far extreme and exit there. Brooks's second target after fading a countertrend trend bar.",
+      "pseudocode": "target = high[refBar] + multiple * (high[refBar] - low[refBar]); ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "refBar": 1,
+        "multiple": 1.0,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "arithmetic on one fixed-offset bar; the level can be frozen at entry or recomputed from the fixed offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP1-10",
+        "VP1-07"
+      ],
+      "merge_notes": "Same construction as PatternHeightMeasuredMoveTarget with the reference window collapsed to one bar, which is why it needs no window state and no pivots -- kept separate because a one-bar height and a twenty-bar height are not the same bars. VP1-07 states both of Brooks's targets for the fade (target 1 = the bar's own far extreme, target 2 = the projection); target 1 is EntryBarExtremeTarget, recorded there. refBar defaults to the signal bar (1) under the standing signal-bar-close/next-bar-open convention.",
+      "variants_kept_separate": [
+        "PatternHeightMeasuredMoveTarget",
+        "EntryBarExtremeTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EntryBarExtremeTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "First target after fading a countertrend bar: the signal/entry bar's own far extreme. Exit the long when the high reaches the high of the bar the trade was entered from.",
+      "pseudocode": "atEntry: refPrice = high[1];  then each bar: ctx.MarketPosition() > 0 && high[0] >= refPrice - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one price captured at entry and held as position state; the comparison is trivial"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP1-09"
+      ],
+      "merge_notes": "A fixed-offset price, not a pivot search, so deliberately not merged with PriorSwingExtremeTarget -- the two fire on different bars. VP1-07's target 1 is the same idea and is cited under BarHeightMeasuredMoveTarget.",
+      "variants_kept_separate": [
+        "PriorSwingExtremeTarget",
+        "BarHeightMeasuredMoveTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PriorSwingExtremeTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit at a test of the trend's most recent swing extreme (the prior high for a long) -- the pullback trader's standard target, and the level a gap-bar swing or a wedge reversal is expected to reach.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= swingHigh(pivotStrength) - toleranceAtr * WFSafe_AvgTrueRange(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "pivotStrength": 2,
+        "toleranceAtr": 0.25,
+        "atrLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a confirmed swing pivot at a variable distance back"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "WFSafe_AvgTrueRange",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "The window approximation highest(high, N)[1] (T10-24's own note) would be CloseAbovePriorHighestHigh in Exit role; the book's level is a confirmed pivot, which can sit further back than any fixed N."
+      },
+      "sources": [
+        "V07-10",
+        "T10-24",
+        "R14-06",
+        "R08-17",
+        "T07-41",
+        "T21-56"
+      ],
+      "merge_notes": "Three statements of one target: the flag-pullback exit at the trend's extreme (V07-10), the double-top-bear-flag profit take at the last swing high (T10-24), and the first-moving-average-gap-bar swing target at the trend's prior extreme (R14-06, a stray sent from another bucket -- absorbed, it is a target). T10-24 supplies the ATR tolerance; V07-10's stallTicks 0 is the same parameter at zero. R14-06's follow-on 'expect a two-legged correction' is not part of the exit and is left to leg_counting.",
+      "variants_kept_separate": [
+        "EntryBarExtremeTarget",
+        "ExitAtPriorRangeExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LegOneEqualsLegTwoTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The leg 1 = leg 2 (AB=CD) measured move: with A the start of the first leg, B its end and C the end of the pullback, the target is D = C + multiple x (B - A). Exit the long there.",
+      "pseudocode": "A = swingLow(pivotStrength)[2]; B = swingHigh(pivotStrength)[1]; C = swingLow(pivotStrength)[0]; target = C + multiple * (B - A); ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "pivotStrength": 2,
+        "lookback": 40,
+        "multiple": 1.0,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "three swing pivots (A, B, C) must be tracked; the arithmetic is trivial once they exist"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R07-07",
+        "R07-08",
+        "R16-03",
+        "R18-08",
+        "VP1-22",
+        "V06-03",
+        "V06-05",
+        "T01-06",
+        "T21-47"
+      ],
+      "merge_notes": "Distinct from PatternHeightMeasuredMoveTarget by anchor pair: the height is the PRIOR leg and the projection starts at the PULLBACK extreme, not at the breakout extreme, so the two land on different prices whenever the pullback is not shallow. R07-07 is the canonical statement and wins the definition. R07-08 (nested legs: treat A-to-D as the new leg 1) is the same rule one scale up -- a pivotStrength/lookback parameterization, not a new rule. R16-03 anchors C at a breakout retest low rather than a pivot low; V06-03/V06-05 use the pattern's last leg as A-B and chain the anchor off a previously reached target; T21-47 uses the spike as leg 1 and the channel start as C. All are the same C + (B - A). Brooks rejects the ABCD/AB=CD labelling (R07-07, T01-06) but uses the construction constantly. R07-07's 'thick area' midpoint restatement resolves to the same price and is not encoded separately.",
+      "variants_kept_separate": [
+        "PatternHeightMeasuredMoveTarget",
+        "GapMidpointMeasuredMoveTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapMidpointMeasuredMoveTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The measuring-gap projection: a midpoint (of a breakout gap, or of the breakout bar itself when the gap is unclear) is treated as the middle of the whole move, so the target is that midpoint plus its own distance from the start of the leg -- target = 2 x mid - legStart.",
+      "pseudocode": "atEntry: mid = useGap ? (low[1] + high[2]) / 2 : (high[1] + low[1]) / 2; legStart = lowest(low, legLookback)[1]; target = mid + multiple * (mid - legStart);  then each bar: ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "legLookback": 20,
+        "useGap": false,
+        "multiple": 1.0,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a midpoint and a Lowest window captured once at entry; no pivots in the winning definition"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Lowest",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R08-05",
+        "R08-10",
+        "R01-12",
+        "T21-48",
+        "R06-05",
+        "R08-09",
+        "VP1-21",
+        "V01-15"
+      ],
+      "merge_notes": "Four statements of target = 2 x mid - legStart. R08-05 takes mid as the true breakout-gap midpoint ((low of the gap bar + high of the bar before)/2); R08-10 (a stray sent from another bucket -- absorbed, it is a target) takes the midpoint of the breakout bar itself when the gap is unclear, and is the definition that wins: no gap detection, just the signal bar's own midpoint and a Lowest window. T21-48 writes it as trendLow + 2 x (gapMid - trendLow), which is algebraically identical. R01-12 offers a choice between the gap midpoint and the first leg's high as the anchor and then takes the nearer -- the anchor choice is the useGap toggle and the 'take the nearer' half is an OR of placements (see dropped R03-02). R07-09 recomputes a midpoint every bar instead of freezing it at entry and is kept separate for that reason.",
+      "variants_kept_separate": [
+        "RollingRangeMidpointTarget",
+        "PatternHeightMeasuredMoveTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RollingRangeMidpointTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "While a pullback trading range is still forming, re-estimate the target every bar as twice the range's rolling midpoint minus the start of the pullback -- the target moves with the range instead of being frozen at entry.",
+      "pseudocode": "mid = (highest(high, rangeBars)[0] + lowest(low, rangeBars)[0]) / 2; target = 2 * mid - legStartCapturedAtEntry; ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeBars": 15,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a rolling Highest/Lowest midpoint recomputed each bar plus one price frozen at entry"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R07-09"
+      ],
+      "merge_notes": "Same arithmetic as GapMidpointMeasuredMoveTarget but the midpoint is re-estimated on every bar as Brooks instructs ('keep adjusting the line'), so the target is a moving level and the two fire on different bars. Kept apart on that behavioural difference alone.",
+      "variants_kept_separate": [
+        "GapMidpointMeasuredMoveTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OpeningRangeMeasuredMoveTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "After a breakout of the session's opening range, exit when price reaches the opening-range extreme plus a multiple of the opening range's height -- the 'approximate doubling of the day's range'.",
+      "pseudocode": "orHigh = highest(high, openingBars) as of the openingBars-th bar of the session; orLow = the matching lowest(low, openingBars); target = orHigh + multiple * (orHigh - orLow); ctx.MarketPosition() > 0 && high[0] >= target",
+      "sides": "mirrored",
+      "parameters": {
+        "openingBars": 12,
+        "multiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "per-session opening-range state reset on each new date, then a fixed projection"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP4-05",
+        "T22-05"
+      ],
+      "merge_notes": "TP4-05 and T22-05 are the same rule in two chapters (Part IV intro and Trending Trading Range Days); TP4-05 supplies the openingBars parameter, T22-05 the 'doubling of the day's range' phrasing. Kept apart from PatternHeightMeasuredMoveTarget because the reference window is session-anchored (the first N bars of the day) rather than the N bars before the breakout -- different bars, and intraday-only.",
+      "variants_kept_separate": [
+        "PatternHeightMeasuredMoveTarget",
+        "SessionMidpointTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionOpenPriceTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "For a countertrend long taken after a trend-from-the-open sell-off reverses, the measured move up equal to the open-of-day-to-low-of-day distance, projected from the day's low -- which resolves exactly to the session's opening price. Exit the long when the high reaches the day's open.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= sessionOpen + offsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "offsetTicks": 0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one session-anchored price (the day's open) held across the session"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T23-18",
+        "R07-12"
+      ],
+      "merge_notes": "The candidate writes target = reversalLow + (sessionOpen - sessionLow) with the reversal low being the day's low, which collapses to the session open -- so the mechanized rule is far cheaper than the candidate's own pseudocode suggests. The passage's second form ('a measured move up equal to about the height of the entire initial leg down') is LegOneEqualsLegTwoTarget and is not re-encoded here.",
+      "variants_kept_separate": [
+        "LegOneEqualsLegTwoTarget",
+        "SessionMidpointTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionMidpointTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "On a trading-range day, a reversal from near the day's extreme is expected to at least test the midpoint of the session's range so far; exit the countertrend long there.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= (sessionHigh + sessionLow) / 2",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "running session high/low state, reset on each new date"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "HighD",
+        "LowD",
+        "Date",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-39"
+      ],
+      "merge_notes": "The one target in the bucket measured off the session's own developing range rather than a pattern; no restatements found. Brooks's paired warning (do not take swing profits early on a range day, since the opposite extreme is often taken out) is advice, not a condition.",
+      "variants_kept_separate": [
+        "OpeningRangeMeasuredMoveTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MovingAverageTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The moving average is the minimum target of a countertrend scalp: exit the long when the bar's high reaches the N-bar EMA.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= xaverage(close, emaLength)[0] - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs an EMA; the comparison is single-bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "CloseAboveAverage",
+        "relation": "variant",
+        "note": "CloseAboveAverage is an Entry on a simple N-bar average of close; this is an Exit on the bar's HIGH against an EMA, and an Entry cannot sit in the exit pane."
+      },
+      "sources": [
+        "R06-12",
+        "T10-15"
+      ],
+      "merge_notes": "Two statements of the same scalp target (Ranges ch6 gaps, Trends ch10 second entries). T10-15 wins on precision (high[0] against the EMA, position-gated). Both note the trap T10-15 records: written for a long entered below the EMA, so a long entered above it exits immediately -- a placement concern for the authoring pass, not a change to the condition.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NearMeasuredMoveTargetFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Gate: permit the signal only once price is within a tolerance of a measured-move target. Brooks's use is countertrend -- trade only with the trend until the market reaches the measured move, then look for fades there.",
+      "pseudocode": "target = highest(high, refBars)[k] + (highest(high, refBars)[k] - lowest(low, refBars)[k]); abs(high[0] - target) <= nearTargetAtr * WFSafe_AvgTrueRange(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "refBars": 20,
+        "nearTargetAtr": 0.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "re-derives the measured-move target inside an entry rule (entry and exit panes share no state)"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R08-14",
+        "T03-17",
+        "T22-06",
+        "R23-04"
+      ],
+      "merge_notes": "R08-14 (countertrend entries allowed only in the measured-move area) and T03-17 (the measured-move level as one of the 'test' levels, a two-sided tolerance band) are one filter; R08-14's ATR tolerance beats T03-17's fixed toleranceTicks. T22-06 is the same proximity test used to BLOCK further with-trend breakout entries near the target; that is this filter negated, i.e. the per-placement toggle, so it is not a second rule -- but T22-06's own framing ('the market transitions into a second trading range') is research-grade and is not what is mechanized here. Brooks's caveat (p78): being at a measured move is not by itself a reason to fade; the pane system supplies the second reason by AND-ing another entry rule.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "PatternHeightMeasuredMoveTarget"
+      ]
+    },
+    {
+      "key": "ProfitTargetAtInitialRiskMultiple",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit once open profit reaches a multiple of THIS trade's own initial risk -- the distance from the entry price to the protective stop as it stood at entry. Brooks's scalp is 1x, his swing 2x or better.",
+      "pseudocode": "initialRisk = abs(ctx.EntryPrice() - initialStopPriceCapturedAtEntry) * bigPointValue; ctx.OpenPositionProfit() >= riskMultiple * initialRisk",
+      "sides": "same",
+      "parameters": {
+        "riskMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "trivial arithmetic, but it needs the initial stop distance captured once at entry and never overwritten by later stop-tightening"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "OpenPositionProfit",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfitWithRatioStop",
+        "relation": "variant",
+        "note": "TakeProfitWithRatioStop drives both legs off one fixed dollar target; this scales the target off the trade's own realized initial stop distance, which varies with the placement's stop rule."
+      },
+      "sources": [
+        "RP2-10",
+        "R21-01",
+        "R24-04",
+        "R24-05",
+        "R30-01",
+        "T18-26",
+        "R10-15"
+      ],
+      "merge_notes": "Six statements of one rule at two parameter values: 1x for scalps and trading-range trades (RP2-10, R21-01, R24-04) and 2x for swings (R24-05, R30-01, T18-26). Brooks explicitly distinguishes the two styles, but they differ only in riskMultiple, so this is one rule with a parameter; default 1.0, his most-repeated floor. **Blocked on an accessor the engine lacks**: there is no ctx.InitialStopPrice() -- the stop distance in force at entry is not exposed, so the rule needs either that accessor or an input that restates the placement's stop distance. Kept B for that reason, not C: the definition itself is unambiguous. R21-01 also reads as TakeProfitWithRatioStop(ratio=1) with the trading-range rationale attached.",
+      "variants_kept_separate": [
+        "TieredRiskMultipleScaleOut",
+        "MinRewardToRiskFilter"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TieredRiskMultipleScaleOut",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Scale out of the position in stages as open profit reaches successive multiples of the initial risk (half at 2R, a quarter at 3R, the remainder trailed or held to the session close), or at fixed dollar intervals.",
+      "pseudocode": "initialRisk = abs(ctx.EntryPrice() - initialStopPriceCapturedAtEntry) * bigPointValue; exit tier1Fraction when ctx.OpenPositionProfit() >= tier1Multiple * initialRisk; then tier2Fraction at tier2Multiple; remainder held",
+      "sides": "same",
+      "parameters": {
+        "tier1Multiple": 1.0,
+        "tier2Multiple": 2.0,
+        "tier3Multiple": 3.0,
+        "tierFraction": 0.25,
+        "intervalDollars": 100
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the engine models one all-or-nothing position; independently sized partial exits at several profit tiers are a multi-unit feature it does not have"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "OpenPositionProfit",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TieredProfitProtector",
+        "relation": "variant",
+        "note": "TieredProfitProtector's tiers are absolute profit floors driving a retracement ratio on one whole position; these tiers are risk multiples driving partial exits."
+      },
+      "sources": [
+        "R24-09",
+        "R30-02",
+        "R31-08",
+        "T18-27",
+        "V24-39"
+      ],
+      "merge_notes": "Five scale-out statements collapse to one tiered rule: quarters at 1R/2R/3R (T18-27), half at 2R plus a quarter at 3R (R30-02), 25-75 percent at 1-2R (R24-09), half at 1R then stop to breakeven (V24-39), and R31-08's fixed-dollar ladder, which is the same ladder with the tiers spaced in dollars instead of R. Kept per the mining brief's instruction to record scale-outs even though the engine cannot model them. V24-39's single tier at 1R is exactly ProfitTargetAtInitialRiskMultiple(1.0) once the partial-exit half is dropped, which is the all-or-nothing simplification the authoring pass should reach for first.",
+      "variants_kept_separate": [
+        "ProfitTargetAtInitialRiskMultiple"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "partial-position exits",
+        "initial-stop-distance accessor"
+      ],
+      "depends_on_keys": [
+        "ProfitTargetAtInitialRiskMultiple"
+      ]
+    },
+    {
+      "key": "ScaleInFirstLegProfitTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "When only the first (half-size) leg of a planned scale-in has filled and price reaches the fixed profit target before the add-on fills, take the profit on that leg and cancel the pending add-on.",
+      "pseudocode": "onlyFirstLegFilled = ctx.MarketPosition() > 0 && positionSize == firstLegSize; target = firstLegFillPrice + profitTargetPoints; onlyFirstLegFilled && high[0] >= target",
+      "sides": "same",
+      "parameters": {
+        "profitTargetPoints": 1.0
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs per-leg fill state (has the add-on filled?) which the single-unit position model does not expose"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfit",
+        "relation": "variant",
+        "note": "TakeProfit with a gate on partial fill state; exits are ORed, so the gate cannot be composed from two rules."
+      },
+      "sources": [
+        "R26-16"
+      ],
+      "merge_notes": "Blocked on the same multi-unit position modelling as TieredRiskMultipleScaleOut, but a distinct trigger, so not folded into it. Without the partial-fill gate it is plain TakeProfit.",
+      "variants_kept_separate": [
+        "ScaleInExitAtOriginalEntry"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "partial-position exits"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ScaleInExitAtOriginalEntry",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Once both legs of a countertrend scale-in have filled, exit the whole position when price returns to the FIRST leg's fill price -- breakeven on that leg and a profit on the lower add-on.",
+      "pseudocode": "bothLegsFilled && high[0] >= firstLegFillPrice",
+      "sides": "same",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "needs the first leg's individual fill price kept apart from the position's blended average entry"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R26-17"
+      ],
+      "merge_notes": "Distinct trigger from ScaleInFirstLegProfitTarget (a remembered fill price, not a fixed target) but blocked on the same missing per-leg state; kept separate rather than merged because they fire on different bars.",
+      "variants_kept_separate": [
+        "ScaleInFirstLegProfitTarget"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "partial-position exits"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MinRewardToRiskFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Pre-trade gate: take the signal only if the planned reward is at least a multiple of the planned risk. Mechanized off the signal bar itself -- the stop sits one tick beyond the bar, so the bar's own range is the risk, and a fixed points target must clear rewardRiskMultiple times it.",
+      "pseudocode": "targetPoints >= rewardRiskMultiple * (high[0] - low[0])",
+      "sides": "same",
+      "parameters": {
+        "targetPoints": 2.0,
+        "rewardRiskMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar arithmetic against two inputs; no position state, no accessor"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "At a fixed targetPoints this degenerates to a maximum-signal-bar-range filter (range <= targetPoints / multiple), which nothing in the catalog expresses -- BarRangeAboveStd measures against a rolling mean and standard deviation, not an absolute distance."
+      },
+      "sources": [
+        "RP3-05",
+        "R25-01",
+        "V03-18",
+        "V24-22",
+        "V24-42"
+      ],
+      "merge_notes": "Five statements of the trader's equation as a pre-trade gate. R25-01's definition wins because it is the only one that needs no planned-stop accessor: the signal bar's range stands in for the risk, exactly as Brooks sizes it on p182. Book multiples: 1x throughout (RP3-05, R25-01, V24-22), 2x for swings (V24-42), and R25-01's four probability tiers (0.5x at ~70 percent, 1x at ~60, 1.5x at ~50, 2x at ~40) -- all one parameter, default 1.0. V03-18 makes the multiple depend on how deep the pullback has retraced (1x at 50 percent, 2x at 61.8-67 percent); that is the same test with the multiple chosen by a swing measurement, so it is recorded here rather than as a rule -- Brooks is himself sceptical of the Fibonacci precision. The probability estimate that picks the tier cannot be read from bars and is not mechanized.",
+      "variants_kept_separate": [
+        "ProfitTargetAtInitialRiskMultiple",
+        "RewardRiskDeteriorationExit"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RewardRiskDeteriorationExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Re-evaluate the trader's equation every bar against the live close: remaining reward is the distance from the close to the planned target, remaining risk the distance from the close down to the planned stop. Exit once the remaining reward falls below a multiple of the remaining risk.",
+      "pseudocode": "remainingReward = (ctx.EntryPrice() + targetPoints) - close[0]; remainingRisk = close[0] - (ctx.EntryPrice() - stopPoints); remainingRisk > 0 && remainingReward < minRewardRiskMultiple * remainingRisk",
+      "sides": "mirrored",
+      "parameters": {
+        "targetPoints": 2.0,
+        "stopPoints": 2.0,
+        "minRewardRiskMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EntryPrice plus two planned distances as inputs, recomputed each bar; no missing accessor"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R25-03"
+      ],
+      "merge_notes": "The exit-side counterpart of MinRewardToRiskFilter and the only continuous re-evaluation of the equation in the bucket; kept separate because it fires mid-trade on a moving close, not once at the signal. The probability term is dropped (not computable from bars). Its targetPoints/stopPoints deliberately mirror the planned-trade inputs of MinRewardToRiskFilter, which the authoring pass may want to share.",
+      "variants_kept_separate": [
+        "MinRewardToRiskFilter"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AdverseExcursionProfitTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Set the profit target just under the worst adverse excursion the trade has already survived, on the premise that the market usually rallies back at least as far as it first went against you.",
+      "pseudocode": "survivedRisk = -ctx.MinPositionProfit(); ctx.OpenPositionProfit() >= survivedRisk - targetSlackDollars",
+      "sides": "same",
+      "parameters": {
+        "targetSlackDollars": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the mirror of the corpus's MaxPositionProfit peak tracker -- needs an equivalent trough accessor"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MaxPositionProfit",
+        "MinPositionProfit",
+        "OpenPositionProfit"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R29-09"
+      ],
+      "merge_notes": "Unusually precise for Brooks -- stated almost as a mechanical rule ('increase your profit target to one or two ticks less than the risk'). B rather than A only because MinPositionProfit is not yet in the register; it is the exact mirror of MaxPositionProfit, which ProfitProtector already uses, so the port is mechanical.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TakeProfit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit when open profit reaches a fixed amount -- Brooks's four-tick scalp, one-point Emini scalp, or a dollar target in a stock.",
+      "pseudocode": "ctx.OpenPositionProfit() >= targetDollars",
+      "sides": "same",
+      "parameters": {
+        "targetDollars": 1000
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a plain open-profit comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "OpenPositionProfit"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfit",
+        "relation": "duplicate",
+        "note": "Same bars. A tick-denominated target is the dollar target divided by tick value, and R27-03's extra fill-slippage tick is that same target shifted by one tick -- a parameter change, not a rule."
+      },
+      "sources": [
+        "R10-14",
+        "R27-03",
+        "T15-49"
+      ],
+      "merge_notes": "R10-14 states it in dollars, T15-49 in ticks, R27-03 in ticks with an extra tick of fill slippage on the resting limit (his six-tick move for a four-tick scalp = 1 entry offset + 4 + 1 slippage). All three are TakeProfit at a different number. Do not author again. If Brian ever wants tick-denominated inputs, that is a parameterization of the existing rule, not a new one.",
+      "variants_kept_separate": [
+        "CountertrendScalpTarget"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CountertrendScalpTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Scalp the whole position out of a trade taken AGAINST the day's trend at a small fixed target; with-trend positions are left alone to swing.",
+      "pseudocode": "ctx.MarketPosition() > 0 && !dayTrendUpAtEntry && (close[0] - ctx.EntryPrice()) >= scalpTicks * tickSize",
+      "sides": "same",
+      "parameters": {
+        "scalpTicks": 4
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the day's trend direction as of the entry bar, i.e. an always-in or day-type classification"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfit",
+        "relation": "variant",
+        "note": "TakeProfit with a with-trend/countertrend gate. Not composable: the exit pane ORs, so a filter cannot be AND-ed onto an exit -- the same reason NumBarsIfProfitable exists as its own rule."
+      },
+      "sources": [
+        "TP4-12"
+      ],
+      "merge_notes": "Kept as C because the gate is the always-in / day-trend decision, not because the target is unclear. Strip the gate and it is TakeProfit in ticks; the gate is the whole content.",
+      "variants_kept_separate": [
+        "TakeProfit"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / day-trend direction at entry"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RegimePartialAtrTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "On a day whose opening range is unusually large (a strong trend is unlikely), take profit at a modest ATR-scaled target instead of holding for a swing.",
+      "pseudocode": "largeOpeningRangeSession && ctx.OpenPositionProfit() >= partialTargetAtr * WFSafe_AvgTrueRange(atrLookback) * bigPointValue",
+      "sides": "same",
+      "parameters": {
+        "partialTargetAtr": 0.25,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the profit test is trivial; the day-type gate ('a strong trend is unlikely today') is a regime judgment"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "OpenPositionProfit",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "AtrProfitTarget with a session-regime gate; exits are ORed so the gate cannot be composed."
+      },
+      "sources": [
+        "T24-03"
+      ],
+      "merge_notes": "Only the gate blocks this. Ungated it is AtrProfitTarget at a small multiple, which is already in the catalog -- so the authoring value here is entirely in whatever large-opening-range classification the design decision settles on.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "day-type / opening-range regime classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnOppositeStrongTrendBar",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the long on a single strong bear trend bar -- a large body, small tails, closing against the position. It takes less to convince a trader to leave than to reverse, so one such bar exits even though flipping direction would need two.",
+      "pseudocode": "ctx.MarketPosition() > 0 && close[0] < open[0] && (open[0] - close[0]) >= bodyFraction * (high[0] - low[0]) && (close[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar body and tail fractions plus a position gate"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V15-12"
+      ],
+      "merge_notes": "The mechanizable half of Brooks's exit/reversal asymmetry: the always-in flip needs two consecutive strong bars, the exit needs one. Only the one-bar exit is encoded here; the two-bar flip belongs to context_regime. The strong-trend-bar thresholds restate the bar_anatomy primitive and should reuse whatever fractions that bucket settles on.",
+      "variants_kept_separate": [
+        "ExitOnFirstOppositeBodyAfterRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnOpposingReversalSetup",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit whenever any valid reversal setup forms against the open position, whether the position was entered with-trend or countertrend.",
+      "pseudocode": "ctx.MarketPosition() > 0 && opposingReversalSetup(0)",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "'a valid reversal setup' is not one condition -- it stands for a family of reversal-bar and pattern primitives that must first be chosen"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V25-02"
+      ],
+      "merge_notes": "Kept rather than dropped because the pane system cannot express it as a composition: the exit pane ORs, so 'exit on any opposing reversal setup' IS several exit placements OR-ed -- which is in fact how it should be authored once the individual reversal rules exist. Its generic form is only worth a rule if the design decision picks a single canonical detector. V21-04 (reversals ch21) is the low-2/high-2-specific instance and lives in another bucket.",
+      "variants_kept_separate": [
+        "ExitOnOppositeStrongTrendBar"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "what counts as a 'valid reversal setup'"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnFirstOppositeBodyAfterRun",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "After a run of at least N consecutive bull-body bars, the first bear-body bar closes the long -- the bulls taking profits on the first bar that goes against them.",
+      "pseudocode": "ctx.MarketPosition() > 0 && close[0] < open[0] && countif(close[k] > open[k], k in 1..runBars) == runBars",
+      "sides": "mirrored",
+      "parameters": {
+        "runBars": 4
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed-window count of bodies plus the current bar's body sign"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "ConsecutiveCloseExit",
+        "relation": "variant",
+        "note": "ConsecutiveCloseExit fires on N consecutive RISING CLOSES with no opposite-bar trigger; this needs N consecutive bull BODIES and then fires only on the first bear body -- different bars."
+      },
+      "sources": [
+        "T21-76"
+      ],
+      "merge_notes": "Behaviourally close to ConsecutiveUpBars(runBars) evaluated at [1] AND a bear body at [0], but an Entry cannot sit in the exit pane, so it needs to exist as an Exit.",
+      "variants_kept_separate": [
+        "ExitOnOppositeStrongTrendBar",
+        "ExitOnMicroChannelBreakout"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnWeakFollowThrough",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "After a large trend bar in the trade's favour, exit within a bar or two if the follow-through weakens -- the next bar is small relative to its own range, or it closes against the trade.",
+      "pseudocode": "isLargeBull1 = close[1] > open[1] && (close[1] - open[1]) >= largeBodyFraction * average(high - low, rangeLookback)[1]; weak0 = (close[0] - open[0]) < weakBodyFraction * (high[0] - low[0]) || close[0] < close[1]; ctx.MarketPosition() > 0 && isLargeBull1 && weak0 && ctx.BarsSinceEntry() <= maxBarsAfterSpike",
+      "sides": "mirrored",
+      "parameters": {
+        "largeBodyFraction": 1.0,
+        "rangeLookback": 20,
+        "weakBodyFraction": 0.3,
+        "maxBarsAfterSpike": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an average-range baseline for 'large' plus a two-bar follow-through comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "BarsSinceEntry",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R30-04"
+      ],
+      "merge_notes": "Brooks frames it as profit taking, but the same test reads as a breakout-failure entry signal (the candidate says so); recorded in the chapter's Exit framing. Distinct from ExitOnClimaxBarInMatureTrend, which exits ON the large bar rather than on its weak follow-through and additionally gates on trend age.",
+      "variants_kept_separate": [
+        "ExitOnClimaxBarInMatureTrend"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedTargetReversalExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The trade came within a tick or two of its profit target, the limit never filled, and the market then closed beyond the prior bar's extreme: give up on the target and exit on the structure break instead.",
+      "pseudocode": "ctx.MaxPositionProfit() >= (targetDollars - toleranceDollars) && close[0] < low[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "targetDollars": 200,
+        "toleranceDollars": 12.5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "peak open profit (already available) plus a fixed-offset price comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MaxPositionProfit"
+      ],
+      "catalog_match": {
+        "rule": "ProfitProtector",
+        "relation": "variant",
+        "note": "ProfitProtector gives back a FRACTION of peak profit; this triggers on a price-structure break (close beyond the prior bar's extreme) once peak profit came within a tolerance of a fixed target -- different bars."
+      },
+      "sources": [
+        "V09-06",
+        "R26-10"
+      ],
+      "merge_notes": "V09-06 generalizes the chapter's 5-, 9- and 17-tick failed-scalp examples and wins the definition. R26-10 is the same near-miss observation used as an ENTRY reason (a reversal signal for a fresh countertrend trade) and is research-grade there because it never says which target was expected; the Exit framing is mechanizable, so R26-10 is carried as a citation, not authored on the entry side. toleranceDollars defaults to one Emini tick.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnMicroChannelBreakout",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit a with-trend position opened during a micro channel as soon as the channel breaks -- the first bar that violates the run of higher lows ends the tight momentum.",
+      "pseudocode": "ctx.MarketPosition() > 0 && microChannelRunLength[1] >= minBars && low[0] < low[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "minBars": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a persistent run counter (the micro-channel primitive) plus a one-bar violation test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T16-12"
+      ],
+      "merge_notes": "Same shape as ExitOnFirstOppositeBodyAfterRun (a run, then the first bar that breaks it) but the run is counted on higher lows rather than bull bodies, so they fire on different bars; both listed on each other. Depends on whatever micro-channel counter the lines_channels bucket settles on -- a persistent counter, not pivot detection, so B rather than C.",
+      "variants_kept_separate": [
+        "ExitOnFirstOppositeBodyAfterRun"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "MicroChannel"
+      ]
+    },
+    {
+      "key": "ExitOnTrendBarIntoDevelopingRange",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Once a breakout is stalling into a new trading range, exit on the close of the next trend bar in the trade's favour rather than continuing to trail the stop below the pullback low -- take profit near the top of the forming range, not below its bottom.",
+      "pseudocode": "ctx.MarketPosition() > 0 && rangeTransitionContext[0] && close[0] > open[0] && (close[0] - open[0]) >= trendBodyFraction * (high[0] - low[0]) && ctx.BarsSinceEntry() <= maxBarsToExit",
+      "sides": "mirrored",
+      "parameters": {
+        "trendBodyFraction": 0.6,
+        "maxBarsToExit": 5
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the trend-bar test is trivial; recognizing that the breakout has stalled into a second trading range is not defined mechanically anywhere in the chapter"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "BarsSinceEntry",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R29-10"
+      ],
+      "merge_notes": "Blocked solely on the trading-range classification. The same regime decision gates ExitAtDevelopingRangeResistance and T22-06's half of NearMeasuredMoveTargetFilter.",
+      "variants_kept_separate": [
+        "ExitAtDevelopingRangeResistance"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "developing trading-range classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitAtDevelopingRangeResistance",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "In range regime, close the long into strength as it reaches the top of the forming upper range, rather than trailing out on weakness -- buy low, sell high.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= upperRangeResistance[0] - toleranceAtr * WFSafe_AvgTrueRange(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceAtr": 0.1,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a live estimate of the forming range's resistance level, which the chapter does not define"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T22-15",
+        "R29-11"
+      ],
+      "merge_notes": "If the design decision resolves 'forming range resistance' to highest(high, N)[1], this becomes an Exit-role sibling of ExitAtPriorRangeExtreme and should be merged into it at authoring time; recorded separately because Brooks means a judged level, not a fixed window.",
+      "variants_kept_separate": [
+        "ExitAtPriorRangeExtreme",
+        "ExitOnTrendBarIntoDevelopingRange"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "developing trading-range classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendChannelLineTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit at a projected trend-channel line: the parallel of the trend line through the swing lows, anchored at the intervening swing high. widthMultiple 1.0 exits at the channel line itself (with-trend breakouts of a channel usually fail); 2.0 gives the Andrew's-pitchfork target one further channel width beyond the midline.",
+      "pseudocode": "trendLine = line through the last two swing lows; channelLine = parallel anchored at the intervening swing high; level = trendLine.at(0) + widthMultiple * (channelLine.at(0) - trendLine.at(0)); ctx.MarketPosition() > 0 && high[0] >= level",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "widthMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "two swing pivots and a projected line value on every bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "TLValue",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-24",
+        "T26-08"
+      ],
+      "merge_notes": "One rule at two parameter values. T21-24 exits when the high overshoots the channel line (widthMultiple 1.0); T26-08's pitchfork projection is a parallel as far beyond the middle line as the middle line is from the far boundary, i.e. the same construction at widthMultiple 2.0. Merging them by the width parameter is the whole reason they are not two rules. Overlaps the lines_channels bucket's channel-line primitive; kept here because both candidates are exits.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShrinkingSwingIncrementsExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Waning momentum: the gains between successive swing highs are shrinking (the newest increment is less than a fraction of the one before). Take profits on longs.",
+      "pseudocode": "ctx.MarketPosition() > 0 && swingHigh(strength)[1] > swingHigh(strength)[2] && (swingHigh(strength)[1] - swingHigh(strength)[2]) < shrinkFraction * (swingHigh(strength)[2] - swingHigh(strength)[3])",
+      "sides": "mirrored",
+      "parameters": {
+        "shrinkFraction": 0.5,
+        "swingStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "three consecutive swing highs"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-77",
+        "V00-63"
+      ],
+      "merge_notes": "Brooks's worked numbers (second peak eight ticks above the first, third only three above the second) give shrinkFraction well under 0.5; 0.5 kept as the candidate's default. Also usable as a negative entry filter, which is the per-placement negate toggle, not a second rule.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackSizedProfitTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Target the trade's profit at a fraction of the market's own typical recent pullback: if the last pullback ran about fifteen ticks, look to exit ten to fifteen ticks up from the low.",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= entrySwingLow + profitFraction * priorPullbackSize",
+      "sides": "mirrored",
+      "parameters": {
+        "profitFraction": 0.8
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "arithmetic on a remembered pullback measurement captured at entry"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "The same shape with the market's last pullback in place of the ATR as the distance measure."
+      },
+      "sources": [
+        "T26-06"
+      ],
+      "merge_notes": "B because 'the most recent pullback size' needs the prior swing high and low; if that is approximated by highest(high, N) - lowest(low, N) it collapses into PatternHeightMeasuredMoveTarget at a fractional multiple, which is worth checking at authoring time.",
+      "variants_kept_separate": [
+        "PatternHeightMeasuredMoveTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnClimaxBarInMatureTrend",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the long at the close of an exceptionally large bull trend bar once the trend has already run for a long time -- the bulls take profits and the bears initiate shorts into the same bar.",
+      "pseudocode": "ctx.MarketPosition() > 0 && trendAgeBars >= minTrendBars && (high[0] - low[0]) >= rangeMultiple * average(high - low, rangeLookback)[1] && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "minTrendBars": 30,
+        "rangeMultiple": 2.0,
+        "rangeLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the bar test is trivial; the trend-age counter needs a trend/always-in definition first"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "XAverage",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-32"
+      ],
+      "merge_notes": "Only the trend-age gate blocks it. The candidate records two further variants of the same passage -- exit at the close of the NEXT bar if it is weaker (that is ExitOnWeakFollowThrough) and exit below the prior bar's low within N bars -- which are why those are separate rules.",
+      "variants_kept_separate": [
+        "ExitOnWeakFollowThrough"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / trend-age counter"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnSecondResumptionFailure",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit a position held in the old trend direction once the market's second attempt to resume that trend fails -- a cardinal rule about trading reversals.",
+      "pseudocode": "resumptionAttemptCount(oldTrendDirection) >= attemptsBeforeExit && attemptFailed(oldTrendDirection)",
+      "sides": "mirrored",
+      "parameters": {
+        "attemptsBeforeExit": 2
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "counting 'attempts to resume the trend' is the same leg/pullback-counting decision as TwoLeggedPullback"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP3-11"
+      ],
+      "merge_notes": "If the leg-counting decision lands on the Ranges ch17 H1/H2 persistent counter (R17-01), this becomes 'exit when a Low 2 in the old direction fails', which would be authorable; recorded C until that counter exists.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "leg / resumption-attempt counting"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitOnSecondAdverseSignalAfterScaleIn",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Having scaled into a countertrend position, exit the whole thing (and consider reversing) as soon as a second setup forms against it.",
+      "pseudocode": "ctx.MarketPosition() > 0 && wasCountertrendScaledIn && adverseSetupCount >= 2",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "needs both a 'this position was built by scaling in against the trend' flag and a count of adverse setups since"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R31-05"
+      ],
+      "merge_notes": "Two blockers at once: the scale-in state (the partial-position decision) and the adverse-setup count (the leg-counting decision). Without the scale-in gate it is ExitOnOpposingReversalSetup at a count of two.",
+      "variants_kept_separate": [
+        "ExitOnOpposingReversalSetup"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "partial-position exits",
+        "leg / resumption-attempt counting"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RoomToRangeTargetFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Gate: take the signal only if there is enough distance left to the far side of the recent range to make a scalper's profit -- do not buy just under resistance.",
+      "pseudocode": "(highest(high, rangeBars)[1] - close[0]) >= minScalpTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeBars": 20,
+        "minScalpTicks": 10
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one Highest window against the close"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R22-16"
+      ],
+      "merge_notes": "R22-16 as stated is a composite -- reverse in a tight trading range on an opposite High 2 with a bull signal bar AND enough room to the top of the range -- and Brooks himself flags it as rarely a good trade. The room-to-target clause is the only part that belongs to this bucket and is atomic and cheap, so it is carried as a rule; the tight-range, High 2 and signal-bar parts belong to context_regime, leg_counting and bar_anatomy and the pane system AND-s them back together.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutMissesScalpTarget",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Sign of weakness: the breakout above the prior swing high never travelled far enough to give a scalper's profit before the pullback began.",
+      "pseudocode": "(highest(high, pullbackWindow)[0] - highest(high, swingLookback)[pullbackWindow]) < scalpTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "swingLookback": 20,
+        "pullbackWindow": 5,
+        "scalpTicks": 4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two Highest windows offset against each other; the candidate's 'forward-looking' phrasing becomes a backward window once the pullback bar is the evaluation bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-28"
+      ],
+      "merge_notes": "The mirror of R02-06's sign-of-strength test in the breakouts bucket; kept here because the measure is a scalp target. Recast as two backward-looking windows so nothing peeks ahead.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExitAtPriorRangeExtreme",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit when price reaches the far extreme of the recent range -- the bottom of the channel that followed a spike, where a countertrend short is covered and the trend is re-entered.",
+      "pseudocode": "ctx.MarketPosition() < 0 && low[0] <= lowest(low, channelBars)[1] + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "channelBars": 20,
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one Lowest window against the bar's low"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "HighestHighBreakout",
+        "relation": "variant",
+        "note": "Same window comparison as HighestHighBreakout but in Exit role and reaching the OPPOSITE extreme, with a tolerance offset; an Entry cannot sit in the exit pane."
+      },
+      "sources": [
+        "R07-06"
+      ],
+      "merge_notes": "Brooks's sequencing -- this level only matters after the measured move has already been reached and price has turned -- is a composition of PatternHeightMeasuredMoveTarget and this level, and is not encoded; the atomic level test is what is carried. Distinct from PriorSwingExtremeTarget (a pivot, not a fixed window) and from ExitAtDevelopingRangeResistance (a judged level).",
+      "variants_kept_separate": [
+        "PriorSwingExtremeTarget",
+        "ExitAtDevelopingRangeResistance"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MeasuredMoveTargetAdrFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Gate a measured-move target by average daily range: distrust the target (and stay with the trend past it) while the session range so far is only a small fraction of the ADR, and trust it when the leg height into the projection point sits inside a band of the ADR.",
+      "pseudocode": "todaysRange = highest(high, barsToday)[0] - lowest(low, barsToday)[0]; legHeight = targetRef - legStart; todaysRange >= minDayRangeFrac * avgDailyRange(adrLookback) && legHeight >= minLegFrac * avgDailyRange(adrLookback) && legHeight <= maxLegFrac * avgDailyRange(adrLookback)",
+      "sides": "same",
+      "parameters": {
+        "adrLookback": 20,
+        "minDayRangeFrac": 0.5,
+        "minLegFrac": 0.5,
+        "maxLegFrac": 1.0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a session-range accumulator and an average-daily-range series alongside the measured-move reference"
+      },
+      "timeframe": "intraday",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "AvgTrueRange",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R06-06",
+        "R06-07"
+      ],
+      "merge_notes": "Two ADR sanity checks on gap measured-move targets merged into one gate. R06-06 is the negative form (todays range so far << ADR means the trend will run past the target); R06-07 is the positive band (leg height between minFrac and maxFrac of ADR). Both compare a distance to the average daily range, so they are one filter with two references; defaults are the mid-of-book values.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "average daily range definition (session true range vs high-low, and lookback)"
+      ],
+      "depends_on_keys": [
+        "GapMidpointMeasuredMoveTarget"
+      ]
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R03-02",
+      "reason": "not a rule: 'watch several measured-move targets and take the nearest untouched one' is an OR of PatternHeightMeasuredMoveTarget placements (its four candidates are the 2x2 of that rule's startFromOpen/endAtClose toggles). The exit pane ORs, so the nearest target already fires first by construction."
+    },
+    {
+      "id": "R07-10",
+      "reason": "not a rule: 'compute a leg-1=leg-2 target from each plausible leg start and watch them all' is an OR of LegOneEqualsLegTwoTarget placements at different pivots; exits are ORed, so the nearest fires first. Choosing which pivots are 'plausible' is research-grade on top of that."
+    },
+    {
+      "id": "R28-33",
+      "reason": "composition of NearMeasuredMoveTargetFilter + a trending-trading-range-day classification; the remaining content (place the limit one tick short of the target) is order placement, not a condition."
+    },
+    {
+      "id": "R28-35",
+      "reason": "composition of NearMeasuredMoveTargetFilter + a large-trend-bar test (bar_anatomy) + a recent-selling-pressure count (context_regime); an ad hoc composite, not a named Brooks setup."
+    },
+    {
+      "id": "T22-07",
+      "reason": "composition of NearMeasuredMoveTargetFilter + a large-trend-bar test; the same fade R28-35 states in the Ranges volume, restated for trending trading range days."
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R08-23",
+      "belongs_in": "time_session",
+      "note": "the \"too few bars left in the session\" gate is rules/TimeWindow.json at a shifted endTime; folded into time_session TimeWindow in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "partial-position exits",
+      "options": [
+        "model one all-or-nothing unit and author only the first tier (the simplification R30-01 already is of R30-02)",
+        "add a fractional-exit facility to the engine so a placement can close a fraction of the position",
+        "model a scale-out as two independent strategies on the same instrument with different targets"
+      ],
+      "recommended": "author only the first tier as an all-or-nothing exit (ProfitTargetAtInitialRiskMultiple) and leave the tiered forms unauthored; every scale-out candidate in this bucket degenerates to its first tier, so nothing is lost until Brian wants fractional exits for their own sake",
+      "gates": [
+        "TieredRiskMultipleScaleOut",
+        "ScaleInFirstLegProfitTarget",
+        "ScaleInExitAtOriginalEntry",
+        "ExitOnSecondAdverseSignalAfterScaleIn"
+      ]
+    },
+    {
+      "topic": "initial-stop-distance accessor",
+      "options": [
+        "add ctx.InitialStopPrice() / an initial-risk value captured once at entry and never overwritten by later stop-tightening",
+        "restate the placement's stop distance as an input on the exit rule, accepting that the two can drift out of step",
+        "give up on R-multiples and use AtrProfitTarget as the stand-in"
+      ],
+      "recommended": "restate the stop distance as an input for now (it makes ProfitTargetAtInitialRiskMultiple authorable today and the grid can pin it to whatever the stop placement uses), and add the accessor if R-multiple exits earn their place",
+      "gates": [
+        "ProfitTargetAtInitialRiskMultiple",
+        "TieredRiskMultipleScaleOut"
+      ]
+    },
+    {
+      "topic": "always-in / day-trend direction at entry",
+      "options": [
+        "two consecutive strong trend bars flip the direction (V15-01/V15-03, the test Brooks states most often)",
+        "majority of the last N closes against an EMA",
+        "sign of the session's move so far (close vs the session open)"
+      ],
+      "recommended": "two consecutive strong trend bars, matching whatever the context_regime bucket settles on; for the day-trend-at-entry gate specifically, the cheap session-open sign test is worth testing first",
+      "gates": [
+        "CountertrendScalpTarget",
+        "ExitOnClimaxBarInMatureTrend"
+      ]
+    },
+    {
+      "topic": "developing trading-range classification",
+      "options": [
+        "N-bar width below a multiple of ATR",
+        "bar overlap over the last N bars above a fraction",
+        "failure to make a new extreme for N bars after a breakout"
+      ],
+      "recommended": "failure to make a new extreme for N bars after the breakout -- it is the condition the sources actually describe ('the breakout is failing to extend') and needs only a Highest/Lowest window",
+      "gates": [
+        "ExitOnTrendBarIntoDevelopingRange",
+        "ExitAtDevelopingRangeResistance",
+        "RegimePartialAtrTarget",
+        "NearMeasuredMoveTargetFilter"
+      ]
+    },
+    {
+      "topic": "leg / resumption-attempt counting",
+      "options": [
+        "the Ranges ch17 H1/H2 persistent counter (R17-01)",
+        "swing-pivot counting since the last extreme",
+        "count of failed breakouts of a level"
+      ],
+      "recommended": "the H1/H2 persistent counter -- the cheapest mechanization and the one MERGE.md already prefers for leg counting",
+      "gates": [
+        "ExitOnSecondResumptionFailure",
+        "ExitOnSecondAdverseSignalAfterScaleIn"
+      ]
+    },
+    {
+      "topic": "what counts as a 'valid reversal setup'",
+      "options": [
+        "a single canonical detector (strong opposite trend bar) used everywhere",
+        "an OR of the individual reversal rules as separate exit placements",
+        "a two-bar reversal plus a trend-line break"
+      ],
+      "recommended": "an OR of individual exit placements -- the exit pane already ORs, so the generic detector buys nothing over placing ExitOnOppositeStrongTrendBar and its siblings side by side",
+      "gates": [
+        "ExitOnOpposingReversalSetup"
+      ]
+    }
+  ],
+  "bucket_summary": "102 bucket candidates plus three absorbed strays (R08-10, R08-27, R14-06 -- all targets) collapse to 40 rules. The bucket is dominated by one family: 26 restatements of 'project a captured pattern height beyond the breakout extreme' merge into PatternHeightMeasuredMoveTarget, whose winning definition (T15-34) needs only a Highest/Lowest window frozen at entry -- no swing pivots. Merging by anchor pair rather than by chapter leaves five further target rules that genuinely land on different prices: the one-bar projection, the leg-1=leg-2 projection from the pullback extreme, the gap/breakout-bar midpoint projection (2 x mid - legStart, which is also what T21-48's measuring gap resolves to), the session-anchored opening-range and session-open targets, and the tests of a prior extreme. The A-list is PatternHeightMeasuredMoveTarget, GapMidpointMeasuredMoveTarget, BarHeightMeasuredMoveTarget, EntryBarExtremeTarget, ExitAtPriorRangeExtreme, MinRewardToRiskFilter, RewardRiskDeteriorationExit, RoomToRangeTargetFilter, BreakoutMissesScalpTarget, ExitOnOppositeStrongTrendBar, ExitOnFirstOppositeBodyAfterRun, ExitOnWeakFollowThrough and FailedTargetReversalExit. Two candidates are catalog duplicates (TakeProfit, TimeWindow), five 'watch several targets' or ad hoc composites are dropped because the exit pane already ORs, and every R-multiple exit is held at B pending an initial-stop accessor the engine does not have."
+}

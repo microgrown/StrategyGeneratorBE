@@ -1,0 +1,308 @@
+[
+  {
+    "id": "R24-07",
+    "name": "AddOnReentryAfterStopRunContinuation",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      168
+    ],
+    "quote": "if it comes back and runs those stops and then immediately resumes the new trend, reenter or add to your swing position at one tick beyond the prior bar (in a new bull trend, this is one tick above the prior bar's high).",
+    "description": "After price briefly trades beyond a recent breakeven-stop cluster (i.e., beyond a recent swing extreme or entry level) against the trade direction, but then immediately closes back in the trend direction, add to (or re-enter) the position on a stop one tick beyond the prior bar's extreme.",
+    "pseudocode": "// hard: 'runs the stops' means a brief breach of a recent level followed by an immediate close back in the trend direction\nstopRunOccurred = low[1] < recentStopClusterLevel && close[1] > recentStopClusterLevel;\naddOnStopPrice = high[1] + entryTick;\nenterOrAddLongNextOpen = stopRunOccurred && high[0] >= addOnStopPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "entryTick": 1
+    },
+    "book_order_type": "buy stop one tick above the prior bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs to track a recent stop-cluster/swing-extreme level and detect a brief breach-and-reclaim before applying the ordinary breakout-stop mechanization"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Likely overlaps with the failed-breakout/breakout-pullback family already mined in ranges chapter 5."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/24_scalping_swinging_trading_and_investing.json",
+    "chapter_title": "Scalping, Swinging, Trading, and Investing"
+  },
+  {
+    "id": "R24-08",
+    "name": "FilledAtExtremeMoreTrendPressureReentry",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      168
+    ],
+    "quote": "If the market touches the profit target limit order but does not go through it and the order is still filled, that means that there might be more trend pressure than is evident on the chart... Look for opportunities to get long again.",
+    "description": "When a profit-taking limit exit is filled at exactly the extreme tick of a move (the market did not need to trade through the price to fill it), treat this as a sign of unusual trend strength and look to re-enter in the original direction.",
+    "pseudocode": "// research: whether a limit fill 'at the exact extreme without going through' can be distinguished depends on the fill model the engine uses for limit orders\nexitFilledAtExactExtreme[0]; // true if the profit-target limit exit filled without price trading beyond it\nlookForReentrySameDirection = exitFilledAtExactExtreme[0];",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (a fill-quality observation used as a re-entry filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on modeling a subtle broker-fill distinction (touched-and-filled vs. traded-through) that most backtest fill models do not expose the same way real limit orders behave"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/24_scalping_swinging_trading_and_investing.json",
+    "chapter_title": "Scalping, Swinging, Trading, and Investing"
+  },
+  {
+    "id": "R26-01",
+    "name": "TwoReasonsRequiredToEnter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      187
+    ],
+    "quote": "you need two reasons to take a trade, and any two reasons are good enough.",
+    "description": "A meta-gate on every entry: require at least reasonCount (2) independently-true qualifying conditions from an enumerable list of 'reasons' (signal-bar quality, MA pullback, breakout pullback, always-in pullback, support/resistance test, counting setup, weak opposite signal bar, failure-of-something) to be true on the signal bar before allowing the entry, unless one of the single-reason exceptions (R26-04, R26-05, R26-07) applies.",
+    "pseudocode": "// research: which entry-filter primitives count as a 'reason' is a design decision left to the authoring pass\nreasonsTrue = countTrue([reasonA[0], reasonB[0], reasonC[0], /* ... enumerable list of sibling Entry filters */]);\nallowEntry = reasonsTrue >= reasonCount || singleReasonExceptionApplies[0];",
+    "sides": "same",
+    "parameters": {
+      "reasonCount": 2
+    },
+    "book_order_type": "n/a (gates whether any other entry signal may be taken)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the market of 'reasons' Brooks lists mixes filters, patterns, and exits from many other chapters; a design decision is needed to pick and wire the concrete sibling conditions this counts before it can be coded"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is the chapter's central, most distinctive idea.",
+      "Brooks's bulleted list of 'possible reasons' (good signal bar, MA pullback, breakout pullback, always-in pullback, S/R test, dueling lines, high 2/low 2, double top/bottom, final flag reversal, high 3/low 3 wedge flag, high 4/low 4 flag, weak opposite signal bar, failure of anything) is almost entirely references to primitives already mined in the trends and ranges chapters (reversal bar, two-bar reversal, ii, wedge, double top/bottom, breakout pullback, always-in); none of those list items are re-mined here as new candidates."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R26-15",
+    "name": "ScaleInAddOnLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "R26-14"
+    ],
+    "depends_on": [
+      "R26-14"
+    ],
+    "pages": [
+      190
+    ],
+    "quote": "and a second limit order to add on two points lower (you are trying to scale into your long position).",
+    "description": "Second leg of the scale-in: while the first (half-size) entry from R26-14 is open and unfilled on its own target, place a second buy-limit order addOnDistance below the first entry's fill price to complete the full position.",
+    "pseudocode": "firstEntryPrice = ctx.EntryPrice(); // the R26-14 fill\naddOnLimitPrice = firstEntryPrice - addOnDistance;\nisValidAddOnFill = low[1] > addOnLimitPrice && low[0] <= addOnLimitPrice;\nenterSecondHalfLongAtLimit = isValidAddOnFill;",
+    "sides": "mirrored",
+    "parameters": {
+      "addOnDistance": 2
+    },
+    "book_order_type": "buy limit order addOnDistance below the first entry",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the first scaled-in entry's fill price as a reference, on top of R26-14's swing-pivot dependency"
+    },
+    "el_words_needed": [
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R28-29",
+    "name": "ScaleInAtIntervalsBelowRisingMA",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "Buy on a pullback to a steeply rising moving average and scale in at intervals below the moving average.",
+    "description": "During a pullback to a steeply rising moving average, place a series of buy-limit orders at fixed price intervals below the moving average.",
+    "pseudocode": "isSteeplyRisingMA = (movingAverage[0] - movingAverage[maSlopeLookback]) / maSlopeLookback >= minMaSlopePerBar;\nlimitPriceLevel_k = movingAverage[0] - k * intervalDistance; // k = 1..numScaleInLevels\nenterLongOnLimitNextBar_k = isSteeplyRisingMA && low[1] <= limitPriceLevel_k;",
+    "sides": "mirrored",
+    "parameters": {
+      "maSlopeLookback": 10,
+      "minMaSlopePerBar": 0.5,
+      "intervalDistance": 1,
+      "numScaleInLevels": 3
+    },
+    "book_order_type": "a ladder of buy limit orders at fixed intervals below the moving average",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an MA-slope test plus a multi-level limit ladder"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-45",
+    "name": "ScaleInStopAndReverseOnSecondAdverseSignal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      196
+    ],
+    "quote": "There is one important caveat for traders who scale into countertrend trades, and that is that you should exit or reverse to the with-trend direction on the second move against you. This means that if you are scaling into shorts in a bull trend, exit or even reverse to long on a high 2, especially if it is near the moving average.",
+    "description": "When scaling into a countertrend position, if a second with-trend counting setup (e.g. a high2 while short in a bull trend) fires against the position, especially near the moving average, exit the countertrend position or reverse to the with-trend direction, overriding the open countertrend position.",
+    "pseudocode": "isSecondAdverseWithTrendSignal = isHigh2SetupSignalBar[0] && isBullTrend[0]; // while short (countertrend) in a bull trend\nallowExitOrReverseToLong = ctx.MarketPosition() == -1 && isSecondAdverseWithTrendSignal;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (permission to exit/reverse an open countertrend position on the with-trend counting-setup entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the H2/L2 counting-setup primitives and a position-state read; the MA-proximity emphasis is a strengthening condition, not a hard requirement"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Reads position state to permit a reversal, in the style of the catalog's FlatOrOpenLossExceeds rule."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R31-01",
+    "name": "ScaleInWithTrendOnContinuedPullback",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      212,
+      213
+    ],
+    "quote": "Into longs as a pullback falls further (pullbacks are small trends and therefore are in channels)... if there is a steeply rising moving average, bulls will scale into longs on a pullback below the moving average.",
+    "description": "Add a further with-trend unit to an already-open long each time the pullback extends to a new low (a new lower low within the pullback channel) while the larger trend context is still believed valid.",
+    "pseudocode": "// research: adding a second, independently sized/stopped unit to an open position is a multi-unit feature the engine does not model\nisNewPullbackLow = ctx.MarketPosition() > 0 && low[0] < lowest(low, ctx.BarsSinceEntry())[1];\nallowScaleInLong = isNewPullbackLow && withTrendPullbackContext[0];",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "additional buy limit/stop at each new pullback extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the engine models one all-or-nothing position; adding independently-tracked units on continued adverse or favorable movement is not supported"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Recorded per the mining brief's instruction to keep scaling-in candidates even though the engine has no multi-unit position model."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "R31-06",
+    "name": "WidenCombinedStopToTwiceInitialOnScaleIn",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      214
+    ],
+    "quote": "if you were buying a pullback in a bull trend... and were thinking about using a 30 cent stop, you might instead buy more at that price and place a protective stop on your entire position 30 cents lower, or 60 cents below your first entry.",
+    "description": "When adding a second unit at the level where the original stop would have been, widen the protective stop on the entire combined position to roughly twice the original single-unit stop distance, measured from the average entry price.",
+    "pseudocode": "// research: recomputing a stop from an average entry price across multiple units is a multi-unit position feature the engine does not model\naverageEntryPrice = weightedAverage(unitEntryPrices, unitSizes); combinedStopDistance = stopMultiple * originalSingleUnitRiskDollars; exitLongStop = ctx.MarketPosition() > 0 && low[0] <= averageEntryPrice - combinedStopDistance;",
+    "sides": "same",
+    "parameters": {
+      "stopMultiple": 2
+    },
+    "book_order_type": "protective stop on the combined position placed at roughly twice the original single-unit risk below the average entry price",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires an average entry price and a combined stop across multiple units, a multi-unit position feature the engine does not model"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "R31-07",
+    "name": "ScaleInJustBeyondObviousStopRunLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      218
+    ],
+    "quote": "The market often hits obvious protective stops to the tick and then reverses... an astute trader looking to scale in would have placed a limit order to short more at 11 ticks above the first entry, one tick below the three-point stop.",
+    "description": "Place an additional (or reversal) entry one tick beyond the round-number/obvious stop distance from the original signal, on the premise that a cluster of other traders' stops sits exactly there and the market often runs them before reversing.",
+    "pseudocode": "// research: identifying the 'obvious'/round-number stop distance that other traders are using is a discretionary read of typical stop sizing for the current price action, not a stated bar-level test\nobviousStopDistance = typicalStopDistanceForContext(); scaleInPrice = originalSignalPrice - (obviousStopDistance - tick); allowScaleInShort = high[0] >= scaleInPrice;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "limit order to add to the position one tick inside the obvious round-number stop level",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the entry arithmetic (one tick beyond a distance) is trivial, but 'the obvious/appropriate stop size for the recent price action' is a discretionary judgment this chapter does not reduce to a formula, and adding a unit is a multi-unit feature the engine does not model"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  }
+]

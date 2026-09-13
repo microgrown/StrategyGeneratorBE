@@ -1,0 +1,1115 @@
+{
+  "bucket": "three_push_patterns",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "ThreePushPattern",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The market has made N successive swing extremes in one direction, each beyond the last, inside a lookback window: the generic three-push shape. Wedge, triangle, three pushes, micro wedge and head-and-shoulders are all this one detector at different parameters; the convergence/divergence of the connecting lines is a parameter (shapeMode), not a separate pattern.",
+      "pseudocode": "// long-side reading = three pushes DOWN (a bull setup); pivots are confirmed SwingLow(swingStrength)\np1 = swingLow(3, swingStrength); p2 = swingLow(2, swingStrength); p3 = swingLow(1, swingStrength);\nallWithinWindow = barsAgo(p1) <= lookbackBars;\nextendsEnough = (p2 <= p1 - minPushExtensionTicks * tick) && (p3 <= p2 - minPushExtensionTicks * tick);\nnotTooFar = maxPushExtensionTicks == 0 || ((p1 - p2) <= maxPushExtensionTicks * tick && (p2 - p3) <= maxPushExtensionTicks * tick);\n// shapeMode 0 = any shape (Brooks's own position), 1 = converging (wedge), 2 = diverging (expanding)\nlowerLineSlope = slope(p1, p3); upperLineSlope = slope(swingHigh(2, swingStrength), swingHigh(1, swingStrength));\nshapeOk = shapeMode == 0\n  || (shapeMode == 1 && lowerLineSlope > upperLineSlope * convergenceMultiple)\n  || (shapeMode == 2 && lowerLineSlope < upperLineSlope);\nisThreePushPattern = allWithinWindow && extendsEnough && notTooFar && shapeOk",
+      "sides": "mirrored",
+      "parameters": {
+        "pushCount": 3,
+        "swingStrength": 2,
+        "lookbackBars": 40,
+        "minPushExtensionTicks": 0,
+        "maxPushExtensionTicks": 0,
+        "shapeMode": 0,
+        "convergenceMultiple": 1.1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs confirmed swing pivots (SwingHigh/SwingLow at a strength) plus a walk over the last three same-side pivots; the shape test adds two slopes"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-42",
+        "R02-37",
+        "R18-01",
+        "R23-01",
+        "V00-62",
+        "VP1-16",
+        "V01-04",
+        "V05-01",
+        "V05-11",
+        "T14-08",
+        "T18-03"
+      ],
+      "merge_notes": "Eleven restatements of one primitive across all three books. V05-01 wins the definition: Brooks says explicitly that wedge, micro wedge, parabolic wedge, triangle, expanding triangle, triple top/bottom and head and shoulders 'do not matter' — three pushes is the whole setup — so the shape test is a parameter (shapeMode) defaulting to OFF rather than a gate. R23-01's triangle ('three pushes one way, two the other') is the same bars: three same-side pivots imply two intervening opposite pivots. T14-08 supplies the only numeric convergence test in the bucket (trend-line slope > channel-line slope x 1.1) and becomes shapeMode 1's convergenceMultiple. V05-11's micro wedge is this rule at swingStrength 1 with ThreePushDurationWindow(1, 5). pushCount 3 is Brooks's stated minimum everywhere; swingStrength 2 is the mined default (T03-10 used 3). lookbackBars: 40 (R02-37, V24-08) vs 30 (R18-01); 40 kept. Push-count resets (a very large trend bar, an outside bar, an especially strong second push) are NOT in this rule — see PushCountResetOnStrongPush.",
+      "variants_kept_separate": [
+        "ExpandingTrianglePattern",
+        "HeadAndShouldersPattern",
+        "HighThreeEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThreePushDurationWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar count from the three-push pattern's first push to the current bar lies inside [minBars, maxBars] — the book's size test that separates a wedge FLAG (10-20 bars) from a wedge REVERSAL (20+ bars) and from a micro wedge (<= 5).",
+      "pseudocode": "patternBars = currentBarIndex - barIndexOf(swingLow(pushCount, swingStrength));\ninWindow = patternBars >= minBars && (maxBars == 0 || patternBars <= maxBars)",
+      "sides": "same",
+      "parameters": {
+        "minBars": 10,
+        "maxBars": 20,
+        "swingStrength": 2,
+        "pushCount": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the count itself is trivial cross-bar state, but the start bar is the pattern's first pivot, so it inherits ThreePushPattern's pivot detection"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R18-04",
+        "V05-07",
+        "R18-05",
+        "V05-06",
+        "R11-12"
+      ],
+      "merge_notes": "One rule with three book parameterizations, not three rules: wedge flag 10-20 bars (R18-04 = V05-07, the default), reversal-strength 20+ bars (R18-05 = V05-06, maxBars 0 = unbounded), three-legged pullback 5-15 bars (R11-12). R18-05/V05-06 also demand 'a clear trend channel line'; that half has no numeric definition anywhere in the bucket and is left to the trend-channel-line fit rule in lines_channels_channels — recorded here, not encoded.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ExpandingTrianglePattern",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Thin variant of ThreePushPattern: at least minLegs alternating pivots where BOTH sides diverge — each swing high above the swing high two pivots back and each swing low below the swing low two pivots back.",
+      "pseudocode": "// minLegs alternating pivots, both sides pushing further out\nexpandingHighs = swingHigh(1, s) > swingHigh(2, s) && swingHigh(2, s) > swingHigh(3, s);\nexpandingLows  = swingLow(1, s)  < swingLow(2, s)  && swingLow(2, s)  < swingLow(3, s);\nisExpandingTriangle = expandingHighs && expandingLows && pivotCountWithin(lookbackBars) >= minLegs",
+      "sides": "same",
+      "parameters": {
+        "swingStrength": 2,
+        "minLegs": 5,
+        "lookbackBars": 40,
+        "minExpansionTicks": 0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "same pivot machinery as ThreePushPattern, applied to both sides across five or more pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V06-01",
+        "VP1-17",
+        "V06-06",
+        "V24-19"
+      ],
+      "merge_notes": "Kept as a thin variant rather than a parameterization because the two-sided divergence test is not expressible as ThreePushPattern(shapeMode=2), which only looks at one side's pushes. V06-01's five-leg two-sided form is the definition; VP1-17 is the same with three pushes; V24-19's one-sided form (each push exceeds the prior by >= 4 ticks) is ThreePushPattern with minPushExtensionTicks = 4 and is recorded as that parameterization, not a separate detector. V06-06 ('a failed breakout grows it to seven then nine legs') is the same rule with minLegs as a lower bound, exactly as its own note concedes. The reversal entry off the pattern is ThreePushReversalEntry; the target is SwingPivotTarget.",
+      "variants_kept_separate": [
+        "ThreePushPattern"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "OutsideOutsidePattern",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "An outside bar is immediately followed by a larger outside bar that engulfs it — Brooks's 'oo' pattern, a miniature expanding triangle in two bars.",
+      "pseudocode": "high[1] > high[2] && low[1] < low[2] && high[0] > high[1] && low[0] < low[1]",
+      "sides": "same",
+      "parameters": {},
+      "complexity": {
+        "grade": "simple",
+        "reason": "four fixed-offset price comparisons, no pivots, no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "nearest family is the catalog's fixed-offset Harris patterns (HarrisFourBarPattern, InsideBar); no existing rule tests chained outside bars"
+      },
+      "sources": [
+        "R23-02",
+        "R00-11",
+        "V00-08",
+        "T07-28"
+      ],
+      "merge_notes": "The one candidate in the bucket that needs no pivot machinery at all. The source's extra '(high[0]-low[0]) > (high[1]-low[1])' term is implied by the engulfing comparisons and dropped as redundant.",
+      "variants_kept_separate": [
+        "ExpandingTrianglePattern"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThreePushReversalEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The three-push pattern has completed and the current bar reverses out of it: the close is beyond the prior bar's opposite extreme (long: close above high[1] after three pushes down). Signal-bar close then next-bar open, per the standing convention.",
+      "pseudocode": "isThreePushPattern[1] && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the trigger is one comparison; the precondition inherits ThreePushPattern's pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T03-10",
+        "R18-02",
+        "V05-04",
+        "V24-08",
+        "V02-38"
+      ],
+      "merge_notes": "R18-02 and V05-04 (the with-trend 'wedge pullback, first signal' entry) and T03-10/V24-08 (the countertrend 'wedge reversal' entry) fire on the SAME bars — the with-trend/countertrend split is context supplied by other panes, not a different trigger — so they are one rule. V02-38 (stray, absorbed) is the same close > high[1] trigger with Brooks noting the signal bar may even be a bear trend bar, i.e. no signal-bar quality gate: that is what this rule already does, and any body/tail gate belongs to a separate bar_anatomy pane. V24-08's 'marginal new extreme within 6 ticks' maps to ThreePushPattern's maxPushExtensionTicks. T03-10's close>open term is dropped: close > high[1] already implies a strong up bar in the cases Brooks draws, and the body test is its own rule.",
+      "variants_kept_separate": [
+        "ThreePushSwingBreakoutEntry",
+        "MarginalThreePushBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ThreePushSwingBreakoutEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a three-push move, price closes beyond the pattern's most recent OPPOSITE pivot — the break of the wedge's other side (short when three pushes up are followed by a close below the most recent swing low).",
+      "pseudocode": "// long side: three pushes DOWN, then close above the most recent swing high\nisThreePushPattern[0] && close[0] > swingHigh(1, swingStrength)",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection for both the pattern and the level being broken"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T00-18"
+      ],
+      "merge_notes": "Kept apart from ThreePushReversalEntry: a break of a pivot LEVEL and a close beyond the PRIOR BAR's extreme are different bars, often many bars apart. This is the order type V00-62 describes ('one tick beyond the breakout of the third push's opposite trend line'), mechanized as the pivot rather than a projected line.",
+      "variants_kept_separate": [
+        "ThreePushReversalEntry",
+        "MarginalThreePushBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "MarginalThreePushBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Three pushes in which each new extreme beats the prior one by only a tick or two, then price closes beyond the LAST push's extreme — a wedge that fails to reverse and instead breaks out with the pushes.",
+      "pseudocode": "isThreePushPattern[0] with maxPushExtensionTicks = 2 && close[0] > swingHigh(1, swingStrength)",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "maxMinorBreakoutTicks": 2,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection plus a per-push extension cap in ticks"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V05-12"
+      ],
+      "merge_notes": "Stray, absorbed. Behaviourally the opposite trade to ThreePushSwingBreakoutEntry (with the pushes, not against them), so kept separate despite sharing the primitive. The source's 3-to-20-bar pullback between the marginal breakouts is exactly what a confirmed pivot at swingStrength 2 already enforces, so it is not carried as a second parameter.",
+      "variants_kept_separate": [
+        "ThreePushSwingBreakoutEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ThreePushAcceleration",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Compares the second push-to-push increment against the first: the pattern is accelerating (parabolic) when the later increment is the larger, decelerating ('shrinking stairs', waning momentum) when it is the smaller. One rule; the shrinking-stairs form is this one negated.",
+      "pseudocode": "// long-side reading on a wedge TOP being faded short; mirrored on lows\nlate  = swingHigh(1, s) - swingHigh(2, s);\nearly = swingHigh(2, s) - swingHigh(3, s);\nif perBar == 1 { late = late / barsBetween(swingHigh(1,s), swingHigh(2,s)); early = early / barsBetween(swingHigh(2,s), swingHigh(3,s)); }\nisAccelerating = early > 0 && late > early * accelMultiple",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "perBar": 1,
+        "accelMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs three same-side pivots and their bar indices to difference and divide"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V05-08",
+        "V05-09"
+      ],
+      "merge_notes": "V05-08 (parabolic wedge: the later trend-channel-line slope steeper than the earlier one) and V05-09 (shrinking stairs: each breakout increment smaller than the last) are the same measurement with opposite senses, and the pane system's per-placement negate toggle covers the flip — so one rule, not two. They differ only in whether the increment is divided by the bar distance; that is the perBar input (1 = V05-08's slope, 0 = V05-09's raw price increments). V05-08's '2 legs / 10 bars' reversal expectation is guidance, not a condition, and is not encoded.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ThreePushSlopeBias",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The three-push pattern's own slope sets the expected breakout direction independently of the larger trend: a down-sloping wedge/channel is a bull-flag context (favor the upside break), an up-sloping one a bear-flag context.",
+      "pseudocode": "// long side: the line through the pattern's pushes slopes DOWN\nslope(swingLow(3, s), swingLow(1, s)) < 0",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a slope between two pivots, so it inherits pivot detection; the comparison itself is one sign test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R18-09",
+        "R23-08"
+      ],
+      "merge_notes": "R18-09 ('an up-sloping wedge is a bear flag whether it is a pullback in a bear trend or a top in a bull trend') and R23-08 ('every bear channel, converging or not, functions like a bull flag') state the same test with different emphasis; R23-08 was graded research only because it OVERRIDES the engine's trend context, which is not a problem for a pane filter — as a pane it is just the slope sign. Graded B, not C, for that reason.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ThreePushExtremeRetestFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a three-push pattern, price comes back to within a tolerance of the pattern's own extreme without exceeding it, and the bar reverses away — fade the retest (short the test of a wedge high, buy the test of a wedge low).",
+      "pseudocode": "// short side: a test of the wedge high\nisThreePushPattern[k] && high[1] <= wedgeHigh && high[1] >= wedgeHigh - tolAtr * atr(atrLookback) && close[0] < low[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "tolAtr": 0.1,
+        "atrLookback": 14,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection to fix the pattern extreme, plus an ATR-scaled retest band"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R03-05",
+        "T21-78"
+      ],
+      "merge_notes": "T21-78 (stray, absorbed) gives the mechanizable form — a double-top test of the wedge high within tolAtr, then a close beyond the prior bar's extreme — and R03-05 gives the same trade in words ('a buy signal at a third-push wedge high is a short'). R03-05's tolerance was 2 ticks; T21-78's 0.1 ATR is kept as the instrument-independent default. The general double-top/bottom machinery lives in swing_structure; this rule is the version anchored on the three-push extreme.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ThreePushSecondEntryRequired",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block the first signal off a three-push pattern and allow only the second: after the initial reversal signal fails, a higher low (long) / lower high (short) forms within a window and gives the entry.",
+      "pseudocode": "firstSignalBar = bar where ThreePushReversalEntry fired, k bars ago, k <= withinBars;\nfirstSignalFailed = low[0] < low[firstSignalBar];  // long case: the first attempt gave way\nsecondEntry = firstSignalFailed && low[0] > patternExtreme && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "withinBars": 5,
+        "swingStrength": 2
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'unless the pattern is exceptionally strong' has no bar-level definition in any of the four sources, and 'second entry' itself needs a corpus-wide definition"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V05-05",
+        "R18-03",
+        "V04-17",
+        "V05-18",
+        "R18-10"
+      ],
+      "merge_notes": "Four statements of one rule: a wedge REVERSAL is countertrend, so wait for the second entry (a higher low after a wedge bottom, a lower high after a wedge top). R18-03 and V05-05 are verbatim twins across the Ranges and Reversals books; V04-17 (stray) adds 'and only after a strong break of a trend line', which is the trend-line rule sent to lines_channels_trendlines, not part of this one. V05-18 supplies the only mechanizable form in the group — the first attempt fails and price reverses back within a few bars — and its 'the new trend is then usually protracted (10+ bars, 2+ legs)' is an expectation, not a condition. The escape hatch ('exceptionally strong pattern') is left unencoded.",
+      "variants_kept_separate": [
+        "ThreePushReversalEntry"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "second-entry definition"
+      ],
+      "depends_on_keys": [
+        "ThreePushPattern",
+        "ThreePushReversalEntry"
+      ]
+    },
+    {
+      "key": "PushCountResetOnStrongPush",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "An exceptionally strong bar or leg restarts the push count: what would have been push 3 is read as push 1 again, so the reversal signal should not be taken (or a fourth push should be awaited).",
+      "pseudocode": "// R04-02's concrete form, the only bar-level test offered\nisResetBar = close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= resetRangeMultiple * atr(atrLookback);\n// on a reset bar the push counter restarts at 1",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "resetRangeMultiple": 1.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the bar test is trivial, but what resets a push count — and whether the counter is even persistent — is a design decision the corpus has not taken"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V05-15",
+        "R04-02"
+      ],
+      "merge_notes": "V05-15 states the effect ('an especially strong second push makes traders reset the count, so expect a fourth push') with no test; R04-02 (stray, absorbed) states the same reset with a real bar test (body >= 0.6 of range and range >= 1.5 ATR). R04-02's bar test wins as the definition and is the recommended option in the design decision below. R03-15 (OutsideBarResetsLegCounter, bar_anatomy) is the third option and is not in this bucket.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "push-count reset trigger"
+      ],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "FailedThreePushReversalContinuation",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The reversal out of a three-push pattern fails — price closes back beyond the pattern's extreme — so the pattern becomes a continuation: trade with the original channel direction instead.",
+      "pseudocode": "// a wedge BOTTOM whose bull reversal failed: close back below the pattern low\nisThreePushPattern[k] && reversalSignalFired[k] && k <= failureWindowBars && close[0] < patternExtremeLow",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "failureWindowBars": 5,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivots for the pattern plus persistent state for the reversal attempt and its failure level"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V05-17",
+        "T19-18",
+        "V06-04"
+      ],
+      "merge_notes": "V05-17 ('if the breakout is weak, trade with the wedge channel instead — short the low 1 or low 2 the failed breakout creates'), T19-18 ('failed wedges and other failed reversals occur — a sign of trend strength') and V06-04 ('a failed expanding-triangle reversal makes it an expanding-triangle bull flag') are one behaviour on one pattern family. The mechanizable test is price closing back beyond the pattern's extreme within a window; V05-17's undefined 'weak breakout score' is dropped in favour of that. The low1/low2 counting that V05-17 mentions is HighLowBarCount (swing_structure), a separate pane.",
+      "variants_kept_separate": [
+        "FailedFinalFlagTrendResumption"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern",
+        "ThreePushReversalEntry"
+      ]
+    },
+    {
+      "key": "CorrectionBarsFractionOfPattern",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "After a three-push/wedge extreme, the correction is treated as complete only once it has run at least a fraction of the pattern's own bar count.",
+      "pseudocode": "correctionBars = currentBarIndex - barIndexOf(patternExtreme);\npatternBars = barIndexOf(patternExtreme) - barIndexOf(firstPush);\ncorrectionAdequate = correctionBars >= minCorrectionFraction * patternBars",
+      "sides": "same",
+      "parameters": {
+        "minCorrectionFraction": 0.5,
+        "swingStrength": 2,
+        "pushCount": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the pattern's first-push and extreme bar indices, so it inherits pivot detection; the ratio itself is arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R17-15",
+        "T24-09"
+      ],
+      "merge_notes": "One rule, two book fractions: 'at least about half as many bars as the wedge' (R17-15, default) and 'at least a third or so' (T24-09). R17-15 also asks for 'two clear legs' in the correction — that is the HighLowBarCount leg counter (swing_structure), an AND-ed pane, not part of this test. T14-09 states only the two-legs half and was sent to leg_counting.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "HighThreeEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The counter-based three-push entry: buy when the high/low bar counter just advanced to 3 (a High 3 / Low 3), which Brooks says trades identically to a wedge or triangle.",
+      "pseudocode": "highLowBarCount[0] == 3 && highLowBarCount[1] == 2",
+      "sides": "mirrored",
+      "parameters": {
+        "resetLookback": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one comparison on the persistent HighLowBarCount counter; no pivot search"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R17-05",
+        "V00-54"
+      ],
+      "merge_notes": "Kept SEPARATE from ThreePushPattern deliberately, though Brooks calls them functionally the same ('high 3 and low 3 patterns should be traded like wedges'): the counter fires on the bar that advances the count, the pivot detector fires once three confirmed pivots exist, and those are different bars. This is the cheap mechanization (the standing decision fixes the leg definition as R17-01's HighLowBarCount counter), so it should be authored and measured BEFORE the pivot-based pattern. V00-54 extends the same counter to 4 (High 4) — the same rule at count 4, recorded as a parameterization rather than a second rule.",
+      "variants_kept_separate": [
+        "ThreePushPattern",
+        "ThreePushReversalEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "HighLowBarCount"
+      ]
+    },
+    {
+      "key": "HeadAndShouldersPattern",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Named Brooks setup: a three-push pattern whose MIDDLE push is the most extreme and whose two outer pushes are roughly equal — a head-and-shoulders top (mirrored for a bottom).",
+      "pseudocode": "ls = swingHigh(3, s); head = swingHigh(2, s); rs = swingHigh(1, s);\nisHeadAndShouldersTop = head > ls && head > rs && absValue(ls - rs) <= shoulderSymmetryTicks * tick",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "shoulderSymmetryTicks": 3,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "ThreePushPattern's pivots with the ordering test changed from monotone to peaked, plus a symmetry tolerance"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R20-03",
+        "R12-04"
+      ],
+      "merge_notes": "Kept as a named composite (Brooks calls it a wedge whose third push fails to surpass the second) because Brian would want it tested as the book states it. It is NOT ThreePushPattern at a parameter: the monotone 'each push beyond the last' test is replaced by a peaked one, so different bars. R12-04's head-and-shoulders CONTINUATION variant is the same shape plus a double top/bottom around the right shoulder; the double-top half is swing_structure's rule, AND-ed as its own pane. The neckline is not in this rule — see HeadAndShouldersNecklineBreakout.",
+      "variants_kept_separate": [
+        "ThreePushPattern"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "HeadAndShouldersNecklineBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The literal head-and-shoulders entry: price closes beyond the neckline, the line through the two pullback extremes between the shoulders and the head.",
+      "pseudocode": "necklinePrice = lineValue(swingLow(3, s), swingLow(2, s), currentBarIndex);\nisHeadAndShouldersTop[0] && close[0] < necklinePrice - entryTick * tick",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "entryTick": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "inherits the pattern's pivots and adds a two-point line projected to the current bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R20-04"
+      ],
+      "merge_notes": "Kept because it is the textbook entry Brooks is arguing AGAINST ('a breakout below the neckline in a bull market will usually fail'), which makes it worth testing as stated — and testable negated, which is the trade he recommends.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "HeadAndShouldersPattern"
+      ]
+    },
+    {
+      "key": "FinalFlagCandidate",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Named Brooks setup: after a trend has run for many bars, a mostly-horizontal pause showing two-sided trading — a high fraction of bars overlapping the prior bar by at least half — is a final-flag candidate.",
+      "pseudocode": "overlapFrac = countIf(i in 0..flagBars-1, overlap(i) >= overlapThreshold) / flagBars;\nisFinalFlagCandidate = trendDurationBars >= minTrendBars && overlapFrac >= minOverlapFraction",
+      "sides": "same",
+      "parameters": {
+        "flagBars": 8,
+        "overlapThreshold": 0.5,
+        "minOverlapFraction": 0.5,
+        "minTrendBars": 30
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a window loop over bar overlaps (easy) gated on a trend-duration counter built on AlwaysInDirection (persistent state)"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V07-01",
+        "VP1-32",
+        "T03-11",
+        "V07-06"
+      ],
+      "merge_notes": "V07-01 wins the definition: it is the only source that reduces 'final flag' to something prospective (bar overlap fraction after an extended trend) instead of the retrospective label VP1-32 correctly calls circular. Its research grade came from the trend-duration term, which the standing always-in decision (AlwaysInDirection, two consecutive strong trend bars) now settles, so B not C. T03-11 contributes the flag's own minimum length (6 bars) and V07-06 the opposite extreme (a one- or two-bar pause after a StrongTrendBarRun spike still counts); flagBars 8 sits inside the book's usual 5-10. V07-06's 10-20 bar retest expectation is guidance, not a condition. The overlap test is deliberately NOT merged with HorizontalFlagWidthTest's range/ATR test — see that rule.",
+      "variants_kept_separate": [
+        "HorizontalFlagWidthTest"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TrendDurationBars"
+      ]
+    },
+    {
+      "key": "FinalFlagReversalBreakoutEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price closes through the COUNTERTREND side of a final-flag range — the last flag of the trend gives way the wrong way — optionally only after a with-trend breakout out of that flag has already been made and failed.",
+      "pseudocode": "flagHigh = highest(high, flagBars)[1]; flagLow = lowest(low, flagBars)[1];\nbrokeOut = requirePriorBreakout == 0 || (highest(high, priorBreakoutWindow)[1] > flagHigh);\nisFinalFlagCandidate[1] && brokeOut && close[0] < flagLow",
+      "sides": "mirrored",
+      "parameters": {
+        "flagBars": 8,
+        "requirePriorBreakout": 0,
+        "priorBreakoutWindow": 5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "Highest/Lowest windows are cheap; the precondition carries FinalFlagCandidate's trend-duration state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V24-09",
+        "R03-10",
+        "R10-11"
+      ],
+      "merge_notes": "All three are 'the flag's far side gives way'. V24-09 takes the break directly; R03-10 and R10-11 insist the market first breaks out WITH the trend, fails, comes back through the flag and out the other side — the same trigger with a precondition, carried as the requirePriorBreakout input rather than as a second rule. R03-10's barbwire framing is just a short flagBars.",
+      "variants_kept_separate": [
+        "FailedFinalFlagTrendResumption"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "FinalFlagCandidate"
+      ]
+    },
+    {
+      "key": "FailedFinalFlagTrendResumption",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A final-flag reversal triggered and then failed within a couple of bars — price closes back through the reversal signal bar's own extreme — so the original trend resumes: a breakout-pullback entry with the trend.",
+      "pseudocode": "reversalFired[k] && k <= failureWindowBars && close[0] > high[k]",
+      "sides": "mirrored",
+      "parameters": {
+        "failureWindowBars": 2,
+        "flagBars": 8
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "carries FinalFlagCandidate's state plus persistent state for the failed reversal signal bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V07-03"
+      ],
+      "merge_notes": "The final-flag twin of FailedThreePushReversalContinuation; kept separate because the precondition is a different pattern, so different bars. Both are listed on each other as near-misses for the authoring pass.",
+      "variants_kept_separate": [
+        "FailedThreePushReversalContinuation"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "FinalFlagCandidate",
+        "FinalFlagReversalBreakoutEntry"
+      ]
+    },
+    {
+      "key": "HorizontalFlagWidthTest",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last N bars span less than K times the ATR — a flat, horizontal flag or triangle. Negated, it is the 'tall enough to fade the extremes' test.",
+      "pseudocode": "(highest(high, flagBars) - lowest(low, flagBars)) <= flatAtr * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "flagBars": 10,
+        "flatAtr": 1.0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Highest, Lowest and an ATR over one fixed window; no pivots, no persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "nothing in the catalog measures an N-bar range against ATR; AtrDollarsBelow measures ATR itself, BarRangeAboveStd a single bar"
+      },
+      "sources": [
+        "R08-28"
+      ],
+      "merge_notes": "R08-28 is 'three pushes AND the flag is flat'; only the flatness half is carried here (the three-push half is its own pane), and that half needs no pivots at all — the cheapest real rule in the bucket. R23-05's 'tall enough to fade' is this test negated at flatAtr 3.0, recorded there. DELIBERATELY not merged with FinalFlagCandidate's overlap test: per MERGE.md a tight range by bar overlap and one by N-bar width over ATR stay two rules until someone measures that they coincide. Likely near-duplicate of R22-01 (TightTradingRangeWidthTest) in context_regime_trading_range — the roll-up should check that pair before authoring both.",
+      "variants_kept_separate": [
+        "FinalFlagCandidate",
+        "ShrinkingConsecutiveRanges"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShrinkingConsecutiveRanges",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last N bars span less than a fraction of the span of the N bars before them — two consecutive flags with the second one smaller, which Brooks says sets up a wedge reversal on the next breakout.",
+      "pseudocode": "recent = highest(high, flagBars) - lowest(low, flagBars);\nprior  = highest(high, flagBars)[flagBars] - lowest(low, flagBars)[flagBars];\nrecent < shrinkFraction * prior",
+      "sides": "same",
+      "parameters": {
+        "flagBars": 8,
+        "shrinkFraction": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two Highest/Lowest windows and one comparison; no pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V07-05"
+      ],
+      "merge_notes": "The source left 'smaller' undefined; shrinkFraction 1.0 reproduces Brooks's literal words ('the second one being smaller') and is the natural thing to optimize downward. Graded A rather than research because the mined 'horizontal flag' term reduces to the same fixed-window range measure as HorizontalFlagWidthTest, which is a separate AND-ed pane.",
+      "variants_kept_separate": [
+        "HorizontalFlagWidthTest"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendDurationBars",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current always-in direction has held for at least N bars — the 'late in the trend' / 'the trend has gone on for dozens of bars' gate.",
+      "pseudocode": "barsSinceAlwaysInFlip >= minTrendBars",
+      "sides": "same",
+      "parameters": {
+        "minTrendBars": 30
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a persistent counter reset by AlwaysInDirection flips"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R23-10",
+        "V07-09"
+      ],
+      "merge_notes": "R23-10 ('a triangle late in a trend tends to be the final flag', 30 bars) and V07-09 ('if the trend ran 50 to 100 bars the reversal becomes a large flag, not an opposite trend', 50 bars — a stray, absorbed) are one counter at two thresholds; 30 is the default, 50 recorded. Both sources spend their remaining content on what to EXPECT after the pattern, which is not a condition. Now B rather than C because the standing decision fixes always-in as AlwaysInDirection (two consecutive strong trend bars).",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "SwingPivotTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit at a prior swing pivot: the Nth most recent pivot on the chosen side becomes the target for the open position.",
+      "pseudocode": "// long: target the pivotIndex-th most recent swing high\ntarget = swingHigh(pivotIndex, swingStrength);\nctx.MarketPosition() > 0 && high[0] >= target",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "pivotIndex": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the target level is a confirmed pivot, so the exit carries pivot detection"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the catalog's targets are all dollar- or ATR-based (TakeProfit, AtrProfitTarget); none uses a structural level"
+      },
+      "sources": [
+        "R05-21",
+        "V06-02"
+      ],
+      "merge_notes": "R05-21 targets the top of the wedge's SECOND push (pivotIndex 2) and V06-02 the expanding triangle's most recent opposing pivot (pivotIndex 1) — the same exit at different pivot indices, so one rule with an index input. R05-21's further 'and then the bottom of the wedge' is the same rule at a deeper index. Measured-move (pattern-height) targets are a different mechanism and went to exits_targets with TP2-06 and R23-04.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThreePushCompletionExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Close the with-trend position once the third push has completed and the current bar turns against it — a channel usually pulls back after a third push.",
+      "pseudocode": "ctx.MarketPosition() > 0 && isThreePushPattern(UP)[0] && close[0] < low[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection for the push count; the turn-down test is one comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-26"
+      ],
+      "merge_notes": "Stray, absorbed: the exit side of R02-37's observation that channels correct after a third push. Same pattern as ThreePushReversalEntry's precondition but in the exit pane, where an Entry rule cannot sit.",
+      "variants_kept_separate": [
+        "ThreePushReversalEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R05-23",
+      "reason": "no bar-level condition: projects the final flag's channel forward as an approximate hold zone; Brooks hedges it as 'sometimes ... approximately'"
+    },
+    {
+      "id": "R19-02",
+      "reason": "composition of ThreePushPattern + DuelingLines/major-trend-line poke-through (R19-01, lines_channels_trendlines) + a reversal bar"
+    },
+    {
+      "id": "R21-05",
+      "reason": "composition of ThreePushPattern + near-the-range-bottom location (R11-26, context_regime_trading_range)"
+    },
+    {
+      "id": "R23-05",
+      "reason": "composition of HorizontalFlagWidthTest negated (height >= 3 ATR) + near-the-extreme location (R11-26, context_regime_trading_range)"
+    },
+    {
+      "id": "R23-06",
+      "reason": "composition of ThreePushPattern + AlwaysInDirection; Brooks himself says the bias is 'not enough to place a trade on that basis alone'"
+    },
+    {
+      "id": "R23-07",
+      "reason": "composition of ThreePushPattern + breakout-strength classification (breakouts_signal_strength) + BreakoutPullback entry"
+    },
+    {
+      "id": "R23-09",
+      "reason": "no bar-level condition (a nested growing expanding-triangle narrative); the leg growth it describes is already ExpandingTrianglePattern's minLegs lower bound via V06-06"
+    },
+    {
+      "id": "V05-10",
+      "reason": "composition of ThreePushPattern + tight channel (T15-10, lines_channels_channels, the standing tight-channel decision); adds no test of its own"
+    },
+    {
+      "id": "V05-14",
+      "reason": "composition of ThreePushPattern + trading-range classification (context_regime_trading_range); its instruction ('take the first signal') is ThreePushSecondEntryRequired negated"
+    },
+    {
+      "id": "V05-16",
+      "reason": "composition of ThreePushPattern + tight channel (T15-10) + TimeWindow (catalog rule) for the opening two hours"
+    },
+    {
+      "id": "V06-08",
+      "reason": "position management (scalp each leg, swing a runner after leg five), not a bar-level condition"
+    },
+    {
+      "id": "V09-10",
+      "reason": "no bar-level condition: 'you always want to see some earlier countertrend strength' is left undefined; the trend-line-break form of the same requirement went to lines_channels_trendlines with V07-08 and V06-07"
+    },
+    {
+      "id": "T14-11",
+      "reason": "no bar-level condition: estimates the new trend's slope from the final flag's slope; Brooks calls it 'of limited value'"
+    },
+    {
+      "id": "T21-27",
+      "reason": "composition of ThreePushPattern + trend-channel-line overshoot (T21-25, lines_channels_channels) + a reversal bar (bar_anatomy_reversal_signal)"
+    },
+    {
+      "id": "T25-05",
+      "reason": "composition of TimeWindow (midday, catalog rule) + ThreePushPattern, used only as a directional bias"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R12-07",
+      "belongs_in": "swing_structure",
+      "note": "a failed double-bottom breakdown re-entry (R12-05's family); Brooks relabels it 'three pushes' after the fact but the test is the double bottom's"
+    },
+    {
+      "id": "R23-04",
+      "belongs_in": "exits_targets",
+      "note": "price beyond the triangle's measured-move target (R23-03); the measured move is that bucket's rule"
+    },
+    {
+      "id": "R28-39",
+      "belongs_in": "lines_channels_channels",
+      "note": "a buy limit at the wedge's projected trend-channel line — the line projection and the limit order type are that bucket's machinery"
+    },
+    {
+      "id": "V06-07",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "'the reversal needs a prior trend-line break' — the same requirement as V01-01/VP1-01, which are primary there"
+    },
+    {
+      "id": "V07-08",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "same prior-trend-line-break requirement, stated for the final-flag reversal, with a break-margin in ticks"
+    },
+    {
+      "id": "TP2-06",
+      "belongs_in": "exits_targets",
+      "note": "measured-move target equal to the pattern's height; duplicates R23-03/V05-02 there"
+    },
+    {
+      "id": "T14-09",
+      "belongs_in": "leg_counting",
+      "note": "'wait for at least two legs down after a wedge top' is purely a leg count on the decided HighLowBarCount counter"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "second-entry definition",
+      "options": [
+        "the first signal off the pattern fails (price trades back through the signal bar's entry side) and a new signal bar forms within N bars",
+        "a higher low after a wedge bottom / lower high after a wedge top, i.e. V05-18's re-cross of the pattern extreme",
+        "the HighLowBarCount counter reaching 2 in the reversal direction after the pattern completes"
+      ],
+      "recommended": "the higher low / lower high form (V05-18), implemented as the HighLowBarCount counter reaching 2 in the reversal direction — it reuses the counter the standing leg decision already fixes (R17-01) and needs no new state",
+      "gates": [
+        "ThreePushSecondEntryRequired"
+      ]
+    },
+    {
+      "topic": "push-count reset trigger",
+      "options": [
+        "an exceptionally large trend bar: body >= 0.6 of range AND range >= 1.5 x ATR (R04-02)",
+        "an outside bar (R03-15, bar_anatomy)",
+        "'especially strong momentum' on the second push, undefined (V05-15)",
+        "no reset at all — let the pattern lookback window handle it"
+      ],
+      "recommended": "R04-02's large-trend-bar test — it is the only bar-level test offered, and it can be authored and measured on its own before any counter depends on it",
+      "gates": [
+        "PushCountResetOnStrongPush",
+        "ThreePushPattern"
+      ]
+    }
+  ],
+  "bucket_summary": "78 candidates (plus 10 strays sent in) collapsed to 25 rules. Eleven restatements of the same three-push primitive across all three books became one ThreePushPattern with swingStrength, extension and shapeMode inputs, so wedge, triangle, micro wedge and the parabolic/shrinking shape tests are parameterizations of it rather than five detectors; expanding triangle and head and shoulders are kept as thin variants because their tests are two-sided and peaked respectively, and Brooks's named setups (FinalFlagCandidate, HeadAndShouldersNecklineBreakout, HighThreeEntry) are kept whole with depends_on_keys. Almost everything lands at B on swing pivots (SwingHigh/SwingLow have no register row yet), with two C rules blocked on the second-entry and push-count-reset decisions. The A-list is the three pivot-free rules: OutsideOutsidePattern, HorizontalFlagWidthTest and ShrinkingConsecutiveRanges. Fifteen candidates were dropped (mostly ad hoc compositions with tight-channel, trading-range and breakout-strength primitives owned elsewhere) and eight sent to other buckets. No catalog duplicates: nothing in rules/ tests swing structure at all."
+}

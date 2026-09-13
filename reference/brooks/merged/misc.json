@@ -1,0 +1,558 @@
+{
+  "bucket": "misc",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "TrendingCloseRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars closed above (long) / below (short) the prior bar's close -- a run of trending closes.",
+      "pseudocode": "for i in 0..trendBars-2: close[i] > close[i+1]",
+      "sides": "mirrored",
+      "parameters": {
+        "trendBars": 3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed-length loop over closes"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "MomentumConsecutiveBars",
+        "relation": "duplicate",
+        "note": "MomentumConsecutiveBars(lookback=1, consecutiveBars=trendBars-1) is exactly 'each close above the prior close, held for N consecutive bars' -- catalog's own ConsecutiveCloseExit doc confirms MomentumConsecutiveBars(lookback=1) means this. Same bars, no new rule needed."
+      },
+      "sources": [
+        "R00-33",
+        "V02-24"
+      ],
+      "merge_notes": "R00-33 (Ranges front matter, 'trending closes') and V02-24 (Reversals ch02, 'trending anything') are the same test from two chapters. On re-read this is a fixed-parameter instance of the existing catalog rule MomentumConsecutiveBars, not a new rule.",
+      "variants_kept_separate": [
+        "TrendingBarBodies"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendingBarBodies",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars has a body top and body bottom above (long) / below (short) those of the bar before it -- trending bodies, not just trending closes.",
+      "pseudocode": "forall i in 0..trendBars-1: max(open[i],close[i]) > max(open[i+1],close[i+1]) && min(open[i],close[i]) > min(open[i+1],close[i+1])",
+      "sides": "mirrored",
+      "parameters": {
+        "trendBars": 3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed loop over N bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MaxList",
+        "MinList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V02-26"
+      ],
+      "merge_notes": "Same book quote as TrendingCloseRun ('trending anything: closes, highs, lows, or bodies') but measures body top/bottom instead of close-to-close -- a bar can have a trending close without a trending body, so kept as its own rule per the two-behaviorally-distinct-rules test.",
+      "variants_kept_separate": [
+        "TrendingCloseRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DeepPullbackRetracementFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Once the current pullback has retraced at least R percent of the leg's range (measured over a fixed lookback window, not a swing-pivot search), stop treating it as a with-trend pullback -- treat it as the start of a new trend in the opposite direction instead.",
+      "pseudocode": "legLow = lowest(low, legLookback)[1]; legHigh = highest(high, legLookback)[1]; retracement = (close[0] - legLow) / (legHigh - legLow); retracement >= retracementThreshold  // long side: reclassify a bear leg's pullback as a new bull trend; short side mirrors with legHigh/legLow swapped",
+      "sides": "mirrored",
+      "parameters": {
+        "legLookback": 30,
+        "retracementThreshold": 0.75
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a fixed-window Highest/Lowest plus a ratio -- no swing-pivot search needed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP3-04",
+        "T00-22",
+        "V00-57"
+      ],
+      "merge_notes": "Three restatements of Brooks' '75% retracement flips trend bias' rule (Ranges Pt.III, Trends front matter, Reversals front matter). T00-22 and V00-57 define the leg's start/extreme via SwingHigh/SwingLow pivot detection; RP3-04 uses a fixed N-bar Highest/Lowest window instead, which needs no pivot machinery -- picked as the mechanizable definition per the fixed-offset-over-swing-pivot preference. Default retracementThreshold=0.75 (all three sources agree) and legLookback=30 (from RP3-04; the others leave it unstated).",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseAboveHighestClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Close is at or above the highest close (long) / at or below the lowest close (short) of the N bars ending one bar ago.",
+      "pseudocode": "close[0] >= highest(close, N)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "N": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "highest over a small window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "Breakout",
+        "relation": "variant",
+        "note": "Breakout is close >= highest close of the last N bars INCLUDING the current bar (a fresh window); this excludes the current bar via the [1] offset, the same exclusion convention CloseAbovePriorHighestHigh uses on highs."
+      },
+      "sources": [
+        "T02-14"
+      ],
+      "merge_notes": "T02-14's original test ANDs this close-vs-highest-close condition with close[0] >= highest(high,N)[1], which is exactly the catalog's CloseAbovePriorHighestHigh -- dropped that AND-term as a composition of an already-catalogued rule (Atomic beats composite); this atomic close-vs-recent-closes half is what's new.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThreeBarReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A named Brooks setup: bars 2 and 0 form a two-bar reversal (skipping bar 1), and the skipped middle bar is small relative to recent bars. Enter beyond the combined extreme of the three bars.",
+      "pseudocode": "TwoBarReversal(bar2, bar0) && (high[1] - low[1]) <= middleBarMaxFraction * avgRange(rangeLookback); entry: buy stop one tick above the highest high of bars {2,1,0}",
+      "sides": "mirrored",
+      "parameters": {
+        "overlapFraction": 0.5,
+        "bodySizeRatioMin": 0.5,
+        "bodySizeRatioMax": 2.0,
+        "middleBarMaxFraction": 0.6,
+        "rangeLookback": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reuses TwoBarReversal's ratios plus a small-middle-bar test; depends on TwoBarReversal (T06-05) being authored first"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T06-08",
+        "T06-09"
+      ],
+      "merge_notes": "T06-08 defines the three-bar shape (bars 2 and 0 form T06-05's two-bar reversal, skipping a small bar 1); T06-09 is its Entry order-type wrapper (stop above the three-bar combined extreme). T06-09 also describes an earlier-entry alternative when the last two bars alone already qualify as a two-bar reversal -- not mechanized here, just the standard stop-beyond-extreme entry (standing convention). Kept whole as a named Brooks setup, not split, per the composite-carrying rule for named setups (Harris-pattern precedent in the catalog).",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TwoBarReversal"
+      ]
+    },
+    {
+      "key": "OppositeCloseCountBelowThreshold",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Over the last N bars, fewer than K closed against the intended direction -- the pullback/rally is still mostly one-sided.",
+      "pseudocode": "countIf(close[i] < open[i], i in 0..windowBars-1) < maxOppositeBodies",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 10,
+        "maxOppositeBodies": 3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "counting loop over a window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "TailBarCountDominance compares bull-tail vs bear-tail wick/close counts against each other; this is a single count of opposite-close bars against a fixed threshold, no wick/tail shape requirement."
+      },
+      "sources": [
+        "T07-39",
+        "TP3-25"
+      ],
+      "merge_notes": "T07-39 ('block a long when >=5 of the last 6 bars closed down') and TP3-25 ('as a long filter, require the down-close count in the last 10 bars to be below 3') are the same test stated as a block-condition and an allow-condition -- allow when count < threshold is exactly not-block when count >= threshold. Defaults taken from TP3-25 (windowBars=10, maxOppositeBodies=3); T07-39's stricter (6, 5) pair recorded as an alternate parameterization.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AverageRangeBelowDollarThreshold",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The instrument's recent average bar range is below a small dollar threshold -- avoid scalp-sized targets; price-action entries can still be taken but should be managed for a swing.",
+      "pseudocode": "average(high[i] - low[i], i in 0..rangeLookback-1) < minRangeDollars",
+      "sides": "same",
+      "parameters": {
+        "minRangeDollars": 1.0,
+        "rangeLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a rolling average-range comparison against a fixed dollar threshold"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "AtrDollarsBelow",
+        "relation": "variant",
+        "note": "AtrDollarsBelow uses the WFSafe_AvgTrueRange rolling ATR times BigPointValue against a dollar threshold; this uses a plain Average of bar range (not true range, no BigPointValue conversion) -- close in spirit but a different average and no point-value scaling, so kept as its own rule."
+      },
+      "sources": [
+        "VP3-14"
+      ],
+      "merge_notes": "Book text is stock-specific ('under a dollar'); recorded generically as minRangeDollars so it can be optimized per instrument.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AdverseBodyCountExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the position if N consecutive bars close against it -- a tighter tolerance than a full stop, meant for positions taken on a weak original signal.",
+      "pseudocode": "countif(i in 0..adverseBars-1, close[i] < open[i]) == adverseBars // exit long; mirrored for shorts",
+      "sides": "mirrored",
+      "parameters": {
+        "adverseBars": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed window CountIF over bar closes"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "Same condition as ConsecutiveUpBars (each of the last N bars closed against its own open, mirrored) but placed in the EXIT pane -- exactly the ConsecutiveCloseExit precedent: an Entry-shaped condition needs its own Exit-role rule since an Entry cannot sit in the exit pane. Reads no position state: an exit by placement, the streak may pre-date the entry."
+      },
+      "sources": [
+        "VP1-25"
+      ],
+      "merge_notes": "",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarsReversedByClose",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close is above the highs of at least N consecutive prior bars.",
+      "pseudocode": "close[0] > highest(high, barsReversed, 1)",
+      "sides": "mirrored",
+      "parameters": {
+        "barsReversed": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "highest over an N-bar window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "duplicate",
+        "note": "Same test: close above the highest high of the N bars ending one bar ago, EL's Highest(High,N)[1]. Already in the catalog."
+      },
+      "sources": [
+        "V02-33"
+      ],
+      "merge_notes": "",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MiddayReversalTimeWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "There is an elevated chance of a partial reversal or re-assessment of the day's direction around a specific clock time; use as a time gate on reversal-pattern entries.",
+      "pseudocode": "ctx.Time() >= reversalWindowStart && ctx.Time() <= reversalWindowEnd",
+      "sides": "same",
+      "parameters": {
+        "reversalWindowStart": 830,
+        "reversalWindowEnd": 930
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed clock-time window test"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "parameterization",
+        "note": "TimeWindow(830, 930) reproduces this exactly; nothing new to author."
+      },
+      "sources": [
+        "V11-04"
+      ],
+      "merge_notes": "",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "WaitAfterReportTimeFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block new entries within a short window around a known scheduled-report time, when algorithmic activity dominates price action.",
+      "pseudocode": "abs(ctx.Time(0) - reportTime) <= reportDelayMinutes",
+      "sides": "same",
+      "parameters": {
+        "reportTime": 700,
+        "reportDelayMinutes": 10
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a bar-close-time comparison against a fixed scheduled time"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "parameterization",
+        "note": "TimeWindow(reportTime - reportDelayMinutes, reportTime + reportDelayMinutes), negated per placement for the block sense, reproduces this exactly."
+      },
+      "sources": [
+        "VP3-08"
+      ],
+      "merge_notes": "",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RangeContractionExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The recent average bar range has contracted to a small fraction of its long-term average -- an extreme low-volatility state.",
+      "pseudocode": "avgRange(shortLookback) <= contractionFraction * avgRange(longLookback)",
+      "sides": "same",
+      "parameters": {
+        "shortLookback": 5,
+        "longLookback": 100,
+        "contractionFraction": 0.33
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two rolling averages compared by ratio"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "TrueRangeAvgRatio",
+        "relation": "parameterization",
+        "note": "TrueRangeAvgRatio(lookback=shortLookback, slowFactor=longLookback/shortLookback, multiple=contractionFraction), NEGATED, reproduces this contraction test -- the catalog rule's own doc names this exact negated use as its 'volatility contraction' form."
+      },
+      "sources": [
+        "TP1-12"
+      ],
+      "merge_notes": "",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "V02-34",
+      "reason": "composition of catalog's HighestHighBreakout + a trivial bull-close test (close[0] > open[0]); not independently meaningful"
+    },
+    {
+      "id": "T00-19",
+      "reason": "superseded by the decided leg definition (R17-01's persistent H1/H2 counter, key HighLowBarCount); this was an earlier research-grade alternate leg-counter definition for the same concept T10-23 (High2Setup) consumes"
+    },
+    {
+      "id": "T24-12",
+      "reason": "requires multi-timeframe/multi-series bar access (running entry logic on a second, faster bar series), which the engine does not support; no single-series mechanization exists"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "RP1-15",
+      "belongs_in": "leg_counting",
+      "note": "an entry-timing filter gated on leg count and bars since a correction began (depends on RP1-14); belongs with the leg-counting primitives, not misc"
+    },
+    {
+      "id": "R11-20",
+      "belongs_in": "lines_channels_channels",
+      "note": "counting opposite-body bars in the late leg; merged in lines_channels_channels as OppositeBodyCountInWindow"
+    },
+    {
+      "id": "V00-63",
+      "belongs_in": "exits_targets",
+      "note": "shrinking swing increments; the merged rule lives in exits_targets as ShrinkingSwingIncrementsExit"
+    },
+    {
+      "id": "VP1-04",
+      "belongs_in": "support_resistance_levels",
+      "note": "tracks failed attempts against a remembered price level, then fades or follows the move away from it"
+    },
+    {
+      "id": "V02-06",
+      "belongs_in": "bar_anatomy_reversal_signal",
+      "note": "a spike-bar quality test from 'Signs of Strength in a Reversal'"
+    },
+    {
+      "id": "V02-08",
+      "belongs_in": "bar_anatomy_reversal_signal",
+      "note": "a spike-bar quality test (close near the high), same chapter as V02-06; catalog variant of CloseRangePosition (absolute ticks vs fraction)"
+    },
+    {
+      "id": "V02-14",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a short-pullback resumption entry (buy stop above the pullback high)"
+    },
+    {
+      "id": "V02-27",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "pullback-depth-vs-advance quality assessment; near T00-31 (also cross-bucketed here) -- flag as a possible variant pair for that bucket agent"
+    },
+    {
+      "id": "V02-29",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "adjacent-bar overlap during a pullback, a low-momentum-pullback quality test; near V02-27/T00-31, flag as a possible variant family"
+    },
+    {
+      "id": "T00-28",
+      "belongs_in": "bar_anatomy_trend_doji",
+      "note": "little body overlap between consecutive bars, a bar-quality strength filter"
+    },
+    {
+      "id": "T00-31",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "every pullback in the window stays below a fraction of average range; composes T00-15 (PullbackBarPrimitive), which likely also lives in that bucket"
+    },
+    {
+      "id": "T12-02",
+      "belongs_in": "bar_anatomy_reversal_signal",
+      "note": "caps T12-01 (a failed-signal primitive whose primary bucket is bar_anatomy_reversal_signal); keep with its dependency"
+    },
+    {
+      "id": "TP2-03",
+      "belongs_in": "support_resistance_levels",
+      "note": "horizontal support/resistance via a fixed-window highest high / lowest low -- the zero-slope special case of TP2-01/02's trendline construction"
+    },
+    {
+      "id": "T18-17",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a limit entry at a fixed distance below the recent swing high, a pullback-entry rule"
+    },
+    {
+      "id": "T18-25",
+      "belongs_in": "time_session",
+      "note": "stop sized as a fraction of the average daily range; merged in time_session as AvgDailyRangeFractionStop"
+    },
+    {
+      "id": "T18-28",
+      "belongs_in": "context_regime_always_in",
+      "note": "now mechanizable per the decided always-in test (two consecutive strong trend bars flip): 'enter at market once always-in' overlaps with that bucket's AlwaysInFlipEntry gate"
+    },
+    {
+      "id": "T21-68",
+      "belongs_in": "bar_anatomy_inside_outside",
+      "note": "defines an outside-up bar (low breaks the prior low, close breaks above the prior high) -- belongs with the inside/outside bar-anatomy primitives, not misc; catalog variant/composite of CloseAbovePriorHigh"
+    },
+    {
+      "id": "T25-08",
+      "belongs_in": "support_resistance_levels",
+      "note": "a remembered support/resistance level plus a windowed touch-count test"
+    },
+    {
+      "id": "V07-09",
+      "belongs_in": "three_push_patterns",
+      "note": "depends on V07-01's trend-duration measure, whose primary bucket is three_push_patterns per the keyword pass -- keep with its dependency"
+    },
+    {
+      "id": "TP3-40",
+      "belongs_in": "climax_reversal",
+      "note": "ATR at its own N-bar extreme as a 'bear trend likely near its end' signal -- fits the climax/reversal-warning family; catalog variant of AtrAboveAverage (max instead of mean)"
+    },
+    {
+      "id": "R31-12",
+      "belongs_in": "trade_management",
+      "note": "a dollar-cost-averaging / fixed-fraction-of-capital scheduling idea, squarely trade_management's scaling/capital-allocation territory; absorbed there directly (this agent also owns trade_management) as FirstTradingDayOfMonthFilter, with the capital-allocation part dropped as engine-unsupported"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "always-in direction",
+      "options": [
+        "majority of last N closes vs EMA",
+        "two consecutive strong trend bars flip",
+        "breakout of N-bar range"
+      ],
+      "recommended": "two consecutive strong trend bars flip (DECIDED, per standing instructions)",
+      "gates": [
+        "T18-28 EnterAtMarketOnceInTrend (cross-bucketed to context_regime_always_in, now mechanizable under this decision)"
+      ]
+    },
+    {
+      "topic": "leg definition",
+      "options": [
+        "R17-01's persistent H1/H2 counter (key HighLowBarCount)",
+        "T00-19's qualitative reset-on-new-extreme counter",
+        "swing-pivot based leg counting"
+      ],
+      "recommended": "R17-01's persistent H1/H2 counter, key HighLowBarCount (DECIDED, per standing instructions)",
+      "gates": [
+        "T00-19 PullbackLegCounter (dropped here as superseded)"
+      ]
+    }
+  ],
+  "bucket_summary": "41 keyword-leftover candidates spanning all three volumes, most of which belong to a specific existing topic bucket by content even though the keyword pass missed them; 21 are cross-bucketed (mostly to bar_anatomy_reversal_signal, breakouts_pullback_retest, support_resistance_levels, and climax_reversal, plus one -- R31-12 -- absorbed directly into trade_management since this agent owns both files). Of the 20 ids that genuinely stay in misc, three merges collapsed near-duplicate restatements (a 75%-retracement trend-reclassification filter from three sources, a body-count filter from two, and the named ThreeBarReversal pattern from two), yielding 12 rules: 6 A's (TrendingBarBodies, DeepPullbackRetracementFilter, CloseAboveHighestClose, OppositeCloseCountBelowThreshold, AverageRangeBelowDollarThreshold, AdverseBodyCountExit), 1 B (ThreeBarReversal, pending TwoBarReversal), and 5 D's that turned out to be exact catalog duplicates or fixed-parameter instances of TimeWindow/TrueRangeAvgRatio/CloseAbovePriorHighestHigh/MomentumConsecutiveBars. Three ids were dropped outright: one ad hoc composite, one superseded by the now-decided leg definition, and one blocked on unsupported multi-timeframe bar access."
+}

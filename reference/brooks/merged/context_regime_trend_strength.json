@@ -1,0 +1,526 @@
+{
+  "bucket": "context_regime_trend_strength",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "HigherLowStreak",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "None of the last N bars traded below the low of the bar before it (long side) — an unbroken run of higher lows, Brooks's 'no pullback' sign of strength. Mirrored: no bar traded above the prior bar's high. At N = 1 it is the single-bar form, 'this bar failed to fall below the prior bar's low'.",
+      "pseudocode": "forall i in 0..noPullbackBars-1: low[i] >= low[i+1] - (minTicks - 1) * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "noPullbackBars": 5,
+        "minTicks": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed-length loop over one adjacent-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "LaggedHigherHigh asks whether ONE bar (N bars ago) made a higher high than the bar before it; this asks whether EVERY bar in a window made a higher low. Different operand and a streak instead of a single test"
+      },
+      "sources": [
+        "R00-55",
+        "V09-02"
+      ],
+      "merge_notes": "R00-55 is 'no PullbackBar (R00-14: low below the prior low by at least minTicks) within the last 5 bars'; V09-02 is 'low[0] > low[1]' as a standalone sign of urgency. Same test, one at a window and one at a single bar, so one rule with noPullbackBars as the parameter — MERGE's fixed-parameter clause. V09-02 is strict (>) and R00-14 carries a tick tolerance; the tolerance form is kept since it subsumes the strict one at minTicks = 1. Both book readings recorded. Kept apart from context_regime_always_in's NoOppositeBarInLastN, which counts bar BODIES (no bar closed below its open) rather than lows — the two disagree on any bar that makes a lower low but still closes up, which is most pullback bars in a strong trend.",
+      "variants_kept_separate": [
+        "NoOppositeBarInLastN"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LowNearPriorClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "This bar's low sits at, or no more than a tick or two below, the prior bar's close (long side) — almost no give-back into the prior bar's body, which is what 'very little overlap of the bodies of consecutive bars' means bar by bar. Mirrored: the high sits at or just above the prior close.",
+      "pseudocode": "low[0] >= close[1] - overlapTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "overlapTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison against a tick tolerance"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseNearPriorLow",
+        "relation": "variant",
+        "note": "CloseNearPriorLow compares the CLOSE to the prior bar's LOW plus an offset; this compares the LOW to the prior bar's CLOSE minus one. Different pair of operands entirely"
+      },
+      "sources": [
+        "V00-37",
+        "T19-04"
+      ],
+      "merge_notes": "Both volumes state the same sign of strength from the same sentence. V00-37's one-sided form wins: T19-04 adds 'low[0] <= close[1]', which would EXCLUDE the strongest bars — the ones that never trade back into the prior body at all — and that is plainly a mining artifact of reading Brooks's illustrative 'many bars have lows at or just one tick below the prior close' as a requirement. overlapTicks is in price ticks and is instrument-specific.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveTrendBarRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last N bars are all trend bars in the same direction — each closes above its own open with a body at least `bodyFraction` of its range (long side). Brooks's cue that a pullback may never come and that entering at the market beats waiting for one.",
+      "pseudocode": "forall i in 0..strongTrendBars-1: close[i] > open[i] && (close[i] - open[i]) >= bodyFraction * (high[i] - low[i])",
+      "sides": "mirrored",
+      "parameters": {
+        "strongTrendBars": 7,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed-length loop over a body-size test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars requires only close > open on each bar; this adds a body-size threshold, so it fires on a strict subset of the same windows. At bodyFraction = 0 the two coincide, which makes ConsecutiveUpBars a parameterization of this rule rather than the reverse"
+      },
+      "sources": [
+        "RP3-13"
+      ],
+      "merge_notes": "This is the SAME test the always-in flip trigger uses (V15-03 over V15-01, bar_anatomy's bucket) at a larger strongTrendBars — 7 here, 2 there, 4 in TP3-04's bull spike. Recorded once here as the general run; the authoring pass should build one rule and let the count be the input rather than authoring a spike rule and a strong-trend rule separately. The tail test that V15-01 carries is NOT included here: RP3-13 mentions only bodies and overlap, and tails belong to the bar_anatomy strong-trend-bar primitive.",
+      "variants_kept_separate": [
+        "StrongTrendBarCount",
+        "HigherLowStreak"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StrongTrendBarCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K of the last N bars were strong trend bars in the trend's direction — the count form of the strong-trend read, which tolerates the odd inside or doji bar that breaks a consecutive run.",
+      "pseudocode": "countIf(i, 0, contextLookback-1, close[i] > open[i] && (close[i]-open[i]) >= bodyFraction*(high[i]-low[i])) >= minStrongBars",
+      "sides": "mirrored",
+      "parameters": {
+        "contextLookback": 10,
+        "minStrongBars": 3,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a CountIF over the same body test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "TailBarCountDominance counts tail bars over a window, but on a different per-bar condition and with a two-sided comparison"
+      },
+      "sources": [
+        "V16-10",
+        "R01-06",
+        "V15-09",
+        "T04-04",
+        "T18-05",
+        "T21-54"
+      ],
+      "merge_notes": "V16-10's rule is 'only buy a new high of the day when the recent bars show a genuinely strong bull trend'. The session-high half is a session-state test that belongs with the intraday rules and is NOT carried; the strong-trend half is this rule, and peeling them apart is what turns a research-graded candidate into an A. Kept separate from ConsecutiveTrendBarRun on MERGE's run-versus-count principle: one doji resets the run and barely moves the count. Folded the breakouts_signal_strength copy (R01-06, V15-09, T04-04, T18-05, T21-54): identical countIf over strong trend bars. Book windows differ - 4 of 20 in the breakout sources, 3 of 10 in V16-10 - so lookback/minCount are the parameters; default 10/3, the tighter read Brooks states for context.",
+      "variants_kept_separate": [
+        "ConsecutiveTrendBarRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RecentStrongTrendDaysCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K of the last N completed DAILY bars closed as strong bull trend days — a large bull body relative to the day's range. A higher-time-frame confirmation for entries on the trading timeframe. Mirrored for bear days.",
+      "pseudocode": "countIf(d, 0, dayLookback-1, dailyClose[d] > dailyOpen[d] && (dailyClose[d]-dailyOpen[d]) >= strongBodyFraction*(dailyHigh[d]-dailyLow[d])) >= minStrongDays",
+      "sides": "mirrored",
+      "parameters": {
+        "dayLookback": 5,
+        "minStrongDays": 2,
+        "strongBodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs daily bars — either a second data series or session aggregation carried across the date change — which nothing in the corpus currently does"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "no corpus rule reads a second timeframe"
+      },
+      "sources": [
+        "R02-12",
+        "T00-47"
+      ],
+      "merge_notes": "Both volumes print the identical sentence ('the market has had several strong bull trend days recently'). R02-12 leaves 'trend day' to a design decision and reaches for the session-level classification; T00-47 gives a concrete daily-bar body test, which wins because it needs no session state at all when the strategy already runs on M1440 bars — on a daily chart this degenerates to StrongTrendBarCount and should be authored as that rather than duplicated. Defaults from T00-47 (5 days, 2 strong); R02-12's were 10 and 2.",
+      "variants_kept_separate": [
+        "StrongTrendBarCount"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutFollowThroughTicks",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The market pushed at least `scalpTicks` beyond the prior swing extreme within `confirmBars` bars of breaking it — enough for the breakout traders to have made a scalper's profit, which is Brooks's test of whether a new extreme found more buyers than sellers. Re-evaluated at every new extreme, so it doubles as a rolling trend-strength gauge.",
+      "pseudocode": "priorExtreme = highest(high, swingLookback)[confirmBars];\nhighest(high, confirmBars) - priorExtreme >= scalpTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "swingLookback": 20,
+        "confirmBars": 3,
+        "scalpTicks": 4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two Highest windows at different offsets plus a tick margin"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHighestHigh tests the current CLOSE against Highest(High, N)[1] with no margin; this tests the best HIGH of the last few bars against the extreme of the window BEFORE them, and requires a minimum tick margin. The margin is the rule's whole content"
+      },
+      "sources": [
+        "R04-01"
+      ],
+      "merge_notes": "The candidate expresses it as a swing high; re-expressed over Highest windows so it needs no pivot detection, which is the cheaper definition and per MERGE the one that wins. The negation is the other half of Brooks's sentence — a new extreme that reverses within a bar or two marks the trend weakening toward a range — and is reachable with the per-placement negate toggle rather than a second rule.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MaxPullbackDepthBelowThreshold",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Since the current trend leg began, the DEEPEST pullback so far has stayed below a threshold — expressed as a fraction of the average daily range (portable) or as a fixed number of points (Brooks's own form). This is the small-pullback trend, the strongest kind of trend there is. The rule tracks a running extreme and the maximum give-back from it.",
+      "pseudocode": "// persistent, reset when the trend flag resets\nrunningHigh = max(runningHigh, high[0]);\nif (high[0] < runningHigh) pullbackMax = max(pullbackMax, runningHigh - low[0]);\npullbackMax <= smallPullbackFraction * avgDailyRange",
+      "sides": "mirrored",
+      "parameters": {
+        "smallPullbackFraction": 0.2,
+        "dayLookback": 20,
+        "maxPullbackPoints": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a running extreme, a give-back tracker, an average daily range over completed sessions, and a reset rule for when the leg starts"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "ProfitProtector",
+        "relation": "none",
+        "note": "ProfitProtector tracks give-back from peak PROFIT on an open position; this tracks give-back from peak PRICE with no position involved. Structurally similar, behaviourally unrelated"
+      },
+      "sources": [
+        "V00-40",
+        "T23-06",
+        "T23-07"
+      ],
+      "merge_notes": "Three statements of one measurement. T23-06 is the state primitive (track the largest pullback since the trend began), T23-07 is the test against a fraction of the average daily range, and V00-40 is the same test with Brooks's raw Emini number (pullbacks under 3 to 4 points on a 12-point average range — which IS about 0.25 of the range, so the two forms agree). Merged rather than kept apart because a state primitive with no comparison is not a rule and the comparison is meaningless without the state. The fraction form is the default and the points form is kept as a second input for exact reproduction of the book's example. T23-07's session scoping (trend-from-open flag, T23-03) is NOT baked in: reset-on-leg-start is the general form and the session reset is one choice of leg.",
+      "variants_kept_separate": [
+        "PullbackDepthExceedsPriorMax"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackDepthExceedsPriorMax",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The pullback now underway is at least `growthMultiple` times as deep as the largest pullback seen earlier in this trend. On a small-pullback trend day Brooks expects exactly this later in the session and warns against reading it as a reversal — so the rule is most useful NEGATED, as 'this pullback is still within the trend's normal size'.",
+      "pseudocode": "currentPullbackDepth = runningHigh - low[0];\ncurrentPullbackDepth >= growthMultiple * pullbackMaxBefore",
+      "sides": "mirrored",
+      "parameters": {
+        "growthMultiple": 1.5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs both the running pullback depth and the prior maximum held apart from each other"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T23-08"
+      ],
+      "merge_notes": "Brooks gives 'about twice the size' and 'two-thirds of these days'; growthMultiple defaults to 1.5 as the conservative reading, 2.0 recorded. The 11:00 a.m. gate is CATALOG's TimeWindow in a separate pane, not part of this rule. Kept separate from MaxPullbackDepthBelowThreshold: that one caps the historical maximum, this one compares the live pullback to it, and they fire on different bars.",
+      "variants_kept_separate": [
+        "MaxPullbackDepthBelowThreshold"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "MaxPullbackDepthBelowThreshold"
+      ]
+    },
+    {
+      "key": "FixedTickPullbackEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a strong trend, buy a dip of a fixed size rather than a pattern: enter when price trades a set fraction of the trend's AVERAGE prior pullback below the running high. Sized to the trend's own behaviour, so it adapts as the trend's pullbacks grow.",
+      "pseudocode": "avgPullback = mean of the completed pullback depths since the trend began;\nlow[0] <= runningHigh - avgPullbackFraction * avgPullback",
+      "sides": "mirrored",
+      "parameters": {
+        "avgPullbackFraction": 0.9
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs every completed pullback depth of the current trend accumulated and averaged, not just the maximum"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V24-32"
+      ],
+      "merge_notes": "Shares MaxPullbackDepthBelowThreshold's give-back tracker but needs a running SUM and COUNT of completed pullbacks rather than a maximum, so it is a genuine extension of that state rather than a use of it. Brooks says 'equal to or slightly less than the average prior pullbacks', hence the 0.9 default. Under the standing convention the resting limit becomes signal-bar close then next-bar open.",
+      "variants_kept_separate": [
+        "MaxPullbackDepthBelowThreshold"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "MaxPullbackDepthBelowThreshold"
+      ]
+    },
+    {
+      "key": "TrendDayIdentifiedInFirstHour",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Past the first hour of the session, the close has broken beyond the opening range by at least `breakMultiple` times that range's own height — treat the day as a trend day and take only with-trend entries for the rest of it.",
+      "pseudocode": "barsIntoSession >= firstHourBars && close[0] > openingRangeHigh + breakMultiple * (openingRangeHigh - openingRangeLow)",
+      "sides": "mirrored",
+      "parameters": {
+        "firstHourBars": 12,
+        "breakMultiple": 0.5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "session-open detection, a bars-into-session counter and a latched opening range, all reset on the date change"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-38",
+        "T22-11"
+      ],
+      "merge_notes": "The candidate's own note is honest that Brooks's trend-day test is pattern recognition and the opening-range break is a proxy. Kept apart from the context_regime_always_in bucket's SessionTrendDayDirection, which measures from the session OPEN against an ATR; this measures from the opening RANGE against its own height, and on a wide-range opening they disagree. The two should be tested against each other before either is trusted.",
+      "variants_kept_separate": [
+        "SessionTrendDayDirection"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NoQualifyingPullbackSinceLegStart",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A new extreme has been made and, since the first leg completed, no bar has closed back through even a shallow retracement of that leg — the ABSENCE of any proper pullback, read as a sign of strength in its own right.",
+      "pseudocode": "// persistent since the first leg's extreme\nif (close[0] <= firstLegHigh - minRetraceFraction * firstLegHeight) noQualifyingPullback = false;\nhigh[0] > firstLegHigh && noQualifyingPullback",
+      "sides": "mirrored",
+      "parameters": {
+        "minRetraceFraction": 0.2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the first leg's start and extreme remembered, plus a latch that clears on the first qualifying retracement"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T24-11"
+      ],
+      "merge_notes": "Needs leg START and leg HEIGHT in price, which the settled leg definition (HighLowBarCount, R17-01, leg_counting) does not provide — that counter gives leg numbers, not prices — so this needs swing pivots regardless and is graded accordingly. Related to HigherLowStreak and MaxPullbackDepthBelowThreshold, which measure 'no pullback' by bars and by depth respectively; all three should be compared before more than one is authored.",
+      "variants_kept_separate": [
+        "HigherLowStreak",
+        "MaxPullbackDepthBelowThreshold"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseAbovePriorClosesRun",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close is above every one of the last N closes (long) / below every one of them (short) — a run-based sign of strength.",
+      "pseudocode": "close[0] > highest(close, barsBack)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "barsBack": 6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one Highest window over closes"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "Breakout",
+        "relation": "duplicate",
+        "note": "Breakout is close >= the highest close of the last N bars with the current bar INCLUDED in the window, which reduces to close >= max(close[1..N-1]). The only bars where this candidate differs are exact ties on the prior extreme close. Do not author again — place Breakout at lookback = barsBack + 1"
+      },
+      "sources": [
+        "V16-07"
+      ],
+      "merge_notes": "The candidate's own note already spots this. Brooks's text ('closed above the closes of the past six bars') does not turn on tie handling, so the strict reading is not worth a second rule; the tie case is left to Breakout's existing el_ge semantics.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OppositeColorBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar closed against the prevailing trend's colour — a bear body in a bull trend. One stage of the first-pullback sequence.",
+      "pseudocode": "close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "duplicate",
+        "note": "ConsecutiveUpBars at consecutiveBars = 1 is exactly close > open on the long side and close < open on the short side, and a tie bar fails both — identical to this candidate under the per-placement flip. Do not author again"
+      },
+      "sources": [
+        "R11-05"
+      ],
+      "merge_notes": "Redundant by construction per MERGE's flip test: this is ConsecutiveUpBars(1) with the sides swapped, which is what the negate toggle is for. Recorded so the first-pullback sequence in ranges chapter 11 can still cite a key for its stage 5.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R05-07",
+      "reason": "composition of ConsecutiveTrendBarRun + LowNearPriorClose + a small-tail test (bar_anatomy); an ad hoc list of strong-trend characteristics with no numeric thresholds of its own, and the candidate itself says the definition lives in the companion volume"
+    },
+    {
+      "id": "R26-04",
+      "reason": "no bar-level test: 'in a strong trend a single reason is enough' is a policy override on R26-01's two-reason requirement, not a condition. Its mechanizable content is a with-trend pullback entry (leg_counting) with a climax and final-flag exclusion (climax_reversal)"
+    },
+    {
+      "id": "V02-39",
+      "reason": "composition of twelve reversal signs (V02-01, V02-02, V02-03, V02-04, V02-09, V02-12, V02-17, V02-22, V02-24, V02-25, V02-26, V02-33) scored against a minimum count; the pane system ANDs entries and cannot express 'at least K of these N', so the score has no representation"
+    },
+    {
+      "id": "V08-04",
+      "reason": "composition of the double-bottom-pullback shallow-second-extreme setup (V08-03, swing_structure) with AlwaysInBlockCountertrend (context_regime_always_in); its own strongTrendThreshold parameter is null and it adds no bar-level test"
+    },
+    {
+      "id": "T07-08",
+      "reason": "composition of ConsecutiveClosesBeyondEmaRun (context_regime_always_in, from TP4-14) + Momentum (catalog) — every one of the last N closes above the EMA AND close above the close N bars ago, which is those two panes ANDed"
+    },
+    {
+      "id": "T19-24",
+      "reason": "composition of T19-01, T19-03, T19-04, T19-08, T19-09, T19-10, T19-11 and T19-13 scored against a majority threshold; same problem as V02-39, and the 'enter at the market with no setup once strong' half is a policy, not a condition"
+    },
+    {
+      "id": "TP4-16",
+      "reason": "partial-position exits are not expressible — the engine trades one unit, so 'scalp out part and swing the rest' has no representation; the candidate's own single-unit reading (hold to the session close) is exactly catalog TimeOfDayExit"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R00-60",
+      "belongs_in": "leg_counting",
+      "note": "the H1/H2/H3/H4 pullback leg counter — the same primitive the leg-definition decision already settled on R17-01 (HighLowBarCount), which sharpens this research-graded version into a pivot-free counter. Nothing to merge here"
+    },
+    {
+      "id": "R31-03",
+      "belongs_in": "context_regime_always_in",
+      "note": "'never scale in against a strong trend' is the countertrend block, not a trend-strength measurement; merged there into AlwaysInBlockCountertrend alongside its twin R30-03, and listed in that rule's sources"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "strong-trend classification",
+      "options": [
+        "a run of N consecutive trend bars with a minimum body fraction (RP3-13, ConsecutiveTrendBarRun)",
+        "K of the last N bars are strong trend bars, tolerating dojis (V16-10, StrongTrendBarCount)",
+        "a streak of closes on one side of the EMA (TP4-14 / T07-08, context_regime_always_in's ConsecutiveClosesBeyondEmaRun)",
+        "a majority-of-signs score over the chapter's whole checklist (T19-24, V02-39) — not expressible in the pane system",
+        "the settled always-in state machine itself (context_regime_always_in's AlwaysInDirection)"
+      ],
+      "recommended": "Do not author a separate 'strong trend' primitive. The three atomic forms above (ConsecutiveTrendBarRun, StrongTrendBarCount, ConsecutiveClosesBeyondEmaRun) are all A-grade and all authorable now; place whichever one a template needs in its own pane and let the AND do the composing. The scored composites are dropped precisely because they try to be the one primitive, and the always-in decision already supplies a persistent read for anything that needs to survive a pullback.",
+      "gates": []
+    }
+  ],
+  "bucket_summary": "Twenty-seven candidates of the 'signs of strength' kind, which mined badly: two of them (T19-24, V02-39) were scoring composites over checklists the pane system cannot express, and four more were ad hoc conjunctions of parts that are better apart. Thirteen rules came out, seven dropped, two sent on — the leg counter to leg_counting where the settled R17-01 definition lives, and the scale-in block to context_regime_always_in where its twin already sat. The A-list is five: HigherLowStreak, LowNearPriorClose, ConsecutiveTrendBarRun, StrongTrendBarCount and BreakoutFollowThroughTicks, all cheap window tests; two more are D-grade catalog duplicates flagged so nobody authors Breakout or ConsecutiveUpBars a second time. Everything remaining at B is blocked on the same thing: tracking a pullback's depth or a leg's extent across bars."
+}

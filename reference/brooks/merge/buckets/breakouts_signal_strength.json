@@ -1,0 +1,3493 @@
+[
+  {
+    "id": "RP1-02",
+    "name": "SignificantBreakoutBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      30
+    ],
+    "quote": "A significant breakout ... almost always appears as a relatively large trend bar without significant tails.",
+    "description": "Shared primitive: the current bar is a large trend bar with small tails on both ends — Brooks's test for a breakout that is likely to have follow-through.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) <= tailFraction * (high[0] - low[0]) && (open[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.15
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no numbers; bodyFraction and tailFraction are readings of ‘relatively large’ and ‘without significant tails’.",
+      "Reused verbatim as R08-01/02's LargeTrendBar in the gaps chapter; dedup pass should merge."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01-part_i_breakouts_transitioning_into_a_new_trend.json",
+    "chapter_title": "Part I: Breakouts: Transitioning into a New Trend"
+  },
+  {
+    "id": "RP1-06",
+    "name": "WeakBreakoutBarBlocksFollowThrough",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "RP1-02",
+      "RP1-03"
+    ],
+    "pages": [
+      34
+    ],
+    "quote": "Bar 10 was a breakout of an ii bull flag, but the breakout bar was a bear reversal bar, which is a weak breakout bar. This increased the chances that the breakout would fail.",
+    "description": "Filter: if the bar that made the breakout is not itself a significant trend bar in the breakout direction (e.g. it is a reversal or doji bar), treat the breakout as low-probability and withhold or reduce the with-trend entry.",
+    "pseudocode": "close[1] > breakoutPoint[2] && !SignificantBreakoutBar[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.15,
+      "lookback": 1
+    },
+    "book_order_type": "n/a (signal-quality filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "must identify the breakout bar and test its own bar quality one bar back"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01-part_i_breakouts_transitioning_into_a_new_trend.json",
+    "chapter_title": "Part I: Breakouts: Transitioning into a New Trend"
+  },
+  {
+    "id": "R01-04",
+    "name": "AddOnDuringContinuingSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R01-01"
+    ],
+    "pages": [
+      36,
+      37
+    ],
+    "quote": "Many experienced traders use spikes to press their trades. They add to their longs as the spike continues up, because they know that the spike has an exceptional trader's equation.",
+    "description": "While already long and the spike continues (each new bar is another significant trend bar making a higher high), add to the position rather than waiting for a pullback.",
+    "pseudocode": "ctx.MarketPosition() > 0 && BullTrendBar[0] && high[0] > highest(high, 1)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market order, add to existing position",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "position-state-dependent add-on entry; the engine may need to model this as a distinct scale-in placement"
+    },
+    "el_words_needed": [
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Flag for the authoring pass: this is a pyramiding/scale-in rule, not a fresh-position entry; check whether the pane system supports adding to an open position."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01_example_of_how_to_trade_a_breakout.json",
+    "chapter_title": "Example of How to Trade a Breakout"
+  },
+  {
+    "id": "R01-06",
+    "name": "BreakoutEntryRequiresPriorTrendStrength",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R01-01"
+    ],
+    "pages": [
+      37
+    ],
+    "quote": "There was good buying pressure all of the way up from the bar 5 low, as seen by many strong bull trend bars, little overlap, and only a few bear trend bars ... the reward is greater, the risk is smaller, and the probability of success is higher when entering on pullbacks.",
+    "description": "Filter: only take the raw stop entry above a swing high (skipping the pullback entry) once recent bars already show strong with-trend character; otherwise prefer waiting for a pullback entry.",
+    "pseudocode": "countBullTrendBars(lookback) >= minStrongBars && countBearTrendBars(lookback) <= maxWeakBars",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "minStrongBars": 4,
+      "maxWeakBars": 2,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (entry-style selection filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length window counters over a bar-classification primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01_example_of_how_to_trade_a_breakout.json",
+    "chapter_title": "Example of How to Trade a Breakout"
+  },
+  {
+    "id": "R01-07",
+    "name": "FailedBearBreakoutBullBodyConfirmation",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      37
+    ],
+    "quote": "if there is instead a bull body, even a small one, the odds of a failed breakout attempt become higher ... The bar before bar 12 was a large bear trend bar ... Bulls bought the close of the bear trend bar ... Once they saw that bar 12 had a bull close, they bought the close of bar 12 and above its high.",
+    "description": "After a bear trend bar in a bull trend, if the very next bar has any bull body (even a small one), treat the bear breakout as likely failed and buy its close and above its high.",
+    "pseudocode": "close[1] < open[1] && (open[1] - close[1]) >= bodyFraction * (high[1] - low[1]) && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "buy at the close of the confirming bar and above its high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "First target = the bear bar's high; second target = a measured move equal to its height, same construction as RP1-09/RP1-10."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01_example_of_how_to_trade_a_breakout.json",
+    "chapter_title": "Example of How to Trade a Breakout"
+  },
+  {
+    "id": "R02-01",
+    "name": "BreakoutBarBodyDominance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The breakout bar has a large bull trend body and small tails or no tails. The larger the bar, the more likely the breakout will succeed.",
+    "description": "Sign of strength: the breakout bar is a large-bodied trend bar with small or no tails.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) <= tailFraction * (high[0] - low[0]) && (open[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.15
+    },
+    "book_order_type": "n/a (bar classification used as a breakout-quality test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Shared primitive for this chapter; reused by several other signs below."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-03",
+    "name": "SpikeBreaksMultipleResistanceLevels",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The spike goes very far, lasts several bars, and breaks several resistance levels like the moving average, prior swing highs, and trend lines, and each by many ticks.",
+    "description": "Sign of strength: within the spike, price clears several distinct resistance levels (EMA, a swing high, a trend line) by more than a minimal margin.",
+    "pseudocode": "levelsClearedByMargin(ema(emaLength)[0], highest(high, swingLookback)[1], trendLine[0], marginTicks * tickSize, spikeBars) >= minLevelsCleared",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "swingLookback": 20,
+      "marginTicks": 4,
+      "spikeBars": 10,
+      "minLevelsCleared": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs an EMA, a swing-high window, and trend-line projection from pivots, all checked over a spike window"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "Highest",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-04",
+    "name": "FollowThroughBarSize",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The next two or three bars also have bull bodies that are at least the average size of the recent bull and bear bodies ... if the follow-through bar is large, the odds of the trend continuing are greater.",
+    "description": "Sign of strength: the bar(s) immediately after the breakout bar have with-trend bodies at least as large as the recent average body.",
+    "pseudocode": "for i in 1..followThroughBars: close[i] > open[i] && (close[i] - open[i]) >= average(abs(close - open), bodyLookback)[i]",
+    "sides": "mirrored",
+    "parameters": {
+      "followThroughBars": 3,
+      "bodyLookback": 20
+    },
+    "book_order_type": "n/a (follow-through confirmation)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop comparing bodies to a rolling average"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-06",
+    "name": "BreakoutClearsScalpDistance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "As a bull breakout goes above a prior significant swing high, the move above the high goes far enough for scalpers to make a profit if they entered on a stop at one tick above that swing high.",
+    "description": "Sign of strength: price clears the breakout swing high by at least a scalper's-profit distance.",
+    "pseudocode": "swingHigh = highest(high, swingLookback)[1]; high[0] - swingHigh >= scalpTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "swingLookback": 20,
+      "scalpTicks": 4
+    },
+    "book_order_type": "n/a (follow-through confirmation)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a highest-high window plus a fixed distance check"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-07",
+    "name": "SpikeBarLowNearPriorClose",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "One or more bars in the spike has a low that is at or just one tick below the close of the prior bar.",
+    "description": "Sign of strength: somewhere in the spike, a bar's low barely dipped below the prior bar's close (almost no give-back).",
+    "pseudocode": "exists i in [0, spikeBars): low[i] <= close[i + 1] && low[i] >= close[i + 1] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 10,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (bar-quality scan)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length existence scan over two-bar comparisons"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-08",
+    "name": "SpikeBarOpenAbovePriorClose",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "One or more bars in the spike has an open that is above the close of the prior bar.",
+    "description": "Sign of strength: somewhere in the spike, a bar gapped open above the prior close.",
+    "pseudocode": "exists i in [0, spikeBars): open[i] > close[i + 1]",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 10
+    },
+    "book_order_type": "n/a (bar-quality scan)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length existence scan"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-09",
+    "name": "SpikeBarStrongClose",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "One or more bars in the spike has a close on its high or just one tick below its high.",
+    "description": "Sign of strength: somewhere in the spike, a bar closed at or within a tick of its own high.",
+    "pseudocode": "exists i in [0, spikeBars): close[i] >= high[i] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 10,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (bar-quality scan)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length existence scan"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseRangePosition",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-17",
+    "name": "BreakoutReversesManyBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39,
+      44
+    ],
+    "quote": "this breakout bar has a high and close that are above the highs and closes of five or even 20 or more bars ... a close below a low is more of a sign of strength than simply a low that is below a prior low.",
+    "description": "Sign of strength, graded by degree: count how many of the last N bars' highs and closes the breakout bar's close reverses; a close-based reversal count is a stronger sign than a high-based one.",
+    "pseudocode": "closeReversedCount = count(i in [1, lookback]: close[0] > high[i]); highReversedCount = count(i in [1, lookback]: high[0] > high[i]); closeReversedCount >= minReversedBars",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "minReversedBars": 5
+    },
+    "book_order_type": "n/a (breakout-magnitude test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed window counted against a highest/lowest-style comparison"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "high",
+    "notes": [
+      "Also captures the bar 26 example on page 44-45."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-19",
+    "name": "StrongBearReversalAfterBreakout",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39,
+      40
+    ],
+    "quote": "The next bar has a bear body and is either a bear reversal bar or a bear inside bar; that bar closes on or near its low, and the body is about the size of the average bodies of the bars before the breakout ... The bar after the breakout bar is a strong bear reversal bar or a bear inside bar.",
+    "description": "Sign of weakness: the bar right after the breakout bar is a full-bodied bear reversal or inside bar closing near its low.",
+    "pseudocode": "close[0] < open[0] && close[0] <= low[0] + nearLowTicks * tickSize && (open[0] - close[0]) >= average(abs(close - open), bodyLookback)[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "nearLowTicks": 2,
+      "bodyLookback": 20
+    },
+    "book_order_type": "n/a (breakout-failure signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "single-bar arithmetic against a rolling average body size"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The book states this point twice in the same list (p39 and p40); mined once."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-26",
+    "name": "BarelyClearsResistanceThenReverses",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      40
+    ],
+    "quote": "The spike breaks above a resistance level like a swing high, a bear trend line, or a bull trend channel line by only a tick or so and then reverses down.",
+    "description": "Sign of weakness: the spike barely exceeds a resistance level before immediately reversing.",
+    "pseudocode": "high[1] > resistanceLevel && high[1] - resistanceLevel <= barelyTicks * tickSize && close[0] < resistanceLevel",
+    "sides": "mirrored",
+    "parameters": {
+      "barelyTicks": 2
+    },
+    "book_order_type": "n/a (breakout-failure signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "resistanceLevel is a remembered swing high, trend line, or channel line"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-27",
+    "name": "BarelyClearsMultipleLevelsWithoutBreaking",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R02-26"
+    ],
+    "pages": [
+      40
+    ],
+    "quote": "The spike barely breaks above a single resistance level but pulls back before breaking above other levels that are just a little higher.",
+    "description": "Sign of weakness: the spike clears only the nearest of several nearby resistance levels and pulls back before reaching the next one.",
+    "pseudocode": "high[1] > level1 && high[1] - level1 <= barelyTicks * tickSize && high[1] < level2 && close[0] < level1",
+    "sides": "mirrored",
+    "parameters": {
+      "barelyTicks": 2
+    },
+    "book_order_type": "n/a (breakout-failure signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs at least two remembered resistance levels"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-32",
+    "name": "BreakoutStrengthComposite",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "R02-01",
+      "R02-02",
+      "R02-03",
+      "R02-04",
+      "R02-05",
+      "R02-06",
+      "R02-07",
+      "R02-08",
+      "R02-09",
+      "R02-10",
+      "R02-13",
+      "R02-14",
+      "R02-15",
+      "R02-16",
+      "R02-17"
+    ],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "the more of the following characteristics that a bull breakout has, the more likely the breakout will be strong",
+    "description": "Composite named by Brooks himself: score a breakout by how many of the individual signs of strength (R02-01..R02-17) are present, and require at least a minimum count before treating the breakout as reliable.",
+    "pseudocode": "countTrue(R02_01, R02_02, R02_03, R02_04, R02_05, R02_06, R02_07, R02_08, R02_09, R02_10, R02_13, R02_14, R02_15, R02_16, R02_17) >= minSignsRequired",
+    "sides": "mirrored",
+    "parameters": {
+      "minSignsRequired": 4
+    },
+    "book_order_type": "n/a (aggregate context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks gives a checklist, not a weighting or a required count; picking minSignsRequired and whether to weight signs is a design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is exactly the kind of composite the mining brief invites: a named list whose members are already split into atomic candidates."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-36",
+    "name": "FinalHourForcedLiquidationBreakout",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      42,
+      43
+    ],
+    "quote": "There is a special type of breakout that sometimes occurs on trend days in the final hour ... risk managers at trading firms are telling their traders who have been bottom picking that they are on the wrong side of the market and that they have to sell out of their positions at the market.",
+    "description": "Filter/context: a fresh break to a new extreme in the final hour of a strong trend day is more likely forced liquidation than fresh conviction, and typically lacks follow-through.",
+    "pseudocode": "barsRemainingInSession(sessionEndTime) <= finalHourBars && AlwaysInTrendContext == bearish && low[0] < lowest(low, channelLookback)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "finalHourBars": 12,
+      "sessionEndTime": 1600,
+      "channelLookback": 10
+    },
+    "book_order_type": "n/a (context filter; expect little follow-through)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "the institutional-liquidation motive has no bar-level signature beyond time-of-day and trend context"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R03-01",
+    "name": "BreakoutFollowThroughWeaknessBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      46
+    ],
+    "quote": "If, instead of having several strong bull trend bars in a row, the bar after a one- or two-bar breakout is a small bar, a doji, an inside bar, a bar with large tails, or a bear trend bar, the breakout might fail.",
+    "description": "Filter: the bar right after a short breakout is itself weak (small body, doji, inside bar, large tail, or opposite color) — a sign the breakout may fail.",
+    "pseudocode": "(abs(close[0] - open[0]) < bodyFraction * (high[0] - low[0])) || (abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])) || (high[0] < high[1] && low[0] > low[1]) || (high[0] - maxList(open[0], close[0]) >= tailFraction * (high[0] - low[0])) || (minList(open[0], close[0]) - low[0] >= tailFraction * (high[0] - low[0])) || close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.4,
+      "dojiFraction": 0.2,
+      "tailFraction": 0.3
+    },
+    "book_order_type": "n/a (breakout-quality filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an OR of several single-bar sub-tests"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/03_initial_breakout.json",
+    "chapter_title": "Initial Breakout"
+  },
+  {
+    "id": "R04-07",
+    "name": "NextDayFollowThroughAfterTrendDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      50
+    ],
+    "quote": "yesterday ... was a strong trend from the open bull trend day, so the odds were high that there would be enough follow-through today to close above the open, and even if there was a pullback on the open today, the bull trend would likely reach at least a nominal new high.",
+    "description": "Filter/context: after a strong trend-from-open day, bias today with-trend, expecting today's close to finish above today's open, or at least a marginal new high, even through an opening pullback.",
+    "pseudocode": "TrendDayWithTrendOnly[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (daily context filter)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on the 'trend day' design decision already flagged in R08-24"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TrendDayWithTrendOnly",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/04_breakout_entries_in_existing_strong_trends.json",
+    "chapter_title": "Breakout Entries in Existing Strong Trends"
+  },
+  {
+    "id": "R07-03",
+    "name": "SpikeAlternateMeasurementVariants",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R07-02"
+    ],
+    "pages": [
+      72
+    ],
+    "quote": "You could use the low of the first bar to the high of the third bar or even the high of the doji fourth bar, but it is more conservative to use the smaller figure for your initial projection. If the second leg surpasses this target, then look at other targets.",
+    "description": "Compute the alternate spike-height references (low-of-first-bar to high-of-last-bar; open-of-first to high-of-last; including the pause bar) as additional, usually larger, candidate targets; check the smallest (most conservative) target first and escalate to the next larger one only once the market surpasses it.",
+    "pseudocode": "targets = sort_ascending([openToCloseTarget, lowToHighTarget, openToHighTarget]); currentTarget = firstTargetNotYetSurpassed(targets); high[0] >= currentTarget - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "book_order_type": "profit-taking limit, escalating through successive projections",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "builds on the already-identified spike endpoints; only the multi-target escalation logic is new"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07_measured_moves_based_on_the_size_of_the_first.json",
+    "chapter_title": "Measured Moves Based on the Size of the First Leg (the Spike)"
+  },
+  {
+    "id": "RP3-09",
+    "name": "FollowThroughBarConfirmsReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-01"
+    ],
+    "pages": [
+      85
+    ],
+    "quote": "What they need to see is follow-through selling in the form of maybe just one more bear trend bar. ... If the bar instead has a bull close, they will suspect that the reversal attempt has failed and that the sell-off is just a brief, but sharp, markdown in price and therefore a buying opportunity.",
+    "description": "Filter: after a potential reversal (one or two strong bars against the established trend), require the very next bar to also close in the new direction before treating the always-in trend as flipped; a with-trend-colored next bar means the move was only a pullback.",
+    "pseudocode": "potentialReversalBars(bodyFraction) >= 1 && close[0] < open[0]  (confirms a bear reversal is genuine); close[0] > open[0] on that next bar instead treats it as a pullback in the still-intact bull trend",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter deciding reversal vs. pullback)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the preceding potential-reversal bar(s) plus a same-direction confirmation test on the following bar"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11-part_iii_pullbacks_trends_converting_to_trading_ranges.json",
+    "chapter_title": "Part III: Pullbacks: Trends Converting to Trading Ranges"
+  },
+  {
+    "id": "R12-03",
+    "name": "PriorMomentumBiasesBreakoutDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      94
+    ],
+    "quote": "If there is significant momentum up or down before the pattern, that momentum increases the odds that the trading range will just be a continuation pattern. For example, if there was a strong move up just before the trading range, an upside breakout is more likely.",
+    "description": "Filter: when a small trading range can break out as either a double top bear flag or a double bottom bull flag, favor the direction of the strong momentum move that preceded the range.",
+    "pseudocode": "consecutiveTrendBars(bodyFraction, priorMomentumBars) >= priorMomentumBars -> prefer breakout signals in that direction",
+    "sides": "same",
+    "parameters": {
+      "priorMomentumBars": 3,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter weighting which side of the range to trade)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a consecutive-trend-bar count as a proxy for 'significant momentum'"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/12_double_top_bear_flags_and_double_bottom_bull.json",
+    "chapter_title": "Double Top Bear Flags and Double Bottom Bull Flags"
+  },
+  {
+    "id": "R17-08",
+    "name": "SpikeAndTrendRequiredForCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      110
+    ],
+    "quote": "For traders to buy a high 1, they need a strong bull spike and a bull trend, not simply a spike up within a trading range.",
+    "description": "Require both a strong recent spike (several consecutive trend bars with small overlap) and an established trend (not merely a trading-range spike) before trusting a High 1/2 or Low 1/2 entry.",
+    "pseudocode": "consecutiveTrendBars(bodyFraction) >= spikeBars && strongTrendEstablished() -> allow R17-03/R17-04",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "spikeBars": 3
+    },
+    "book_order_type": "n/a (entry-blocking filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "compound spike detection plus a trend-strength read from the AlwaysInDirection family"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "StrongTrendCharacteristicsFilter",
+    "confidence": "medium",
+    "notes": [
+      "Same spike concept as R05-07/R05-10 (ranges chapter 5); dedup pass should compare parameters."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/17_bar_counting_high_and_low_1_2_3_and_4_patterns.json",
+    "chapter_title": "Bar Counting: High and Low 1, 2, 3, and 4 Patterns and ABC Corrections"
+  },
+  {
+    "id": "R18-10",
+    "name": "AvoidEagerHigh2EntryAfterStrongSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      126
+    ],
+    "quote": "Do not be too eager to buy the high 2 after the second leg down when both the first and second pushes down have strong momentum. A strong first spike down often means that you should allow for a possible wedge correction.",
+    "description": "In a wedge bull-flag setup, if both the first and second down-pushes show strong momentum, skip the eager buy at the high-2 breakout and instead wait for a pullback from the breakout above the high-2 signal bar (a second-entry setup).",
+    "pseudocode": "// research: 'strong momentum' for a push has no bar-level definition given\nfirstPushStrong = pushMomentumScore(push1) >= strongMomentumThreshold;\nsecondPushStrong = pushMomentumScore(push2) >= strongMomentumThreshold;\nskipHigh2Entry = firstPushStrong && secondPushStrong;\nwaitForBreakoutPullback = skipHigh2Entry;",
+    "sides": "mirrored",
+    "parameters": {
+      "strongMomentumThreshold": null
+    },
+    "book_order_type": "n/a (gates whether to take the high-2 buy stop or wait for a later pullback entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "push-level 'momentum' has no stated bar test; needs a design decision (e.g., trend-bar fraction, overlap count, or bar count) before coding"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/18_wedge_and_other_three_push_pullbacks.json",
+    "chapter_title": "Wedge and Other Three-Push Pullbacks"
+  },
+  {
+    "id": "R20-05",
+    "name": "FailedReversalPatternContinuationEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R20-01",
+      "R20-02",
+      "R20-03",
+      "R20-04"
+    ],
+    "pages": [
+      131,
+      132
+    ],
+    "quote": "a breakout below the neckline will usually fail and the market will most likely then reverse up and have a with-trend breakout to the upside, above the right shoulder.",
+    "description": "When a double-top/bottom or head-and-shoulders pattern forms as a pause within an established larger trend and its countertrend breakout (the double-top dip-low break, or the head-and-shoulders neckline break) fails to follow through -- price closes back through the breakout level within a few bars -- enter with the larger trend on that failure, since these 'reversal' patterns are actually continuation patterns far more often than not.",
+    "pseudocode": "patternBrokeDownBar = (isDoubleTop[k] || isHeadAndShouldersTop[k]) && close[k] < breakoutLevel[k]; // the neckline or dip low broke on some recent bar k\nfailedToFollowThrough = barsSinceBreakout <= maxFollowThroughBars && close[0] > breakoutLevel;\n// enter with the larger (bull) trend once the failed breakout closes back above the level\nisFailedBreakoutSignal = failedToFollowThrough && close[0] > open[0];\nenterLongNextBarOpen = isFailedBreakoutSignal;",
+    "sides": "mirrored",
+    "parameters": {
+      "maxFollowThroughBars": 5
+    },
+    "book_order_type": "buy stop one tick above the failed-breakout signal bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the underlying pattern/neckline detection, a tracked prior breakout level and bar index, and an established-larger-trend context that this chapter does not itself define"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the chapter's central, most distinctive idea: treat 'reversal' patterns as continuation patterns and trade the failure of their countertrend breakout, not the breakout itself."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/20_reversal_patterns_double_tops_and_bottoms_and.json",
+    "chapter_title": "“Reversal” Patterns: Double Tops and Bottoms and Head and Shoulders Tops and Bottoms"
+  },
+  {
+    "id": "RP4-07",
+    "name": "FailedSpikeBreakoutVacuumReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "RP4-01"
+    ],
+    "depends_on": [
+      "RP4-01"
+    ],
+    "pages": [
+      134
+    ],
+    "quote": "The vacuum effect is present, resulting in strong bull spikes at the top and strong bear spikes at the bottom, with both failing to break out and instead reversing back into the range.",
+    "description": "Within an established trading range, a strong spike (one or more large trend bars) beyond the range's top or bottom fails to hold and reverses back inside the range within a few bars -- a failed-breakout entry back toward the opposite side of the range.",
+    "pseudocode": "spikeBrokeRangeHigh = high[k] > rangeHigh; // some recent bar k spiked above the range top\nfailedAndReversed = barsSinceSpike <= maxReversalBars && close[0] < rangeHigh && close[0] < open[0];\nenterShortNextBarOpen = isTradingRange[0] && spikeBrokeRangeHigh && failedAndReversed;",
+    "sides": "mirrored",
+    "parameters": {
+      "maxReversalBars": 5
+    },
+    "book_order_type": "sell stop one tick below the reversal bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires the trading-range context primitive plus tracked range boundaries and a recent-breakout/failure test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R21-08",
+    "name": "BuySpikeAtRangeBottomLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R11-26"
+    ],
+    "pages": [
+      147
+    ],
+    "quote": "Buying a bear spike at the market or on a limit order at or below the low of the prior swing low at the bottom of the range (entering in spikes requires a wider stop and the spike happens quickly, so this combination is difficult for many traders).",
+    "description": "During a bear spike that is testing or breaking the bottom of the trading range, buy at the market or on a limit order at/below the low of the prior swing low.",
+    "pseudocode": "nearBottom = close[0] <= rangeLow + nearExtremeAtr * atr(atrLookback);\nlimitPrice = priorSwingLow - spikeLimitOffsetTicks * tickSize;\nenterLongLimit = isBearSpike[0] && nearBottom && low[0] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "nearExtremeAtr": 0.3,
+      "atrLookback": 14,
+      "spikeLimitOffsetTicks": 1,
+      "spikeStopMultiple": 2
+    },
+    "book_order_type": "market order or resting limit order at/below the prior swing low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a spike-classification primitive plus swing-low tracking and the wider-stop sizing Brooks calls for"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks flags this as an advanced, difficult-to-execute combination (requires a wider stop and fast fills); recorded as stated, not endorsed."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R22-17",
+    "name": "BarbwireAfterFirstHourSpikeMarksExtremeOfDayFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-03"
+    ],
+    "pages": [
+      155
+    ],
+    "quote": "Sometimes barbwire forms at the end of a several-bar spike in the first hour. When it happens in an area of support in a bull trend, it can become a reversal pattern and the low of the day. When this happens after a bull spike in the first hour at an area of resistance, it can become the high of the day.",
+    "description": "Barbwire that forms at the end of a multi-bar spike within the first hour of the session, at a support or resistance area, is a candidate reversal pattern for the low (or high) of the day.",
+    "pseudocode": "// research: 'area of support/resistance' needs a design decision (e.g., prior swing level or moving average)\nisCandidateDayExtreme = isBarbwire[0] && barsSinceSessionOpen <= firstHourBars && endsMultiBarSpike[0] && nearSupportOrResistance[0];",
+    "sides": "mirrored",
+    "parameters": {
+      "firstHourBars": 12
+    },
+    "book_order_type": "n/a (context classification feeding a reversal entry defined elsewhere)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'area of support/resistance' and 'ends a multi-bar spike' are not given precise bar-level tests in this passage"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "firstHourBars=12 assumes 5-minute bars, same convention as R21-14."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R28-01",
+    "name": "LimitEntryAtPriorBarCloseInSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192
+    ],
+    "quote": "Buy with a limit order located at the close of the prior bar if it was a strong bull trend bar in a strong bull spike.",
+    "description": "If the just-closed bar was a strong bull trend bar occurring within a strong bull spike, place a buy-limit order at that bar's close for the next bar.",
+    "pseudocode": "isStrongBullTrendBar = close[0] > open[0] && (close[0] - open[0]) >= strongBodyFraction * (high[0] - low[0]);\nlimitPrice = close[0];\nenterLongOnLimitNextBar = isStrongBullTrendBar && isStrongBullSpike[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.7
+    },
+    "book_order_type": "buy limit order at the close of the prior (strong) bull trend bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a trend-bar-body test plus a spike-context classification (research-grade elsewhere) gating a trivial limit-price test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-04",
+    "name": "LimitBuyAtPriorBarLowInSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192
+    ],
+    "quote": "Buy on a limit order at or below the low of the prior bar in a strong bull spike.",
+    "description": "During a strong bull spike, place a buy-limit order at or below the prior bar's low.",
+    "pseudocode": "limitPrice = low[0];\nenterLongOnLimitNextBar = isStrongBullSpike[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy limit order at or below the low of the prior bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "trivial price test gated by the research-grade strong-spike context"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-09",
+    "name": "OpeningRangeSpikeLowHoldEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192
+    ],
+    "quote": "While the opening range is forming, if there are two consecutive bull trend bars with strong bodies, buy at the low of the previous bar, expecting the low of the bull spike to hold for at least a scalp up.",
+    "description": "While today's opening range is still forming, if the two most recent bars are both strong bull trend bars, place a buy-limit order at the low of the prior bar.",
+    "pseudocode": "isStrongBullTrendBar0 = close[0] > open[0] && (close[0] - open[0]) >= strongBodyFraction * (high[0] - low[0]);\nisStrongBullTrendBar1 = close[1] > open[1] && (close[1] - open[1]) >= strongBodyFraction * (high[1] - low[1]);\nlimitPrice = low[0];\nenterLongOnLimitNextBar = isOpeningRangeStillForming[0] && isStrongBullTrendBar0 && isStrongBullTrendBar1 && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.7
+    },
+    "book_order_type": "buy limit order at the low of the previous bar",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-time 'opening range still forming' test plus two chained trend-bar-body checks"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-34",
+    "name": "RangeExtremeSecondAttemptReversalCloseEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      194
+    ],
+    "quote": "In a trading range day during a bull spike near the top of the range, sell a bear close, especially if it is in the top half of the range of the prior bar and if it is a second attempt to reverse down.",
+    "description": "In a trading range day, during a bull spike near the top of the range, sell the close of a bar that closes bearish, especially if that close sits in the top half of the prior bar's range and this is the second attempt to reverse down.",
+    "pseudocode": "isBearCloseBar = close[0] < open[0];\ncloseInTopHalfOfPriorBar = (close[0] - low[1]) / (high[1] - low[1] + epsilon) > 0.5;\nenterShortAtClose = isTradingRangeDay[0] && isBullSpike[0] && isNearTopOfRange[0] && isBearCloseBar\n   && closeInTopHalfOfPriorBar && isSecondReversalAttempt[0];",
+    "sides": "mirrored",
+    "parameters": {
+      "epsilon": 1e-06
+    },
+    "book_order_type": "sell at the close of the bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines a range/spike/extreme context with a close-position ratio and a second-attempt counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R31-09",
+    "name": "ReAddScalpedContractOnNextSpikeBarClose",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      217
+    ],
+    "quote": "you would have scalped out one contract during bar 5. On the close of bar 5, you could put your scalp contract back and once again be short two contracts.",
+    "description": "During an ongoing spike, immediately re-enter (at the close of the very next bar) the unit that was just scalped out for a quick profit, restoring the position to its prior combined size.",
+    "pseudocode": "// research: tracking a just-scalped-out unit and immediately re-adding it is multi-unit position bookkeeping the engine does not support\njustScalpedOutUnit = unitScalpedOutThisBar[0]; reenterShort = justScalpedOutUnit && isStrongBearTrendBar[0];",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "re-enter at the close of the spike bar that follows a scalped-out unit",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires tracking a partially-closed multi-unit position and re-adding a unit within the same ongoing spike, which the engine does not model"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "R31-10",
+    "name": "PressWithTrendOnEachSpikeBarClose",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      212,
+      216
+    ],
+    "quote": "Many traders quickly add to their longs as the spike rapidly grows, bar after bar... Traders and institutions continued to buy relentlessly... They were scaling in all the way up.",
+    "description": "Add a further with-trend unit at the close of every consecutive strong trend bar while a spike is underway ('pressing' a winning trade).",
+    "pseudocode": "// research: adding independently-tracked with-trend units on every qualifying bar is a multi-unit position feature the engine does not model\nisStrongBullTrendBar0 = close[0] > open[0] && (close[0]-open[0]) >= strongBodyFraction*(high[0]-low[0]);\nallowPressLong = ctx.MarketPosition() > 0 && isStrongBullTrendBar0;",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.6
+    },
+    "book_order_type": "add to the position at the close of each qualifying strong trend bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the bar classification is trivial, but adding successive with-trend units to an open position is a multi-unit feature the engine does not model"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "R32-01",
+    "name": "WeakSpikeQuality",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      221
+    ],
+    "quote": "Bar 17 was a high 1 long setup, but the bull spike had bars with small bodies and tails. This was not a strong bull spike, and therefore the high 1 should fail.",
+    "description": "Shared primitive for this chapter: classify the most recent short leg/spike as weak when its bars average a small body relative to their range (prominent tails), as opposed to a strong spike of consecutive large-bodied trend bars.",
+    "pseudocode": "avgBody = average(abs(close[0]-open[0]), spikeLookback); avgRangeVal = avgRange(spikeLookback); isWeakSpike = avgBody[0] < weakBodyFraction * avgRangeVal[0];",
+    "sides": "same",
+    "parameters": {
+      "weakBodyFraction": 0.4,
+      "spikeLookback": 3
+    },
+    "book_order_type": "n/a (bar/spike classification used as a setup-quality filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window average of bar bodies compared against a window average range"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "weakBodyFraction/spikeLookback are readings of 'small bodies and tails'; Brooks gives no numbers."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/32_getting_trapped_in_or_out_of_a_trade.json",
+    "chapter_title": "Getting Trapped In or Out of a Trade"
+  },
+  {
+    "id": "V00-20",
+    "name": "BreakoutBarStrongBody",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V00-19",
+      "V00-01"
+    ],
+    "depends_on": [
+      "V00-19"
+    ],
+    "pages": [
+      16
+    ],
+    "quote": "A bar that creates a breakout. It is usually a strong trend bar.",
+    "description": "A breakout bar is a breakout (V00-19) that is also a strong trend bar (large body, small tails). Kept as a named composite since Brooks treats the pairing as its own concept.",
+    "pseudocode": "high[0] >= highest(high, lookback) && close[0] > open[0] && (close[0]-open[0]) >= bodyFraction*(high[0]-low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 15,
+      "bodyFraction": 0.7
+    },
+    "book_order_type": "stop entry one tick beyond the breakout bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits the swing/prior-bar ambiguity of the underlying breakout definition"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "HighestHighBreakout",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-44",
+    "name": "FollowThroughBarSizeAdequate",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      56,
+      57
+    ],
+    "quote": "The next two or three bars also have bull bodies that are at least the average size of the recent bull and bear bodies.",
+    "description": "The bars following a breakout/reversal bar have bodies at least as large as the recent average body size, confirming follow-through.",
+    "pseudocode": "abs(close[0]-open[0]) >= average(abs(close-open), lookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10
+    },
+    "book_order_type": "n/a (context/confirmation filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window average of body sizes compared against the current bar's body"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-45",
+    "name": "SpikeBarLowNearPriorClose",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      56,
+      57
+    ],
+    "quote": "One or more bars in the spike have a low that is at or just one tick below the close of the prior bar.",
+    "description": "During a bull spike, a bar's low sits at or within one tick of the prior bar's close (eager buying with almost no giveback); mirrored for bear spikes on highs.",
+    "pseudocode": "low[0] >= close[1] - nearTicks*tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "nearTicks": 1
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "single comparison against a tick tolerance"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same shape of test as MinimalBodyOverlapConsecutive (V00-37); recorded separately because Brooks states it specifically for breakout/reversal spikes."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-51",
+    "name": "BreakoutReversesManyPriorBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      57,
+      58
+    ],
+    "quote": "This breakout bar has a high and close that are above the highs and closes of five or even 20 or more bars.",
+    "description": "A breakout bar's close (and high) exceed the highs and closes of many prior bars (5 to 20+), a strength sign; the close-based version is stronger than the high-based version.",
+    "pseudocode": "close[0] > highest(close, reversedBars) && close[0] > highest(high, reversedBars)",
+    "sides": "mirrored",
+    "parameters": {
+      "reversedBars": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a highest-over-window comparison, standard shape"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-19",
+    "name": "ShrinkingBodiesInSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      95,
+      96
+    ],
+    "quote": "The bull bodies became progressively smaller in the spike, and this was a sign of a loss of momentum.",
+    "description": "Filter: the last three same-direction trend bars have monotonically shrinking bodies, signaling loss of momentum within a spike (a wedge-shaped body sequence, ahead of a possible reversal or pause).",
+    "pseudocode": "close[2]>open[2] && close[1]>open[1] && close[0]>open[0] && body(2) > body(1) && body(1) > body(0)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter/warning, feeds an Exit or a reversal Entry elsewhere)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "three-bar comparison of body sizes"
+    },
+    "el_words_needed": [
+      "AbsValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V01-08",
+    "name": "AlwaysInFlipAfterSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      104
+    ],
+    "quote": "The two bear bars after bar 11 would have made most traders wonder if the always-in position had flipped to down, and most would have decided that it was indeed down by the end of the five-bar bear spike that ended at bar 14.",
+    "description": "Concept: the market's assumed always-in direction flips after a sufficiently strong same-direction spike; needs a formal always-in definition before it can gate entries.",
+    "pseudocode": "alwaysInDirection() flips to Short after a spike of spikeBars consecutive trend bars // alwaysInDirection is an undefined design-level helper",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 5
+    },
+    "book_order_type": "n/a (context concept)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"always-in direction\" is a design decision, not yet a codable test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V02-03",
+    "name": "FollowThroughBullBodies",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V02-01"
+    ],
+    "pages": [
+      107
+    ],
+    "quote": "The next two or three bars also have bull bodies that are at least the average size of the recent bull and bear bodies.",
+    "description": "The bar K bars ago was a bull reversal bar and each of the K bars since (including this one) closed up with a body at least the average body size measured before the reversal bar.",
+    "pseudocode": "BullReversalBarShape at [followBars] && forall i in 0..followBars-1: (close[i] > open[i] && body(i) >= avgBody(bodyLookback) measured ending at bar [followBars+1])",
+    "sides": "mirrored",
+    "parameters": {
+      "followBars": 2,
+      "bodyLookback": 10
+    },
+    "book_order_type": "enters at market or on a one- or two-tick pullback once follow-through is seen",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-offset loop plus a window average of bodies"
+    },
+    "el_words_needed": [
+      "Average",
+      "AbsValue"
+    ],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "followBars 2..3 per the text."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V02-09",
+    "name": "SpikeBarQualityCount",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V02-06",
+      "V02-07",
+      "V02-08"
+    ],
+    "depends_on": [],
+    "pages": [
+      107
+    ],
+    "quote": "One or more bars in the spike have a low that is at or just one tick below the close of the prior bar.",
+    "description": "Within the last spikeBars bars, at least K bars show one of the spike-quality features (low holds prior close, open above prior close, close on high).",
+    "pseudocode": "countif(i in 0..spikeBars-1, LowHoldsPriorClose[i] || OpenAbovePriorClose[i] || CloseOnHigh[i]) >= minQualityBars",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 5,
+      "minQualityBars": 2
+    },
+    "book_order_type": "n/a (strength assessment)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop counting per-bar tests"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "MinMove",
+      "PriceScale"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks says 'one or more'; the count form makes the strength tunable."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V03-09",
+    "name": "OppositeLargeSpikePairSignalsRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      129
+    ],
+    "quote": "Spikes like this are common in trends. However, the test of the bottom of a channel usually leads to a trading range as it did here. Big up + big down = big confusion = trading range.",
+    "description": "When a large trend bar (or short spike) in one direction is immediately followed by a comparably large trend bar in the opposite direction, expect the market to enter a trading range rather than continue trending; suppress strong-trend assumptions after such a pair.",
+    "pseudocode": "(high[1] - low[1]) >= bigBarAtrMultiple * atr[1] && (high[0] - low[0]) >= bigBarAtrMultiple * atr[0] && ((close[1] > open[1]) != (close[0] > open[0]))",
+    "sides": "same",
+    "parameters": {
+      "bigBarAtrMultiple": 1.5
+    },
+    "book_order_type": "n/a (regime filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an ATR read plus a two-bar range/direction comparison"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Overlaps the topic of Chapter 4 (climactic reversals: a spike followed by a spike); flag for dedup with that chapter's mining."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/03_major_trend_reversal.json",
+    "chapter_title": "Major Trend Reversal"
+  },
+  {
+    "id": "V04-03",
+    "name": "SpikeFollowedByOppositeSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V04-01"
+    ],
+    "depends_on": [
+      "V04-01"
+    ],
+    "pages": [
+      139,
+      218
+    ],
+    "quote": "When there is a large spike and it is followed either immediately or soon thereafter by a spike in the opposite direction, the market is trying to reverse... it creates a climactic reversal.",
+    "description": "A climax bar in one direction is followed, within a few bars, by a climax bar in the opposite direction. This is the chapter's title concept and the core climactic-reversal trigger. Long side: a bear climax bar occurs, then within N bars a bull climax bar closes -- treat the bull climax bar's close as the reversal signal (enter next open).",
+    "pseudocode": "existsClimaxBar(V04-01, direction=down, within=withinBars) && climaxBar(V04-01) && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "withinBars": 3
+    },
+    "book_order_type": "n/a (context signal; the actual entry is the close-then-next-open of the second climax bar)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires remembering a recent opposite-direction climax bar plus the current bar's own classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same idea as V03-09 (OppositeLargeSpikePairSignalsRange) from Chapter 3, restated here as the chapter's central topic; dedup pass should merge, keeping this chapter's framing since it is the canonical source."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-04",
+    "name": "ReversalSpikeSizeExceedsTrendSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V04-03"
+    ],
+    "depends_on": [
+      "V04-01",
+      "V04-03"
+    ],
+    "pages": [
+      146
+    ],
+    "quote": "The reversal spike can be smaller or larger than the trend spike, and if it is larger, the odds of a reversal are greater.",
+    "description": "Given a spike-then-opposite-spike pair (V04-03), the odds of an actual trend reversal (rather than just a pause) are higher when the reversal spike's total range exceeds the original trend spike's range by some margin.",
+    "pseudocode": "reversalSpikeRange(0) >= sizeMultiple * trendSpikeRange",
+    "sides": "same",
+    "parameters": {
+      "sizeMultiple": 1.0
+    },
+    "book_order_type": "n/a (confidence filter on V04-03)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a stored prior range compared against the current spike's range"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V07-11",
+    "name": "FlagBreakoutConfirmationRequiresCloseMargin",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      235
+    ],
+    "quote": "when a bull flag breaks out to the downside, traders want to see a strong bear trend bar with a close that is several ticks below the bottom of the flag, like the bear trend bar that formed two bars before bar 13.",
+    "description": "A breakout of a flag is only considered confirmed (strong enough to make with-trend traders give up on the flag) when a trend bar CLOSES several ticks beyond the flag's own boundary, not merely when price touches or barely crosses it.",
+    "pseudocode": "isConfirmedDownsideBreakout = close[0] < open[0] && close[0] <= flagLowPrice - marginTicks * tick",
+    "sides": "mirrored",
+    "parameters": {
+      "marginTicks": 3
+    },
+    "book_order_type": "n/a (breakout-confirmation test feeding a continuation entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare comparison of the close against a stored flag-boundary price plus a fixed tick margin"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseAbovePriorSwingHighByMargin",
+    "confidence": "medium",
+    "notes": [
+      "Same shape as CloseAbovePriorSwingHighByMargin (V02-18) / CloseAboveEmaByMargin (V02-17), applied to a flag's own boundary instead of a swing high or the EMA."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/07_final_flags.json",
+    "chapter_title": "Final Flags"
+  },
+  {
+    "id": "V09-08",
+    "name": "BuyBearSpikeInEstablishedBullTrend",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      258,
+      259,
+      279,
+      280
+    ],
+    "quote": "Instead of looking for shorts, experienced traders will often buy on the close of that spike down or on the open of the next day... They know that most attempts to reverse fail and the first attempt almost always is followed by a new high.",
+    "description": "In an established bull trend, a sharp bear spike down toward or through the moving average / trend line is usually a failed reversal attempt; buy on the close of the spike bar (or the open of the next bar) instead of waiting for more confirmation.",
+    "pseudocode": "bullTrendContext && (close[1] - close[0]) >= spikeFraction * close[1] && close[0] <= movingAverage[0] + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeFraction": 0.02,
+      "toleranceTicks": 5
+    },
+    "book_order_type": "buy at the close of the spike bar or the open of the following bar; also mentioned as buying calls to cap overnight risk",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "hard",
+      "reason": "combines a trend-context judgment, a magnitude-of-decline threshold, and proximity to the moving average / trend line"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Illustrated with AAPL (8% earnings gap) and NTAP (16% sell-off) on daily charts, and SPY on a 60-minute chart; Brooks gives no numeric spike threshold, spikeFraction is a reading.",
+      "The options-based version of this trade (buying calls at the spike bottom) is out of scope - see rejected."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/09_failures.json",
+    "chapter_title": "Failures"
+  },
+  {
+    "id": "V13-03",
+    "name": "PostVolatilitySpikeEntryDelay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      310
+    ],
+    "quote": "In the seconds to minutes after a report comes out, computerized trading by institutions gives them a clear edge in speed of analysis and order placement. When your competition has a big advantage, don't compete. Wait for their edge to disappear... which is usually after the first one to three bars.",
+    "description": "After a burst of large-range/outside bars signals an emotional volatility spike (a proxy for a news report, detectable from price alone), wait waitBars bars before taking new entries, letting the initial speed-driven moves fade.",
+    "pseudocode": "barsSince(rangeSpikeBar) >= waitBars",
+    "sides": "same",
+    "parameters": {
+      "waitBars": 2,
+      "rangeMultiple": 2.0,
+      "rangeLookback": 15
+    },
+    "book_order_type": "n/a (entry-delay filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "composes a bar-range-vs-average volatility-spike detector with a bars-since counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "Uses a detectable price-action proxy (a big/outside bar burst) instead of an actual news calendar, unlike the same idea in Chapter 11 which was rejected for needing a report schedule."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/13_time_frames_and_chart_types.json",
+    "chapter_title": "Time Frames and Chart Types"
+  },
+  {
+    "id": "V15-05",
+    "name": "FollowThroughBarNoOppositeClose",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V15-01"
+    ],
+    "pages": [
+      326,
+      327
+    ],
+    "quote": "As a guideline, the minimum requirement for an always-in flip to short is usually that the follow-through bar not have a bull close ... The minimum requirement for the follow-through bar is usually that it does not have a bear close.",
+    "description": "Minimum confirmation test: after a strong breakout bar (bar 1), the always-in direction flips only if the very next bar (bar 0, the follow-through bar) does not close in the opposite direction - i.e., after a strong bull breakout bar, the follow-through bar must not have a bear close.",
+    "pseudocode": "StrongTrendBarPrimitive[1] (bull) && close[0] >= open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "n/a (minimum confirmation test for an always-in flip)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two-bar test combining the strong-trend-bar primitive on the prior bar with a close-color test on the current bar"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This is the weakest confirmation Brooks gives; V15-06 is the strong-confirmation form."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-06",
+    "name": "FollowThroughBarStrongContinuationEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V15-01"
+    ],
+    "pages": [
+      326
+    ],
+    "quote": "If the follow-through bar is strong, traders can enter on the close of the bar or on a small pullback. For example, if there is a strong bull breakout and the next bar is a strong bull trend bar, many traders will buy on the close of that follow-through bar or on a one- or two-tick pullback.",
+    "description": "Strong confirmation: after a strong breakout bar, the follow-through bar is itself a strong same-direction trend bar - enter at its close (mechanized as next bar's open) or on a small pullback below its close.",
+    "pseudocode": "StrongTrendBarPrimitive[1] (bull) && StrongTrendBarPrimitive[0] (bull)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2,
+      "pullbackTicks": 2
+    },
+    "book_order_type": "buy at the close of the follow-through bar, or on a limit order one or two ticks below its close",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "two consecutive applications of the trivial strong-trend-bar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "Equivalent to V15-03 with consecutiveBars=2; recorded separately because Brooks frames it as the entry-timing rule (close vs. small pullback), not the flip test itself."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-08",
+    "name": "FollowThroughExtensionBeyondBreakoutBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      326
+    ],
+    "quote": "If the follow-through bar goes only a few ticks beyond the breakout bar, odds favor a failed breakout. If it goes many ticks beyond, the odds favor the bar becoming a strong trend bar once it closes.",
+    "description": "The follow-through bar's high extends at least a threshold number of ticks beyond the breakout bar's high - odds favor the always-in direction confirming rather than the breakout failing.",
+    "pseudocode": "(high[0] - high[1]) >= extensionTicks * tick",
+    "sides": "mirrored",
+    "parameters": {
+      "extensionTicks": 4
+    },
+    "book_order_type": "n/a (strength assessment of the follow-through bar in progress)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar price comparison against a tick threshold"
+    },
+    "el_words_needed": [
+      "MinMove",
+      "PriceScale"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no numbers for 'a few' vs. 'many' ticks; extensionTicks is a reading of the distinction and should be optimized."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-09",
+    "name": "AlwaysInPersistsWithoutOppositeSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V15-01"
+    ],
+    "pages": [
+      326
+    ],
+    "quote": "if there is a bull breakout followed by a few weak bars of follow-through, and then the market begins to form a weak bear channel without ever having a bear spike, the market can remain always-in long.",
+    "description": "Filter: after a bull breakout, the always-in direction remains long as long as no strong bear trend bar (a bear 'spike') has appeared within the lookback, even if price has pulled back for several bars in a shallow channel.",
+    "pseudocode": "not exists i in 0..lookback-1: StrongTrendBarPrimitive[i] (bear)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 8,
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "n/a (context persistence filter; traders keep protective stops in case the pullback grows)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an absence-of-event test over a window of the strong-trend-bar primitive, plus cross-bar persistence of the prior always-in state"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Negative complement of V15-03/V15-09's mirror: a strong opposite trend bar is what would break this persistence and trigger a new flip test."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V16-13",
+    "name": "StopClusterCascadeBreakoutContinuation",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      355,
+      356
+    ],
+    "quote": "They would have had buy stops above the bar 26 bear trend bar high; the bars 23, 24, 25 triple top; the bar 21 lower high; the bar 17 bull climax high; and yesterday's high. Since all of these stops were within a tick or two of each other, the stops could have been quickly hit in a cascade of stop running.",
+    "description": "When a breakout bar's extreme clears several distinct prior resistance/support levels (swing highs, old signal-bar extremes, prior-day extremes) that all sit within a small tick range of each other, expect a stop-running cascade and strong continuation.",
+    "pseudocode": "// research/hard: needs a set of distinct pivot/extreme levels within the lookback\ncountOfClusteredLevels(levels, close[0], marginTicks) >= minLevels && close[0] > breakoutLevel",
+    "sides": "mirrored",
+    "parameters": {
+      "marginTicks": 4,
+      "minLevels": 3
+    },
+    "book_order_type": "buy at the market once the cluster of levels is cleared",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires identifying multiple distinct swing/entry-bar levels and testing whether they cluster within a small margin - swing-pivot detection over a variable set"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "V19-09",
+    "name": "LargeOpeningRangeSpikeOrClimaxBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      405
+    ],
+    "quote": "The third possibility is when the opening move is large. This is usually due to a strong spike and the day often becomes a spike and channel trend day, but sometimes it leads to a climactic reversal, usually after a small final flag.",
+    "description": "When the opening range/move is large relative to the recent average daily range, bias toward expecting a spike-and-channel trend day (or, less often, a climactic reversal after a small final flag) rather than a contained trading range.",
+    "pseudocode": "(openingRangeHigh(openingRangeBars) - openingRangeLow(openingRangeBars)) > largeRangeFraction * averageDailyRange(rangeLookback)",
+    "sides": "same",
+    "parameters": {
+      "openingRangeBars": 8,
+      "largeRangeFraction": 0.5,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "same measurement as V19-08 with the opposite threshold direction"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The 'about a third to a half' medium regime in between V19-08 and this candidate is not encoded separately: its actionable content (breakout to a measured move, test of the breakout point, possible reversal day) duplicates already-mined breakout/measured-move concepts, so it is left as the implicit complement of V19-08/V19-09."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-12",
+    "name": "BreakoutModeStraddleEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      409
+    ],
+    "quote": "As soon as the market traded below bar 3, it became a spike up (a reversal down). Once the market traded above bar 4, it became a spike down (a reversal up). At that point, many traders treated those two spikes as a breakout mode setup and placed buy stops at one tick above the top spike and sell stops at one tick below the bottom spike.",
+    "description": "After two opposing failed micro-spikes establish a small range within the opening range, place a resting stop order one tick above the range top (long) and one tick below the range bottom (short); whichever fills is the entry, and the other level becomes the initial protective stop.",
+    "pseudocode": "high[0] == highest(high, breakoutModeBars) && low[breakoutModeBars] == lowest(low, breakoutModeBars) /* placeholder: range top and bottom set by the two opposing failed spikes */ && close[0] > rangeTop",
+    "sides": "mirrored",
+    "parameters": {
+      "breakoutModeBars": 6
+    },
+    "book_order_type": "buy stop one tick above the range top / sell stop one tick below the range bottom; the unfilled side becomes the protective stop",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires detecting two opposing failed micro-spikes to fix the range boundaries, not a fixed lookback window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is the generic 'breakout mode' pattern, likely already defined as a primitive elsewhere in the trilogy (e.g. the trading-ranges volume); recorded here as it is stated in this chapter's opening-range context."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-14",
+    "name": "RepeatedFailedFollowThroughWeakness",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      410
+    ],
+    "quote": "there were three bear trend bars before bar 4 and each was followed by a bar with a bull body. The bears were unable to create follow-through selling, which meant that they were weak.",
+    "description": "Context filter: over the last N attempts, each bear trend bar was immediately followed by a bull-bodied bar (no follow-through selling) -- a sign of bear weakness that favors the opposite (bull) side.",
+    "pseudocode": "countIf(k=1..lookback, close[k] < open[k] && close[k-1] > open[k-1]) >= weaknessCount",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 6,
+      "weaknessCount": 3
+    },
+    "book_order_type": "n/a (context filter, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "counting a two-bar failure pattern across a variable-length recent window is a pattern-recognition test, not a fixed-offset comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The specific counts (three attempts, six-bar lookback) are readings of the single narrated example, not numbers Brooks generalizes."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V24-27",
+    "name": "SpikeEntryDuringBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      488
+    ],
+    "quote": "Buying a bull spike in a strong bull breakout at the market or on a limit order at or below the low of the prior bar (entering in spikes requires a wider stop and the spike happens quickly).",
+    "description": "During a strong multi-bar bull trend-bar spike, enter at the market on the close of any spike bar, or on a limit order at/below the prior bar's low, rather than waiting for a pullback. Mirrored for bear spikes.",
+    "pseudocode": "consecutiveTrendBars(bull) >= 2 && TrendBarBody(bull) // entry at close[0], or resting limit at low[1]-limitOffsetTicks*tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "limitOffsetTicks": 0
+    },
+    "book_order_type": "market on the bar's close, or a resting limit order at/below the prior bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a short consecutive-trend-bar counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-41",
+    "name": "WiderStopForSpikeEntry",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      497,
+      522
+    ],
+    "quote": "If they used a wide stop, they would have to reduce their position size... entering in spikes requires a wider stop and the spike happens quickly.",
+    "description": "When entering during a strong multi-bar spike (V24-27) rather than on a pullback, size the protective stop as a multiple of the normal signal-bar stop distance (and correspondingly reduce position size).",
+    "pseudocode": "stopDistance = normalStopDistance * spikeStopMultiplier",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeStopMultiplier": 2.0
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a fixed multiplier applied to an existing stop-distance calculation"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "T00-36",
+    "name": "FollowThroughBodyAtLeastAverage",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      58
+    ],
+    "quote": "The next two or three bars also have bull bodies that are at least the average size of the recent bull and bear bodies.",
+    "description": "Each of the K bars following the breakout bar has a body at least as large as the recent average body size and in the trend direction.",
+    "pseudocode": "for k in 0..followThroughBars-1: close[k] > open[k] && abs(body(k)) >= average(abs(body), avgBodyLookback)[k+1]",
+    "sides": "mirrored",
+    "parameters": {
+      "followThroughBars": 2,
+      "avgBodyLookback": 10
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window average of body size compared bar by bar"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T03-07",
+    "name": "SpikeDetection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      107
+    ],
+    "quote": "Some form of this spike and channel behavior happens to some extent every day in all markets... if there is a spike up (an upside breakout) that lasts several bars, there will then be a pullback.",
+    "description": "Primitive context: a 'spike' is a short run of consecutive strong-bodied trend bars in one direction, the first leg of a spike-and-channel trend.",
+    "pseudocode": "count of consecutive bars k in 0..spikeBars-1 with (close[k]>open[k] && (close[k]-open[k]) >= strongBodyFraction*range(k)) >= spikeBars - allowedWeakBars",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "strongBodyFraction": 0.7,
+      "allowedWeakBars": 0
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "what counts as a 'spike' versus an ordinary trend leg is a design decision; consecutive strong trend bars is one proxy"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T04-04",
+    "name": "SpikeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      114
+    ],
+    "quote": "Continuation signal in the spike phase of a strong trend: A continuation signal can be buying at the top of a bull trend or selling at the bottom of a bear trend.",
+    "description": "Context filter primitive: the market is in the spike phase of a strong trend, approximated as at least K of the last N bars closing as trend bars in the same direction with no pause bar breaking the streak.",
+    "pseudocode": "count over k in 1..N of (close[k] > open[k]) >= K",
+    "sides": "mirrored",
+    "parameters": {
+      "N": 5,
+      "K": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop counting trend-bar direction"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T04-05",
+    "name": "SpikeContinuationEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T04-03",
+      "T04-04"
+    ],
+    "depends_on": [],
+    "pages": [
+      114
+    ],
+    "quote": "Strong bull trend bar in a bull spike.",
+    "description": "During the spike phase of a bull trend, this bar is itself a strong bull trend bar: buy above it as a with-trend continuation signal.",
+    "pseudocode": "SpikeContext[0] && StrongTrendBar[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the strong trend bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "inherits the window-count context plus a single-bar test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T04-15",
+    "name": "SpikeEndBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      117
+    ],
+    "quote": "every trend bar is a climax or part of a climax and the climax ends with the first pause bar... if there are three consecutive bull trend bars and then the next bar is a small bull trend bar with a prominent tail on the top, or an inside bar, a doji, or a bear trend bar, then the climax ended with the three bull trend bars.",
+    "description": "Primitive/filter: a bull spike/climax is judged to have ended when, after a streak of K consecutive bull trend bars, this bar fails to also qualify as a (non-small, non-tailed) bull trend bar.",
+    "pseudocode": "(count over k in 1..streakBars of (close[k] > open[k] && (close[k]-open[k]) >= bodyFraction*(high[k]-low[k])) == streakBars) && !(close[0] > open[0] && (close[0]-open[0]) >= bodyFraction*(high[0]-low[0]))",
+    "sides": "mirrored",
+    "parameters": {
+      "streakBars": 3,
+      "bodyFraction": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "streak detection ending exactly at a bar boundary is cross-bar state, not a plain window average"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T04-16",
+    "name": "FollowThroughBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      113
+    ],
+    "quote": "The bar after entry is the follow-through bar, and it is always better when there is a second bar in the direction of your entry.",
+    "description": "Primitive: the bar immediately after entry that continues (does not reverse) in the trade's direction. No explicit numeric management action is tied to it in this chapter; recorded for later chapters that may use it to scale in or tighten stops.",
+    "pseudocode": "ctx.MarketPosition() > 0 && ctx.BarsSinceEntry() == 1 && close[0] >= ctx.EntryPrice()",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (post-entry classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads position-entry state"
+    },
+    "el_words_needed": [
+      "EntryPrice",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "No concrete action attached in this chapter; kept for high recall in case a later chapter conditions management on it."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T06-03",
+    "name": "TrendSpikeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T06-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      131,
+      137
+    ],
+    "quote": "This urgency results in a series of bull trend bars and an increasingly larger bull spike.",
+    "description": "Primitive context filter approximating a trend 'spike': the last spikeBars bars are (almost) all trend bars in the same direction with limited overlap between consecutive bars. Reused with different spikeBars values as a short-window spike proxy or a longer-window 'established trend' proxy elsewhere in this file.",
+    "pseudocode": "for k in 0..spikeBars-1: TrendBar[k] (same direction) && (min(high[k],high[k+1]) - max(low[k],low[k+1])) <= maxOverlapFraction * min(range(k),range(k+1)) -> spikeHolds; filter passes when spikeHolds",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "maxOverlapFraction": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "identifying a 'spike' or an 'established trend' is a design decision; a run of low-overlap trend bars is one workable proxy"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [
+      "Same proxy family as T07-08 StrongTrendContext, defined independently per the one-primitive-per-chapter rule."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-23",
+    "name": "ShavedBarEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T06-22",
+      "T06-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      136,
+      140
+    ],
+    "quote": "It is a setup only when it forms in a strong trend (e.g., in a strong bull trend, if there is a bull trend bar with no tail on its top or bottom, then it is a buy setup).",
+    "description": "In a trend spike, a shaved-top bar (long) / shaved-bottom bar (short) is a with-trend breakout setup.",
+    "pseudocode": "ShavedBar[0] && TrendSpikeContext[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above high[0] (or enter at the market, since the close into the high already shows the strength)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "inherits the spike-identification judgment from TrendSpikeContext"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T07-29",
+    "name": "LargeTailedRangeBreakoutFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      194
+    ],
+    "quote": "it is not good to short a breakout of a trading range when many of the bars in the trading range are relatively large and have big tails, because the odds that the breakout will fail are high.",
+    "description": "Block breakout entries when, over the last N bars, at least K bars are both large (range >= average) and tailed (body is a small fraction of range).",
+    "pseudocode": "count over k in 1..N of (range(k) >= avgRange(N) && abs(body(k)) <= bodyFractionMax * range(k)) < K",
+    "sides": "same",
+    "parameters": {
+      "N": 8,
+      "K": 4,
+      "bodyFractionMax": 0.5
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop with a running average"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p183 in chapter 6 makes the same point about large-range tight ranges."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-36",
+    "name": "OutsideUpBarStrongCloseThenBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      196
+    ],
+    "quote": "traders could wait for the close of the outside up bar to see if it closed near its high and above the prior bar, which it did. Once they see that strength, they could buy above the high of the outside bar.",
+    "description": "The prior bar was an outside bar that closed near its high and above the bar before it; this bar closes above the outside bar's high: enter long.",
+    "pseudocode": "OutsideBar[1] && (high[1] - close[1]) <= closeNearFraction * range(1) && close[1] > high[2] && close[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "closeNearFraction": 0.2
+    },
+    "book_order_type": "buy stop one tick above the outside bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "fixed-offset arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Under the convention the outside bar itself could be the signal bar (enter at next open once it closes strong); both forms are worth testing."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T08-01",
+    "name": "WeakFollowThroughScalpExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      200
+    ],
+    "quote": "If the entry bar is six ticks tall, you would much prefer seeing the body suddenly increase from a body that was two ticks to one that was four ticks in the final seconds of the bar... This is true for the next couple of bars as well. If there are strong closes, you should be more willing to swing more contracts and hold them for more points than if these bars had weak closes.",
+    "description": "The chapter's one genuinely bar-level, position-management idea: how strongly the entry bar and the bar right after it close (in the trade's direction) should govern whether to take a quick scalp or hold for a larger target. Since this engine has no position-sizing primitive, the sizing decision is mechanized as a binary exit: take the available profit now (a quick scalp) when the entry bar or the very next bar did NOT close as a strong trend bar in the trade's direction; otherwise let it run toward a larger target.",
+    "pseudocode": "n = ctx.BarsSinceEntry(); entryBarWeak = (close[n] - open[n]) < strongBodyFraction * (high[n] - low[n]) || close[n] <= open[n]; nextBarWeak = (n >= 1) && ((close[n-1] - open[n-1]) < strongBodyFraction * (high[n-1] - low[n-1]) || close[n-1] <= open[n-1]); (n == 0 && entryBarWeak) || (n == 1 && nextBarWeak) && ctx.OpenPositionProfit() > 0",
+    "sides": "same",
+    "parameters": {
+      "strongBodyFraction": 0.6
+    },
+    "book_order_type": "exit at the market (or scale out) as soon as the weak close is confirmed, rather than holding for a larger swing target",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs to index back to the entry bar and the bar right after it using BarsSinceEntry, and reuses the corpus's trend-bar body-fraction test"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "OpenPositionProfit"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is an approximation: Brooks's actual point is about position SIZE (how many contracts to hold/scale out), which the engine's Entry/Exit boolean framework cannot express directly; it is recast here as a binary quick-scalp-vs-hold exit decision.",
+      "The rest of this short chapter is almost entirely about intrabar (sub-bar) price behavior in the final seconds before a bar closes, which is data below the bar and is rejected below."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/08_the_importance_of_the_close_of_the_bar.json",
+    "chapter_title": "The Importance of the Close of the Bar"
+  },
+  {
+    "id": "T12-04",
+    "name": "OpposingSpikesPredictTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      219
+    ],
+    "quote": "The market had bull spikes up to bar 2 and bar 4 and bear spikes down to bar 3 and bar 5. This often results in a trading range as the bulls and bears continue to trade in an attempt to generate a channel in their direction.",
+    "description": "Filter: when two or more opposing-direction spikes (runs of spikeBars consecutive trend bars) have alternated within the last windowBars, treat the market as entering a trading range rather than a trend and prefer fading extremes over trend-following.",
+    "pseudocode": "countDirectionChangesInSpikes(spikeBars, windowBars) >= minAlternations",
+    "sides": "same",
+    "parameters": {
+      "spikeBars": 3,
+      "windowBars": 20,
+      "minAlternations": 2
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a spike-detection primitive plus counting direction changes among detected spikes over a variable window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/12_pattern_evolution.json",
+    "chapter_title": "Pattern Evolution"
+  },
+  {
+    "id": "T15-55",
+    "name": "LastBreakoutTradeWonFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      277
+    ],
+    "quote": "Whenever a breakout trade results in a profit, it is a sign that the trend is strong.",
+    "description": "Trend-strength filter from trade history: the most recently closed position was a with-trend breakout entry and it closed profitably. When true, favour further with-trend entries.",
+    "pseudocode": "lastClosedTradeProfit > 0 && lastClosedTradeWasBreakout",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "position-history read"
+    },
+    "el_words_needed": [
+      "PositionProfit"
+    ],
+    "likely_existing_rule": "LastTradeCooldown",
+    "confidence": "low",
+    "notes": [
+      "Needs the entry rule to tag itself as a breakout; the authoring pass may simplify to 'last trade won'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "TP3-04",
+    "name": "BullSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "TP3-01",
+      "TP3-05",
+      "TP3-06"
+    ],
+    "depends_on": [],
+    "pages": [
+      306,
+      308
+    ],
+    "quote": "if there is a strong bull breakout, or a trend from the open bull, where there is a bull spike made of four consecutive large bull trend bars with small tails, and then the fifth bar falls below the low of the prior bar, this is a pullback.",
+    "description": "Shared primitive: a bull spike is spikeBars consecutive bull trend bars with small tails and little overlap. Used as the 'strong trend / always-in flip' trigger and as the context for the High 1 buy.",
+    "pseudocode": "for i in 0..spikeBars-1: BullTrendBar(i) && SmallTails(i) && LittleOverlap(i)  // all true",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 4
+    },
+    "book_order_type": "n/a (structure primitive; Brooks enters at the market or above the prior bar during a spike)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length window loop over per-bar tests"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "Brooks says a spike 'can be as brief as a single bar'; spikeBars should be optimized from 1 upward."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-12",
+    "name": "StrongTrendDayFollowThrough",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      307
+    ],
+    "quote": "if today was a huge bull trend day, especially if it was a reversal or a breakout and a possible start of a big move, the day will usually close near its high and the next day will also usually have a close above its open.",
+    "description": "On daily bars: yesterday was a huge bull trend bar (range at least rangeMultiple times the average range, closing in the top closeFraction of its range) -> buy today's open, expecting close above open. Intraday form: after such a day, take long entries only and hold to the close.",
+    "pseudocode": "(high[1] - low[1]) >= rangeMultiple * avgRange(rangeLookback)[2] && close[1] > open[1] && (close[1] - low[1]) >= closeFraction * (high[1] - low[1])",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeMultiple": 1.5,
+      "rangeLookback": 20,
+      "closeFraction": 0.75
+    },
+    "book_order_type": "market on the next day's open",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average range over a window plus fixed-offset comparisons"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd, CloseRangePosition",
+    "confidence": "medium",
+    "notes": [
+      "Pair with an exit at the next bar's close (NumBars(1)) to test the 'close above open' claim directly.",
+      "Brooks adds 'this may continue for several days in a row'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-18",
+    "name": "BuyAbovePriorBarHighInSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP3-03"
+    ],
+    "pages": [
+      308,
+      312
+    ],
+    "quote": "They have many ways to enter, like buying at the market, buying a one- or two-tick pullback, buying above the prior bar on a stop, or buying on a breakout above a prior swing high.",
+    "description": "In an always-in-long market, buy when the bar closes above the prior bar's high (the close-based form of a buy stop above the prior bar).",
+    "pseudocode": "alwaysInLong && close[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the prior bar high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison; the context filter is separate"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseAbovePriorHigh",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T18-05",
+    "name": "BullSpikeClassification",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      319,
+      320
+    ],
+    "quote": "Buying a bull spike in a strong bull breakout at the market, at the close of every bull trend bar in the spike.",
+    "description": "Primitive: an active bull spike -- a short run of consecutive bull trend bars with high body fraction and little overlap, following a breakout.",
+    "pseudocode": "countIf(i, 0, spikeWindow - 1, close[i] > open[i] && (close[i]-open[i]) >= bodyFraction*(high[i]-low[i])) >= spikeWindow * minFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeWindow": 3,
+      "bodyFraction": 0.6,
+      "minFraction": 0.67
+    },
+    "book_order_type": "n/a (state classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window loop counting a per-bar trend-bar classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no numeric definition of a 'spike'; parameters are a reading of the concept."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T18-10",
+    "name": "BuySpikeLimitBelowPriorBarLow",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T18-05"
+    ],
+    "depends_on": [
+      "T18-05"
+    ],
+    "pages": [
+      319,
+      320
+    ],
+    "quote": "...or on a limit order at or below the low of the prior bar (entering in spikes requires a wider stop and the spike happens quickly, so this combination is difficult for many traders).",
+    "description": "While an active bull spike is in progress, place a limit buy at or below the low of the prior bar.",
+    "pseudocode": "BullSpikeActive() && low[0] <= low[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "limit order at or below the prior bar's low, filled intrabar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a simple price test gated by the spike-state dependency"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T19-23",
+    "name": "FailedCountertrendSpikeBecomesFlag",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      339
+    ],
+    "quote": "Reversal attempts in the form of spikes against the trend have no follow-through, fail, and become flags in the direction of the trend.",
+    "description": "A strong countertrend spike fails to follow through (does not make a new extreme beyond a short window) and instead consolidates into a flag that resolves back in the prior trend's direction.",
+    "pseudocode": "// needs spike/pattern detection plus a follow-through-failure test over a following window",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs pattern recognition (spike) over a variable-length window plus a follow-through failure test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "TP4-06",
+    "name": "LargeOpeningRangeSpikeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP4-01",
+      "TP4-02"
+    ],
+    "pages": [
+      354
+    ],
+    "quote": "If the opening range is large, there is usually a spike and the day will likely become a spike and channel trend day.",
+    "description": "Filter: the opening range already exceeds a large fraction of the average daily range, so the opening move is a spike; with-trend entries only (direction of the spike) for the rest of the session.",
+    "pseudocode": "orHeight > largeFraction * adr && close[0] > sessionOpen  /* long side: opening spike was up */",
+    "sides": "mirrored",
+    "parameters": {
+      "largeFraction": 0.6,
+      "openingBars": 12,
+      "dailyLookback": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session state primitives plus session open"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest",
+      "Average",
+      "OpenD"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Direction of the spike is taken as sign(close - session open) at the end of the opening range; Brooks does not spell this out."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "T21-05",
+    "name": "BullSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-01",
+      "T21-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      356,
+      357
+    ],
+    "quote": "When the market has a series of bars that cover a lot of points with little or no pulling back, this strong trend is a spike.",
+    "description": "Primitive: the last N bars are all bull trend bars with rising closes and little overlap between consecutive bars. A single large bull trend bar (T21-02) also counts as a spike at N=1.",
+    "pseudocode": "for k in 0..spikeBars-1: bullTrendBar[k] && close[k] > close[k+1] && overlapFrac[k] <= maxOverlap; all true",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2,
+      "bodyFraction": 0.6,
+      "maxOverlap": 0.3
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length window loop over bar tests"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "Brooks: 'as small as a single moderate-sized trend bar or ... 10 or more bars'; spikeBars is the minimum run length."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-07",
+    "name": "SpikeState",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-05",
+      "T21-06"
+    ],
+    "depends_on": [],
+    "pages": [
+      357,
+      360
+    ],
+    "quote": "The spike ends at the first pause or pullback, but if it resumes within a bar or two, it becomes either a second spike or a spike on a larger time frame.",
+    "description": "Primitive with state: once a bull spike is detected, remember spikeStart (open or low of its first bar), spikeEnd (close or high of its last bar, fixed at the first pause bar), spikeEndBar index, and spikeHeight = spikeEnd - spikeStart. If a new spike resumes within resumeBars of the pause, extend the same spike instead of starting a new one.",
+    "pseudocode": "if (bullSpike detected and !inSpike) { spikeStart = useBody ? open[spikeBars-1] : low[spikeBars-1]; inSpike = true } if (inSpike && pauseBar[0]) { spikeEnd = useBody ? close[1] : high[1]; spikeEndBar = barIndex-1; inSpike = false } if (!inSpike && bullSpike detected && barIndex - spikeEndBar <= resumeBars) { extend: keep spikeStart } spikeHeight = spikeEnd - spikeStart",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2,
+      "resumeBars": 2,
+      "useBody": false
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state machine remembering the spike extremes"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "useBody selects Brooks's 'open or low ... close or high' alternatives for the measured-move anchors (page 360, 384)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-09",
+    "name": "SpikeInFirstHour",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T21-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      355,
+      390
+    ],
+    "quote": "The spike usually forms in the first hour and often within the first few bars of the day.",
+    "description": "Filter: a bull spike completed within the first N bars of the session, which makes a spike-and-channel bull day likely; long entries are favored for the rest of the session.",
+    "pseudocode": "spikeSeenUpThisSession && spikeEndBarsIntoSession <= firstBars",
+    "sides": "mirrored",
+    "parameters": {
+      "firstBars": 12,
+      "spikeBars": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session state plus the spike state machine"
+    },
+    "el_words_needed": [
+      "Date",
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-10",
+    "name": "BuySpikeBarClose",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      364,
+      377
+    ],
+    "quote": "They could simply buy on the close of any of the bars and put a protective stop below the bottom of the spike",
+    "description": "Entry: the current bar completes (or extends) a bull spike of at least N bars; enter at the next open. Brooks: enter at the market as the spike is forming when the breakout looks strong.",
+    "pseudocode": "bullSpike(spikeBars)  /* enter next open */",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2,
+      "bodyFraction": 0.6,
+      "maxOverlap": 0.3
+    },
+    "book_order_type": "market order at the close of a spike bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop of bar tests"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "Page 376: 'about 10 or more strongly trending bars with little overlap and small tails ... traders are buying it at the market' - same rule at spikeBars = 10."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-15",
+    "name": "TradingRangeAfterSpikeWithTrendBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-14"
+    ],
+    "depends_on": [],
+    "pages": [
+      357
+    ],
+    "quote": "In general, the odds always favor the trading range breakout to be in the same direction as the original trend.",
+    "description": "Entry (trend resumption): after a bull spike and a pullback that grew into a trading range of more than N bars, buy when a bar closes above the high of that range.",
+    "pseudocode": "pullbackIsRange && close[0] > highest(high, barIndex - spikeEndBar)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeBars": 10
+    },
+    "book_order_type": "buy stop above the range high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "range extent derived from the spike state"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "medium",
+    "notes": [
+      "Page 358: about a third of the time the range breaks the other way; this rule takes only the with-trend break."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-50",
+    "name": "OppositeSpikesWithinFewBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      364,
+      385
+    ],
+    "quote": "When the market has two strong spikes in opposite directions within a few bars of each other, it then usually goes sideways as the two sides fight over the creation of the channel.",
+    "description": "Filter: a large bull trend bar and a large bear trend bar both occurred within the last N bars - expect a trading range; block trend (swing) entries and allow fades. As a positive filter it is the same both sides.",
+    "pseudocode": "exists i,j in 0..withinBars: largeBullTrendBar[i] && largeBearTrendBar[j]",
+    "sides": "same",
+    "parameters": {
+      "withinBars": 5,
+      "sizeMultiple": 2.0
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window scan for two bar classes"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Page 364 restricts it to 'a bull trend that has gone on for a while'; add a trend-age gate if desired."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-51",
+    "name": "SecondSpikeFailsWithinTwoBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-50",
+      "T21-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      364
+    ],
+    "quote": "Sometimes one side appears to win in the form of a second spike, but it fails within a bar or two and leads to a channel in the opposite direction.",
+    "description": "Entry (long side): after opposite spikes, a second large bear trend bar prints (bears 'winning'), but within failBars a bar closes back above that bear bar's open; buy at the next open for a bull channel.",
+    "pseudocode": "oppositeSpikesSeen && largeBearTrendBar[k] for some k in 1..failBars && close[0] > open[k]",
+    "sides": "mirrored",
+    "parameters": {
+      "failBars": 2,
+      "withinBars": 5,
+      "sizeMultiple": 2.0
+    },
+    "book_order_type": "buy stop above the failure bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "short backward scan"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks says 'sometimes'; low prior."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-53",
+    "name": "FirstBearSpikeInStrongBullIsFlag",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-52"
+    ],
+    "depends_on": [],
+    "pages": [
+      365
+    ],
+    "quote": "If there is suddenly a moderately sized bear trend bar that opens near its high and closes near its low, this is a bear spike. ... This first spike down will almost always just lead to a bull flag.",
+    "description": "Entry: in a very strong bull trend (T21-52), the first bear trend bar in at least N bars printed; buy when a subsequent bar (within flagBars) closes above that bear bar's high.",
+    "pseudocode": "strongBullTrend && bearTrendBar[k] for the smallest k in 1..flagBars && no bearTrendBar in k+1..k+strongBars && close[0] > high[k]",
+    "sides": "mirrored",
+    "parameters": {
+      "flagBars": 5,
+      "strongBars": 20,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "buy stop above the bear bar (or the flag's signal bar)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "EMA context plus a scan for the first opposite trend bar"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 385: 'Bar 6 was the first bear spike in a strong bull trend, and it led to a bull flag (an iii pattern) as expected.'"
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-54",
+    "name": "OppositeSpikeCountInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      365,
+      368
+    ],
+    "quote": "If the market begins to form one or two more spikes over the next 10 to 20 bars, the countertrend force of those spikes is cumulative and the market is transitioning to more two-sided trading.",
+    "description": "Filter: the number of bear trend bars (spikes) in the last N bars is below a threshold (bull trend still one-sided). Its negation (count >= threshold) flags a transition to two-sided trading: stop swinging longs, begin looking both ways.",
+    "pseudocode": "count over k in 0..windowBars-1 of bearTrendBar[k] < maxOppositeSpikes",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 20,
+      "maxOppositeSpikes": 3,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "high",
+    "notes": [
+      "Page 368: 'Spikes can be cumulative.' Overlaps T21-31 but counts trend bars rather than bodies."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-55",
+    "name": "ThirdOppositeSpikeAtNewExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-54"
+    ],
+    "depends_on": [],
+    "pages": [
+      365
+    ],
+    "quote": "If there is a third and larger bear spike at the new high, the odds of at least a two-legged correction increase",
+    "description": "Entry (countertrend, long side mirrored): in a bear trend, the third bull trend bar within the window prints at a new trend low (the bar before it made the lowest low of N bars) and its range exceeds the earlier two; buy at the next open.",
+    "pseudocode": "bullTrendBarCount(windowBars) >= 3 && low[1] <= lowest(low, trendBars) && range[0] > max(range of the two earlier bull trend bars) && bullTrendBar[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 20,
+      "trendBars": 20,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "buy stop above the spike bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window count with per-occurrence range comparison"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-74",
+    "name": "ExitBreakoutSpikeWithinFiveToTenBars",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      366
+    ],
+    "quote": "Usually, upside breakouts do not go more than five to 10 bars before reversing into either a protracted, two-legged pullback or a trend in the opposite direction.",
+    "description": "Exit: a long entered on a breakout spike out of a flag/wedge is closed after N bars regardless of profit.",
+    "pseudocode": "ctx.MarketPosition() > 0 && ctx.BarsSinceEntry() >= exitBars",
+    "sides": "same",
+    "parameters": {
+      "exitBars": 7
+    },
+    "book_order_type": "market",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "bar count since entry"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "NumBars",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T22-03",
+    "name": "OpeningRangeBreakoutEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T22-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      393,
+      397,
+      401
+    ],
+    "quote": "This alerted traders to a possible breakout in either direction.",
+    "description": "Entry: with a small opening range in place, the current bar closes above the opening-range high; buy at the next open. Brooks prefers waiting for the breakout bar's close or the next bar's close if it is also strong, rather than buying the first tick of the break.",
+    "pseudocode": "smallOpeningRange && close[0] > openingRangeHigh && (!requireConfirmBar || close[1] > openingRangeHigh)",
+    "sides": "mirrored",
+    "parameters": {
+      "requireConfirmBar": false
+    },
+    "book_order_type": "market order at (or shortly after) the close of the breakout bar",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads the opening-range state from T22-01/T22-02"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "HighestHighBreakout",
+    "confidence": "medium",
+    "notes": [
+      "Page 393: entering on the breakout of any trading range is called a low-probability trade in general; this is the special-case exception the book allows."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T22-11",
+    "name": "MultipleBreakoutsFavorWithTrendOnly",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      389,
+      391
+    ],
+    "quote": "Rarely, three or four small trading ranges will develop in a day, but when that happens, the day should probably be thought of and traded as a stronger type of trend day...Traders should focus much more if not exclusively on with-trend setups.",
+    "description": "Filter: once the session has already produced at least N distinct trading-range-to-trading-range breakouts, treat the day as a strong trend day and block countertrend entries for the rest of the session.",
+    "pseudocode": "sessionBreakoutCount >= minBreakouts",
+    "sides": "same",
+    "parameters": {
+      "minBreakouts": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a per-session counter of a detected event (range breakout), which itself needs range/breakout detection"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T23-19",
+    "name": "OppositeSpikeAtOpenBeforeRelease",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      441
+    ],
+    "quote": "Once there was a spike down and a spike up after the first bar (a reversal down and then a reversal up), some traders would enter on a breakout, expecting the range to increase severalfold.",
+    "description": "Primitive/filter: within the first few bars of the session, price spikes one way and then reverses and spikes the other way (an opening double top or double bottom) before the day's real trend is released; once this two-bar reversal high/low pair is in place, treat a break of either extreme as an entry with an increased-range expectation.",
+    "pseudocode": "withinFirstBars(openingWindowBars) && openingSwingHighSet && openingSwingLowSet && (close[0] > openingSwingHigh || close[0] < openingSwingLow)",
+    "sides": "mirrored",
+    "parameters": {
+      "openingWindowBars": 8
+    },
+    "book_order_type": "buy stop above the opening swing high / sell stop below the opening swing low",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection restricted to a short opening window"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Book prefers the more aggressive scalp-and-reverse variant (short the first spike, reverse long on the second, reverse short again on a failed breakout) over the textbook double-stop-order approach; both share this same opening double-extreme primitive."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T24-04",
+    "name": "RunawaySpikeAlwaysInFlipAnytime",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      445
+    ],
+    "quote": "The market can enter a runaway trend mode where it trends relentlessly with only minor pullbacks. There are large trend bars with little overlap and mostly small tails. This is a breakout and a clear always-in flip. You must enter quickly, even if the new trend looks climactic and overdone.",
+    "description": "Filter: a multi-bar run of large trend bars with little overlap and small tails, occurring at any point in the session (not just the open), flips the always-in direction and licenses aggressive with-trend entries even though the move already looks extended.",
+    "pseudocode": "for k in 0..spikeBars-1: largeTrendBar[k] (same direction) && overlapFrac[k] <= maxOverlap; all true -> alwaysIn = direction, ignoreExtendedLookGuard = true",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "maxOverlap": 0.3,
+      "sizeMultiple": 1.5
+    },
+    "book_order_type": "n/a (context filter, paired with an at-the-market or breakout entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the spike/overlap window-loop tests, just without an opening-of-session restriction"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "Same underlying primitive as the spike-and-channel chapter's BullSpike; this entry is distinguished only by not requiring it to happen near the open."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/24_reversal_day.json",
+    "chapter_title": "Reversal Day"
+  },
+  {
+    "id": "T24-08",
+    "name": "PriorDayLateReversalFollowThroughBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      445
+    ],
+    "quote": "If the reversal starts in the last couple of hours and is strong, it will usually have follow-through on the next day and often the next several days.",
+    "description": "Filter: if the prior session closed with a strong reversal that began in its final N hours (the session's close-to-open-of-that-window move exceeds a size threshold, opposite to the direction the session had been trending before that window), bias today's with-trend entries toward that same (reversal) direction.",
+    "pseudocode": "priorSessionHadLateReversal && abs(priorSessionClose - priorSessionPriceAtLateWindowStart) >= reversalSizeAtr * atr -> preferDirectionBias = priorReversalDirection",
+    "sides": "mirrored",
+    "parameters": {
+      "lateWindowMinutes": 120,
+      "reversalSizeAtr": 1.0
+    },
+    "book_order_type": "n/a (context bias carried across the session boundary)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs one session's outcome remembered and classified, then applied as a bias on the next session"
+    },
+    "el_words_needed": [
+      "Date",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/24_reversal_day.json",
+    "chapter_title": "Reversal Day"
+  }
+]

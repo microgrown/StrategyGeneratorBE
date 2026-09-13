@@ -1,0 +1,1246 @@
+{
+  "bucket": "swing_structure",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "SwingHigh",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "CANONICAL SWING-PIVOT PRIMITIVE for the whole corpus. The bar `strength` bars ago is a confirmed swing high: its high is at or above the highs of the `strength` bars on each side of it (mirror: swing low, its low at or below the lows of the `strength` bars each side). The pivot is known only `strength` bars after it prints, which is what makes it lookahead-safe. This is detection ONLY; retaining the pivot's price/bar for later comparison is the separate machinery every rule below needs.",
+      "pseudocode": "high[strength] >= highest(high, strength)[0] && high[strength] >= highest(high, strength)[strength + 1]",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "2 x strength fixed-offset comparisons, or two Highest windows; no persistence, no scan-back"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "nothing in the catalog detects a pivot"
+      },
+      "sources": [
+        "R00-27",
+        "R00-28",
+        "V00-10",
+        "T13-01",
+        "T14-01",
+        "T15-04",
+        "T15-05",
+        "T17-01",
+        "TP3-02"
+      ],
+      "merge_notes": "Nine independent restatements across all three volumes; the corpus's most-repeated primitive. TWO families were offered. (a) The one-bar fractal, confirmed one bar late, with AT-OR-ABOVE comparisons: R00-27/R00-28/V00-10, straight from Brooks's glossary ('Its high is at or above that of the bar before it and that of the bar after it'). (b) The N-bar strength pivot with STRICT comparisons and a scan-back for the k-th most recent pivot: T13-01, T14-01, T15-04, T15-05, T17-01, TP3-02, all defaulting strength = 2 and all graded 'hard'. WINNER: family (a)'s comparison sense (>=, Brooks's own words) with family (b)'s `strength` parameter, since (a) is exactly (b) at strength = 1 and one parameterized rule covers both. The 'hard' grade in family (b) belongs to the scan-back-and-remember step, not to detection: detection at a fixed `strength` is 2 x strength fixed-offset comparisons, so this rule is SIMPLE and priority A. Brooks never states a pivot strength (he reads swings visually); 2 is the reading five separate miners converged on for 5-minute charts, 3 appears in T03-04 and T07-47. TIE BEHAVIOUR: with >= a flat run of equal highs makes every bar in the run a swing high; the strict-> variant (family b) suppresses that but also misses Brooks's literal 'at or above'. Kept >= per the glossary; the authoring pass can expose the sense as a structural constant if flat ledges prove noisy (see Ledge, which is exactly that shape). ALL OTHER BUCKETS should name this key in depends_on_keys and write swingHigh(strength) / swingLow(strength) in pseudocode. SwingHigh/SwingLow have no register row yet; they are recorded as needed, which does not downgrade this rule.",
+      "variants_kept_separate": [
+        "Ledge"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "HigherSwingHigh",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The most recently confirmed swing high is above the swing high before it (a higher high); mirror: the most recent swing low is below the one before it (a lower low). Brooks's 'higher high' / 'lower low' structure test.",
+      "pseudocode": "lastSwingHigh(strength) > priorSwingHigh(strength)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the last two confirmed same-side pivots retained across bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "LaggedHigherHigh compares two ADJACENT bars at a fixed lag; this compares two pivots at a variable distance"
+      },
+      "sources": [
+        "R00-29",
+        "V00-11"
+      ],
+      "merge_notes": "Identical in both restatements. maxBarsBack is added as a staleness cap so a pivot from 300 bars ago cannot still be 'the prior swing high'; neither source bounds it. Distinct from HigherSwingLow: that one tests the lows in a bull structure, this one the highs, and the two disagree constantly (a higher high with a lower low is a widening pattern, not a trend).",
+      "variants_kept_separate": [
+        "HigherSwingLow",
+        "TrendingSwings"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "HigherSwingLow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The most recently confirmed swing low is above the swing low before it (a higher low); mirror: the most recent swing high is below the one before it (a lower high). Brooks's minimum precondition for taking a with-trend trade: 'a trader usually should not be looking to buy unless the market is at least forming a higher low'.",
+      "pseudocode": "lastSwingLow(strength) > priorSwingLow(strength)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the last two confirmed same-side pivots retained across bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "same shape at pivots rather than adjacent bars, and on the opposite series"
+      },
+      "sources": [
+        "R00-30",
+        "V00-12",
+        "TP3-07",
+        "R02-25",
+        "V08-03"
+      ],
+      "merge_notes": "R00-30, V00-12 and TP3-07 are the same test. R02-25 ('the resumption stalls and forms a lower high with a bear signal bar') is this rule's SHORT side ANDed with a bear signal bar; atomic beats composite, so the signal-bar conjunct is left to bar_anatomy_reversal_signal and only the lower-high half is merged here. TP3-07 offers a cheap window proxy, lowest(low, n)[0] > lowest(low, n)[n] with n the leg length, which the authoring pass can use if pivot retention proves expensive.",
+      "variants_kept_separate": [
+        "HigherSwingHigh",
+        "TrendingSwings",
+        "HigherLowBar"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "TrendingSwings",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Brooks's definition of a trend: over the last `swingsRequired` confirmed swings, each swing high is above the one before it AND each swing low is above the one before it (mirror: both lower). 'Absent either of these, there is no trend.'",
+      "pseudocode": "for k in 0..swingsRequired-2: swingHigh(strength, k) > swingHigh(strength, k+1) && swingLow(strength, k) > swingLow(strength, k+1)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "swingsRequired": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a retained history of several confirmed pivots on both sides, not just the last two"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-34",
+        "TP3-08",
+        "T22-10"
+      ],
+      "merge_notes": "Carried as a composite because it is a NAMED Brooks structure (it is his stated definition of a trend, and TP3-08 nominates it as the mechanical proxy for always-in direction that context_regime_always_in is still missing). TP3-08 states it at swingsRequired = 2 (four pivots), R00-34 at 3; one parameter covers both, default 3 from the glossary ('three or more swings'). Graded by its hardest part: pivot retention. Equals HigherSwingHigh AND HigherSwingLow at swingsRequired = 2, so the pane system can already AND those two; the rule earns its place only at swingsRequired >= 3.",
+      "variants_kept_separate": [
+        "HigherSwingHigh",
+        "HigherSwingLow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh",
+        "HigherSwingHigh",
+        "HigherSwingLow"
+      ]
+    },
+    {
+      "key": "SwingPointUndercut",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's low trades at or below the most recent confirmed swing low, by at least offsetTicks (mirror: the high trades at or above the most recent swing high). Brooks's universal countertrend/limit trigger: 'buy at or below the low of a prior swing low', 'buy below a swing low expecting the breakout to fail'.",
+      "pseudocode": "low[0] <= lastSwingLow(strength) - offsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "offsetTicks": 0,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the most recent confirmed pivot's price retained across bars; the comparison is trivial once it exists"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R26-14",
+        "R28-21",
+        "T21-18",
+        "T21-22",
+        "R28-40",
+        "T18-20",
+        "V03-03",
+        "V03-04",
+        "R05-20",
+        "R04-05",
+        "R28-16",
+        "VP1-14"
+      ],
+      "merge_notes": "Eleven candidates, one behaviour. Seven are the plain limit trigger at the last swing point (R26-14, R28-21, T21-18, T21-22, R28-40, T18-20, R04-05 on the short side) differing only in the CONTEXT GATE they attach - trading-range bottom, bull channel, bear channel, pullback-inside-a-bull-trend, late-stage channel - every one of which is a rule in another bucket and is ANDed by the pane system, so none of them changes this condition. V03-03 ('the test overshoots the old extreme: low[0] < priorSwingLow') is the same test after a trend-line break. V03-04 and R05-20 are the NEGATION (low[0] > priorSwingLow, the test undershoots / the stairs structure holds), which is the per-placement negate toggle and therefore the same rule. R04-05 and R26-14 attach scale-in sizing (add at each successive swing high, half-size first leg) which the engine cannot express; recorded and dropped. R28-16 places the limit below BOTH the prior bar's low and the swing low - the extra conjunct is a one-bar test that belongs with bar-level pullback rules. Standing convention applies: the limit fill is mechanized as signal-bar close then next-bar open, so offsetTicks defaults to 0 rather than Brooks's 'one tick below'.",
+      "variants_kept_separate": [
+        "FailedBreakoutBeyondExtreme",
+        "SwingPointTestHolds"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "CloseBeyondLastSwingPoint",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close is above the most recent confirmed swing high by at least marginTicks (mirror: below the most recent swing low). At swingPointsCleared > 1 the close must be beyond that many of the recent same-side pivots - Brooks's 'it reverses many bars, swing highs, and bear flags of the prior trend'.",
+      "pseudocode": "count of confirmed swing highs p within maxBarsBack with close[0] > swingHighPrice(p) + marginTicks * tickSize >= swingPointsCleared",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "marginTicks": 0,
+        "swingPointsCleared": 1,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs retained pivot prices; trivial arithmetic once they exist"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "the catalog rule uses a FIXED N-bar window, Highest(High,N)[1]; this uses the pivot, which is Brooks's stricter reading and fires at a different, structure-dependent level"
+      },
+      "sources": [
+        "R00-35",
+        "VP1-23",
+        "V02-18",
+        "TP3-19",
+        "V02-05",
+        "T18-08"
+      ],
+      "merge_notes": "R00-35, VP1-23 and TP3-19 are identical at the defaults. V02-18 adds a margin ('breaks resistance by many ticks', 4) - a threshold, so a parameter. V02-05 requires the close to clear at least K swing highs of the prior trend (K = 2) - that is this rule at swingPointsCleared = K, and at K = 1 it degenerates to the others, so one rule. Every source flags that a fixed-window proxy exists and IS the catalog's CloseAbovePriorHighestHigh; the four candidates that state ONLY the proxy are collected separately as a D duplicate. Kept apart from that duplicate because the pivot level and the N-bar-highest level genuinely differ: after a deep pullback the last swing high can sit far below the N-bar high.",
+      "variants_kept_separate": [
+        "CloseAbovePriorHighestHigh",
+        "SwingPointUndercut"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "FailedBreakoutBeyondExtreme",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A failed downside breakout: within the last reverseBars bars the low traded below the lowest low of the prior lookback bars, and the current bar closes back above that broken level by at least toleranceTicks (mirror: a failed upside breakout above the highest high). Brooks's 'first failed breakout below a prior swing low is a lower low buy setup'.",
+      "pseudocode": "lvl = lowest(low, lookback)[reverseBars]; exists k in 0..reverseBars-1: low[k] < lvl && close[0] > lvl + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10,
+        "reverseBars": 1,
+        "toleranceTicks": 0
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one Lowest window plus fixed-offset comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "HighestHighBreakout",
+        "relation": "variant",
+        "note": "HighestHighBreakout fires ON the breakout; this fires when the breakout is rejected within the bar and the close comes back inside"
+      },
+      "sources": [
+        "V02-22",
+        "V09-01",
+        "T15-54",
+        "VP1-13",
+        "R20-05",
+        "R12-07"
+      ],
+      "merge_notes": "Four statements of one bar test. V02-22 (lookback 20, plus a bull-body conjunct left to bar_anatomy), V09-01 (5, plus 1 tick), T15-54 (10) differ only in the window - one parameter, default 10, the middle reading. VP1-13 is the multi-bar form ('if this lower low reverses back up within a few bars', reverseBars 3, undercut 4 ticks) and defines the level with a PIVOT rather than a window. WINNER: the N-bar lowest low, per the mechanizability rule - it needs no pivot retention, which drops the grade from hard to simple and the priority from B to A; VP1-13's pivot level is recorded here and reachable by composing SwingPointUndercut instead. reverseBars defaults to 1 (the single-bar rejection all three window sources describe); VP1-13's 3 is the alternative. Kept apart from SwingPointUndercut: that one fires on the undercut itself with no requirement that price come back.",
+      "variants_kept_separate": [
+        "SwingPointUndercut",
+        "SwingPointTestHolds",
+        "DoubleExtremeBreakout"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SwingPointTestHolds",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A test of support that holds: the bar's low comes within toleranceAtr x ATR of the most recent confirmed swing low WITHOUT trading below it (mirror: the high tests the last swing high from below without exceeding it). Brooks's 'test' - the market returns to a prior swing level and fails to break it.",
+      "pseudocode": "lastSwingLow(strength) <= low[0] && low[0] <= lastSwingLow(strength) + toleranceAtr * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "toleranceAtr": 0.25,
+        "atrLength": 14,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the retained pivot price plus an ATR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T03-04",
+        "T10-22"
+      ],
+      "merge_notes": "T03-04 states the general 'test' as a symmetric tolerance BAND around the pivot (2 ticks either side); T10-22 states the one-sided form, the low approaches but does not break the pivot, plus a close-up conjunct left to bar_anatomy. WINNER: the one-sided form - the two-sided band double-counts SwingPointUndercut, which already covers the break. Tolerance expressed as an ATR fraction (T10-22's 0.25) rather than T03-04's ticks so it ports across symbols; see the level-tolerance design decision. Kept apart from SwingPointUndercut (breaks the level) and DoubleExtreme (matches a level formed by a pivot, not necessarily the most recent one).",
+      "variants_kept_separate": [
+        "SwingPointUndercut",
+        "DoubleExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "DoubleExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Double bottom: the current bar's low is within toleranceAtr x ATR of a confirmed swing low formed within the last maxBarsBack bars (mirror: double top on the highs). Brooks: 'that prior low can be just one bar earlier or 20 or more bars earlier', and 'double tops and bottoms are rarely exact'.",
+      "pseudocode": "exists a confirmed swing low p within maxBarsBack: abs(low[0] - swingLowPrice(p)) <= toleranceAtr * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "toleranceAtr": 0.15,
+        "atrLength": 14,
+        "maxBarsBack": 30
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs retained pivot prices over a long window plus an ATR-scaled proximity test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-31",
+        "R00-32",
+        "V00-27",
+        "V01-06",
+        "T00-16",
+        "V24-07",
+        "V08-01",
+        "T03-06",
+        "R20-01",
+        "T20-06",
+        "R12-01",
+        "R05-12",
+        "T21-43",
+        "R19-04"
+      ],
+      "merge_notes": "Thirteen candidates, all one pattern, mined under six different names (double top, double bottom, double top bear flag, double bottom bull flag, second-push failure, triple bottom). TWO definitions competed. (a) CURRENT BAR vs a prior swing extreme: R00-31, R00-32, V00-27, V01-06, T00-16, R05-12. (b) TWO CONFIRMED PIVOTS compared to each other: V08-01, T03-06, R20-01, V24-07, T20-06, T21-43, and R12-01 in a window-proxy form (two lowest() legs). WINNER: (a). It fires on the bar Brian would trade rather than `strength` bars later, and it needs one retained pivot instead of two; (b)'s 'pullback between the two extremes' (R20-01) and 'spacing <= maxLegBars' (V24-07) are already implied by requiring the earlier extreme to be a confirmed pivot inside maxBarsBack. Losing definitions are kept as citations. TOLERANCE: the sources split between ticks (2-4: R00-31, V00-27, V01-06, V24-07, V08-01, T03-06, R20-01, T20-06) and ATR fractions (0.15 T00-16, 0.25 T21-43, 0.25 T10-22 nearby); ATR wins for cross-symbol portability, default 0.15 from T00-16, and V08-01 carries Brooks's explicit argument for a LOOSE tolerance ('traders will make much more money by using loose definitions' - technicians requiring tick-exact triple bottoms are wrong). WINDOW: 20 (R00-31/32), 25 (V24-07), 30 (V00-27), 60 (R20-01); default 30. Reversal-bar and close-above-prior-high triggers attached by R12-01, R05-12 and T21-43 are left to bar_anatomy_reversal_signal - the pane ANDs them.",
+      "variants_kept_separate": [
+        "MicroDoubleExtreme",
+        "Ledge",
+        "DoubleExtremePullback",
+        "SwingPointTestHolds"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "MicroDoubleExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Micro double bottom: the current bar's low is within toleranceTicks of the low of the bar `gap` bars earlier (mirror: micro double top on the highs). Brooks: 'consecutive or nearly consecutive bars with identical or nearly identical lows'; 'most small bull reversals come from some type of micro double bottom'.",
+      "pseudocode": "abs(low[0] - low[gap]) <= toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "gap": 1,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one toleranced comparison of two fixed-offset bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T06-16",
+        "V00-26",
+        "R28-22",
+        "T10-08",
+        "V08-07"
+      ],
+      "merge_notes": "T06-16 and R28-22 state the adjacent-bar form (gap 1); V00-26 and T10-08 state the one-bar-gap form (gap 2), so one rule with a `gap` parameter, default 1. T10-08 adds a V-shape conjunct (low[1] must be above both matching lows, so the pair is a real dip and not two bars of a slide) and a close-up conjunct; the close is bar_anatomy, but the V-shape is a genuine strengthening that only bites at gap >= 2 - recorded here for the authoring pass, which may want it as a second rule rather than as an input. Tolerance stays in TICKS here (1) rather than ATR: Brooks means literally identical or one-tick-apart extremes, and all four sources say ticks. Kept apart from Ledge (any match inside a window, not at a fixed lag) and from DoubleExtreme (a confirmed pivot at a variable distance, ATR tolerance).",
+      "variants_kept_separate": [
+        "Ledge",
+        "DoubleExtreme"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "Ledge",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Bull ledge: at least minMatches of the last `lookback` bars have a low within toleranceTicks of the CURRENT bar's low - a small trading range with a flat floor (mirror: bear ledge, a flat ceiling of matching highs).",
+      "pseudocode": "count over k in 0..lookback-1 of (abs(low[k] - low[0]) <= toleranceTicks * tickSize) >= minMatches",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 5,
+        "minMatches": 2,
+        "toleranceTicks": 0
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a counted comparison over a fixed window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-18",
+        "V00-25",
+        "T00-09",
+        "R28-23"
+      ],
+      "merge_notes": "Brooks's glossary ledge, restated three times, plus its entry (R28-23). TWO definitions: PAIRWISE over the window (R00-18, V00-25 - any two bars in the window match each other, O(n^2) and it can fire on a level price is nowhere near now) and ANCHORED at the current bar (T00-09 - count bars matching low[0]). WINNER: anchored, per the mechanizability rule: one pass, and it only fires while price is AT the ledge, which is what the entry needs. Tolerance 0 in R00-18/T00-09 ('identical lows'), 1 tick in V00-25; default 0, Brooks's literal word. R28-23 adds a limit order a tick or two above the ledge bottom - under the close-then-next-open convention that offset is not representable, so R28-23 collapses into this rule and its ledgeEntryTicks is recorded, not carried. Kept apart from MicroDoubleExtreme: at lookback 2 / minMatches 2 the two coincide, but in general this one accepts a match at any lag inside the window while MicroDoubleExtreme requires it at exactly `gap`.",
+      "variants_kept_separate": [
+        "MicroDoubleExtreme"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "HigherLowCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least minCount of the last `lookback` bar pairs made a higher low than the bar before (mirror: at least minCount made a lower high) - a counted, threshold-able measure of one-sided pressure that tolerates the odd contrary bar, unlike an all-of-N run.",
+      "pseudocode": "count over i in 0..lookback-1 of (low[i] > low[i+1]) >= minCount",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 6,
+        "minCount": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a counted comparison over a fixed window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "same CountIF-over-a-window shape, a different counted predicate"
+      },
+      "sources": [
+        "T15-28",
+        "T10-10",
+        "T10-19"
+      ],
+      "merge_notes": "Three statements of one count. T10-19 counts higher lows and requires >= 5 of 6 ('this much upward momentum'); T10-10 counts lower highs and requires FEWER than 6 of 6 as a gate against buying into bearish strength - the mirror of this rule negated, i.e. the per-placement toggle; T15-28 counts bars with a low below the prior bar's low and requires >= 4 of 10 as a selling-pressure filter - again the mirror negated, at a different threshold. One rule, one parameter pair; defaults 6/5 from T10-19, with T15-28's 10/4 recorded. T10-19's second conjunct (low[0] < low[1], the dip being bought) is the short side of the catalog's LaggedHigherHigh at lag 0 and is ANDed by the pane, not carried here.",
+      "variants_kept_separate": [
+        "TrendingHighsAndLows"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendingHighsAndLows",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Every one of the last `trendBars` bar pairs made BOTH a higher high and a higher low (mirror: both lower) - Brooks's 'trending highs and lows', the sign that a breakout is being confirmed.",
+      "pseudocode": "for all i in 0..trendBars-1: high[i] > high[i+1] && low[i] > low[i+1]",
+      "sides": "mirrored",
+      "parameters": {
+        "trendBars": 3
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed loop of adjacent-bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "LaggedHigherHigh is one lagged pair on the highs only; this requires a run of N pairs on highs AND lows, which cannot be built by ANDing lagged copies because those test only the highs"
+      },
+      "sources": [
+        "V02-25",
+        "TP1-03"
+      ],
+      "merge_notes": "Identical; V02-25 defaults 3, TP1-03 defaults 2 ('each subsequent bar', no count given in the book). Default 3. Kept apart from HigherLowCount: all-of-N versus K-of-N behave very differently on real data, and from T15-53's three-way version, which is this rule ANDed with the catalog's MomentumConsecutiveBars(1, N) and was dropped as a composition.",
+      "variants_kept_separate": [
+        "HigherLowCount"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "HigherLowBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's low is above the prior bar's low (mirror: the bar's high is below the prior bar's high) - Brooks's plainest with-trend buy setup, 'any bar that forms a higher low in a bull trend and a lower high in a bear trend'.",
+      "pseudocode": "low[0] > low[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "NOT reachable from LaggedHigherHigh by the negate toggle: negating it gives long = high[0] <= high[1], short = low[0] >= low[1]; this rule needs long on the LOWS and short on the HIGHS, which is a side swap the toggle cannot do"
+      },
+      "sources": [
+        "T04-10",
+        "R11-07"
+      ],
+      "merge_notes": "T04-10 is the bare test (its 'bull trend context' gate is a context_regime rule the pane ANDs). R11-07 is the same test bounded above - 'the low is at or JUST ABOVE the prior low', within 2 ticks - a shallow higher low. The band is recorded rather than carried: it is a second threshold on the same comparison and the authoring pass can add nearTicks as an input if the shallow form is wanted, but at the default the unbounded form is what Brooks trades. Note R11-07 admits equality where this rule is strict.",
+      "variants_kept_separate": [
+        "ShallowDipBelowPriorLow",
+        "HigherSwingLow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShallowDipBelowPriorLow",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar dips below the prior bar's low by no more than dipTicks and closes back above it (mirror: pokes above the prior bar's high by no more than dipTicks and closes back below) - the shallow pullback that a with-trend limit order at the prior bar's low would have caught.",
+      "pseudocode": "low[0] < low[1] && low[0] >= low[1] - dipTicks * tickSize && close[0] > low[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "dipTicks": 3
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseNearPriorLow",
+        "relation": "variant",
+        "note": "CloseNearPriorLow tests the CLOSE against low[1] + X; this tests the LOW against low[1] - X and requires the close back above, so it fires on rejection rather than on weakness"
+      },
+      "sources": [
+        "TP3-17",
+        "T07-23"
+      ],
+      "merge_notes": "TP3-17 is the bounded form ('the first pullback usually only falls below the low of the prior bar by a few ticks', 3), T07-23 the unbounded one ('if the bulls are especially aggressive they will buy below the low of the prior bar'). One rule; dipTicks large disables the bound. Both attach a context gate (a bull spike / 'a reversal is under way'); T07-23's gate is research-grade and is left to the bucket that owns it, which does not downgrade this rule since the bar test stands alone. Limit fills are mechanized close-then-next-open per the standing convention, so the entry gives up the intrabar fill.",
+      "variants_kept_separate": [
+        "HigherLowBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackDepthFromRecentHigh",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The pullback from the recent high has reached at least retracementFraction of the current leg's range: legHigh - low[0] >= retracementFraction x (legHigh - legLow), with the leg taken as the highest high and lowest low of the last `lookback` bars (mirror: the rally from the recent low). Brooks's 'buy a 60 to 70 percent pullback from the current high' and, NEGATED, his strong-trend filter 'the pullbacks will all likely be less than three or four points'.",
+      "pseudocode": "legHigh = highest(high, lookback)[0]; legLow = lowest(low, lookback)[0]; legHigh - low[0] >= retracementFraction * (legHigh - legLow)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "retracementFraction": 0.62
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window extremes and one arithmetic comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-41",
+        "T21-21",
+        "T19-09"
+      ],
+      "merge_notes": "Three ways of measuring the same distance, differing only in the threshold's units. R28-41: a fraction of the leg (Brooks's 60-70 percent, and his separate Fibonacci-62 discussion, which R28-41's own miner already merged - default 0.62). T21-21: an absolute increment ('every 10 cents lower in INTC at $20'), instrument-specific and rejected as the default; it also carries a pyramiding ladder the engine cannot express. T19-09: the same depth compared against a fraction (0.3) of the AVERAGE BAR RANGE, and used NEGATED as a strong-trend filter ('small, mostly sideways pullbacks') - the per-placement negate toggle, so the same rule. WINNER: fraction of the leg range, because it needs no ATR and no instrument constant. The ATR/average-range basis (T19-09) and the absolute basis (T21-21) are the recorded alternatives. Both R28-41 and T19-09 define the leg with swing pivots; the highest/lowest window proxy is used instead, which drops the grade from hard to simple - see the leg-definition design decision.",
+      "variants_kept_separate": [
+        "DistanceAboveRecentLow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DistanceAboveRecentLow",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close has risen at least resumeAtr x ATR above the lowest low of the last `lookback` bars (mirror: fallen that far below the recent highest high) - Brooks's channel-resumption buy, 'they will buy as the market appears to be resuming the channel up, like every 25 cents above the prior low'.",
+      "pseudocode": "close[0] - lowest(low, lookback)[0] >= resumeAtr * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10,
+        "resumeAtr": 0.25,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one window extreme plus an ATR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "Highest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T15-26"
+      ],
+      "merge_notes": "Single source. Kept apart from PullbackDepthFromRecentHigh: that measures distance DOWN from the recent high (how deep the pullback is), this measures distance UP from the recent low (how far the resumption has run); on the same bar they can both be true or both false, and they anchor on opposite extremes. The book's 'every 25 cents' ladder is a pyramiding scheme the engine cannot express; the single-unit reading is kept.",
+      "variants_kept_separate": [
+        "PullbackDepthFromRecentHigh"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarsBeyondSwingPointWithoutPullback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Price has held beyond the prior swing high for at least barsBeyond consecutive bars without a pullback (mirror: below the prior swing low) - Brooks's stand-down rule: once the 'test' of the old extreme runs five or more bars past it, it is a successful breakout, not a reversal setup, and the countertrend trade is off.",
+      "pseudocode": "barsSince(low[0] < priorSwingHigh(strength)) >= barsBeyond",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "barsBeyond": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a persisting bar counter over a retained pivot level"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V03-07"
+      ],
+      "merge_notes": "Single source. Stated as a blocker for a countertrend entry, so in the pane system it is used negated; kept in its positive form since the negate toggle is per placement. V03-07's own trend-line-break gate belongs to lines_channels_trendlines and is ANDed there.",
+      "variants_kept_separate": [
+        "CloseBeyondLastSwingPoint"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "SwingHighProfitTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit when open profit is at least profitThreshold dollars AND price reaches the most recent confirmed swing high plus offsetTicks (mirror: the last swing low minus offsetTicks for a short); a negative offsetTicks takes profit just BELOW the old high, which is what Brooks does once the rally is weakening.",
+      "pseudocode": "ctx.OpenPositionProfit() >= profitThreshold && high[0] >= lastSwingHigh(strength) + offsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "profitThreshold": 1000,
+        "offsetTicks": 0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a retained pivot price; the profit test is trivial"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "OpenPositionProfit",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfit",
+        "relation": "variant",
+        "note": "TakeProfit is the dollar leg alone; exits are ORed, so a dollar target AND a price level cannot be composed from two exit rules and must be one rule"
+      },
+      "sources": [
+        "T18-23",
+        "R30-06"
+      ],
+      "merge_notes": "T18-23 takes profit ABOVE the most recent swing high once profit is large enough; R30-06 takes it AT OR SLIGHTLY BELOW that high once the rally is judged to be maturing. One rule with a signed offsetTicks: +1 is T18-23, -3 is R30-06. R30-06's 'maturing/weakening trend' gate is research-grade with no bar-level test in that chapter and is dropped, which is what keeps this rule out of C; the profit threshold is a reasonable stand-in for 'the trend has run far enough'. Both describe PARTIAL profit taking, which the engine's whole-position Exit cannot express - recorded as a full-exit approximation, per T18-23's own note.",
+      "variants_kept_separate": [
+        "CloseBeyondLastSwingPoint"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "DoubleExtremePullback",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The double bottom pullback: after a double bottom formed within the last patternWindow bars and price rallied away from it, a third push down holds ABOVE the double bottom's level, coming no closer than holdTicks and no further than testZoneAtr x ATR (mirror: the double top pullback). Brooks: 'a three-push bottom where the third push down did not have strong-enough sellers to create a new low' - one of his most reliable buy setups.",
+      "pseudocode": "doubleBottomLevel = level of DoubleExtreme fired within patternWindow; low[0] > doubleBottomLevel + holdTicks * tickSize && low[0] < doubleBottomLevel + testZoneAtr * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "patternWindow": 30,
+        "holdTicks": 0,
+        "testZoneAtr": 0.5,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "inherits DoubleExtreme's retained pivots and adds a remembered pattern level plus a zone test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V08-02",
+        "T07-47",
+        "V00-29"
+      ],
+      "merge_notes": "Carried as a composite because it is a NAMED Brooks setup (the double bottom pullback / double top pullback) that Brian would want tested as the book states it, and because the third push's relationship to the pattern LEVEL is not expressible by ANDing DoubleExtreme with HigherSwingLow - the pane would not know the higher low has to sit just above the double bottom specifically. V08-02 gives the zone reading (hold margin 0, test zone 5 ticks), T07-47 the pivot-pair reading, V00-29 the loosest ('a double bottom followed by a deep pullback that forms a higher low'). Zone expressed in ATR for portability. V08-02's own note is important: Brooks treats the third push ending AT the level (a triple bottom) or slightly BELOW it and reversing (a failed breakout) as the same setup, so holdTicks should be allowed to go negative rather than the zone being widened. Graded by its hardest part, DoubleExtreme.",
+      "variants_kept_separate": [
+        "DoubleExtreme",
+        "HigherSwingLow",
+        "DoubleExtremeBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "DoubleExtreme",
+        "HigherSwingLow"
+      ]
+    },
+    {
+      "key": "DoubleExtremeBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The double bottom fails: after a double bottom formed within the last patternWindow bars, the low breaks breakTicks below its level (mirror: price breaks above a double top). Brooks: 'if a double bottom bull flag sets up but the market immediately reverses and falls below the double bottom, there might be a downside measured move' - traders enter on a stop one tick below.",
+      "pseudocode": "doubleBottomLevel = level of DoubleExtreme fired within patternWindow; low[0] < doubleBottomLevel - breakTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "patternWindow": 5,
+        "breakTicks": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "inherits DoubleExtreme's retained pivots plus a remembered level and a failure window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R12-05",
+        "V05-13"
+      ],
+      "merge_notes": "R12-05 is the pattern breaking in the direction of the break (the double bottom fails, sell below it), stated with a failure window of 3 bars. V05-13 is the OTHER failure - price breaks ABOVE the double top and then closes back below it within a few bars, which Brooks reads as the third push of a wedge top - and that shape is FailedBreakoutBeyondExtreme applied to the double-top level rather than to an N-bar extreme; it is merged here as a citation and listed in variants_kept_separate on both, because whether the entry is with the break or against it is the whole difference between the two trades. The note on this rule for the authoring pass: author the with-the-break form (R12-05) first; the against-the-break form composes DoubleExtreme with FailedBreakoutBeyondExtreme once that rule can take a supplied level.",
+      "variants_kept_separate": [
+        "DoubleExtreme",
+        "FailedBreakoutBeyondExtreme",
+        "DoubleExtremeDipBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "DoubleExtreme"
+      ]
+    },
+    {
+      "key": "DoubleExtremeDipBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The book's literal double-top entry: after a double top, sell when price breaks entryTicks below the LOW OF THE DIP between the two tops (mirror: buy above the high of the bounce between the two bottoms of a double bottom).",
+      "pseudocode": "dipLow = lowest low between the two swing highs forming the double top; low[0] <= dipLow - entryTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "patternWindow": 30,
+        "entryTicks": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "inherits DoubleExtreme's pivots and additionally needs the extreme BETWEEN the two pivots retained"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R20-02"
+      ],
+      "merge_notes": "Single source, kept apart from DoubleExtremeBreakout because the level is different: this one triggers at the DIP between the two extremes (much further away) rather than at the pattern's own level. Worth authoring precisely because Brooks says it fails: 'that is rarely successful because 80 percent of breakouts fail' - which under the per-placement negate toggle is a testable claim in both directions. Needs the between-pivots extreme, which is one more piece of retained state than any other rule in this bucket.",
+      "variants_kept_separate": [
+        "DoubleExtremeBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "DoubleExtreme"
+      ]
+    },
+    {
+      "key": "LaggedHigherHigh",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar N bars ago made a higher high than the bar before it (mirror: a lower low). Already in the corpus.",
+      "pseudocode": "high[lookback] > high[lookback + 1]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "duplicate",
+        "note": "identical bars at lookback 0, reachable with the per-placement negate toggle"
+      },
+      "sources": [
+        "R11-06",
+        "R11-08"
+      ],
+      "merge_notes": "R11-06 ('the high of the current bar is at or below the high of the prior bar') is LaggedHigherHigh(0) NEGATED on the long side; R11-08 ('the low of the current bar is below the low of the prior bar') is LaggedHigherHigh(0)'s SHORT side. Both are the catalog rule under the toggles, so DUPLICATE, priority D. Careful: HigherLowBar is NOT reachable this way (it needs long-on-lows plus short-on-highs, a side swap) and is authored separately.",
+      "variants_kept_separate": [
+        "HigherLowBar",
+        "TrendingHighsAndLows"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "T20-01",
+      "reason": "not a rule: Brooks explicitly declines to fix a leg criterion ('any criterion that you choose'); raised instead as the leg-definition design decision"
+    },
+    {
+      "id": "T06-17",
+      "reason": "composition of MicroDoubleExtreme + a trend-spike context gate (research; context_regime_trend_strength)"
+    },
+    {
+      "id": "T06-18",
+      "reason": "composition of MicroDoubleExtreme + a NEGATED trend-spike context gate (research; context_regime_trend_strength) - the same pair of parts as T06-17 with the gate flipped"
+    },
+    {
+      "id": "T15-53",
+      "reason": "composition of TrendingHighsAndLows + MomentumConsecutiveBars(1, windowBars) - the added conjunct is trending CLOSES, which the catalog already has"
+    },
+    {
+      "id": "T21-58",
+      "reason": "composition of a bull-body count (bar_anatomy) + HigherLowCount with a three-way higher-high/higher-low/higher-close predicate"
+    },
+    {
+      "id": "T15-61",
+      "reason": "composition of a consecutive-trend-bar spike count (bar_anatomy) + HigherSwingLow + a close above the prior bar's high"
+    },
+    {
+      "id": "T18-12",
+      "reason": "composition (an OR) of a bull-trend-line touch (lines_channels_trendlines) and SwingPointUndercut; the entry pane ANDs, so an OR of two entries is not expressible"
+    },
+    {
+      "id": "R12-02",
+      "reason": "composition of DoubleExtreme + an established-trend gate (research; context_regime_always_in) - classification only, no distinct trigger"
+    },
+    {
+      "id": "V08-05",
+      "reason": "classification only: the same double-bottom shape traded identically either way; V08-02 already covers both, and the reversal/continuation label changes only target and hold time"
+    },
+    {
+      "id": "V00-28",
+      "reason": "composition of DoubleExtreme + a with-trend context gate (research; context_regime_always_in)"
+    },
+    {
+      "id": "V08-06",
+      "reason": "composition of DoubleExtreme on both sides of a range + an undefined breakout-strength test; its four trading branches are separate rules in breakouts and context_regime"
+    },
+    {
+      "id": "R12-10",
+      "reason": "not mechanizable: a meta weighting ('in a trend most reversal patterns fail') over signal classifications, not a bar-level test"
+    },
+    {
+      "id": "R16-04",
+      "reason": "not mechanizable: a confidence weighting on an existing breakout; its only bar test is CloseBeyondLastSwingPoint at a double-top level"
+    },
+    {
+      "id": "V09-12",
+      "reason": "not mechanizable: an umbrella statement over final flag / wedge / double top / head-and-shoulders failures, no single condition"
+    },
+    {
+      "id": "V19-06",
+      "reason": "no distinct bar test: DoubleExtreme reused as a position-sizing filter (scalp until a double top or bottom prints, then swing)"
+    },
+    {
+      "id": "V03-05",
+      "reason": "not a single condition: a branching heuristic over which of V03-03 / V03-04 fired, plus a leg count; Brooks is describing discretion"
+    },
+    {
+      "id": "T12-05",
+      "reason": "composition of DoubleExtreme + a first-hour session gate (time_session); 'take both entries' is two rules, not one condition"
+    },
+    {
+      "id": "VP3-07",
+      "reason": "composition of DoubleExtreme + an opening trend-bar spike (bar_anatomy) + a session-age window (time_session)"
+    },
+    {
+      "id": "T21-66",
+      "reason": "composition of DoubleExtreme + a large-gap-open gate (breakouts_volume_gap) + an early-session window (time_session)"
+    },
+    {
+      "id": "T26-03",
+      "reason": "composition of HigherSwingHigh + a stairs-pattern context (research; lines_channels_channels); its bounded-overshoot band is recorded on HigherSwingHigh"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R04-04",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "the condition is a WEAK breakout bar (small body, large tail); the prior-high level is incidental"
+    },
+    {
+      "id": "R08-26",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "gated on a major trend-line break; the swing test is only the confirmation"
+    },
+    {
+      "id": "R08-27",
+      "belongs_in": "exits_targets",
+      "note": "a measured-move projection off a flag, an Exit target, not a swing-structure condition"
+    },
+    {
+      "id": "R09-04",
+      "belongs_in": "support_resistance_levels",
+      "note": "the level is a remembered failed-reversal signal-bar extreme, not a swing pivot"
+    },
+    {
+      "id": "RP2-02",
+      "belongs_in": "support_resistance_levels",
+      "note": "the floor-trader daily pivot formula; keyword collision on the word 'pivot' only"
+    },
+    {
+      "id": "V05-12",
+      "belongs_in": "three_push_patterns",
+      "note": "a three-push pattern built from one-to-two-tick minor breakouts"
+    },
+    {
+      "id": "V10-03",
+      "belongs_in": "volume",
+      "note": "the condition is volume divergence after a huge-volume bar; the lower low is one conjunct"
+    },
+    {
+      "id": "T15-06",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "trend-line projection from two swing lows; needs TLValue, which that bucket owns"
+    },
+    {
+      "id": "T21-26",
+      "belongs_in": "three_push_patterns",
+      "note": "an exit after the third push of a channel"
+    },
+    {
+      "id": "T21-44",
+      "belongs_in": "lines_channels_channels",
+      "note": "the level is the channel start after a spike-and-channel breakdown"
+    },
+    {
+      "id": "T21-45",
+      "belongs_in": "lines_channels_channels",
+      "note": "a 25-percent bounce target measured off channel levels"
+    },
+    {
+      "id": "T21-78",
+      "belongs_in": "three_push_patterns",
+      "note": "the level is a wedge high; wedge detection carries the rule"
+    },
+    {
+      "id": "T23-02",
+      "belongs_in": "time_session",
+      "note": "an opening-range height filter; the double bottom is only what the book expects to follow"
+    },
+    {
+      "id": "R05-01",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "R08-06",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "T03-02",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "V02-12",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "R17-01",
+      "belongs_in": "leg_counting",
+      "note": "the H1/H2 bar counter; leg_counting owns HighLowBarCount and already carries R17-01"
+    },
+    {
+      "id": "V21-04",
+      "belongs_in": "leg_counting",
+      "note": "the opposing-count exit; leg_counting owns OpposingCountExit"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "swing-pivot definition (the corpus's most-depended-on primitive)",
+      "options": [
+        "one-bar fractal confirmed one bar late, AT-OR-ABOVE comparisons (R00-27, R00-28, V00-10 - Brooks's glossary wording)",
+        "N-bar strength pivot with STRICT comparisons, confirmed `strength` bars late (T13-01, T14-01, T15-04, T15-05, T17-01, TP3-02 - all default strength 2; T03-04 and T07-47 use 3)",
+        "no pivot at all: substitute highest(high, N)[1] / lowest(low, N)[1] everywhere (the proxy every source offers as a fallback, and what the catalog's CloseAbovePriorHighestHigh already is)"
+      ],
+      "recommended": "option 2's `strength` parameter with option 1's >= comparison sense, default strength 2 - one rule (`SwingHigh`, mirrored) that is option 1 at strength 1, graded simple because detection at a fixed strength is 2 x strength fixed-offset comparisons. Option 3 stays available per rule where the window level is behaviourally acceptable, and IS the choice made for FailedBreakoutBeyondExtreme and PullbackDepthFromRecentHigh.",
+      "gates": [
+        "SwingHigh",
+        "HigherSwingHigh",
+        "HigherSwingLow",
+        "TrendingSwings",
+        "SwingPointUndercut",
+        "CloseBeyondLastSwingPoint",
+        "SwingPointTestHolds",
+        "DoubleExtreme",
+        "BarsBeyondSwingPointWithoutPullback",
+        "SwingHighProfitTarget"
+      ]
+    },
+    {
+      "topic": "pivot retention: how many pivots to keep and how stale one may be",
+      "options": [
+        "the most recent confirmed pivot only (enough for SwingPointUndercut, CloseBeyondLastSwingPoint, SwingPointTestHolds)",
+        "the last two same-side pivots (HigherSwingHigh, HigherSwingLow, and the two-pivot form of DoubleExtreme)",
+        "a ring of the last four same-side pivots plus the extreme between consecutive pivots (TrendingSwings at swingsRequired 3, DoubleExtremeDipBreakout)",
+        "no retention: recompute by scanning back over a bounded window on every bar"
+      ],
+      "recommended": "option 3 - a fixed ring of four same-side pivots plus the between-pivot extreme, with a maxBarsBack staleness cap (default 60) so an ancient pivot cannot still be 'the prior swing high'. It covers every rule in this bucket at one fixed cost, and no source bounds staleness on its own, so the cap must be a decision rather than an oversight.",
+      "gates": [
+        "HigherSwingHigh",
+        "HigherSwingLow",
+        "TrendingSwings",
+        "SwingPointUndercut",
+        "CloseBeyondLastSwingPoint",
+        "DoubleExtreme",
+        "DoubleExtremeDipBreakout"
+      ]
+    },
+    {
+      "topic": "units for level-match tolerances and entry offsets",
+      "options": [
+        "ticks (R00-31, V00-27, V01-06, V24-07, V08-01, T03-06, R20-01, T20-06 - 2 to 4 ticks; and every 'one tick beyond' entry offset)",
+        "a fraction of ATR (T00-16 0.15, T10-22 0.25, T21-43 0.25, T26-03 0.3)",
+        "a fraction of the recent average bar range (T19-09 0.3)"
+      ],
+      "recommended": "ATR fractions for LEVEL MATCHING (DoubleExtreme, SwingPointTestHolds, DoubleExtremePullback), since a 2-tick double top on the Emini is a 20-tick double top on crude and the corpus is run across symbols; ticks retained only where Brooks means literally identical bars (MicroDoubleExtreme, Ledge) or a literal one-tick entry offset. ATR to be WFSafe_AvgTrueRange, MultiWalk's standing override of plain AvgTrueRange.",
+      "gates": [
+        "DoubleExtreme",
+        "SwingPointTestHolds",
+        "DoubleExtremePullback",
+        "MicroDoubleExtreme",
+        "Ledge"
+      ]
+    },
+    {
+      "topic": "what a 'leg' is (T20-01, and everything the corpus builds on legs)",
+      "options": [
+        "swing-pivot to swing-pivot (the `SwingHigh` rule at some strength)",
+        "a minimum retracement in points or ATR",
+        "a trend-line break",
+        "the H1/H2 bar counter's own reset test (R17-01: a fresh N-bar high ends the pullback)"
+      ],
+      "recommended": "resolve 'leg' to option 1 for structure rules (TrendingSwings, DoubleExtremePullback) and to option 4 for counting rules (HighLowBarCount), and DO NOT introduce a separate leg primitive. R17-01 already demonstrates that the counting family needs no leg definition at all, which is why it beats the research-graded PullbackLegCounter; for depth measurement the highest/lowest window (PullbackDepthFromRecentHigh) is cheaper than either. Brooks fixes no criterion and this bucket needs none.",
+      "gates": [
+        "TrendingSwings",
+        "DoubleExtremePullback",
+        "PullbackDepthFromRecentHigh",
+        "HighLowBarCount"
+      ]
+    }
+  ],
+  "bucket_summary": "124 candidates collapsed to 26 rules. The bucket is dominated by two primitives restated over and over: the swing pivot (9 candidates, all three volumes, mined as SwingHigh / SwingLow / SwingPoint / SwingPivot / SwingHighPivot) and the double top/bottom (13 candidates under six different Brooks names), with a third cluster of 11 candidates that are all the same 'price trades beyond the last swing point' limit trigger wearing different context gates. The swing pivot is settled as one canonical mirrored rule `SwingHigh` with a `strength` parameter (default 2) and Brooks's at-or-above comparison sense; it is graded SIMPLE, not hard, because detection at a fixed strength is 2 x strength fixed-offset comparisons - the hard part everyone graded is pivot RETENTION, which is a separate design decision and is what puts nine downstream rules in B rather than A. The A-list is ten rules that need no pivot retention at all: SwingHigh, FailedBreakoutBeyondExtreme, MicroDoubleExtreme, Ledge, HigherLowCount, TrendingHighsAndLows, HigherLowBar, ShallowDipBelowPriorLow, PullbackDepthFromRecentHigh, DistanceAboveRecentLow. Two catalog duplicates were found (CloseAbovePriorHighestHigh restated by four chapters, LaggedHigherHigh by two), 20 candidates dropped as compositions or discretionary classifications, and 14 sent to other buckets."
+}

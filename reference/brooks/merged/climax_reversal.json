@@ -1,0 +1,636 @@
+{
+  "bucket": "climax_reversal",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "ClimaxBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A climax bar: a strong trend bar whose high-low range is at least climaxMultiple times the N-bar ATR. Long side is a large BULL trend bar (a buy climax); the fade use is the same rule on the opposite placement.",
+      "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= climaxMultiple * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "climaxMultiple": 2.0,
+        "atrLength": 20,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one ATR read and two single-bar comparisons; no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "same family -- an outsized bar -- but measured as a multiple of ATR rather than the N-bar mean range plus K standard deviations, and gated on a trend body, so it fires on a different set of bars (a large doji passes BarRangeAboveStd and fails this)"
+      },
+      "sources": [
+        "V04-01",
+        "R28-12",
+        "T18-06",
+        "V00-58"
+      ],
+      "merge_notes": "This is the climax-classification decision in its bar form (see design_decisions). V04-01 is the fullest definition and supplies climaxMultiple 2.0 over 20 bars, from Brooks's 'maybe twice the size of many of the bear trend bars' (p140); T06-25's 1.5 over 10 is the other book reading and is recorded on ClimaxBarAfterExtendedRun. T18-06 and V00-58 are the definitional candidates that state no test at all ('needs a design decision') -- they are citations, and the decision taken here answers them. V00-58's second clause, that most climaxes end with a trend-channel-line overshoot, is carried in the lines bucket as TrendChannelLineOvershoot, not duplicated here. R28-12 is this bar used as a fade entry with four order placements; under the standing signal-bar-close / next-bar-open convention those collapse to the one signal, so it is a source rather than a rule. bodyFraction 0.6 is taken from the decided AlwaysInDirection strong-trend-bar definition so 'trend bar' means one thing corpus-wide.",
+      "variants_kept_separate": [
+        "ClimaxBarAfterExtendedRun",
+        "LargestTrendBarOfTheRun",
+        "ConsecutiveSpikeCount"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ClimaxBarAfterExtendedRun",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A climax bar that arrives after the always-in direction has held the same way for at least minRunBars bars -- the exhaustion form, where the biggest-looking breakout of the move is the one most likely to fail.",
+      "pseudocode": "ClimaxBar[0] && alwaysInRunLength(0) >= minRunBars, where alwaysInRunLength counts the bars since AlwaysInDirection last flipped",
+      "sides": "mirrored",
+      "parameters": {
+        "minRunBars": 10,
+        "climaxMultiple": 1.5,
+        "atrLength": 10,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the always-in flip persisted as a bar counter on top of the climax bar test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "as ClimaxBar, plus the run gate"
+      },
+      "sources": [
+        "V24-20",
+        "T06-25",
+        "T21-37"
+      ],
+      "merge_notes": "Held apart from ClimaxBar rather than dropped as a composition, because the run gate has no independent rule to AND against: the always-in run LENGTH is not itself a mined candidate anywhere in this bucket, and the whole point of both sources is that the same bar means the opposite thing early and late in a trend. Measured against the decided AlwaysInDirection (two consecutive strong trend bars, body >= 0.6, tails <= 0.2) rather than a bars-since-swing-pivot count -- the alternative is recorded in design_decisions. Book run lengths: 10 or 20 bars (V24-20), 10 bars (T06-25), 30 (T02-10), 40 (V04-08); default 10, the value both sources here give. T06-25 supplies the softer 1.5 x ATR over 10 bars, used as the default here since the run gate is already doing selection work.",
+      "variants_kept_separate": [
+        "ClimaxBar",
+        "LargestTrendBarOfTheRun"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ClimaxBar",
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "LargestTrendBarOfTheRun",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "This bar's range is the largest of the last runBars bars and it is a trend bar -- Brooks's 'the biggest bull trend bar of the trend' exhaustion read, measured as a running maximum rather than against an average.",
+      "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= highest(high - low, runBars)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "runBars": 40,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a windowed maximum of the range series plus a body test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "an outsized-bar test again, but 'the largest of the window' rather than 'beyond mean + K sd'; the two disagree whenever the window already contains a big bar"
+      },
+      "sources": [
+        "V04-08"
+      ],
+      "merge_notes": "Kept apart from ClimaxBar on the standing near-miss rule: a bar can be 2 x ATR without being the largest of the run, and the largest of a quiet run without being 2 x ATR, and nobody has measured how often they coincide. The mined candidate anchored the window at a persisted trend start; replaced by a fixed runBars lookback, which is what makes it moderate rather than hard. Its 'without much of a pullback' clause is dropped -- that is the decided tight-channel measure (T15-10) and belongs in its own pane.",
+      "variants_kept_separate": [
+        "ClimaxBar",
+        "ClimaxBarAfterExtendedRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveClimaxBarCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least minClimaxes climax bars in the same direction within the last windowBars, each separated from the previous one by at least one non-trend or opposite bar -- consecutive climaxes, which Brooks says are usually followed by a two-legged correction of ten bars or more.",
+      "pseudocode": "count over i in 0..windowBars-1 of ( ClimaxBar[i] && exists j in i+1..i+maxGapBars with ClimaxBar[j] == false ) >= minClimaxes",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 30,
+        "minClimaxes": 2,
+        "maxGapBars": 5,
+        "climaxMultiple": 2.0,
+        "atrLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a counting loop over the climax-bar test with a separation flag; no cross-bar state beyond the window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Average",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R05-11",
+        "RP4-19",
+        "V04-05",
+        "V24-46",
+        "TP3-33",
+        "T21-41",
+        "V04-06"
+      ],
+      "merge_notes": "Six statements of one count. Book thresholds: two (V04-05 'a double top', V24-46, R05-11, RP4-19) and three (T21-41 'the reversal is generally even larger'); default 2 with 3 as the obvious optimizer step. Windows: 8 (V24-46), 15 (T21-41), 30 (TP3-33), and RP4-19's gap-based form (maxGapBars 3); default 30 bars with maxGapBars 5. TP3-33 uses a plain count-in-window with no separation test and says so in its own notes ('Brooks means consecutive climaxes separated by pushes'); the separated form wins as the more faithful and barely more expensive. T21-41 also fires an entry on the first opposite-body bar, which is a bar_anatomy rule ANDed in the pane, not part of the count. Deliberately NOT merged with ConsecutiveSpikeCount: counting big bars and counting spike runs are different measurements and nobody has shown they coincide.",
+      "variants_kept_separate": [
+        "ConsecutiveSpikeCount",
+        "ExitOnConsecutiveClimax"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ClimaxBar"
+      ]
+    },
+    {
+      "key": "ConsecutiveSpikeCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least minSpikes separate same-direction spikes -- runs of at least spikeBars consecutive strong trend bars, each run separated from the next by a non-spike bar -- within the last windowBars. Brooks: every spike, one bar or many, is a climax.",
+      "pseudocode": "count of disjoint runs of >= spikeBars consecutive StrongTrendBar(up) bars inside bars 0..windowBars-1 >= minSpikes",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 30,
+        "spikeBars": 2,
+        "minSpikes": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "run detection with state over a window, on top of the shared spike primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "MomentumConsecutiveBars",
+        "relation": "variant",
+        "note": "that rule needs one run of N bars each closing above the close N bars ago; this needs several separated runs of strong trend BODIES, so the bars differ"
+      },
+      "sources": [
+        "VP1-20",
+        "V01-16",
+        "T15-57",
+        "T10-16"
+      ],
+      "merge_notes": "The run form of the climax-classification decision, built on the already-decided spike primitive (StrongTrendBarRun / StrongTrendBarCount) rather than redefining it. T15-57 is the cleanest statement (disjoint runs of >= 2 bull trend bars, 3 within 30 bars) and supplies the defaults; T10-16 (stray, absorbed) is the same test on bear spikes with an added reversal-bar entry term, which is left to bar_anatomy. VP1-20 and V01-16 count 'climaxes without much of a pullback' since the session start -- the same idea with an intraday anchor and the pullback qualifier; both are folded in and the pullback qualifier is left to the decided tight-channel measure in its own pane. Threshold 3 here (all four sources say three) against 2 on ConsecutiveClimaxBarCount, which is the book's own asymmetry: two big bars is a double top, three spikes is a wedge.",
+      "variants_kept_separate": [
+        "ConsecutiveClimaxBarCount",
+        "SpikeReversedBySpike"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "StrongTrendBarRun"
+      ]
+    },
+    {
+      "key": "NoClimaxWithinLookback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "No same-direction climax bar in the last blockBars bars -- the cooldown that blocks with-trend entries after a climax, and equally the 'no big climaxes appear' sign of an orderly trend.",
+      "pseudocode": "countTrue( ClimaxBar[k] for k in 0..blockBars-1 ) == 0",
+      "sides": "mirrored",
+      "parameters": {
+        "blockBars": 10,
+        "climaxMultiple": 2.0,
+        "atrLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a windowed count over the climax-bar test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Average",
+        "CountIF",
+        "MRO"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "LastTradeCooldown shares the shape -- a bars-since gate -- but keys on closed trades, not on a bar pattern"
+      },
+      "sources": [
+        "R17-07",
+        "T06-26",
+        "T10-14",
+        "T15-32",
+        "TP3-34",
+        "V24-26",
+        "V24-34",
+        "T02-11",
+        "T19-17"
+      ],
+      "merge_notes": "The largest collapse in the bucket: nine candidates, one windowed count. Every source that gives a number gives 10 bars ('the bulls will not buy again until at least a 10-bar, two-legged correction') except V24-26 at 3, which is the parameter's low end. T19-17 ('no big climaxes appear', a sign of strength) is this same rule read positively rather than as a block -- the negate toggle, so the same rule. Four sources (T02-11, V24-34, TP3-34, T15-32) additionally want two legs down before re-entry; the leg count is a separate leg_counting rule on the decided HighLowBarCount counter and is ANDed in the pane, so it is noted rather than folded in. V24-34 anchors on a final flag instead of a climax bar; FinalFlag is a named setup owned by another bucket, and at the blockBars level the two behave identically.",
+      "variants_kept_separate": [
+        "ExitOnConsecutiveClimax"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ClimaxBar"
+      ]
+    },
+    {
+      "key": "SpikeReversedBySpike",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A spike in one direction immediately followed by a spike in the opposite direction: the climactic reversal. Brooks's expectation is a transition into a trading range whose eventual breakout runs about the height of the first spike.",
+      "pseudocode": "strongTrendBarRun(down, spikeBars) ending at bar 0 && strongTrendBarRun(up, spikeBars) ending at bar spikeBars + gapBars or closer",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeBars": 2,
+        "gapBars": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "two opposite-direction runs located relative to each other, on the shared spike primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-18"
+      ],
+      "merge_notes": "The one candidate in this bucket for the chapter title's own pattern ('a spike followed by a spike in the opposite direction'), and the only climax rule that is a two-sided shape rather than a count or a size. Built on the decided spike primitive. The measured-move consequence Brooks attaches to it (the breakout runs the height of the first spike) is a target, not a condition, and is left to the exits/targets pass.",
+      "variants_kept_separate": [
+        "ConsecutiveSpikeCount",
+        "TrendBarRunEnded"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "StrongTrendBarRun"
+      ]
+    },
+    {
+      "key": "TrendBarRunEnded",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A run of at least runBars consecutive same-direction strong trend bars ended on the previous bar: this bar is not one (a small bar, a tailed bar, an inside bar, a doji or an opposite bar broke the streak). Brooks: the climax ends as soon as the strong trending behaviour is interrupted.",
+      "pseudocode": "strongTrendBarRun(up, runBars) ending at bar 1 && !StrongTrendBar(up)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "runBars": 3,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a consecutive-run counter on the shared strong-trend-bar test, plus the break condition"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "MomentumConsecutiveBars",
+        "relation": "variant",
+        "note": "the mining file guessed that rule; it counts closes above the close N bars ago, not strong trend BODIES, and has no 'and the streak just broke' term"
+      },
+      "sources": [
+        "T02-03",
+        "V04-02"
+      ],
+      "merge_notes": "The event that Brooks uses to time a fade -- not the climax itself but the bar that ends it -- so it is behaviourally distinct from every count rule here and from the spike primitive it is built on. Three bars is the book's example; runBars is the input.",
+      "variants_kept_separate": [
+        "ConsecutiveSpikeCount",
+        "SpikeReversedBySpike"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "StrongTrendBarRun"
+      ]
+    },
+    {
+      "key": "ExitOnConsecutiveClimax",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the open position once a second same-direction climax has printed -- take profits into the climax, or on the first opposite-body bar after it.",
+      "pseudocode": "ctx.MarketPosition() > 0 && ConsecutiveClimaxBarCount(minClimaxes = 2) && (exitOnClimaxClose || close[0] < open[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "minClimaxes": 2,
+        "windowBars": 15,
+        "exitOnClimaxClose": 0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the climax count plus position state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition",
+        "WFSafe_AvgTrueRange",
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "ConsecutiveCloseExit",
+        "relation": "variant",
+        "note": "same shape -- an exit on a run of with-trend bars -- but keyed on climax bars rather than on N consecutive rising closes"
+      },
+      "sources": [
+        "T21-39"
+      ],
+      "merge_notes": "Cannot be composed from ConsecutiveClimaxBarCount: that is an Entry, exits are ORed and an Entry cannot sit in the exit pane, so the exit form has to exist separately -- the same reason the catalog carries ConsecutiveCloseExit alongside MomentumConsecutiveBars. The exitOnClimaxClose toggle picks between selling into the climax bar's close and waiting for the first opposite-body bar; both are in the quote.",
+      "variants_kept_separate": [
+        "ConsecutiveClimaxBarCount"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ConsecutiveClimaxBarCount"
+      ]
+    },
+    {
+      "key": "ParabolicAccelerationExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The move is accelerating: the net gain of the last legBars bars exceeds accelMultiple times the net gain of the legBars before that. A parabolic slope is unsustainable, so take profits -- exit only, never a countertrend entry.",
+      "pseudocode": "ctx.MarketPosition() > 0 && (close[legBars] - close[2 * legBars]) > 0 && (close[0] - close[legBars]) > accelMultiple * (close[legBars] - close[2 * legBars])",
+      "sides": "mirrored",
+      "parameters": {
+        "legBars": 4,
+        "accelMultiple": 1.5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset closes and one multiply"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Momentum compares one close to one earlier close; nothing in the catalog compares two successive net moves"
+      },
+      "sources": [
+        "T21-75"
+      ],
+      "merge_notes": "The cheapest rule in either bucket and the only trivial-complexity one: it reaches the climax idea through pure fixed-offset closes, with no bar classification, no ATR and no pivots. Brooks is explicit (p376) that this is an exit and not a short signal, so it is authored as an Exit even though the condition would read as an Entry.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EntryBarRangeStop",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Stop out when the open loss exceeds stopMultiple times the high-low range of the bar the position was entered on, rather than a fixed dollar amount -- the stop Brooks sizes to a climax bar's own height when fading it.",
+      "pseudocode": "stopDistance = stopMultiple * (high[barsSinceEntry] - low[barsSinceEntry]); openLossPoints >= stopDistance",
+      "sides": "same",
+      "parameters": {
+        "stopMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the entry bar's range captured at entry and held for the life of the trade"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition",
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "StopLoss",
+        "relation": "variant",
+        "note": "same job, different distance: the signal bar's own range instead of a dollar input, so it adapts per trade in a way StopLoss and AtrTrailingStop cannot"
+      },
+      "sources": [
+        "V04-11"
+      ],
+      "merge_notes": "Not really about climaxes -- it is a general stop that happens to be stated for the climax fade ('a stop that is about as many ticks as the bull trend bar is tall'). Carried as its own Exit because exits are ORed and this cannot be assembled from StopLoss plus anything. stopMultiple added as an input so the book's 1.0 is optimizable.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AtrAtExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The ATR is at its highest of the last extremeLookback bars -- a volatility extreme, which Brooks reads as the end of a bear trend being near as traders stop responding to the whipsaws.",
+      "pseudocode": "atr(atrLookback)[0] >= highest(atr(atrLookback), extremeLookback)[1]",
+      "sides": "same",
+      "parameters": {
+        "atrLookback": 14,
+        "extremeLookback": 100
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an ATR plus a windowed maximum over its own history"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "AtrAboveAverage",
+        "relation": "variant",
+        "note": "same volatility-expansion family; that rule compares the ATR to its own N-bar mean, this one to its own N-bar maximum, and both read the ATR variable's zero-padded warm-up history so early bars behave differently"
+      },
+      "sources": [
+        "TP3-40"
+      ],
+      "merge_notes": "Stray absorbed (its primary bucket is misc, so nobody else carries it). The only rule here that reaches the exhaustion idea through volatility rather than bar size, which is why it is not merged into ClimaxBar. Brooks pairs it with a required prior trend-line break (TP3-09), which is TrendLineBrokenRecently ANDed in the pane.",
+      "variants_kept_separate": [
+        "ClimaxBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionMoveExhaustsDailyRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session's move from the open has reached rangeFraction of the recent average daily range, so further movement in that direction is treated as exhausted and countertrend setups are favoured.",
+      "pseudocode": "sessionRange(k) = the high-low of session k built from the intraday bars; abs(close[0] - sessionOpen) >= rangeFraction * average(sessionRange, dailyLookback)",
+      "sides": "same",
+      "parameters": {
+        "rangeFraction": 0.9,
+        "dailyLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "per-session high/low accumulated on the intraday series and averaged over the last N sessions, plus a session-open reference"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Average",
+        "OpenD",
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T13-14"
+      ],
+      "merge_notes": "Kept because it is the one exhaustion measure in the bucket that is scaled to the DAY rather than to the bar, and it needs no climax primitive at all. The mined candidate assumed a second daily data stream; rewritten to accumulate session ranges on the intraday series, which is what makes it hard rather than out of scope. Intraday-only, tagged per the standing convention.",
+      "variants_kept_separate": [
+        "AtrAtExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MajorTrendReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The book's named major-trend-reversal setup, kept whole because Brian would want to test it as Brooks states it: a strong trend-line break, then a failed test of the trend's extreme, then a strong reversal signal bar on that test.",
+      "pseudocode": "barsSince(TrendLineBreak) <= testWindow && ExtremeTestAfterTrendLineBreak[0] && StrongReversalBar(up)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "testWindow": 25,
+        "tolTicks": 6,
+        "swingStrength": 2,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "graded by its hardest part, the trend-line break and projection"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "TLValue",
+        "Highest",
+        "Lowest",
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the mining files list a likely_existing_rule of MajorTrendReversal, but no such rule is in rules/CATALOG.md -- it does not exist yet"
+      },
+      "sources": [
+        "V24-14",
+        "V03-06"
+      ],
+      "merge_notes": "One of the named Brooks setups MERGE.md keeps as a composite. V24-14 is the mechanizable statement and supplies the parameters; V03-06 is the chapter's four-part definition, whose items 1-3 are the same three parts. V03-06's item 4 ('the second reversal goes far enough for a consensus that the trend has reversed') is DROPPED, not parameterized: Brooks gives no number, the mining file flags it as out of scope for a bar-level test, and inventing a consensus threshold would put the whole setup at C for no gain. With item 4 gone every part is measurable and the rule grades B. Its parts live in lines_channels_trendlines (TrendLineBreak, ExtremeTestAfterTrendLineBreak) and bar_anatomy_reversal_signal (the signal bar).",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TrendLineBreak",
+        "ExtremeTestAfterTrendLineBreak",
+        "StrongReversalBar"
+      ]
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R01-13",
+      "reason": "composition of ConsecutiveSpikeCount + the catalog's TimeWindow (too little of the session left for a 10-bar correction); both parts are carried"
+    },
+    {
+      "id": "T02-10",
+      "reason": "composition of ClimaxBar + ClimaxBarAfterExtendedRun's run gate + the decided tight-channel / small-pullback measure (T15-10)"
+    },
+    {
+      "id": "T23-09",
+      "reason": "composition of ConsecutiveClimaxBarCount(2) + a new-high breakout + the catalog's TimeWindow + the small-pullback-trend-day regime (context_regime)"
+    },
+    {
+      "id": "RP2-11",
+      "reason": "stray sent here; not mechanizable on re-read -- an asymmetry heuristic about tops coming from ranges and bottoms from climaxes, which the book itself hedges ('tops can be climactic'), with no bar-level trigger"
+    }
+  ],
+  "cross_bucket": [],
+  "design_decisions": [
+    {
+      "topic": "climax classification (deferred here from context_regime_always_in)",
+      "options": [
+        "bar form: a strong trend bar (body >= 0.6 of range) whose high-low range is >= K x ATR, default K = 2.0 over 20 bars (V04-01, V24-20, TP3-33) or 1.5 over 10 (T06-25, T02-10)",
+        "run form: N consecutive strong trend bars -- a spike -- where every spike, one bar or many, counts as a climax (T15-57, T21-38, V01-16)",
+        "exhaustion form: the largest trend bar of the run so far (V04-08)",
+        "structural form: a trend-channel-line overshoot followed by a reversal (V00-58)",
+        "'too far too fast' left undefined, as T18-06 and T19-17 leave it"
+      ],
+      "recommended": "take the bar form and the run form as TWO primitives, not one. The bar form becomes ClimaxBar (2.0 x ATR over 20, body >= 0.6 to match the decided AlwaysInDirection trend-bar test); the run form needs no new primitive at all because the spike decision is already taken -- StrongTrendBarRun / StrongTrendBarCount -- so ConsecutiveSpikeCount simply counts those runs. They are kept apart on the standing near-miss rule: a 2 x ATR bar and a two-bar strong run do not fire on the same bars and nobody has measured the overlap. The exhaustion form is carried separately as LargestTrendBarOfTheRun (a running maximum, not an average), and the structural form is already carried in lines_channels_trendlines as TrendChannelLineOvershoot. This answers T18-06 and T19-17, the two candidates that state the open question and nothing else, and it takes six rules out of research grade.",
+      "gates": [
+        "ClimaxBar",
+        "ClimaxBarAfterExtendedRun",
+        "LargestTrendBarOfTheRun",
+        "ConsecutiveClimaxBarCount",
+        "ConsecutiveSpikeCount",
+        "NoClimaxWithinLookback",
+        "ExitOnConsecutiveClimax",
+        "SpikeReversedBySpike",
+        "TrendBarRunEnded"
+      ]
+    },
+    {
+      "topic": "when two climaxes count as consecutive",
+      "options": [
+        "separated by at least one non-with-trend-trend bar, both inside a windowBars window (V04-05's pause tolerance, T21-38's gap scan)",
+        "a plain count of climax bars in the window with no separation test (TP3-33, which admits in its own notes that this is a simplification)",
+        "separated by a full opposite correction (which would make almost nothing consecutive)"
+      ],
+      "recommended": "the separated form -- at least one non-with-trend bar between climaxes, maxGapBars 5, windowBars 30. It is faithful to 'separated by a pause or a small pullback', it distinguishes two climaxes from one long spike, and it costs one flag in the counting loop.",
+      "gates": [
+        "ConsecutiveClimaxBarCount",
+        "ConsecutiveSpikeCount",
+        "ExitOnConsecutiveClimax"
+      ]
+    },
+    {
+      "topic": "how to measure 'an extended run' before a climax",
+      "options": [
+        "bars since the AlwaysInDirection flip (the decided always-in primitive)",
+        "bars since the last confirmed swing pivot against the trend",
+        "a fixed lookback of with-trend closes, e.g. close[0] > close[minRunBars]"
+      ],
+      "recommended": "bars since the AlwaysInDirection flip. The always-in decision is already taken (two consecutive strong trend bars, body >= 0.6, tails <= 0.2), it needs no pivots, and it makes 'a trend that has gone on for 10 / 20 / 30 / 40 bars' one input instead of four ad hoc trend-start trackers. The fixed-lookback option is the cheap fallback if the always-in counter is not available when this is authored.",
+      "gates": [
+        "ClimaxBarAfterExtendedRun"
+      ]
+    }
+  ],
+  "bucket_summary": "36 candidates about climaxes, exhaustion bars and climactic reversals, plus 4 strays (2 absorbed, 1 dropped, 1 returned), collapsed to 14 rules with 4 drops. The climax-classification decision deferred here is answered by splitting the concept in two rather than forcing one definition: ClimaxBar for the big-bar form and ConsecutiveSpikeCount over the already-decided StrongTrendBarRun for the spike form, with LargestTrendBarOfTheRun and the lines bucket's TrendChannelLineOvershoot carrying the other two readings. That takes nine candidates out of research grade and leaves no C or D rules at all. The A-list is ClimaxBar, LargestTrendBarOfTheRun, ConsecutiveClimaxBarCount, NoClimaxWithinLookback, AtrAtExtreme, ParabolicAccelerationExit and EntryBarRangeStop -- and ParabolicAccelerationExit is trivial-complexity, three fixed-offset closes, so it is the cheapest thing in either bucket. No catalog duplicates; five rules are variants of catalog rules (BarRangeAboveStd three times, StopLoss, AtrAboveAverage, ConsecutiveCloseExit, MomentumConsecutiveBars) and the differences are recorded on each."
+}

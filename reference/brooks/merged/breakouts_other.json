@@ -1,0 +1,621 @@
+{
+  "bucket": "breakouts_other",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "HighestHighBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's high is at or above the highest high of the last N bars (long) / its low at or below the lowest low (short) - the generic 'breakout beyond a prior price of significance', reduced to the fixed-lookback extreme.",
+      "pseudocode": "high[0] >= highest(high, lookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 15
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one windowed extreme"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "HighestHighBreakout",
+        "relation": "duplicate",
+        "note": "rules/HighestHighBreakout.json is exactly this, including the '=' trap handling (el_eq against a bar-0-seeded extreme). R01-05's [1] offset - the highest high EXCLUDING the current bar - is the same event one comparison earlier; if the authoring pass wants that form it is CloseAbovePriorHighestHigh on highs, not a new rule."
+      },
+      "sources": [
+        "V00-19",
+        "R01-05"
+      ],
+      "merge_notes": "V00-19 is Brooks's umbrella definition ('the high or low of the current bar extends beyond some prior price of significance such as a swing high or low, the high or low of any prior bar, a trend line, or a trend channel'), mined at hard grade because 'significance' covers swing pivots and projected lines too; those forms are recorded separately in the swing_structure and lines_channels buckets, and what is left here is the plain windowed extreme, which the catalog already has. R01-05 (stray) is the same test used as a resting stop above a spike high, at spikeBars 5 and offset 1. Lookbacks 5 (R01-05) and 15 (V00-19).",
+      "variants_kept_separate": [
+        "CloseAbovePriorHighestHigh"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NarrowRangeWidth",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The N-bar window ending one bar ago is narrow: its high-low width is at or below a multiple of the ATR. A width test, not a trading-range classification - it says nothing about boundaries, touches or overlap.",
+      "pseudocode": "rangeHeight = highest(high, rangeLookback)[1] - lowest(low, rangeLookback)[1];\nrangeHeight <= tightAtrMultiple * WFSafe_AvgTrueRange(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 10,
+        "tightAtrMultiple": 1.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two windowed extremes and an ATR; no state, no boundary detection"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd measures ONE bar's range against a mean-plus-K-sigma band; this measures an N-BAR window's total width against an ATR multiple, and in the opposite sense (narrow, not wide). AtrDollarsBelow is the nearest low-volatility filter but reads the ATR itself, not a window width."
+      },
+      "sources": [
+        "R05-08",
+        "RP4-14"
+      ],
+      "merge_notes": "Three book statements of 'tight range', with three different denominators: 1.5 x ATR over 10 bars (R05-08), 3-4 Emini POINTS (RP4-14), 8 TICKS over 6 bars (V15-10, dropped as a composite). The ATR form wins - the point and tick thresholds are instrument- and era-specific, and Brooks's own numbers are Emini-of-that-decade values. Both surviving candidates use the width negatively (a breakout out of a narrow range is unreliable; stop entries lose in a 3-4 point range), which is the per-placement negate toggle on this rule, not a second rule. IMPORTANT: this is deliberately NOT the tight-trading-range classifier - that is owned by context_regime_trading_range and must be referenced, not redefined here; a window-width proxy and a real range classification only coincide until someone measures them.",
+      "variants_kept_separate": [
+        "OverlappingLargeBarCluster"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OverlappingLargeBarCluster",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last few bars are large AND mostly overlap each other - a one-cluster trading range, above which breakout entries tend to fail: 'it is bad to buy above three large bars that mostly overlap'.",
+      "pseudocode": "overlap(i) = (MinList(high[i], high[i+1]) - MaxList(low[i], low[i+1])) / (high[i] - low[i]);\navgOverlap = average of overlap(i) for i in 0..overlapBars-2;\nisLarge = average(high - low, overlapBars) >= sizeMultiple * average(high - low, longerLookback);\navgOverlap >= minOverlap && isLarge",
+      "sides": "same",
+      "parameters": {
+        "overlapBars": 3,
+        "minOverlap": 0.5,
+        "sizeMultiple": 1.2,
+        "longerLookback": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a short window loop computing adjacent-bar overlap plus two plain range averages"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "InsideBar",
+        "relation": "variant",
+        "note": "InsideBar is the two-bar, total-containment case of overlap; this is a graded overlap fraction over three or more bars"
+      },
+      "sources": [
+        "V16-11"
+      ],
+      "merge_notes": "Kept apart from NarrowRangeWidth on purpose: a cluster of LARGE overlapping bars can be wide in ATR terms and still be a range, and a narrow window can be made of non-overlapping small trend bars. Two measurements of 'this is a range', and nobody has measured that they coincide - the authoring pass should keep both and compare. The same overlap() helper appears as V02-29 (PullbackOverlappingBars) in the bar_anatomy bucket; whoever authors first should export the helper.",
+      "variants_kept_separate": [
+        "NarrowRangeWidth"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutFailedBackIntoRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A bar within the last reentryWindow bars closed above the range high, and price has since closed back inside the range - the failed breakout that enlarges the range instead of starting a trend.",
+      "pseudocode": "level = highest(high, rangeLookback)[reentryWindow + 1];\nbrokeOut = any close[i] > level for i in 1..reentryWindow;\nbrokeOut && close[0] < level",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 20,
+        "reentryWindow": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a fixed level plus a short window scan for the breakout bar; no persisted range object needed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus has breakout entries but no failed-breakout test"
+      },
+      "sources": [
+        "R11-23"
+      ],
+      "merge_notes": "The mined pseudocode assumed a persisted range boundary and breakout bar; the anchored form above (fix the level as the extreme of the window BEFORE the breakout window, then scan) needs no state and fires on the same bars, so it wins on mechanizability. Note the breakouts_pullback_retest bucket owns the failed-breakout family generally - this candidate's own primary is here, but the roll-up should compare the two before authoring, since a 'breakout pullback' and a 'failed breakout' differ only in whether price closes back inside.",
+      "variants_kept_separate": [
+        "BothSidedFailedBreakouts"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BothSidedFailedBreakouts",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Within the same window, a failed breakout has occurred on BOTH sides of the range - bears trapped below, bulls trapped above - so the next genuine breakout in either direction is expected to travel further than usual.",
+      "pseudocode": "failedBreakoutAbove(rangeLookback, reentryWindow) && failedBreakoutBelow(rangeLookback, reentryWindow)",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 15,
+        "reentryWindow": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "BreakoutFailedBackIntoRange evaluated on both sides at once"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R12-17"
+      ],
+      "merge_notes": "Deliberately NOT dropped as a composition. The pane system ANDs entry rules but each placement carries one side, so 'the long-side failure AND the short-side failure, both true on this bar' cannot be built by stacking two placements of BreakoutFailedBackIntoRange - the same reason NumBarsIfProfitable cannot be built from NumBars plus a profit rule. Direction-agnostic by construction, so sides are 'same'. The book's actionable content beyond the condition (weight it as a swing, size up) is position sizing and is not carried.",
+      "variants_kept_separate": [
+        "BreakoutFailedBackIntoRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "BreakoutFailedBackIntoRange"
+      ]
+    },
+    {
+      "key": "KeyTimeProximity",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's close time is within one bar of any of a short list of scheduled clock times (the book's PST list: 7:00, 7:30, 11:00, 11:30, 12:00) at which breakouts and reversals cluster.",
+      "pseudocode": "isKeyTime = false;\nfor each t in { keyTime1, keyTime2, keyTime3 }: isKeyTime = isKeyTime || absvalue(minutesOf(ctx.Time(0)) - minutesOf(t)) <= windowMinutes;\nreturn isKeyTime",
+      "sides": "same",
+      "parameters": {
+        "keyTime1": 700,
+        "keyTime2": 730,
+        "keyTime3": 1130,
+        "windowMinutes": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a handful of clock comparisons; no session state, no price"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "variant",
+        "note": "TimeWindow is one CONTINUOUS inclusive band; this is proximity to a SET of discrete instants, which AND-ed panes cannot express - the same reason DayOfWeekAnyOf exists alongside DayOfWeekEntry. Three time inputs, repeat a value to use fewer, exactly as DayOfWeekAnyOf does with days."
+      },
+      "sources": [
+        "R15-01"
+      ],
+      "merge_notes": "Topically this is time_session's, but it is this bucket's own candidate and it merges with nothing there (time_session's clock candidates all collapse into the existing continuous TimeWindow), so it is kept here. Book gives five times, of which 7:00 and 7:30 are the U.S. economic-report releases and 11:30 is the strongest of the afternoon set; three inputs cover the useful cases and keep the grid small. HHMM arithmetic must go through minutes - absvalue(730 - 700) is 30 in HHMM but 30 minutes only by accident, and 1200 - 1130 is 70 while the gap is 30.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionBarBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "An early bar of the session closes beyond the high (long) / low (short) of the session's FIRST bar - the second-bar breakout of the first bar, and its third-bar form.",
+      "pseudocode": "ctx.Date(offsetBars) != ctx.Date(offsetBars + 1) && close[0] > high[offsetBars]",
+      "sides": "mirrored",
+      "parameters": {
+        "offsetBars": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a session date-change test at a fixed offset plus one price comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHigh at lookback N is the price half; the addition is the gate that the bar N back must be the session's FIRST bar, which turns an every-bar test into a once-a-day one"
+      },
+      "sources": [
+        "VP3-06",
+        "VP3-11"
+      ],
+      "merge_notes": "VP3-06 is the second bar of the day breaking the first bar's high; VP3-11 is the third bar doing it (Brooks's reason is that on a 5-minute chart the third bar closes the first 15-minute bar - a reason the engine cannot see, but the pattern is decidable). One rule with offsetBars = 1 or 2 rather than two near-identical rules. VP3-11 is written 'either direction', which is this rule placed on both sides. The fade of the same level - short above the first bar's high on a bar with prominent tails - is VP3-09, cross-bucketed from time_session to bar_anatomy_reversal_signal: its breakout half is this rule with the side toggle, so only the tail test is new.",
+      "variants_kept_separate": [
+        "OpeningRangeBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model (owned by time_session)"
+      ],
+      "depends_on_keys": [
+        "IsFirstBarOfSession"
+      ]
+    },
+    {
+      "key": "OpeningRangeBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After the opening range is set (the first openingBars bars of the session), a bar closes above its high (long) / below its low (short) - the classic opening-range breakout, which Brooks says often leads to a trend day.",
+      "pseudocode": "orSet && close[0] > orHigh && (firstCrossOnly == 0 || close[1] <= orHigh)",
+      "sides": "mirrored",
+      "parameters": {
+        "openingBars": 8,
+        "firstCrossOnly": 0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one comparison once SessionOpeningRange holds orHigh/orLow; all the state is in that primitive"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "Breakout",
+        "relation": "variant",
+        "note": "Breakout and HighestHighBreakout use a rolling N-bar window that moves with every bar; the opening-range level is FIXED for the whole session once set, so the two fire on different bars from mid-session onward"
+      },
+      "sources": [
+        "V18-02",
+        "TP2-05",
+        "T21-64",
+        "T22-03"
+      ],
+      "merge_notes": "Four restatements, one per volume plus one; all four are 'buy a stop one tick above the opening range high, sell one tick below its low', mechanized by the standing convention as a close beyond the level with a next-open fill. Opening-range lengths 7 (TP2-05), 8 (V18-02, T21-64), 24 (T22-03, via T22-01) - the length belongs to SessionOpeningRange, which this rule reads, so only one openingBars input exists in the strategy. T21-64 adds a first-crossing guard (close[1] <= orHigh, i.e. only the bar that first breaks out) and T22-03 adds an optional confirmation bar (require the PREVIOUS close to be beyond the level too, which is the opposite guard); both are carried as the firstCrossOnly flag, default 0 = every bar beyond the level, since the negation of one is not the other and only measurement will say which pays. T22-03 was routed here as a stray from time_session in this same pass. The 'is the opening range small enough' precondition is a separate filter, OpeningRangeVsAvgDailyRange, merged in time_session.",
+      "variants_kept_separate": [
+        "SessionBarBreakout",
+        "HighestHighBreakout"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model (owned by time_session)"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange"
+      ]
+    },
+    {
+      "key": "FailedSwingBreakoutReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's low breaks below the most recent confirmed swing low but the bar closes back above it (long) - the swing-extreme breakout that fails and becomes a lower-low reversal setup; the short side is the mirror at a swing high.",
+      "pseudocode": "low[0] < swingLow(strength)[1] && close[0] > swingLow(strength)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a confirmed swing pivot at a variable distance back; the bar test itself is two comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus has no pivot-based rule at all yet"
+      },
+      "sources": [
+        "T17-02"
+      ],
+      "merge_notes": "B rather than C: the definition is unambiguous, only the machinery is hard - which is exactly the B row's 'needs swing pivots'. Note the pivot is confirmed strength bars late, so the level is known in time. SwingHigh/SwingLow have no register row yet; recorded as needed. Same family as the chapter-10 failed-test-of-a-prior-swing and the chapter-15 failed-channel-breakout re-entry, both in other buckets - the roll-up should compare all three before authoring, since they may be one rule over three different level sources.",
+      "variants_kept_separate": [
+        "SecondFailedSwingBreakoutReversal",
+        "BreakoutFailedBackIntoRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "swing-pivot definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SecondFailedSwingBreakoutReversal",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "This is at least the SECOND failed swing-extreme breakout within the lookback window - a second attempt to reverse the market, which Brooks says is the one more likely to work.",
+      "pseudocode": "countTrue(FailedSwingBreakoutReversal at bar i, for i in 1..lookback) >= 1 && FailedSwingBreakoutReversal at bar 0",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "strength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a window count of a derived per-bar event that itself needs pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "same CountIF-a-derived-series shape, over a pivot-based event instead of a bar-shape one; the counted condition must be a true series so its [1] offsets shift per counted bar"
+      },
+      "sources": [
+        "T17-03"
+      ],
+      "merge_notes": "Not dropped as a composition: it is the same event counted, not two independent conditions ANDed, so no pair of panes reproduces it. The authoring pass may prefer a persistent 'attempts since the last successful breakout' counter over a window count - the counter is cheaper and is how the corpus already handles second-entry logic (R17-01's HighLowBarCount, the standing leg definition).",
+      "variants_kept_separate": [
+        "FailedSwingBreakoutReversal"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "swing-pivot definition"
+      ],
+      "depends_on_keys": [
+        "FailedSwingBreakoutReversal"
+      ]
+    },
+    {
+      "key": "ShrinkingBreakoutStairs",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last few breakouts to a new trend extreme cleared the prior extreme by less than the one before it - the shrinking-stairs pattern, read as waning momentum.",
+      "pseudocode": "/* research: 'a breakout to a new extreme' must be defined before the sizes can be measured */\nfor k in 0..stairsRequired-2: breakoutSize(k) < breakoutSize(k+1)",
+      "sides": "mirrored",
+      "parameters": {
+        "stairsRequired": 3
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs a persisted history of breakout sizes, which presupposes a definition of what counts as a breakout to a new trend extreme"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-40"
+      ],
+      "merge_notes": "Straight from the glossary ('shrinking stairs'). C, not B: unlike the failed-swing rules, this one cannot be written down even given pivots, because the sequence being measured is 'breakouts', and whether that means each new swing extreme, each close beyond the prior extreme, or each leg of the stairs pattern changes which bars qualify and therefore the sizes being compared. Once the definition is fixed the rest is a three-element ring buffer and two comparisons.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "what counts as a breakout to a new trend extreme",
+        "swing-pivot definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LateSessionRangeStillSmall",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Deep into the session the day's range is still unusually small versus its own recent history, which Brooks says precedes a late range-expanding breakout ('in 90 percent of the cases the range will increase before the close').",
+      "pseudocode": "/* research: 'unusually small' needs a decision */\nbarsIntoSession >= lateCheckBar && (sessionHigh - sessionLow) <= smallFraction * adr",
+      "sides": "same",
+      "parameters": {
+        "lateCheckBar": 48,
+        "smallFraction": 0.5
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the mined form wants a percentile over a long history of completed daily ranges; the ADR-fraction form above is a cheaper reading, and choosing between them is a design decision"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Average",
+        "Percentile"
+      ],
+      "catalog_match": {
+        "rule": "ClosePercentileValue",
+        "relation": "variant",
+        "note": "if the percentile reading wins, EL's VERIFIED Percentile (sort the window, interpolate, current bar included) is already characterized by ClosePercentileValue - over a series of completed daily ranges instead of closes"
+      },
+      "sources": [
+        "T22-16"
+      ],
+      "merge_notes": "The measurement is the running session range rather than the opening range, so it is not time_session's OpeningRangeVsAvgDailyRange even though it reads the same average-daily-range primitive; the two would fire on different bars (one is fixed at the opening window, this one keeps re-testing as the day widens). The mined lateCheckBar of 300 assumes a tick or 1-minute chart; 48 = four hours of 5-minute bars. Brooks's own numbers here are Emini points ('every day has a range of five points at some point'), which do not travel.",
+      "variants_kept_separate": [
+        "NarrowRangeWidth"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "definition of an unusually small session range",
+        "intraday session model (owned by time_session)"
+      ],
+      "depends_on_keys": [
+        "AverageDailyRange"
+      ]
+    },
+    {
+      "key": "ReenterAfterQuickStopOut",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last position closed as a loser within a bar or two of being entered, and the exit was just now - Brooks's permission to reverse, since 'the market will usually move more than the number of ticks that you lost on the first entry'.",
+      "pseudocode": "ctx.MarketPosition() == 0 && ctx.TotalTrades() > 0 && ctx.PositionProfit(1) < 0 && ctx.BarsSinceExit(1) <= reentryBars && barsHeldOfLastTrade <= quickBars",
+      "sides": "same",
+      "parameters": {
+        "reentryBars": 1,
+        "quickBars": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads only measured position-state accessors; no price machinery"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "MarketPosition",
+        "BarsSinceEntry",
+        "BarsSinceExit",
+        "PositionProfit",
+        "TotalTrades"
+      ],
+      "catalog_match": {
+        "rule": "LastTradeCooldown",
+        "relation": "variant",
+        "note": "LastTradeCooldown uses the same measured PositionProfit(1)/BarsSinceExit/TotalTrades accessors to BLOCK entries for N bars after a loss; this is the opposite sense - permit (indeed require) an immediate re-entry after a quick loss - so it is LastTradeCooldown's condition inverted plus a 'the trade was short-lived' term. FlatOrOpenLossExceeds is the other position-state Entry in the corpus."
+      },
+      "sources": [
+        "T23-14"
+      ],
+      "merge_notes": "The candidate is written as 'reverse after the first-bar breakout trade is stopped out on the next bar' and composes T23-13 (the first-bar breakout entry, mined elsewhere); the direction of the re-entry comes from whichever entry rule shares the pane, so what is carried here is only the gate. The quick-loss term (barsHeld <= quickBars) is what distinguishes it from an ordinary post-loss re-entry, and it needs the last trade's holding period, which BarsSinceEntry does not give once flat - if the engine cannot supply it, drop that term and the rule becomes LastTradeCooldown inverted.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "V15-10",
+      "reason": "composition of NarrowRangeWidth (its tight-range term, at 8 ticks over 6 bars) + CloseAbovePriorHighestHigh (its breakout term, the catalog rule); the book values are recorded in NarrowRangeWidth's merge_notes"
+    },
+    {
+      "id": "R22-07",
+      "reason": "composition of a tight-trading-range classification (owned by context_regime_trading_range, referenced not redefined) + AlwaysInDirection (the standing always-in decision: two consecutive strong trend bars) as a direction gate; the book's own exception - a tight range after a climactic reversal breaks either way - is not modeled either"
+    },
+    {
+      "id": "VP1-27",
+      "reason": "not mechanizable: a probability bias (~80% break with the larger trend) over reversal-pattern shape recognition, with no bar-level condition"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "RP2-07",
+      "belongs_in": "support_resistance_levels",
+      "note": "counting touches of a remembered support level; the whole rule is about the level, which that bucket owns - nothing here is about breakouts"
+    },
+    {
+      "id": "R08-17",
+      "belongs_in": "exits_targets",
+      "note": "a profit target placed at the earlier breakout point; an Exit whose only content is where the target sits"
+    },
+    {
+      "id": "T22-10",
+      "belongs_in": "swing_structure",
+      "note": "a run test over consecutive swing highs and swing lows; pure swing structure, and it predicts a breakout rather than testing one"
+    },
+    {
+      "id": "V19-08",
+      "belongs_in": "time_session",
+      "note": "opening-range height versus the average daily range; merged there in this same pass into OpeningRangeVsAvgDailyRange, where both primitives it needs are defined"
+    },
+    {
+      "id": "TP4-03",
+      "belongs_in": "time_session",
+      "note": "same measurement as V19-08 at a 0.3 threshold; merged into time_session's OpeningRangeVsAvgDailyRange"
+    },
+    {
+      "id": "T21-63",
+      "belongs_in": "time_session",
+      "note": "same measurement, the book's explicit 'under 30 percent of an average daily range' statement; merged into time_session's OpeningRangeVsAvgDailyRange"
+    },
+    {
+      "id": "RP1-05",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "T00-38",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHighestHigh (rules/CloseAbovePriorHighestHigh.json); folded there in reconciliation"
+    },
+    {
+      "id": "R12-08",
+      "belongs_in": "breakouts_signal_strength",
+      "note": "identical to breakouts_signal_strength CloseAbovePriorHigh (rules/CloseAbovePriorHigh.json); folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "swing-pivot definition",
+      "options": [
+        "EL SwingHigh/SwingLow with a strength input, confirmed strength bars late",
+        "a fixed-lookback highest/lowest as a proxy for the pivot level",
+        "a persistent counter in the style of R17-01's HighLowBarCount, avoiding pivots entirely"
+      ],
+      "recommended": "EL SwingHigh/SwingLow with a strength input for the two failed-swing rules, since a fixed-lookback proxy destroys exactly what they test (a level that price broke and reclaimed); the counter form cannot express a price LEVEL at all. SwingHigh/SwingLow have no register row yet - record as needed, do not downgrade the rules for it.",
+      "gates": [
+        "FailedSwingBreakoutReversal",
+        "SecondFailedSwingBreakoutReversal",
+        "ShrinkingBreakoutStairs"
+      ]
+    },
+    {
+      "topic": "what counts as a breakout to a new trend extreme",
+      "options": [
+        "each new confirmed swing extreme beyond the prior one",
+        "each close beyond the prior N-bar extreme, with a cooldown so one push counts once",
+        "each leg of the stairs pattern, per the glossary's own three-trending-highs wording"
+      ],
+      "recommended": "close beyond the prior N-bar extreme with a cooldown - it is the only option that needs no pivots and it makes the breakout SIZE (the thing being compared) well defined",
+      "gates": [
+        "ShrinkingBreakoutStairs"
+      ]
+    },
+    {
+      "topic": "definition of an unusually small session range",
+      "options": [
+        "a percentile of a long rolling history of completed daily ranges (the mined form, roughly a year)",
+        "a fraction of the recent average daily range (reusing time_session's AverageDailyRange)",
+        "an absolute point threshold, as the book prints it"
+      ],
+      "recommended": "the ADR-fraction form: it reuses a primitive the corpus is building anyway, needs no long history, and keeps one input instead of two. Measure the percentile form only if the fraction form shows something.",
+      "gates": [
+        "LateSessionRangeStillSmall"
+      ]
+    },
+    {
+      "topic": "tight-trading-range classification",
+      "options": [
+        "reference context_regime_trading_range's classifier",
+        "an N-bar width over ATR proxy (NarrowRangeWidth)",
+        "an adjacent-bar overlap proxy (OverlappingLargeBarCluster)"
+      ],
+      "recommended": "reference context_regime_trading_range's classifier wherever the book means a real tight trading range (that is why R22-07 is dropped rather than merged); keep NarrowRangeWidth and OverlappingLargeBarCluster as two independent, cheap proxies and measure whether they coincide with it before collapsing anything",
+      "gates": [
+        "NarrowRangeWidth",
+        "OverlappingLargeBarCluster"
+      ]
+    }
+  ],
+  "bucket_summary": "29 candidates plus one stray (R01-05) collapsed to 15 rules. Three are outright catalog duplicates covering five candidates - HighestHighBreakout, CloseAbovePriorHighestHigh (T00-38's two ANDed terms reduce to it, since a close above the highest HIGH implies a close above the highest CLOSE) and CloseAbovePriorHigh - which is most of the bucket's generic breakout content. The A-list is NarrowRangeWidth (an N-bar width over ATR, explicitly not the trading-range classifier) and KeyTimeProximity (proximity to a set of discrete clock times, which continuous TimeWindow cannot express). Eight B rules carry the real content: the two failed-swing reversals, both failed-breakout rules, the session opening-range and first-bar breakouts, the overlapping-bar cluster and the quick-stop-out re-entry. Two C rules are blocked on what counts as a breakout to a new extreme and on what an unusually small session range is; seven candidates went to other buckets, three of them (V19-08, TP4-03, T21-63) to time_session where the opening-range ratio filter is merged."
+}

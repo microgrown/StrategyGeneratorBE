@@ -1,0 +1,925 @@
+{
+  "bucket": "time_session",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "TimeWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's close time (EL Time, HHMM, exchange clock) lies inside startTime..endTime, boundaries inclusive. This is the single clock-window test behind every 'first hour or two', 'middle third of the day', 'final hour', 'do not enter near the close' and 'around 8:30 a.m.' filter in the bucket.",
+      "pseudocode": "ctx.Time(0) >= startTime && ctx.Time(0) <= endTime",
+      "sides": "same",
+      "parameters": {
+        "startTime": 630,
+        "endTime": 830
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison pair against the bar's close time; no session-boundary state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "duplicate",
+        "note": "rules/TimeWindow.json already is startTime <= Time <= endTime, both sides, inclusive, and it is negatable per placement, which covers the 'avoid this window' forms (V21-03, R31-04, RP4-17's time half). The exit-side twin, exit at or after a clock time, is the existing TimeOfDayExit; no candidate in this bucket asks for anything TimeOfDayExit does not already do."
+      },
+      "sources": [
+        "V11-01",
+        "V01-20",
+        "V19-15",
+        "TP4-15",
+        "V21-03",
+        "R31-04",
+        "T22-13",
+        "V16-12",
+        "R08-23"
+      ],
+      "merge_notes": "Eight restatements of one test, differing only in the window. Book windows: session open .. +60/120 min (V11-01, V01-20 'major reversals in the first hour'), 830..840 (V19-15, the scheduled-report window), session age >= 60 min (TP4-15, the same bars as a window that starts an hour after the open), last 30 min blocked (V21-03), from 1500 to the close (R31-04), last 90 min (T22-13), middle third (V16-12). V21-03 and T22-13 phrase the bound relative to the session close rather than an absolute clock; with a fixed exchange session close those are the same bars, so they are parameterizations, not new rules. V16-12 phrases it as a fraction of the session's bar count (0.33..0.67 of sessionTotalBars) which, for a fixed-length session, again lands on the same bars; the fraction form is worth nothing extra unless sessions of different length are traded, and it needs sessionTotalBars as an input. Each of these candidates also carries a qualifier that is NOT part of the time test and is owned elsewhere: R31-04 wants a countertrend scale-in (multi-unit sizing the engine does not model), T22-13 wants a trending-trading-range-day classification (context_regime_trading_range), V16-12 and V01-20 only bias entry quality. Those qualifiers are dropped here. Folded the exits_targets copy (R08-23), \"do not start a measured-move trade with fewer than N bars left in the session\": that is this window with endTime set to the session end minus N bar lengths, so it is the same rule at a parameter, not a new one. Its presence in exits_targets also collided with rules/TimeWindow.json under a parameterization relation; as a duplicate of the catalog rule it belongs here at priority D.",
+      "variants_kept_separate": [
+        "CloseNearSessionRangeMidpoint",
+        "SessionOpeningRange"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionOpeningRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Primitive: the first openingBars bars of the intraday session fix the opening-range high, low and height. As a filter the rule is true once the session is at least openingBars bars old, i.e. once the opening range is set. Every other opening-range rule in the corpus reads orHigh / orLow / orHeight from this one place.",
+      "pseudocode": "newSession = ctx.Date(0) != ctx.Date(1);\nif (newSession) { barsIntoSession = 0; orHigh = high[0]; orLow = low[0]; orSet = false }\nelse { barsIntoSession = barsIntoSession + 1; if (!orSet) { orHigh = MaxList(orHigh, high[0]); orLow = MinList(orLow, low[0]) } }\nif (!orSet && barsIntoSession >= openingBars - 1) orSet = true;\norHeight = orHigh - orLow;\nreturn orSet",
+      "sides": "same",
+      "parameters": {
+        "openingBars": 12
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs session-boundary detection off the Date series plus per-session persistent high/low/counter state; the definition itself is unambiguous"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus has no session-relative aggregate of any kind"
+      },
+      "sources": [
+        "TP4-01",
+        "T22-01",
+        "T23-01",
+        "T24-01"
+      ],
+      "merge_notes": "Four restatements, three of them (T22-01, T23-01, T24-01) literally the same pseudocode block copied per chapter, and each of those bundles the average-daily-range aggregate into the same block; that half is carried by AverageDailyRange and cited there rather than duplicated. TP4-01's statement is the cleanest: opening range = highest high minus lowest low of the session's first N bars. Book values for N: 'first five to 10 bars' (T21-63, V18-02), 'first 30 to 60 minutes' = 12 five-minute bars (TP4-01), 'first hour or two' = 24 bars (TP4-04, T22-01, T23-01, T24-01). Default 12, to be optimized. The bar-count form beats the clock form (Brooks's own '30 to 60 minutes') because it survives a change of bar interval and needs no session-open time input.",
+      "variants_kept_separate": [
+        "AverageDailyRange",
+        "IsFirstBarOfSession"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AverageDailyRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Primitive: the mean full-session high-low range of the last dayLookback COMPLETED sessions, accumulated from the intraday series and rolled at each Date change. True once dayLookback completed sessions are in the ring.",
+      "pseudocode": "newSession = ctx.Date(0) != ctx.Date(1);\nif (newSession) { push(sessionHigh - sessionLow) into dailyRanges; sessionHigh = high[0]; sessionLow = low[0] }\nelse { sessionHigh = MaxList(sessionHigh, high[0]); sessionLow = MinList(sessionLow, low[0]) }\nadr = average(dailyRanges, dayLookback);\nreturn count(dailyRanges) >= dayLookback",
+      "sides": "same",
+      "parameters": {
+        "dayLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "per-session high/low plus a ring buffer of completed session ranges; not a plain windowed average over bars"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Date",
+        "Average",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "AtrFastAboveSlow",
+        "relation": "variant",
+        "note": "the corpus's volatility measures are all rolling N-BAR ATRs; this is a rolling N-SESSION range, a different window and a different quantity. On a daily series it degenerates to Average(High - Low, dayLookback) and needs none of the session machinery, which is why it is daily-ok."
+      },
+      "sources": [
+        "TP4-02",
+        "T25-01"
+      ],
+      "merge_notes": "Two explicit statements of the primitive; T22-01, T23-01 and T24-01 define the identical aggregate inside their opening-range blocks and are merged into SessionOpeningRange, and R29-08's stop reads it. Book values: 'recent days' with no count (TP4-02, read as 5), 20 sessions (T22-01/T23-01/T24-01/T25-01). Default 20. Deliberately NOT the same as an ATR of daily bars: this averages high-low only, with no gap term, which is what Brooks means by 'the range of recent days'.",
+      "variants_kept_separate": [
+        "SessionOpeningRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OpeningRangeVsAvgDailyRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session's opening-range height, as a fraction of the recent average daily range, lies between lowFraction and highFraction. Under about 0.3 the day is 'in breakout mode'; a third to a half favours a trending trading range day; above about a half the opening move was a spike and the day is likely spike-and-channel.",
+      "pseudocode": "orSet && adrReady && orHeight >= lowFraction * adr && orHeight <= highFraction * adr",
+      "sides": "same",
+      "parameters": {
+        "lowFraction": 0.0,
+        "highFraction": 0.3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one comparison pair once SessionOpeningRange and AverageDailyRange are available; all the machinery is in those two"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Average",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T22-02",
+        "TP4-04",
+        "T23-02",
+        "V19-09",
+        "TP4-06",
+        "T21-63",
+        "TP4-03",
+        "V19-08"
+      ],
+      "merge_notes": "The single most-restated idea in the bucket: eight candidates measuring the opening range against the average daily range and reading a day type off the ratio. Book thresholds: 'about 25 percent' (V19-08, T23-01's quote), 'under 30 percent' (T21-63 explicitly, TP4-03, T23-02), 'a third to half' (TP4-04, T22-02), 'large' read as above 0.5-0.6 (V19-09, TP4-06). One rule with a low/high fraction band covers all four readings, and the 'large opening range' form is this rule with the band negated by the per-placement toggle (or with lowFraction raised), so it is not a second rule. TP4-06 adds a spike-DIRECTION term (close above the session open at the end of the opening range) and V19-09 adds a climactic-reversal caveat; both are separate concerns and are not carried here. T21-63, TP4-03 and V19-08 sit in the breakouts_other bucket and are cross-bucketed to here in this same pass, so they are merged once, here, where the two primitives they need are defined.",
+      "variants_kept_separate": [
+        "SessionOpeningRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange",
+        "AverageDailyRange"
+      ]
+    },
+    {
+      "key": "IsFirstBarOfSession",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar is the first bar of the intraday session: its session date differs from the previous bar's. The structural gate under every opening-bar setup.",
+      "pseudocode": "ctx.Date(0) != ctx.Date(1)",
+      "sides": "same",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one comparison, but on the Date series rather than prices; needs the session model to agree with the data's session definition"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "CalendarBoundaryExit",
+        "relation": "variant",
+        "note": "CalendarBoundaryExit already reads Date(0) vs Date(1) (as year/month) and proves the Date series has real history, so no first-bar guard is needed; this is the same accessor testing the day change itself, on the Entry side"
+      },
+      "sources": [
+        "V17-01",
+        "V19-01",
+        "VP3-09"
+      ],
+      "merge_notes": "Both are the same inferred structural helper, redefined per chapter exactly as the mining brief told the agents to. Neither is a Brooks statement; both are the definition every 'first bar of the day' rule needs. On a daily series this is true on every bar, so it is intraday-only by construction. SessionOpeningRange re-detects the same event internally; keep this one as the standalone gate for first-bar and second-bar setups (breakouts_other's SessionBarBreakout depends on it).",
+      "variants_kept_separate": [
+        "SessionOpeningRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PriorSessionLevelTest",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar trades into one of the prior session's four reference prices - yesterday's high, low, open or close - within a tick tolerance. Long tests the level from below with the bar's low, short from above with the bar's high.",
+      "pseudocode": "level = priorSessionLevel(levelSelect)  /* 0 = high, 1 = low, 2 = open, 3 = close; on a daily series: high[1], low[1], open[1], close[1] */\nlow[0] <= level + toleranceTicks * tickSize && low[0] >= level - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "levelSelect": 3,
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed reference price and a two-sided tolerance comparison; on a daily series the reference is just the prior bar's OHLC"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Date",
+        "HighD",
+        "LowD",
+        "OpenD",
+        "CloseD"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHigh is a strict break of a single BAR's high N bars back; this is a proximity test against a SESSION-level price, and it is a touch, not a break"
+      },
+      "sources": [
+        "RP2-01",
+        "R10-05",
+        "T03-18",
+        "V18-06"
+      ],
+      "merge_notes": "Brooks lists 'yesterday's high, low, open and close' as one group of magnets and every chapter restates the group (RP2-01 and R10-05 verbatim, T03-18 as a generic 'within a tolerance of yesterday's low, high, close or open'). One rule with a levelSelect input rather than four near-identical rules; the authoring pass may prefer to split it into PriorSessionExtremeTest (high/low, mirrored naturally) and PriorSessionCloseTest if a selector input is unwelcome. V18-06 is the same test at levelSelect = close plus a bull-trend-bar body filter (close > open and body >= 0.6 of range); that body half is a bar_anatomy rule and is not carried here, which leaves V18-06 as this rule at a fixed parameter. Tolerance: 1 tick (R10-05, V18-06), 2 ticks (RP2-01, T03-18); default 2. HighD/LowD/OpenD/CloseD have no register row - record as needed. On a daily series this rule needs no session model at all, which is why it is the one A in the bucket.",
+      "variants_kept_separate": [
+        "PremarketExtremeTest"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PremarketExtremeTest",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The high and low made in the premarket/overnight window are held as levels through the day session; the bar tests one of them within a tick tolerance. Brooks treats the premarket extremes as targets that usually get tested once the day session opens.",
+      "pseudocode": "if (ctx.Time(0) > premarketStart && ctx.Time(0) <= premarketEnd) { pmHigh = MaxList(pmHigh, high[0]); pmLow = MinList(pmLow, low[0]) }  /* reset at the session date change */\nctx.Time(0) > premarketEnd && high[0] >= pmHigh - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "premarketStart": 300,
+        "premarketEnd": 630,
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "segments each session's bars into a premarket window by clock time, accumulates an extreme over just that window, and holds it for the rest of the session"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time",
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V14-01"
+      ],
+      "merge_notes": "Only one candidate, and the only rule in the bucket that needs a SECOND session window (premarket) beside the day session; it therefore rides on whatever session model the design decision settles. Requires the data feed to include Globex/overnight bars - on a regular-session-only series the rule can never fire. Same shape as PriorSessionLevelTest but the level comes from a within-day window rather than the previous session, so they are kept apart.",
+      "variants_kept_separate": [
+        "PriorSessionLevelTest"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseNearSessionRangeMidpoint",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits near the midpoint of the session's range so far: |close - (sessionHigh + sessionLow)/2| <= f x (sessionHigh - sessionLow). Brooks's middle-of-the-day-middle-of-the-range caution, with the time half handled by TimeWindow.",
+      "pseudocode": "mid = (sessionHigh + sessionLow) / 2;\nabsvalue(close[0] - mid) <= middleZoneFraction * (sessionHigh - sessionLow)",
+      "sides": "same",
+      "parameters": {
+        "middleZoneFraction": 0.2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the session's running high and low; the comparison itself is one line"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "CloseRangePosition places the close inside its OWN bar's range; this places it inside the SESSION's running range - same shape, different window, and this one is a middle-zone test rather than an upper/lower test"
+      },
+      "sources": [
+        "RP4-17"
+      ],
+      "merge_notes": "RP4-17 is a composite of the middle-third-of-the-day window and this midpoint test. The window half is the TimeWindow duplicate (830..1030 in the book), so only the price half is carried here as an atomic rule; the pane system ANDs entries, so the book's filter is TimeWindow + this. Brooks himself flags the clock half as a guideline, not a rule ('the overriding factor is the price action'), which is another reason to keep the price half standalone.",
+      "variants_kept_separate": [
+        "TimeWindow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionAvgBarRangeStop",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Protective stop sized as a multiple of the average bar range SO FAR TODAY (a session-relative, growing window), rather than a fixed dollar amount or a rolling N-bar ATR.",
+      "pseudocode": "sessionAvgBarRange = sessionRangeSum / barsIntoSession;  /* both reset at the session date change */\nstopDistance = stopMultiple * sessionAvgBarRange;\nctx.OpenPositionLoss() >= stopDistance * ctx.BigPointValue()",
+      "sides": "same",
+      "parameters": {
+        "stopMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a session-reset running sum and bar count; the exit test itself is the standard open-loss comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "AtrTrailingStop",
+        "relation": "variant",
+        "note": "same 'size the stop by recent volatility' idea, but the window is 'since this session opened' and grows through the day instead of a fixed rolling N bars, and this is a fixed protective stop rather than a trailing one. Closest fixed-stop sibling is StopLoss with a volatility-sized distance, which the corpus does not yet have."
+      },
+      "sources": [
+        "R21-13"
+      ],
+      "merge_notes": "Brooks quotes it as 'around the height of an average bar so far today, maybe 10 to 15 cents' - the dollar figures are stock-specific, the multiple is the portable form. Note the mining record's AvgTrueRange in el_words_needed is misleading: this is a mean of high-low, not of true range, and it is not the WFSafe_AvgTrueRange rolling accumulator.",
+      "variants_kept_separate": [
+        "AvgDailyRangeFractionStop"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AvgDailyRangeFractionStop",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Protective stop sized as a fraction of the average daily range: Brooks's '50 to 75 percent of the average daily range' threshold for deciding the trend is over.",
+      "pseudocode": "stopDistance = adrFraction * adr;   /* adr from AverageDailyRange */\nctx.OpenPositionLoss() >= stopDistance * ctx.BigPointValue()",
+      "sides": "same",
+      "parameters": {
+        "adrFraction": 0.6
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one multiplication once AverageDailyRange exists"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Date",
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "AtrProfitTarget/AtrTrailingStop scale by an N-BAR ATR; this scales by an N-SESSION range and is a fixed protective stop"
+      },
+      "sources": [
+        "R29-08",
+        "T18-25"
+      ],
+      "merge_notes": "Mined as research grade only because 'average daily range' was undefined; the AverageDailyRange primitive in this same bucket settles it, so this drops to B. Book values 0.5 to 0.75; default 0.6. On a daily series both this and its input are trivial, hence daily-ok.",
+      "variants_kept_separate": [
+        "SessionAvgBarRangeStop"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "AverageDailyRange"
+      ]
+    },
+    {
+      "key": "FirstTradeMaeStopFloor",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The maximum adverse excursion of the session's FIRST trade becomes a floor on the stop distance for every later trade that session: 'the market went eight ticks against them, so the minimum stop was nine ticks, and they remembered that for the rest of the day'.",
+      "pseudocode": "/* research: needs the realized MAE of the first closed trade of the session, persisted across later independent trades */\nsessionMinStopTicks = firstTradeMaeTicksToday();\nstopDistanceTicks = MaxList(defaultStopTicks, sessionMinStopTicks + 1);\nctx.OpenPositionLoss() >= stopDistanceTicks * tickSize * ctx.BigPointValue()",
+      "sides": "same",
+      "parameters": {
+        "defaultStopTicks": 8
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "requires per-trade maximum adverse excursion, tracked and persisted per session across separate trades; the engine exposes no MAE accessor"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "MarketPosition",
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "StopLoss",
+        "relation": "variant",
+        "note": "a StopLoss whose distance is set once per session from the first trade's behaviour"
+      },
+      "sources": [
+        "R29-15"
+      ],
+      "merge_notes": "Kept rather than dropped because the trading idea is precise; what is missing is engine support. Two things are needed: a per-trade MAE (measurable bar by bar from EntryPrice while a position is open) and a per-session slot that is written by the first closed trade only. Both are design decisions, not readings of the book.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "per-session trade statistics (first trade MAE)",
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendFromOpenFlag",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Trend-from-the-open: a per-session flag set the first time a bar closes beyond the first bar's high (bull) or low (bear), and cleared if price later closes back through the opposite extreme of that first bar. While the flag is set, the day is treated as a trend-from-the-open day in that direction.",
+      "pseudocode": "if (ctx.Date(0) != ctx.Date(1)) { trendFromOpen = 0; firstBarHigh = high[0]; firstBarLow = low[0] }\nelse {\n  if (trendFromOpen == 0 && close[0] > firstBarHigh) trendFromOpen = 1;\n  if (trendFromOpen == 0 && close[0] < firstBarLow) trendFromOpen = -1;\n  if (trendFromOpen == 1 && close[0] < firstBarLow) trendFromOpen = 0;\n  if (trendFromOpen == -1 && close[0] > firstBarHigh) trendFromOpen = 0\n}\nreturn trendFromOpen == 1",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a small per-session state machine anchored on the first bar; no pivots, no counters over price"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-47",
+        "V00-64",
+        "T23-03"
+      ],
+      "merge_notes": "R00-47 and V00-64 are the same glossary entry quoted verbatim in two volumes ('a trend that begins at the first or one of the first bars of the day ... and the start of the trend remains as one of the extremes of the day'). Coding that literally needs a no-pullback bar counter, a session-extreme tracker and a persistence test (earlyBarsWindow 3, minPersistBars 20) - three pieces of machinery for one context flag. T23-03 is the same chapter's own mechanical proxy ('as soon as a bar moves above the high of the prior bar, the day is a trend from the open bull trend day, at least for that moment') and needs only the first bar's two prices plus a flag, so it wins. The strict form's extra content - the extreme going unchallenged for most of the day - is carried separately by SessionExtremeSetInOpeningWindow, which measures exactly that.",
+      "variants_kept_separate": [
+        "SessionExtremeSetInOpeningWindow",
+        "SessionOpenNearSessionExtreme",
+        "MorningLegDirection"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "IsFirstBarOfSession"
+      ]
+    },
+    {
+      "key": "SessionOpenNearSessionExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session's opening price still sits within nearThreshold of the session's running low (bull case) - Brooks's sign of strength, a day that opens on its low often closing on its high.",
+      "pseudocode": "sessionOpen - sessionLow <= nearThreshold * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "nearThreshold": 3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the session's opening price and its running low; one comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T19-16"
+      ],
+      "merge_notes": "Brooks states it in hindsight ('the open of the day was very close to the low of the day'); the mined form makes it real-time by comparing the session open with the low SO FAR, which is monotone - once broken it stays broken for the session, exactly the behaviour wanted. Threshold in ticks, instrument-specific. Distinct from TrendFromOpenFlag: that one needs a close beyond the first bar, this one only needs the open to remain the extreme.",
+      "variants_kept_separate": [
+        "TrendFromOpenFlag",
+        "SessionExtremeSetInOpeningWindow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionExtremeSetInOpeningWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Past the opening window, the session's low (long side) was made inside that window and price has come back near it - the 'the high or low of the day usually forms in the first hour' context, used to treat the level as the probable low of the day.",
+      "pseudocode": "barsIntoSession > firstHourBars && sessionLowBarIndex < firstHourBars && close[0] <= sessionLow + nearAtr * WFSafe_AvgTrueRange(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "firstHourBars": 12,
+        "nearAtr": 0.5,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "session-reset high/low tracking plus the bar index at which the extreme was set"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T15-62"
+      ],
+      "merge_notes": "This is the measurable half of the strict trend-from-the-open definition (R00-47/V00-64): the day's extreme was set early and is still the extreme. Kept separate from TrendFromOpenFlag because it fires on different bars - it needs price back NEAR the level after the opening window, while the flag only needs the first bar's extreme taken out. The proximity term reuses WFSafe_AvgTrueRange (the register token for plain AvgTrueRange).",
+      "variants_kept_separate": [
+        "TrendFromOpenFlag",
+        "SessionOpenNearSessionExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange"
+      ]
+    },
+    {
+      "key": "MorningLegDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At the end of the opening window, the net move from the session open exceeded a volatility threshold - the session had a strong first-hour trend leg - and its direction is held for the rest of the session.",
+      "pseudocode": "if (barsIntoSession == firstHourBars) {\n  morningLegHeight = absvalue(close[0] - sessionOpen);\n  if (morningLegHeight >= minLegAtr * WFSafe_AvgTrueRange(atrLength)) morningLegDirection = sign(close[0] - sessionOpen) else morningLegDirection = 0\n}\nreturn morningLegDirection == 1",
+      "sides": "mirrored",
+      "parameters": {
+        "firstHourBars": 12,
+        "minLegAtr": 1.0,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "per-session state written once at a fixed bar count"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "Momentum",
+        "relation": "variant",
+        "note": "Momentum compares the close with the close N BARS ago; this compares it with the SESSION OPEN at a fixed point in the session and then latches the result"
+      },
+      "sources": [
+        "T25-02"
+      ],
+      "merge_notes": "The trend-resumption-day precondition: 'the day has a strong trend in the first hour or so and then enters a trading range'. Measures the size and direction of the opening leg, where TrendFromOpenFlag only measures whether the first bar's extreme was taken out and OpeningRangeVsAvgDailyRange only measures the opening range's width. Latching at exactly firstHourBars (rather than re-evaluating) is what makes it a day-type flag rather than a momentum test.",
+      "variants_kept_separate": [
+        "TrendFromOpenFlag",
+        "OpeningRangeVsAvgDailyRange"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange"
+      ]
+    },
+    {
+      "key": "SessionCloseStrengthBias",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The prior session closed strong - its close was near the high of its final closingWindowBars bars - which biases the next session bullish. A flag computed at one session's end and consulted through the next.",
+      "pseudocode": "at the last bar of a session: closedStrong = close[0] >= highest(high, closingWindowBars) - toleranceTicks * tickSize;\nduring the next session: return closedStrong",
+      "sides": "mirrored",
+      "parameters": {
+        "closingWindowBars": 9,
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs session-END detection (the bar before a date change is only knowable one bar late, or via a session-close clock time) and state carried across the boundary"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "same 'where did it close in the range' idea, but over the session's closing window and carried into the next session"
+      },
+      "sources": [
+        "VP1-28"
+      ],
+      "merge_notes": "Brooks's point is about the daily bar's shape: a 5-minute rally into the close makes the daily bar a bull trend bar and biases the next bar. Note the mechanization trap: the last bar of a session is only identifiable one bar late (when Date changes) unless a session-close clock time is an input; the clock-time form is the cheaper one and matches the corpus's TimeWindow habit. closingWindowMinutes 45 in the book = 9 five-minute bars.",
+      "variants_kept_separate": [
+        "PriorSessionLateReversalBias"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PriorSessionLateReversalBias",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The prior session ended with a strong reversal that began in its final lateWindowMinutes, and today's entries are biased in that reversal's direction: 'if the reversal starts in the last couple of hours and is strong, it will usually have follow-through on the next day'.",
+      "pseudocode": "/* research: needs the prior session classified as having reversed late */\npriorLateMove = priorSessionClose - priorSessionPriceAtLateWindowStart;\npriorEarlyMove = priorSessionPriceAtLateWindowStart - priorSessionOpen;\nhadLateReversal = sign(priorLateMove) != sign(priorEarlyMove) && absvalue(priorLateMove) >= reversalSizeAtr * WFSafe_AvgTrueRange(atrLength);\nreturn hadLateReversal && priorLateMove > 0",
+      "sides": "mirrored",
+      "parameters": {
+        "lateWindowMinutes": 120,
+        "reversalSizeAtr": 1.0,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "one session's outcome must be classified as a reversal (against what prior direction, measured how) and then carried into the next session"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T24-08"
+      ],
+      "merge_notes": "Kept as C rather than dropped: the carried state is cheap, but 'a strong reversal that started in the last couple of hours' needs a decision on what the session was doing before the window and how big the turn must be. The pseudocode above is one reading (sign flip between the pre-window and in-window moves, sized in ATR), not the book's words. Related to SessionCloseStrengthBias - both classify the end of one session to bias the next - but they measure different things (a turn versus a strong close) and can disagree.",
+      "variants_kept_separate": [
+        "SessionCloseStrengthBias"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "prior-session outcome classification",
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OpeningWindowReversalCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least reversalCountThreshold reversal bars have printed inside the session's opening window, which Brooks reads as raising the odds of a trading range day: 'if dojis continue and there are five reversals in the first hour, the odds of a trading range day go up'.",
+      "pseudocode": "/* research: 'reversal' is not defined numerically in the passage */\ncountReversalBars(from the session's first bar to bar 0) >= reversalCountThreshold && barsIntoSession <= openingBars",
+      "sides": "same",
+      "parameters": {
+        "reversalCountThreshold": 5,
+        "openingBars": 12
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the counted event, a 'reversal', has no numeric definition in the source passage"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "TailBarCountDominance already CountIFs a bar-shape condition over a rolling window; this would CountIF a reversal-bar condition over the session-to-date window, so the counting machinery exists once the counted condition is defined"
+      },
+      "sources": [
+        "VP3-16"
+      ],
+      "merge_notes": "Blocked on one thing only: which reversal-bar primitive the corpus adopts (the bar_anatomy_reversal_signal bucket owns it). The window is the opening window from SessionOpeningRange, and the counting shape already exists in the catalog, so this becomes a B the day the reversal bar is settled.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "reversal-bar definition (owned by bar_anatomy_reversal_signal)",
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange"
+      ]
+    },
+    {
+      "key": "OpeningReversalPairBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Early in the session price spikes one way, reverses and spikes the other way, leaving an opening swing high and an opening swing low; a close beyond either of those extremes is the entry, with an expectation that the day's range expands severalfold.",
+      "pseudocode": "/* needs swing pivots restricted to the opening window */\nbarsIntoSession <= openingWindowBars && openingSwingHighSet && openingSwingLowSet && close[0] > openingSwingHigh",
+      "sides": "mirrored",
+      "parameters": {
+        "openingWindowBars": 8
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "swing-pivot detection inside a short opening window, plus the session model"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T23-19"
+      ],
+      "merge_notes": "Kept apart from breakouts_other's OpeningRangeBreakout: that one breaks the high/low of a FIXED first-N-bars window, this one breaks a pair of swing extremes formed by an actual reversal sequence, so on most days it never arms at all. It is a C because it needs the swing-pivot definition; if the authoring pass decides an opening double top/bottom is close enough to the fixed-window extremes, the whole candidate collapses into OpeningRangeBreakout and can be dropped. SwingHigh/SwingLow have no register row - recorded as needed.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "swing-pivot definition",
+        "intraday session model"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningRange"
+      ]
+    },
+    {
+      "key": "MaxTradesPerSession",
+      "role": "Switch",
+      "is_filter": true,
+      "description": "Once the number of trades taken in the current session reaches a cap, block further entries for the rest of the session: 'look for only three to five reasonable trades a day'.",
+      "pseudocode": "if (ctx.Date(0) != ctx.Date(1)) tradesToday = 0;\nif (ctx.MarketPosition() != 0 && ctx.MarketPosition(1) == 0) tradesToday = tradesToday + 1;\nreturn tradesToday >= maxTradesPerDay",
+      "sides": "same",
+      "parameters": {
+        "maxTradesPerDay": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a per-session counter reset at the date change, incremented on each new entry"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "MarketPosition",
+        "TotalTrades"
+      ],
+      "catalog_match": {
+        "rule": "MonthlyProfitTarget",
+        "relation": "variant",
+        "note": "the corpus's only Switch: same 'stop trading for the period' shape, but keyed on a trade COUNT within a session rather than equity within a calendar month. MonthlyProfitTarget also forces flat; Brooks's rule only blocks new entries, so the Switch semantics need choosing."
+      },
+      "sources": [
+        "V24-23"
+      ],
+      "merge_notes": "Book value 'three to five'; default 5. Whether it also forces flat (as MonthlyProfitTarget does) or merely blocks entries is an authoring choice - Brooks means the latter. TotalTrades(1)/EntriesToday would be the cheaper EL accessors if they measure the way this needs.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [
+        "intraday session model"
+      ],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "V11-05",
+      "reason": "composition of TimeWindow (final 30-60 minutes) + MomentumConsecutiveBars(lookback 1, consecutiveBars 2) - both already in the catalog, and the 'no pullback' bar count is the miner's reading, not Brooks's number"
+    },
+    {
+      "id": "V11-06",
+      "reason": "composition of TimeWindow (final hour) + a daily-chart trend context (research grade, owned by context_regime) + LaggedHigherHigh; nothing atomic left over"
+    },
+    {
+      "id": "TP3-22",
+      "reason": "composition of TimeWindow (final hour) + a session-open-relative trend read (close above the session open, session open above the prior session close, i.e. a gap term owned by breakouts_volume_gap)"
+    },
+    {
+      "id": "V24-24",
+      "reason": "composition of SessionOpeningRange (the window) + reversal setups owned by bar_anatomy_reversal_signal / climax_reversal + a 2:1 reward-to-risk target, which is position sizing rather than a rule"
+    },
+    {
+      "id": "V24-25",
+      "reason": "V24-24 at a different reward multiple (1:1); the same composition, and the multiple is not a rule condition"
+    },
+    {
+      "id": "R07-12",
+      "reason": "research grade with nothing mechanizable left after decomposition: 'the day has an average range' is CloseNearSessionRangeMidpoint's machinery applied to the session open with an undefined tolerance, and the stated conclusion (the market often closes near the open) names no exit trigger"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "T24-06",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a pullback whose height exceeds the prior leg's height - the leg definition (R17-01's HighLowBarCount counter) owns this, and nothing about it is session- or time-of-day-specific"
+    },
+    {
+      "id": "T22-03",
+      "belongs_in": "breakouts_other",
+      "note": "stray sent here, but it is the opening-range BREAKOUT ENTRY, merged in this same pass into breakouts_other's OpeningRangeBreakout with V18-02, TP2-05 and T21-64; its requireConfirmBar flag is recorded there"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "intraday session model",
+      "options": [
+        "date-change detection on the EL Date series (Date(0) != Date(1)) plus a barsIntoSession counter, giving session open/high/low/age for free",
+        "clock-time bracketing against a sessionOpenTime / sessionCloseTime input pair (Time comparisons only, no state)",
+        "the platform's own session objects (CurrentSession / SessionStartTime), which the C++ engine does not expose"
+      ],
+      "recommended": "date-change detection plus a barsIntoSession counter, defined once and shared. It is the definition four separate mining agents converged on (T22-01, T23-01, T24-01, V17-01), it needs only the already-registered Date word, and it survives a change of bar interval. Clock bracketing is still needed for the two rules anchored to the session's END (SessionCloseStrengthBias) and for the premarket window (PremarketExtremeTest), so the model should expose both a date-change flag and the session open/close times.",
+      "gates": [
+        "SessionOpeningRange",
+        "AverageDailyRange",
+        "IsFirstBarOfSession",
+        "TrendFromOpenFlag",
+        "SessionOpenNearSessionExtreme",
+        "SessionExtremeSetInOpeningWindow",
+        "MorningLegDirection",
+        "SessionCloseStrengthBias",
+        "PremarketExtremeTest",
+        "CloseNearSessionRangeMidpoint",
+        "SessionAvgBarRangeStop",
+        "MaxTradesPerSession",
+        "OpeningRangeVsAvgDailyRange"
+      ]
+    },
+    {
+      "topic": "per-session trade statistics (first trade MAE)",
+      "options": [
+        "track maximum adverse excursion bar by bar from EntryPrice while a position is open, and latch the first closed trade of each session",
+        "approximate with the first trade's realized loss (only correct when the trade was stopped out at its worst point)",
+        "do not model it; use a fixed stop"
+      ],
+      "recommended": "bar-by-bar MAE from EntryPrice with a per-session latch - the approximation is wrong on any first trade that was not stopped out, which is most of them",
+      "gates": [
+        "FirstTradeMaeStopFloor"
+      ]
+    },
+    {
+      "topic": "prior-session outcome classification",
+      "options": [
+        "sign flip between the session's pre-window move and its final-window move, sized in ATR (the reading used in the pseudocode)",
+        "close relative to the session's own high/low (a strong close, which is what SessionCloseStrengthBias already measures)",
+        "the daily bar's own shape (a daily reversal bar), which needs a daily series"
+      ],
+      "recommended": "the sign-flip form sized in ATR, since it is the only one of the three that actually encodes 'a reversal' rather than 'a strong close'; if it proves unstable, fall back to SessionCloseStrengthBias and drop this rule",
+      "gates": [
+        "PriorSessionLateReversalBias"
+      ]
+    },
+    {
+      "topic": "reversal-bar definition (owned by bar_anatomy_reversal_signal)",
+      "options": [
+        "adopt whatever reversal-bar primitive bar_anatomy_reversal_signal settles on",
+        "count two-bar reversals only",
+        "count dojis, per the source passage's own wording"
+      ],
+      "recommended": "adopt bar_anatomy_reversal_signal's primitive; do not define a competing one here - the counting window and machinery are already settled",
+      "gates": [
+        "OpeningWindowReversalCount"
+      ]
+    },
+    {
+      "topic": "swing-pivot definition",
+      "options": [
+        "EL SwingHigh/SwingLow with a strength input (confirmed N bars late)",
+        "fixed-lookback highest/lowest as a proxy",
+        "no pivots: collapse the rule into the fixed opening-range extremes"
+      ],
+      "recommended": "collapse into SessionOpeningRange's fixed extremes unless the swing-structure bucket delivers a confirmed-pivot primitive; the opening double top/bottom is close enough to the first-N-bars extremes to be worth measuring before building pivot machinery for it. SwingHigh/SwingLow have no register row yet.",
+      "gates": [
+        "OpeningReversalPairBreakout"
+      ]
+    }
+  ],
+  "bucket_summary": "41 bucket candidates plus 9 strays (50 ids) collapsed to 20 rules. The two big collapses are the clock window - eight candidates (first hour, middle third, final hour, 8:30 reports, not-near-the-close) that are all the existing TimeWindow rule at different parameters, priority D - and the opening range, where four restatements of the same session-state block became one SessionOpeningRange primitive and eight ratio candidates became one OpeningRangeVsAvgDailyRange band filter over it. Everything else in the bucket needs the same intraday session model, so the bucket is almost entirely B (15 rules) behind that one design decision; the A-list is the single rule that does not need it, PriorSessionLevelTest (yesterday's high/low/open/close, daily-ok). Four C rules are blocked on per-session trade MAE, prior-session reversal classification, the reversal-bar definition and swing pivots."
+}

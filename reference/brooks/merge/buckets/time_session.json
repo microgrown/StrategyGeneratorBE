@@ -1,0 +1,1519 @@
+[
+  {
+    "id": "R00-47",
+    "name": "TrendFromOpen",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      16
+    ],
+    "quote": "trend from the open: A trend that begins at the first or one of the first bars of the day and extends for many bars without a pullback, and the start of the trend remains as one of the extremes of the day for much if not all of the day.",
+    "description": "Filter/context: the session's directional extreme was set within the first few bars and has not been challenged for most of the session -- a strong with-trend-only day.",
+    "pseudocode": "sessionOpenExtremeBarIndex() <= earlyBarsWindow && barsSinceSessionOpenExtreme() >= minPersistBars && sessionExtreme() == sessionOpenExtremeValue()",
+    "sides": "mirrored",
+    "parameters": {
+      "earlyBarsWindow": 3,
+      "minPersistBars": 20
+    },
+    "book_order_type": "n/a (context filter favoring with-trend-only trading)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-open bookkeeping and a running check that the extreme is unbroken"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "RP2-01",
+    "name": "PriorDayExtremeLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      66
+    ],
+    "quote": "Yesterday's high, low, open, and close.",
+    "description": "Shared primitive: the prior session's high, low, open, or close acts as a support/resistance magnet level for the current session.",
+    "pseudocode": "priorDayHigh = highest(high, sessionBars)[sinceSessionStart]; abs(close[0] - priorDayHigh) <= toleranceTicks * tickSize",
+    "sides": "same",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "book_order_type": "n/a (level construction; used as a target/reversal-area test)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-boundary-aware highest/lowest/open/close accessor"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Chapter 10 (Other Magnets) is expected to give the canonical, fuller treatment of this and the other list items below."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07-part_ii_magnets_support_and_resistance.json",
+    "chapter_title": "Part II: Magnets: Support and Resistance"
+  },
+  {
+    "id": "R10-05",
+    "name": "PriorSessionHighLowOpenCloseMagnet",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      81
+    ],
+    "quote": "High, low, open, and close of yesterday.",
+    "description": "Yesterday's session high, low, open, and close act as magnets/targets for the current session's price.",
+    "pseudocode": "priorHigh = high of the prior session; priorLow = low of the prior session; priorOpen = open of the prior session; priorClose = close of the prior session; high[0] >= priorHigh - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (level construction)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs session/day-boundary tracking to fix yesterday's four prices"
+    },
+    "el_words_needed": [
+      "HighD",
+      "LowD",
+      "OpenD",
+      "CloseD"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/10_other_magnets.json",
+    "chapter_title": "Other Magnets"
+  },
+  {
+    "id": "RP4-17",
+    "name": "MiddleOfDayMiddleOfRangeCautionFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      136,
+      137
+    ],
+    "quote": "The middle third of the day, from around 8:30 a.m. until 10:30 a.m. PST, can be difficult for traders on days that are not clearly trending... If the market is trading in the approximate middle of the day's range... and it is now in the middle of the day's trading hours, the chance of a tight trading range with overlapping bars, big tails, and multiple small reversals is significant.",
+    "description": "During the middle third of the trading session (the book's example: 8:30-10:30 a.m. PST) while price sits near the middle of the day's range, expect choppy, low-quality price action; avoid anything less than a very good entry and prefer waiting for a test of the day's high or low.",
+    "pseudocode": "isMiddleThirdOfDay = time[0] >= middleThirdStartTime && time[0] <= middleThirdEndTime;\ndayRangeMidpoint = (dayHigh + dayLow) / 2;\nisNearDayRangeMiddle = abs(close[0] - dayRangeMidpoint) <= (dayHigh - dayLow) * middleZoneFraction;\navoidMarginalEntries = isMiddleThirdOfDay && isNearDayRangeMiddle;",
+    "sides": "same",
+    "parameters": {
+      "middleThirdStartTime": 830,
+      "middleThirdEndTime": 1030,
+      "middleZoneFraction": 0.2
+    },
+    "book_order_type": "n/a (context filter that raises the entry-quality bar rather than blocking entries outright)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a time-of-day window test plus the day's running high/low and a proximity-to-midpoint test, each simple, combined into one filter"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The book explicitly frames the time window as a guideline, not a hard rule (\"the time parameters are only guidelines... the overriding factor is the price action\") -- see Figure PIV.4 discussion, page 142."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R21-13",
+    "name": "SessionAverageBarRangeMoneyStop",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      148
+    ],
+    "quote": "Some traders would have used a money stop, like around the height of an average bar so far today, maybe 10 to 15 cents.",
+    "description": "Size the protective stop as a multiple of the average bar range observed so far in the current session, rather than a fixed dollar amount or a rolling multi-day ATR.",
+    "pseudocode": "sessionAvgBarRange = average(high - low, barsSinceSessionOpen); // reset at each new session\nstopDistance = stopMultiple * sessionAvgBarRange;\nexitLong = low[0] <= ctx.EntryPrice() - stopDistance;",
+    "sides": "same",
+    "parameters": {
+      "stopMultiple": 1.0
+    },
+    "book_order_type": "protective stop order at entry price minus the sized distance",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-relative running average of bar range that resets at each new session, distinct from the corpus's rolling multi-bar ATR"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "AtrTrailingStop",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from AtrTrailingStop/AtrBandBreakout because the averaging window is 'so far today' (session-relative and growing), not a fixed rolling N-bar window."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R29-08",
+    "name": "StopBeyondAverageDailyRangeFraction",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      202
+    ],
+    "quote": "Some traders will consider that the trend is still in effect unless the market falls more than between 50 to 75 percent of the average daily range.",
+    "description": "Use a money-management stop sized as a fraction of the instrument's average daily range, rather than a fixed tick count or the signal-bar extreme.",
+    "pseudocode": "// research: 'average daily range' is a session-level statistic; this chapter does not say how many days to average or how to derive it from an intraday bar series\nstopDistance = adrFraction * averageDailyRange(adrLookbackDays);\nexitLongStop = ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() - stopDistance;",
+    "sides": "same",
+    "parameters": {
+      "adrFraction": 0.6,
+      "adrLookbackDays": 10
+    },
+    "book_order_type": "money-management stop sized as a fraction of the average daily range",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "needs a design decision on computing a session/daily range aggregate from the strategy's own bar series, which the engine does not currently expose"
+    },
+    "el_words_needed": [
+      "AvgTrueRange (daily) or a new daily-range aggregate, not currently in the register"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/29_protective_and_trailing_stops.json",
+    "chapter_title": "Protective and Trailing Stops"
+  },
+  {
+    "id": "R29-15",
+    "name": "AdaptiveStopFloorFromFirstTradeMAE",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      204
+    ],
+    "quote": "After the market turned down on bar 2, they could have calculated that the market went eight ticks against them before it went their way. That meant that the minimum initial protective stop that they would have had to use to stay in the trade was nine ticks, and they would have remembered that for the rest of the day.",
+    "description": "Use the maximum adverse excursion of the session's first trade (the number of ticks the market moved against the position before turning) as a floor on the stop size for all subsequent trades that session.",
+    "pseudocode": "// research: needs a persistent per-session value (the first trade's realized MAE) carried forward and applied as a floor to every later trade's stop distance -- session-level state this chapter does not spell out mechanically\nsessionMinStopTicks = firstTradeMaeTicksToday();\nstopDistanceTicks = max(defaultStopTicks, sessionMinStopTicks + 1);",
+    "sides": "same",
+    "parameters": {
+      "defaultStopTicks": 8
+    },
+    "book_order_type": "money-management stop no smaller than the day's first trade's maximum adverse excursion plus one tick",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires tracking and persisting a per-session statistic (the first trade's MAE) across subsequent, independent trades -- a session-state design decision the engine does not currently expose"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/29_protective_and_trailing_stops.json",
+    "chapter_title": "Protective and Trailing Stops"
+  },
+  {
+    "id": "R31-04",
+    "name": "AvoidScalingInLastHourOfDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      213
+    ],
+    "quote": "it is risky to scale in against a trend in the final hour or so of the day, because you will too often find yourself holding a large losing position that you will have to cover by the close. Time is against you.",
+    "description": "Block countertrend scale-in entries during the final hour or so of the trading session.",
+    "pseudocode": "blockScaleInEntry = ctx.MarketPosition() != 0 && (Time(0) >= lastHourStartTime) && isCountertrendEntry[0];",
+    "sides": "same",
+    "parameters": {
+      "lastHourStartTime": 1500
+    },
+    "book_order_type": "n/a (blocks a countertrend scale-in signal from being taken late in the session)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a plain time-of-day comparison, but combined with an is-countertrend-entry classification and the multi-unit scale-in context the engine does not model"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [
+      "The time-of-day gate alone maps cleanly to the corpus's existing TimeWindow rule; the countertrend/scale-in qualifier is what makes this a distinct, harder candidate."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "V00-64",
+    "name": "TrendFromOpen",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V00-16"
+    ],
+    "pages": [
+      28
+    ],
+    "quote": "A trend that begins at the first or one of the first bars of the day and extends for many bars without a pullback, and the start of the trend remains as one of the extremes of the day for much if not all of the day.",
+    "description": "The session's opening bar(s) begin a trend that runs many bars without a meaningful pullback, and the session open/first extreme stays the day's high or low for most of the session.",
+    "pseudocode": "isFirstBarOfSession(farBack) && trendBarsSinceOpen >= minTrendBars && sessionExtreme == firstBarExtreme",
+    "sides": "mirrored",
+    "parameters": {
+      "minTrendBars": 10
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-boundary detection, a persistent no-pullback bar counter, and tracking the running session extreme"
+    },
+    "el_words_needed": [
+      "Date",
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-28",
+    "name": "IntradaySessionCloseStrengthBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      84,
+      85
+    ],
+    "quote": "When the market is in a bull trend on the higher time frame charts, the 5 minute chart often has a rally into the close, and the bar of the daily chart has a higher chance of being a bull trend bar.",
+    "description": "Strength or weakness in the final closingWindowMinutes of today's session biases the odds for tomorrow's/the next higher-timeframe bar's trend direction; usable as a next-session context filter.",
+    "pseudocode": "close[0] near highest(high, closingWindowBars, 0) at session end // sets a persistent bullish-bias flag consulted at the next session's entries",
+    "sides": "mirrored",
+    "parameters": {
+      "closingWindowMinutes": 45
+    },
+    "book_order_type": "n/a (context filter carried across a session boundary)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-end detection and state carried across the session boundary"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V01-20",
+    "name": "TimeOfDayReversalLikelihood",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      103
+    ],
+    "quote": "Since major reversals often occur in the first hour or so, he probably would have shorted below bar 11",
+    "description": "Context filter: major trend-reversal setups are more likely (and more worth taking) within the first N minutes of the session.",
+    "pseudocode": "ctx.Time(0) <= sessionStart + firstHourMinutes",
+    "sides": "same",
+    "parameters": {
+      "firstHourMinutes": 60
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-start time reference"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V11-01",
+    "name": "FirstHourFavorableEntryWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      291
+    ],
+    "quote": "There is a tendency for the first hour or two to be the most likely time of the day to find a trade where you can make two to three times your risk... most traders should work very hard to take trades in the first hour or two.",
+    "description": "Restrict or favor entries to the first N hours of the trading session (the exchange clock's close time), when the reward:risk:probability combination is best.",
+    "pseudocode": "ctx.Time() >= sessionOpenTime && ctx.Time() <= sessionOpenTime + firstHourMinutes",
+    "sides": "same",
+    "parameters": {
+      "sessionOpenTime": 630,
+      "firstHourMinutes": 120
+    },
+    "book_order_type": "n/a (context filter, not itself an order)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a fixed clock-time window test, same shape as the existing TimeWindow rule"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "high",
+    "notes": [
+      "Session open time (630 = 6:30 a.m. PST) is illustrative for the Emini; instrument-specific."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/11_key_times_of_the_day.json",
+    "chapter_title": "Key Times of the Day"
+  },
+  {
+    "id": "V11-05",
+    "name": "FinalHourTrendContinuationNoPullbackEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      294
+    ],
+    "quote": "Traders who want to enter on pullbacks get trapped out because a pullback never comes. If you see this, enter with the trend on the close of the current bar and put your protective stop beyond the other end of the bar.",
+    "description": "In the final 30-60 minutes of the session, when a strong trend keeps making new closes in the trend direction without a pullback, enter with the trend at the close of the current bar (rather than waiting for a pullback), stop beyond the bar's opposite extreme.",
+    "pseudocode": "ctx.Time() >= finalPeriodStart && close[0] > close[1] && close[1] > close[2]",
+    "sides": "mirrored",
+    "parameters": {
+      "finalPeriodStart": 1230
+    },
+    "book_order_type": "buy/sell at the close of the current bar (market), protective stop beyond the low/high of that same bar",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines a fixed time window with a short run of consecutive same-direction closes as the 'no pullback' momentum test"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [
+      "finalPeriodStart illustrated at 12:30 PST (final 30-60 minutes before the Emini's 1:00 p.m. PST close); the 'no pullback' test (two consecutive same-direction closes) is a reading, Brooks gives no precise count."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/11_key_times_of_the_day.json",
+    "chapter_title": "Key Times of the Day"
+  },
+  {
+    "id": "V11-06",
+    "name": "DailyTrendBiasFinalHourContinuation",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      294
+    ],
+    "quote": "When there is a bull trend on the daily chart, there will almost always be more bull trend bars than bear trend bars... experienced traders will be quick to short any rally that begins to reverse down toward the end of the day [of a bear-trend day], expecting a close near the low of the day.",
+    "description": "In the final 30-60 minutes, bias with-trend entries toward the prevailing daily-chart trend direction (buy pullbacks in a daily bull trend / sell rallies in a daily bear trend), expecting the day to close near its high/low.",
+    "pseudocode": "dailyBullTrendContext && ctx.Time() >= finalPeriodStart && low[0] > low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "finalPeriodStart": 1230
+    },
+    "book_order_type": "n/a (context filter biasing which with-trend entries to take)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires a higher-timeframe (daily) trend-context read alongside the intraday final-hour time window"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "dailyBullTrendContext is the daily-chart trend-context primitive defined elsewhere (research-grade itself); not redefined here."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/11_key_times_of_the_day.json",
+    "chapter_title": "Key Times of the Day"
+  },
+  {
+    "id": "V14-01",
+    "name": "PremarketExtremeTestTarget",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      315
+    ],
+    "quote": "The premarket extremes are often targets that get tested during the day session.",
+    "description": "The high/low made during the overnight/premarket session is often tested again once the day session opens; carry that level forward as a magnet/target that favors day-session entries trading toward it.",
+    "pseudocode": "premarketHigh = highest(high, sessionBars) // computed only over bars where ctx.Time() is within the premarket window, then held constant through the day session\nclose[0] <= premarketHigh + toleranceTicks * tickSize && close[0] >= premarketHigh - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "book_order_type": "n/a (a target/context level, not itself a specific order)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires segmenting bars into a premarket session by time-of-day, taking a highest/lowest over just that window, and holding the resulting level as a persistent target through the day session"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks notes the premarket itself has few entries in the hour or two before the 6:30 a.m. PST open; this candidate is about using its extreme as a day-session target, not about trading the premarket directly."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/14_globex_premarket_postmarket_and_overnight_market.json",
+    "chapter_title": "Globex, Premarket, Postmarket, and Overnight Market"
+  },
+  {
+    "id": "VP3-16",
+    "name": "CountOfReversalsInFirstHourImpliesRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      372
+    ],
+    "quote": "If dojis continue and there are five reversals in the first hour, the odds of a trading range day go up.",
+    "description": "Context filter: counting five or more reversal bars within the first hour of the session raises the odds of a trading-range day, favoring fade setups over breakout continuation for the rest of the session.",
+    "pseudocode": "countReversalBars(sessionStartOffset, currentSessionAge) >= reversalCountThreshold",
+    "sides": "same",
+    "parameters": {
+      "reversalCountThreshold": 5
+    },
+    "book_order_type": "n/a (day-context bias filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'reversal' is not defined numerically in this passage; a design decision is needed for what counts as one before this can be coded"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "countReversalBars is a placeholder for whichever reversal-bar primitive the authoring pass settles on (likely defined in this book's signal-bar chapters, not in this mining batch)."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "V17-01",
+    "name": "IsFirstBarOfSession",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      383
+    ],
+    "quote": "Bar 1 on both the Globex chart on the left and on the day session chart on the right is the 6:35 a.m. PST bar.",
+    "description": "Shared primitive: the current bar is the first bar of the day (intraday) session, i.e. its session date differs from the prior bar's session date. Used to gate opening-bar-only setups.",
+    "pseudocode": "ctx.SessionDate(0) != ctx.SessionDate(1)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (structural/session marker)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires a session/date-change accessor, not plain OHLC arithmetic"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks never states this test explicitly; it is inferred as the structural definition needed for every 'first bar of the day' rule in this and later chapters."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17_patterns_related_to_the_premarket.json",
+    "chapter_title": "Patterns Related to the Premarket"
+  },
+  {
+    "id": "V18-06",
+    "name": "ReversalOffYesterdayCloseTest",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      399
+    ],
+    "quote": "Bar 1 was a sharp pullback to test yesterday's strong close, and it quickly reversed up, creating a buy entry at one tick above the high of the bar 1 pullback.",
+    "description": "Early in the session, price pulls back to touch (or come within a tick range of) yesterday's close and reverses with a bull bar: enter long beyond that reversal bar's high.",
+    "pseudocode": "low[0] <= priorSessionClose + touchTicks * tick && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "touchTicks": 1,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "stop one tick beyond the pullback bar's high (long) / low (short)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed reference price (yesterday's close) compared against the current bar's low/high plus a single-bar trend-bar test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "'Test' is read as the bar's low (long case) coming within touchTicks of yesterday's close, not necessarily piercing it."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/18_patterns_related_to_yesterday_breakouts.json",
+    "chapter_title": "Patterns Related to Yesterday: Breakouts, Breakout Pullbacks, and Failed Breakouts"
+  },
+  {
+    "id": "V19-01",
+    "name": "IsFirstBarOfSession",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      401
+    ],
+    "quote": "Institutional traders have orders to fill before the day opens, and they want to fill them at the best possible price.",
+    "description": "Shared primitive (redefined here per chapter convention, see also V17-01): the current bar is the first bar of the session, i.e. its session date differs from the prior bar's.",
+    "pseudocode": "ctx.SessionDate(0) != ctx.SessionDate(1)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (structural/session marker)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires a session/date-change accessor"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Structural helper needed by several candidates in this chapter."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-15",
+    "name": "TimeOfDayReversalWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      416,
+      419
+    ],
+    "quote": "the trader needs to be aware that the market often reverses around 8:30 a.m. PST, and be prepared to take the trade.",
+    "description": "Context filter: bars whose close time falls within a window around a known scheduled-report time (e.g. 8:30 a.m. exchange-adjusted) carry elevated odds of a trend start or reversal, regardless of whether it is still 'the opening range'.",
+    "pseudocode": "ctx.Time(0) >= windowStart && ctx.Time(0) <= windowEnd",
+    "sides": "same",
+    "parameters": {
+      "windowStart": 830,
+      "windowEnd": 840
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a plain bar-close-time comparison, though the specific time is exchange/market-dependent (U.S. economic data releases at 8:30 a.m. ET/PST-quoted here)"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [
+      "The underlying reason (scheduled economic reports) is data the engine does not have, but the clock-time pattern itself is directly decidable from the bar timestamp, close to the existing TimeWindow rule shape."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V21-03",
+    "name": "AvoidEntryNearSessionClose",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      433
+    ],
+    "quote": "The day was over and there was not enough time left for the bears to make a profit, so they therefore chose to not short into the close.",
+    "description": "Do not initiate a new intraday entry once the session clock is within X minutes of the close; there is not enough remaining time for a typical trade to reach a profit target.",
+    "pseudocode": "ctx.Time(0) < (sessionCloseTime - minMinutesBeforeClose)",
+    "sides": "same",
+    "parameters": {
+      "minMinutesBeforeClose": 30
+    },
+    "book_order_type": "n/a (an entry-time filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a single comparison against the bar's close time; the book gives no exact minute threshold so one is invented"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from rules/CATALOG.md's TimeWindow (a fixed HHMM..HHMM band) in that the threshold here is relative to the session's own close, not an absolute clock time; TimeWindow can approximate it if the session close time is fixed and known in advance.",
+      "Possibly related to reference/brooks/mined/reversals/11_key_times_of_the_day.json's FinalHourTrendContinuationNoPullbackEntry (not read in full here); the dedup pass should compare the two."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/21_detailed_day_trading_examples.json",
+    "chapter_title": "Detailed Day Trading Examples"
+  },
+  {
+    "id": "V24-23",
+    "name": "MaxTradesPerDaySwitch",
+    "role": "Switch",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      489,
+      505
+    ],
+    "quote": "Look for only three to five reasonable trades a day. If in doubt, stay out.",
+    "description": "Once the count of trades taken today reaches a cap, block further entries for the rest of the session.",
+    "pseudocode": "ctx.TradesToday() >= maxTradesPerDay",
+    "sides": "same",
+    "parameters": {
+      "maxTradesPerDay": 5
+    },
+    "book_order_type": "n/a",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires a persistent same-session trade counter reset at each new day"
+    },
+    "el_words_needed": [
+      "Date",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-24",
+    "name": "OpeningRangeSwingReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V24-06",
+      "V24-14",
+      "V24-09",
+      "V24-22"
+    ],
+    "depends_on": [],
+    "pages": [
+      487
+    ],
+    "quote": "Opening reversals where the setup is strong: Swing for a reward that is at least twice the risk: the probability of success is 50 to 60 percent.",
+    "description": "During the opening range, a strong reversal signal (composes the general reversal/signal-bar primitives) taken with a swing profit target at least twice the planned risk.",
+    "pseudocode": "isOpeningRange(barsSinceOpen,openingRangeBars) && (TwoBarReversal || MajorTrendReversalSetup || FinalFlagReversal) && MinRewardToRiskFilter(2.0)",
+    "sides": "mirrored",
+    "parameters": {
+      "openingRangeBars": 6
+    },
+    "book_order_type": "n/a",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits the hard complexity of the reversal primitives it composes, gated to the opening bars"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "OpeningRangeReversal",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-25",
+    "name": "OpeningRangeScalpReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V24-06",
+      "V24-14",
+      "V24-09",
+      "V24-22"
+    ],
+    "depends_on": [],
+    "pages": [
+      487
+    ],
+    "quote": "Scalp for a reward that is at least as large as the risk: the probability is about 60 to 70 percent.",
+    "description": "Same opening-range reversal setup as V24-24 but scalped with a 1x reward-to-risk target instead of 2x.",
+    "pseudocode": "isOpeningRange(barsSinceOpen,openingRangeBars) && (TwoBarReversal || MajorTrendReversalSetup || FinalFlagReversal) && MinRewardToRiskFilter(1.0)",
+    "sides": "mirrored",
+    "parameters": {
+      "openingRangeBars": 6
+    },
+    "book_order_type": "n/a",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "same composition as V24-24 with a different reward multiple"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "T03-18",
+    "name": "PriorSessionLevelTest",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      107,
+      110
+    ],
+    "quote": "The market tested yesterday's low, but the breakout failed and formed a lower low as it reversed up sharply in a spike up to bar 4.",
+    "description": "Primitive: this bar's low (or high) comes within a tolerance of yesterday's (the prior session's) low, high, close, or open.",
+    "pseudocode": "low[0] >= priorSessionLow - toleranceTicks*tick && low[0] <= priorSessionLow + toleranceTicks*tick",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs prior-session OHLC tracked across a session boundary; a simpler design decision than full pivot detection"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T15-62",
+    "name": "FirstHourExtremeFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      271
+    ],
+    "quote": "since the high or low of the day usually forms in the first hour and this was a possible high of the day.",
+    "description": "Intraday context: after the first hour, if the session high was set during the first firstHourBars bars and price is now near it, treat the level as a possible high of day and favour low 2 shorts there (long side mirrored: possible low of day).",
+    "pseudocode": "barsSinceSessionOpen > firstHourBars && sessionLowBarIndex < firstHourBars && close[0] <= sessionLow + nearAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "firstHourBars": 12,
+      "nearAtr": 0.5,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "session-reset high/low tracking"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "TP3-22",
+    "name": "FinalHourWithTrendEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      310,
+      316
+    ],
+    "quote": "When the market is in a bull trend, look for buy setups in the final hour. Likewise, when the daily chart is in a bear trend, look for sell setups in the final hour",
+    "description": "Intraday: when the daily-chart trend is up (proxy: today's session close so far above the session open, or prior daily closes rising), allow/take long entries only in the final hour of the session. Page 316 adds the bear form: 'a huge plunge in the final 30 minutes' on bear days.",
+    "pseudocode": "time[0] >= finalHourStart && dailyTrendUp   // proxy for dailyTrendUp: close[0] > sessionOpen && sessionOpen > priorSessionClose",
+    "sides": "mirrored",
+    "parameters": {
+      "finalHourStart": 1500
+    },
+    "book_order_type": "any with-trend setup in the final hour",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "time-of-day gate plus a session-level trend read that persists across bars"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date",
+      "OpenD",
+      "CloseD"
+    ],
+    "likely_existing_rule": "TimeWindow, TimeOfDayExit",
+    "confidence": "medium",
+    "notes": [
+      "Exit at the session close (TimeOfDayExit) is the natural partner."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T19-16",
+    "name": "OpenNearSessionExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      342
+    ],
+    "quote": "Note how the open of the day was very close to the low of the day, which is a sign of strength, and trend from the open days that open within a few ticks of the low of the day often close within a few ticks of the high of the day.",
+    "description": "The session's open still sits within a small distance of the session's running low (bull case) -- a sign this is a trend-from-the-open bull day likely to close near its high.",
+    "pseudocode": "(sessionLowSoFar - open[0]) > -nearThreshold && (open[0] - sessionOpenPrice) == 0",
+    "sides": "mirrored",
+    "parameters": {
+      "nearThreshold": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the session's opening price and its running low/high tracked as state"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks's own framing ('close to the low of the day') is technically only verifiable in hindsight at day's end; rewritten here as a real-time, in-session version (open still close to the running low so far)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "TP4-01",
+    "name": "OpeningRangeHeight",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      354
+    ],
+    "quote": "The opening range usually provides clues to how the day will unfold",
+    "description": "Primitive: the opening range of the session is the highest high minus the lowest low of the first N bars of the session. Exposed as a local for the other TP4 candidates; as a standalone filter it is true once N bars of the session have printed.",
+    "pseudocode": "barsIntoSession = count of bars since the first bar of this Date (0-based); if (barsIntoSession < openingBars) return false; orHigh = highest(high over the first openingBars bars of the session); orLow = lowest(low over the same bars); orHeight = orHigh - orLow; return true",
+    "sides": "same",
+    "parameters": {
+      "openingBars": 12
+    },
+    "book_order_type": "n/a (measurement primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs session-boundary detection from the Date series and a per-session persistent high/low"
+    },
+    "el_words_needed": [
+      "Date",
+      "Time",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks defines the opening range loosely ('first 30 to 60 minutes', elsewhere 'first five to 10 bars'); 12 bars = one hour of 5-minute bars.",
+      "Chapter 21 and 22 define the same primitive; dedup should merge."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "TP4-02",
+    "name": "AverageDailyRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      354
+    ],
+    "quote": "If the opening range is about half of the range of the recent days",
+    "description": "Primitive: the average of the full-session high-low range over the last D completed sessions, computed on the intraday series by tracking each session's running high and low and rolling them at the Date change.",
+    "pseudocode": "on Date change: push (sessionHigh - sessionLow) into dailyRanges, reset sessionHigh/sessionLow; adr = average(dailyRanges, dailyLookback); return dailyRanges.size() >= dailyLookback",
+    "sides": "same",
+    "parameters": {
+      "dailyLookback": 5
+    },
+    "book_order_type": "n/a (measurement primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state: a per-session high/low and a ring buffer of completed session ranges"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks says 'recent days' without a count; 5 is a reading."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "TP4-04",
+    "name": "HalfOpeningRangeTrendingRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP4-01",
+      "TP4-02"
+    ],
+    "pages": [
+      354
+    ],
+    "quote": "If the opening range is about half of the range of the recent days, the breakout will often lead to a measured move and a trending trading range day.",
+    "description": "Filter: the opening range is between a lower and an upper fraction of the average daily range (around one half), so a breakout is expected to travel about one opening-range height and then form a second range; entries in both directions are allowed afterwards.",
+    "pseudocode": "orHeight >= lowFraction * adr && orHeight <= highFraction * adr",
+    "sides": "same",
+    "parameters": {
+      "lowFraction": 0.33,
+      "highFraction": 0.6,
+      "openingBars": 24,
+      "dailyLookback": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "composes two per-session state primitives"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Chapter 22 restates this as 'a third to half' and 'first hour or two', hence openingBars 24 here."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "TP4-15",
+    "name": "PatternRecognitionWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      354
+    ],
+    "quote": "you will find that you can see them potentially setting up in the first 30 to 60 minutes",
+    "description": "Filter: the day-type classification (TP4-03/04/06) is only trusted once the session is at least M minutes old; before that, treat the day as undecided (both directions allowed, scalps only).",
+    "pseudocode": "minutesSinceSessionOpen(Time) >= classifyAfterMinutes",
+    "sides": "same",
+    "parameters": {
+      "classifyAfterMinutes": 60
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a Time comparison against the session open time"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "T22-01",
+    "name": "OpeningRangeHeightVsAverageDailyRange",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      389,
+      390
+    ],
+    "quote": "The opening range is about a third to half the size of the range of recent days.",
+    "description": "Primitive with state: track the current session's opening-range high/low over its first N bars, and the average of the last M completed sessions' full-day range (high-low). Exposes openingRangeHeight and avgDailyRange for later candidates.",
+    "pseudocode": "newSession = Date(0) != Date(1); if (newSession) { if (haveOpeningRange) pushDailyRange(sessionHigh - sessionLow); sessionHigh = high[0]; sessionLow = low[0]; barsIntoSession = 0; openingRangeSet = false } else { barsIntoSession++; sessionHigh = max(sessionHigh, high[0]); sessionLow = min(sessionLow, low[0]) } if (!openingRangeSet && barsIntoSession == openingRangeBars) { openingRangeHigh = sessionHigh; openingRangeLow = sessionLow; openingRangeHeight = openingRangeHigh - openingRangeLow; openingRangeSet = true } avgDailyRange = average(lastNDailyRanges, dayLookback)",
+    "sides": "same",
+    "parameters": {
+      "openingRangeBars": 24,
+      "dayLookback": 20
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-boundary detection and a rolling multi-day range history built up from intraday bars, not a plain windowed average"
+    },
+    "el_words_needed": [
+      "Date",
+      "Average",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "openingRangeBars must be tuned to the bar size in use; Brooks means roughly the first one to two hours.",
+      "Page 389: 'look for a breakout and an approximate doubling of the range of the day.'"
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T22-02",
+    "name": "SmallOpeningRangePredictsExpansion",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T22-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      389,
+      396,
+      397
+    ],
+    "quote": "If the opening range is about a third to half of the size of the recent average daily range, then look for a breakout and an approximate doubling of the range of the day.",
+    "description": "Filter: the session's opening-range height is at or below a fraction of the recent average daily range, which favors a breakout later in the session and roughly a doubling of the day's range. Enables the breakout and measured-move candidates below.",
+    "pseudocode": "openingRangeSet && openingRangeHeight <= smallRangeFraction * avgDailyRange",
+    "sides": "same",
+    "parameters": {
+      "smallRangeFraction": 0.5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "single comparison once T22-01's aggregates are available"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T22-13",
+    "name": "LateSessionReversalAfterTrendingRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T22-11"
+    ],
+    "depends_on": [],
+    "pages": [
+      392,
+      398
+    ],
+    "quote": "Since there is two-sided trading throughout the day, it is common for the day to reverse through at least one of the trading ranges in the final hour or two of the day.",
+    "description": "Filter/context: on a day already classified as a trending trading range day, a countertrend reversal attempt in the final N minutes of the session is a reliable setup (retracing at least the most recent trading range), unlike earlier in the day.",
+    "pseudocode": "isTrendingTradingRangeDay && Time >= sessionCloseTime - lateWindowMinutes",
+    "sides": "same",
+    "parameters": {
+      "lateWindowMinutes": 90
+    },
+    "book_order_type": "n/a (context filter, paired with a reversal-bar entry)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trending trading range day' classification is a design decision; the time gate itself is trivial"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "low",
+    "notes": [
+      "Pairs naturally with the existing reversal-bar / two-bar-reversal entries from earlier chapters."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T23-01",
+    "name": "OpeningRangeHeightVsAverageDailyRange",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      413,
+      414
+    ],
+    "quote": "If the opening range of the day is less than 25 percent of the average daily range of recent days, there may be a double bottom on a bull trend day or a double top on a bear trend day.",
+    "description": "Primitive with state: track the current session's opening-range high/low over its first N bars, and the average of the last M completed sessions' full-day range (high-low).",
+    "pseudocode": "newSession = Date(0) != Date(1); if (newSession) { if (haveOpeningRange) pushDailyRange(sessionHigh - sessionLow); sessionHigh = high[0]; sessionLow = low[0]; barsIntoSession = 0; openingRangeSet = false } else { barsIntoSession++; sessionHigh = max(sessionHigh, high[0]); sessionLow = min(sessionLow, low[0]) } if (!openingRangeSet && barsIntoSession == openingRangeBars) { openingRangeHigh = sessionHigh; openingRangeLow = sessionLow; openingRangeHeight = openingRangeHigh - openingRangeLow; openingRangeSet = true } avgDailyRange = average(lastNDailyRanges, dayLookback)",
+    "sides": "same",
+    "parameters": {
+      "openingRangeBars": 24,
+      "dayLookback": 20
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-boundary detection and a rolling multi-day range history built from intraday bars, not a plain windowed average"
+    },
+    "el_words_needed": [
+      "Date",
+      "Average",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Same primitive as T22-01, redefined per this chapter's scope; the dedup pass should merge them."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T23-03",
+    "name": "TrendFromOpenFlag",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      413,
+      416,
+      417
+    ],
+    "quote": "As soon as a bar moves above the high of the prior bar, the day is a trend from the open bull trend day, at least for that moment.",
+    "description": "Primitive: a session flag, set long the first time a bar in the session closes above the high of the first bar (or of the prior bar early in the session), and cleared if price trades back through the session's opposite extreme. Cheap proxy for 'trend from the open' while it lasts.",
+    "pseudocode": "newSession: trendFromOpen = 0; firstBarHigh/Low = high[0]/low[0] if (trendFromOpen == 0 && close[0] > firstBarHigh) trendFromOpen = 1; if (trendFromOpen == 0 && close[0] < firstBarLow) trendFromOpen = -1; if (trendFromOpen == 1 && close[0] < firstBarLow) trendFromOpen = 0 /* invalidated */",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session state machine anchored on the first bar"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 417: 'when the breakout of the prior bar grows into a larger spike, the odds of a strong trend from the open trend day increase considerably' - a stronger version could require an N-bar spike instead of a single close."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T24-01",
+    "name": "OpeningRangeHeightVsAverageDailyRange",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      448
+    ],
+    "quote": "Since the opening range was greater than about 30 percent of the average range of recent days, the opening range was not a good breakout mode setup.",
+    "description": "Primitive with state: track the current session's opening-range high/low over its first N bars, and the average of the last M completed sessions' full-day range (high-low).",
+    "pseudocode": "newSession = Date(0) != Date(1); if (newSession) { if (haveOpeningRange) pushDailyRange(sessionHigh - sessionLow); sessionHigh = high[0]; sessionLow = low[0]; barsIntoSession = 0; openingRangeSet = false } else { barsIntoSession++; sessionHigh = max(sessionHigh, high[0]); sessionLow = min(sessionLow, low[0]) } if (!openingRangeSet && barsIntoSession == openingRangeBars) { openingRangeHigh = sessionHigh; openingRangeLow = sessionLow; openingRangeHeight = openingRangeHigh - openingRangeLow; openingRangeSet = true } avgDailyRange = average(lastNDailyRanges, dayLookback)",
+    "sides": "same",
+    "parameters": {
+      "openingRangeBars": 24,
+      "dayLookback": 20
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-boundary detection and a rolling multi-day range history built from intraday bars"
+    },
+    "el_words_needed": [
+      "Date",
+      "Average",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Same primitive as T22-01/T23-01, redefined per this chapter's scope; the dedup pass should merge them."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/24_reversal_day.json",
+    "chapter_title": "Reversal Day"
+  },
+  {
+    "id": "T24-06",
+    "name": "PullbackExceedsPriorLegHeightBecomesReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T24-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      446
+    ],
+    "quote": "By the end of the day, the pullback can grow larger than the bear trend that preceded it, and the day could become a bull reversal bar on the daily chart.",
+    "description": "Filter: once a warned pullback's move (from the trend extreme) exceeds the height of the trend leg that preceded it, treat the session as having flipped into an opposite trend rather than a pullback -- restrict further entries to the new (pullback) direction.",
+    "pseudocode": "reversalWarning && abs(close[0] - trendExtreme) > priorLegHeight",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a size comparison against a remembered leg height"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/24_reversal_day.json",
+    "chapter_title": "Reversal Day"
+  },
+  {
+    "id": "T25-01",
+    "name": "AverageDailyRangeHistory",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      453,
+      454
+    ],
+    "quote": "The protracted trading range is often a very tight trading range.",
+    "description": "Primitive with state: maintain a rolling average of the last M completed sessions' full-day range (high-low), for use in judging whether the current session's midday range is unusually tight.",
+    "pseudocode": "newSession = Date(0) != Date(1); if (newSession) { pushDailyRange(sessionHigh - sessionLow); sessionHigh = high[0]; sessionLow = low[0] } else { sessionHigh = max(sessionHigh, high[0]); sessionLow = min(sessionLow, low[0]) } avgDailyRange = average(lastNDailyRanges, dayLookback)",
+    "sides": "same",
+    "parameters": {
+      "dayLookback": 20
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs session-boundary detection and a rolling multi-day range history built from intraday bars"
+    },
+    "el_words_needed": [
+      "Date",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Lighter version of the opening-range primitives in chapters 22-24 (no opening-range-specific fields needed here)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/25_trend_resumption_day.json",
+    "chapter_title": "Trend Resumption Day"
+  },
+  {
+    "id": "T25-02",
+    "name": "MorningTrendLegFlag",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      453
+    ],
+    "quote": "The day has a strong trend in the first hour or so and then enters a trading range.",
+    "description": "Primitive with state: a session flag, set when the net move over the first N bars of the session (close of bar N minus session open) exceeds a size threshold; records the direction and the leg's height for later comparison.",
+    "pseudocode": "newSession: morningLegDirection = 0; if (barsIntoSession == firstHourBars) { morningLegHeight = abs(close[0] - sessionOpen); if (morningLegHeight >= minLegAtr * atr) morningLegDirection = sign(close[0] - sessionOpen) }",
+    "sides": "mirrored",
+    "parameters": {
+      "firstHourBars": 12,
+      "minLegAtr": 1.0
+    },
+    "book_order_type": "n/a (context primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session state anchored at a fixed bar count"
+    },
+    "el_words_needed": [
+      "Date",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/25_trend_resumption_day.json",
+    "chapter_title": "Trend Resumption Day"
+  }
+]

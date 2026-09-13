@@ -1,0 +1,760 @@
+{
+  "bucket": "breakouts_volume_gap",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "TrueGapBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's range does not overlap the reference bar's range at all: low is above the high of the bar N bars ago (long) / high below its low (short) — Brooks's plain gap.",
+      "pseudocode": "low[0] > high[gapBarOffset]",
+      "sides": "mirrored",
+      "parameters": {
+        "gapBarOffset": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one fixed-offset two-bar comparison"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHigh compares close to high[N]; this needs the whole bar clear of it (low > high[N]), a strictly stronger non-overlap test"
+      },
+      "sources": [
+        "R06-01",
+        "R08-04",
+        "V20-01",
+        "VP1-31"
+      ],
+      "merge_notes": "Four identical statements of non-overlap. VP1-31's gapBarOffset input kept, default 1. R08-04 and V20-01 both say the same test runs unchanged on daily bars ('on any time frame'), hence timeframe daily-ok.",
+      "variants_kept_separate": [
+        "BodyGapBar",
+        "MicroMeasuringGap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BodyGapBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar opens beyond the prior bar's close in the trend direction — open above the prior close (long) / below it (short): a body-to-body gap and a sign of urgency.",
+      "pseudocode": "open[0] > close[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R06-02",
+        "V00-39",
+        "V02-07",
+        "T19-05"
+      ],
+      "merge_notes": "The same one-line test in all four, quoted from the same sentence in two volumes; V02-07 states it as a spike-bar quality test. No thresholds anywhere. Distinct from TrueGapBar, which needs the whole range clear.",
+      "variants_kept_separate": [
+        "TrueGapBar",
+        "ConsecutiveBodyGapTrendBars"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveBodyGapTrendBars",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars is a bull trend bar (close above open) that also opened above the prior bar's close — a run of body gaps; mirrored for bears.",
+      "pseudocode": "for i in 0..consecutiveBars-1: open[i] > close[i+1] && close[i] > open[i]",
+      "sides": "mirrored",
+      "parameters": {
+        "consecutiveBars": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed-length loop of two-bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars counts close-above-open bars only; this adds the open-above-prior-close gap to every bar of the run"
+      },
+      "sources": [
+        "R06-03"
+      ],
+      "merge_notes": "Only R06-03 states the run form ('two or three of these gaps on consecutive bull trend bars'); default 2. Kept apart from BodyGapBar, the one-bar test, per the one-bar-versus-run rule.",
+      "variants_kept_separate": [
+        "BodyGapBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MicroMeasuringGap",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Around a strong bull trend bar, the bar after it does not overlap the bar before it — this bar's low is at or above the high of two bars ago; mirrored for bears.",
+      "pseudocode": "close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && low[0] >= high[2]",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.7
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed three-bar arithmetic plus a body-fraction test on the middle bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-26",
+        "V00-15",
+        "T00-14",
+        "T19-06",
+        "R02-22"
+      ],
+      "merge_notes": "Five statements of one three-bar test. R02-22 is its negation, Brooks's matching sign of weakness, so the per-placement negate toggle covers it. bodyFraction 0.7 in V00-15/T00-14/T19-06; R00-26's tick tolerance dropped, its default is 0.",
+      "variants_kept_separate": [
+        "TrueGapBar",
+        "BreakoutTestNoOverlap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapFilledExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the long when the close falls back below the lower edge of the most recent bull gap inside the lookback (the high of the bar before the gap); mirrored for shorts.",
+      "pseudocode": "k = smallest j in 1..gapLookback with low[j] > high[j+1]; gapBottom = high[k+1]; close[0] < gapBottom",
+      "sides": "mirrored",
+      "parameters": {
+        "gapLookback": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "bounded backward scan for the most recent gap; no persistent state once the scan is bounded"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R06-08"
+      ],
+      "merge_notes": "R06-08 only. Brooks anchors on 'the identified gap'; mechanized as a bounded backward scan for the most recent TrueGapBar, which avoids carrying gap state. Its tick tolerance is dropped (source default 0). Brooks reads the fill as exhaustion, a buy climax.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TrueGapBar"
+      ]
+    },
+    {
+      "key": "SessionOpeningGapBeyondPriorExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The first bar of a session opens beyond the prior session's extreme — above the prior session's high (long) / below its low (short).",
+      "pseudocode": "isFirstBarOfSession(0) && open[0] > priorSessionHigh",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs session-boundary detection and the prior session's high/low carried as state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-22",
+        "V00-16",
+        "T00-10"
+      ],
+      "merge_notes": "All three quote the same glossary line from different volumes. Brooks allows either the prior session's last bar or the whole prior day as reference; the whole-session high/low won, equally cheap once the accumulator exists and the stronger reading.",
+      "variants_kept_separate": [
+        "SessionGapAtrMagnitude"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapReversalBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a session opening gap up, the next bar trades at least one tick below the gap bar's low, back into the gap — a fade signal; mirrored after a gap down.",
+      "pseudocode": "SessionOpeningGapBeyondPriorExtreme[1] && low[0] <= low[1] - reversalTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "reversalTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one-tick offset test on top of the session-gap primitive"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-25",
+        "T00-11",
+        "V00-17"
+      ],
+      "merge_notes": "Three statements of the same glossary definition. T00-11 and V00-17's fixed prior-bar form won over R00-25's 'low of the session's first bar', which would need the first bar remembered across the day. V00-17 arrived as a stray from bar_anatomy_reversal_signal.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": [
+        "SessionOpeningGapBeyondPriorExtreme"
+      ]
+    },
+    {
+      "key": "SessionGapAtrDirectional",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session's first bar opens at least K x ATR above the prior session's close (long) / below it (short) — a signed gap-size test, the gap read as a spike in its own direction.",
+      "pseudocode": "isFirstBarOfSession(0) && open[0] - priorSessionClose >= gapAtrMultiple * atr(atrLength)",
+      "sides": "mirrored",
+      "parameters": {
+        "gapAtrMultiple": 1.0,
+        "atrLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "session boundary plus the prior session's close and an ATR"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-49",
+        "T23-05"
+      ],
+      "merge_notes": "T21-49 treats the gap as the spike of a spike-and-channel day, T23-05 as a directional tilt; behaviourally one signed test. T23-05 uses 0.5 ATR, T21-49 1.0 — both recorded, 1.0 the default. Kept apart from the unsigned SessionGapAtrMagnitude.",
+      "variants_kept_separate": [
+        "SessionGapAtrMagnitude"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionGapAtrMagnitude",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session's first bar opens at least K x ATR away from the prior session's close in either direction — a large-gap day flag, identical on both sides.",
+      "pseudocode": "isFirstBarOfSession(0) && fabs(open[0] - priorSessionClose) >= gapAtrMultiple * atr(atrLength)",
+      "sides": "same",
+      "parameters": {
+        "gapAtrMultiple": 1.0,
+        "atrLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "session boundary plus the prior session's close and an ATR"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T12-03",
+        "T19-14"
+      ],
+      "merge_notes": "Same measurement as SessionGapAtrDirectional but unsigned, so it passes both sides after a gap either way — Brooks's 'large gaps lead to trend days in either direction'. T19-14's absolute 8-point Emini threshold lost to T12-03's ATR multiple, which is instrument-independent.",
+      "variants_kept_separate": [
+        "SessionGapAtrDirectional",
+        "SessionOpeningGapBeyondPriorExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapHoldsAbovePriorSessionClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Over the last N bars the lowest low has stayed above the prior session's close (long) / the highest high below it (short) — the opening gap has not been filled early.",
+      "pseudocode": "lowest(low, checkBars) > priorSessionClose",
+      "sides": "mirrored",
+      "parameters": {
+        "checkBars": 12
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "window extreme against the prior session's close carried as state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Lowest",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T19-15"
+      ],
+      "merge_notes": "T19-15 only, carried as the atomic half of its composite with T19-14 — the gap-size half is SessionGapAtrMagnitude. Brooks: large gaps that do not reverse early usually start a strong trend day. checkBars 12 is the miner's reading of 'early'.",
+      "variants_kept_separate": [
+        "GapFilledExit"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeGapVsRecentGaps",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar gaps and its gap is at least as large as the largest gap of the prior N bars — Brooks's first 'large gap' test.",
+      "pseudocode": "low[0] > high[1] && (low[0] - high[1]) >= highest(gapSize, largeGapLookback)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "largeGapLookback": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a Highest over a derived per-bar gap-size series"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V20-02"
+      ],
+      "merge_notes": "Brooks offers two alternative large-gap tests with 'or', so this and LargeGapVsAverageRange stay apart until someone measures that they coincide. Needs a derived signed gap-size series before the Highest window. 'Five days or so' is his own hedge.",
+      "variants_kept_separate": [
+        "LargeGapVsAverageRange"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TrueGapBar"
+      ]
+    },
+    {
+      "key": "LargeGapVsAverageRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar gaps and the gap is larger than a fraction of the recent average bar range — Brooks's second 'large gap' test.",
+      "pseudocode": "low[0] > high[1] && (low[0] - high[1]) >= gapRangeFraction * average(high - low, rangeLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "gapRangeFraction": 0.5,
+        "rangeLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a windowed average of high-low against the derived gap size"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V20-03"
+      ],
+      "merge_notes": "'Larger than about half of the average daily range.' rangeLookback 20 is the miner's reading — the book gives no bar count. Kept apart from LargeGapVsRecentGaps, which Brooks gives as the alternative test in the same sentence.",
+      "variants_kept_separate": [
+        "LargeGapVsRecentGaps"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "TrueGapBar"
+      ]
+    },
+    {
+      "key": "BreakoutTestNoOverlap",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The pullback since the breakout has not traded back below the breakout bar's high: the lowest low of the last N bars is at or above the high of the bar N bars ago; mirrored for shorts.",
+      "pseudocode": "lowest(low, testWindow) >= high[testWindow]",
+      "sides": "mirrored",
+      "parameters": {
+        "testWindow": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one window extreme against a fixed-offset bar high"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T00-37",
+        "T19-07",
+        "R08-11"
+      ],
+      "merge_notes": "T19-07 persists a breakout bar's high; T00-37's fixed window won — the bar testWindow bars back stands in for the breakout bar, so no state is carried. R08-11 anchors on the broken N-bar high instead of the breakout bar's own high; recorded, bar-high anchor kept.",
+      "variants_kept_separate": [
+        "MicroMeasuringGap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LimitEntryAtMicroGapEdge",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The prior bar left a micro gap (its low above the high of the bar before it) and this bar pulls back to within X ticks of that gap's lower edge — a with-trend limit entry at the breakout point.",
+      "pseudocode": "low[1] > high[2] && low[0] <= high[2] + entryOffsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "entryOffsetTicks": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed three-bar offsets plus a tick-offset comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-03",
+        "R06-15"
+      ],
+      "merge_notes": "R28-03's indexing won: the limit sits above the high of the bar BEFORE the breakout bar (high[2]). R06-15 writes high[1], the breakout bar's own high, contradicting its own quote — a mining slip. Its three-tick risk figure is a stop, not part of this rule.",
+      "variants_kept_separate": [
+        "MicroMeasuringGap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionFirstBarBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Early in the session, price closes beyond the high of the session's first bar (long) / below its low (short) — a trend-from-the-open breakout.",
+      "pseudocode": "barsIntoSession(0) >= 1 && barsIntoSession(0) <= maxBarsIntoSession && close[0] > sessionFirstBarHigh",
+      "sides": "mirrored",
+      "parameters": {
+        "maxBarsIntoSession": 4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "session-relative bar index plus the session's first bar high/low carried as state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T23-13"
+      ],
+      "merge_notes": "T23-13's gap term is SessionGapAtrMagnitude and its strong-trend-bar term belongs to bar_anatomy; carried here is the atomic remainder. The book itself says the trade is good even without a gap (p419), so no gap term is bundled in.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [
+        "session boundary and prior-session values"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarRangeAtrMultiple",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's high-low range is at least K times the N-bar average true range — a climax- or spike-sized bar, identical both sides.",
+      "pseudocode": "(high[0] - low[0]) >= rangeMultiple * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "rangeMultiple": 5,
+        "atrLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one ATR window and a comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd measures the range against an N-bar mean plus K standard deviations; this is a plain ATR multiple, and at K = 5 a far rarer event"
+      },
+      "sources": [
+        "V04-07"
+      ],
+      "merge_notes": "V04-07 is a joint volume-and-range climax test; its volume half is the catalog's VolumeAboveAverageMultiple, so only the range half is carried here. Brooks: 'a range that is five or more times larger than most bars of recent days'.",
+      "variants_kept_separate": [
+        "VolumeAboveAverageMultiple"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NotTripleWitchingDay",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's date is NOT the third Friday of March, June, September or December — a calendar gate meant to keep gap-based entries off triple-witching days. Identical both sides.",
+      "pseudocode": "!(dayOfWeek(date[0]) == 5 && month(date[0]) % witchingMonthModulus == 0 && dayOfMonth(date[0]) >= thirdFridayFirstDay && dayOfMonth(date[0]) <= thirdFridayLastDay)",
+      "sides": "same",
+      "parameters": {
+        "witchingMonthModulus": 3,
+        "thirdFridayFirstDay": 15,
+        "thirdFridayLastDay": 21
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Date decomposition into weekday, month and day-of-month; no price arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Date",
+        "DayOfWeek",
+        "Month",
+        "DayOfMonth"
+      ],
+      "catalog_match": {
+        "rule": "DayOfWeekAnyOf",
+        "relation": "variant",
+        "note": "the catalog's day rules select weekdays; this needs month and day-of-month as well to pin the third Friday of a quarter month"
+      },
+      "sources": [
+        "T09-01"
+      ],
+      "merge_notes": "T09-01 only. Fully decidable, but Brooks is describing an SPY price adjustment, so on futures it costs four bars a year for little gain. Kept because it is cheap and unambiguous; it is only meaningful paired with a gap entry.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R08-07",
+      "reason": "composition of Breakout (catalog) + a large-trend-bar test + BreakoutTestNoOverlap"
+    },
+    {
+      "id": "R28-08",
+      "reason": "composition of AlwaysInDirection (flip) + LimitEntryAtMicroGapEdge + a 'not particularly large' trend-bar test"
+    },
+    {
+      "id": "V19-04",
+      "reason": "composition of SessionGapAtrMagnitude + StrongTrendBarRun"
+    },
+    {
+      "id": "T21-65",
+      "reason": "composition of SessionGapAtrDirectional + a small-opening-range test (T21-63, sessions/opening-range bucket)"
+    },
+    {
+      "id": "V20-04",
+      "reason": "composition of LargeGapVsAverageRange / LargeGapVsRecentGaps + a qualitative with-gap preference; no bar-level test of its own, and Brooks's 50/20/30 split is explicitly not precise"
+    },
+    {
+      "id": "V20-05",
+      "reason": "composition of LargeGapVsAverageRange + StrongTrendBarRun negated; 'the price action is unclear' adds nothing decidable"
+    },
+    {
+      "id": "V01-17",
+      "reason": "not mechanizable: exhaustion-versus-measuring gap is a classification concept, the candidate's own pseudocode is 'n/a'"
+    },
+    {
+      "id": "V17-04",
+      "reason": "restates SessionGapAtrMagnitude as an indicator-trust caveat; 'distrust the EMA for about an hour' names no decidable test or action"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R06-05",
+      "belongs_in": "exits_targets",
+      "note": "micro measuring-gap measured-move target; GapMidpointMeasuredMoveTarget already lives there"
+    },
+    {
+      "id": "R08-09",
+      "belongs_in": "exits_targets",
+      "note": "measuring-gap measured-move target from breakout point, first-pullback low and leg start"
+    },
+    {
+      "id": "R08-12",
+      "belongs_in": "exits_targets",
+      "note": "range-height measured-move target used after a negative gap"
+    },
+    {
+      "id": "VP1-21",
+      "belongs_in": "exits_targets",
+      "note": "gap-midpoint measured-move projection"
+    },
+    {
+      "id": "V01-15",
+      "belongs_in": "exits_targets",
+      "note": "gap-midpoint measured-move target, the existing GapMidpointMeasuredMoveTarget"
+    },
+    {
+      "id": "R06-06",
+      "belongs_in": "exits_targets",
+      "note": "reliability filter on a gap measured-move target, not a gap test; needs an average-daily-range decision"
+    },
+    {
+      "id": "R06-07",
+      "belongs_in": "exits_targets",
+      "note": "leg-height-versus-ADR reliability filter on a gap measured-move target"
+    },
+    {
+      "id": "R13-06",
+      "belongs_in": "ema_relations",
+      "note": "the '20 gap bars' setup is 20 bars without touching the moving average, not a price gap; also blocked on a climax definition"
+    },
+    {
+      "id": "V20-06",
+      "belongs_in": "lines_channels_channels",
+      "note": "gap read as the spike of a spike-and-channel day; needs channel detection. Arrived as a stray, its primary bucket already owns it"
+    },
+    {
+      "id": "R00-57",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "R02-02",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "V00-42",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "T00-25",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "T00-23",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "V07-14",
+      "belongs_in": "volume",
+      "note": "identical to volume VolumeAboveAverageMultiple (rules/VolumeAboveAverageMultiple.json), the topic owner; folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "session boundary and prior-session values",
+      "options": [
+        "EL Date change (ctx.SessionDate(0) != ctx.SessionDate(1)) plus running per-session accumulators for the prior session's open/high/low/close and a bars-into-session counter",
+        "EL's daily-data words OpenD/HighD/LowD/CloseD",
+        "treat each bar as its own session on M1440, collapsing the session-gap rules to plain two-bar tests"
+      ],
+      "recommended": "Date-change detection with running accumulators — EL_FEATURES records that a 1440-minute bar is still an intraday bar (BarInterval reads 1440), so the daily-data words cannot be assumed; on M1440 the accumulator form degenerates to the two-bar test, which is exactly what R08-04 and V20-01 say a daily gap is",
+      "gates": [
+        "SessionOpeningGapBeyondPriorExtreme",
+        "GapReversalBar",
+        "SessionGapAtrDirectional",
+        "SessionGapAtrMagnitude",
+        "GapHoldsAbovePriorSessionClose",
+        "SessionFirstBarBreakout"
+      ]
+    },
+    {
+      "topic": "which volume series Brooks's volume rules read",
+      "options": [
+        "the engine's `volume` alias, which EL_FEATURES records as UP-TICKS only",
+        "`ticks`, up + down, as the catalog's VolumeAboveAverageMultiple already uses"
+      ],
+      "recommended": "`ticks` — Brooks always means total contracts or shares traded, and the catalog rule already reads ctx.Ticks; using `volume` would silently halve every threshold",
+      "gates": [
+        "VolumeAboveAverageMultiple"
+      ]
+    }
+  ],
+  "bucket_summary": "57 candidates about price gaps, gap-based breakout tests and breakout volume, collapsed to 18 rules. Roughly half the bucket was restatement: one non-overlap gap test stated four times, one body gap four times, one micro measuring gap five times (one of them negated), and one volume-multiple test six times, the last a straight duplicate of the catalog's VolumeAboveAverageMultiple. Nine measured-move targets and their reliability filters went to exits_targets rather than being redefined here. The A-list is the state-free bar arithmetic: TrueGapBar, BodyGapBar, ConsecutiveBodyGapTrendBars, MicroMeasuringGap, GapFilledExit, LargeGapVsRecentGaps, LargeGapVsAverageRange, BreakoutTestNoOverlap, LimitEntryAtMicroGapEdge, BarRangeAtrMultiple and NotTripleWitchingDay; the six session-gap rules are all B, blocked only on a shared session-boundary primitive."
+}

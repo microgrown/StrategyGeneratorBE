@@ -1,0 +1,362 @@
+{
+  "bucket": "trade_management",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "StopRunReclaimReentry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After price briefly trades beyond a recent swing extreme against the trade direction but immediately closes back in the trend direction, enter (or re-enter) on a stop one tick beyond the prior bar's extreme.",
+      "pseudocode": "stopRunOccurred = low[1] < recentSwingExtreme && close[1] > recentSwingExtreme; enterLongNextOpen = stopRunOccurred && high[0] >= high[1] + entryTick",
+      "sides": "mirrored",
+      "parameters": {
+        "entryTick": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a tracked recent swing-extreme/stop-cluster level and a breach-then-reclaim detector before the ordinary stop-entry mechanization"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R24-07",
+        "R29-12"
+      ],
+      "merge_notes": "Source frames this as 'add to or re-enter' a swing position (multi-unit language), but the mechanism itself -- a breach-and-reclaim of a recent level, entered on a stop -- does not require holding multiple units. Reduces to a single-position Entry (a stop-run continuation entry); mechanized that way, dropping the 'add to an already-open position' framing.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FilledAtExtremeMoreTrendPressureReentry",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "When a profit-taking limit exit is filled at exactly the extreme tick of a move (price did not need to trade through the price to fill it), treat this as a sign of unusual trend strength and look to re-enter in the original direction.",
+      "pseudocode": "// blocked: needs the fill model to distinguish a touch-only fill from a traded-through fill\nexitFilledAtExactExtreme[0]; lookForReentrySameDirection = exitFilledAtExactExtreme[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "depends on a fill-model distinction (touched-and-filled vs traded-through) that most backtest fill models, including this one, do not necessarily expose the same way real limit orders behave"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R24-08"
+      ],
+      "merge_notes": "Does not reduce to a single-position rule in a way that sidesteps the blocker -- the whole signal IS the fill-quality distinction, not a scaling/multi-unit issue.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "limit-order fill model: touch-only vs traded-through fills"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TwoReasonsRequiredToEnter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A meta-gate on every entry: require at least reasonCount independently-true qualifying conditions from an enumerable list of Brooks 'reasons' before allowing the entry.",
+      "pseudocode": "// blocked: which sibling Entry filters count as a 'reason' is an authoring-pass design decision\nreasonsTrue = countTrue([reasonA[0], reasonB[0], reasonC[0], ...]); allowEntry = reasonsTrue >= reasonCount",
+      "sides": "same",
+      "parameters": {
+        "reasonCount": 2
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the book's list of 'reasons' mixes filters, patterns, and exits from many other chapters; a design decision is needed to pick and wire the concrete sibling conditions this counts"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R26-01"
+      ],
+      "merge_notes": "Keyword-matched to trade_management (the chapter is literally titled 'Need Two Reasons to Take a Trade') but is not a scaling/multi-unit idea; kept here rather than cross-bucketed since no other listed bucket fits a cross-cutting entry-quality meta-gate any better.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "enumerable list of entry 'reasons' for TwoReasonsRequiredToEnter"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ScaleInAddOnLimitEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Second leg of a scale-in: while a first (half-size) entry is open and unfilled on its own target, place a second buy-limit order a fixed distance below the first entry's fill price to complete the full position.",
+      "pseudocode": "// not mechanizable: requires tracking a first, independently-sized unit's fill price while adding a second unit to the same open position\naddOnLimitPrice = firstEntryPrice - addOnDistance",
+      "sides": "mirrored",
+      "parameters": {
+        "addOnDistance": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the first scaled-in entry's fill price as a reference, on top of its own swing-pivot dependency (R26-14)"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R26-15",
+        "R28-42"
+      ],
+      "merge_notes": "Inherently a second unit added to an already-open position -- does not reduce to a single-position rule. Engine's single-position model has no multi-unit tracking; kept as a citation only.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BuyLimitBelowRisingMA",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "During a pullback to a steeply rising moving average, place a buy-limit order a fixed distance below the moving average.",
+      "pseudocode": "isSteeplyRisingMA = (movingAverage[0] - movingAverage[maSlopeLookback]) / maSlopeLookback >= minMaSlopePerBar; limitPrice = movingAverage[0] - intervalDistance; enterLongOnLimitNextBar = isSteeplyRisingMA && low[1] <= limitPrice",
+      "sides": "mirrored",
+      "parameters": {
+        "maSlopeLookback": 10,
+        "minMaSlopePerBar": 0.5,
+        "intervalDistance": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an MA-slope test plus a single limit price -- mechanizable without the multi-level ladder"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-29"
+      ],
+      "merge_notes": "Source (ScaleInAtIntervalsBelowRisingMA) describes a ladder of numScaleInLevels buy-limit orders at successive intervals below the MA -- a multi-unit scale-in the engine cannot place as one position. Reduces to a single-position rule at one level (numScaleInLevels=1, i.e. intervalDistance is the offset of the sole limit order); the ladder itself is dropped.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CounterSignalReversalPermission",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "While holding a countertrend position, if a second with-trend counting-setup signal (e.g. a High2 while short in a bull trend) fires against it, permit exiting the countertrend position or reversing to the with-trend direction.",
+      "pseudocode": "isSecondAdverseWithTrendSignal = isHigh2Setup[0] && isBullTrend[0]; allowExitOrReverseToLong = ctx.MarketPosition() == -1 && isSecondAdverseWithTrendSignal",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reuses the H2/L2 counting-setup primitive and a position-state read; the MA-proximity emphasis in the book is a strengthening condition, not a hard requirement"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "FlatOrOpenLossExceeds",
+        "relation": "variant",
+        "note": "Same family as catalog's FlatOrOpenLossExceeds -- an Entry that reads position state to permit a reversal -- but gated on a with-trend counting setup instead of an open-loss threshold."
+      },
+      "sources": [
+        "R28-45"
+      ],
+      "merge_notes": "Reads as a scale-in caveat in the book ('exit or reverse on the second move against a countertrend scale-in') but the rule itself is a single-position permission-to-exit-or-reverse; does not require holding multiple units. Depends on the H2/L2 counting-setup primitive, expected key High2Setup per T10-23/T00-19.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "High2Setup"
+      ]
+    },
+    {
+      "key": "ScaleInOnContinuedPullback",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Add a further with-trend unit to an already-open long each time the pullback extends to a new low, while the larger trend context is still believed valid.",
+      "pseudocode": "// not mechanizable: adds an independently sized/stopped unit to an already-open position\nisNewPullbackLow = ctx.MarketPosition() > 0 && low[0] < lowest(low, ctx.BarsSinceEntry())[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "the engine models one all-or-nothing position; adding independently-tracked units on continued favorable movement is not supported"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R31-01"
+      ],
+      "merge_notes": "Explicitly a multi-unit add-to-open-position idea per the source's own notes; kept per the mining brief's instruction to record scaling candidates even though the engine has no multi-unit position model.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "WidenCombinedStopToTwiceInitialOnScaleIn",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "When adding a second unit at the level where the original stop would have been, widen the protective stop on the entire combined position to roughly twice the original single-unit stop distance, measured from the average entry price.",
+      "pseudocode": "// not mechanizable: needs an average entry price across multiple units\naverageEntryPrice = weightedAverage(unitEntryPrices, unitSizes); exitLongStop = ctx.MarketPosition() > 0 && low[0] <= averageEntryPrice - stopMultiple * originalSingleUnitRiskDollars",
+      "sides": "same",
+      "parameters": {
+        "stopMultiple": 2
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "requires an average entry price and a combined stop across multiple units, which the engine's single-position model does not expose"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R31-06"
+      ],
+      "merge_notes": "Fundamentally a multi-unit average-entry-price feature; kept as a citation only.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ScaleInJustBeyondObviousStopRunLevel",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Place an additional (or reversal) entry one tick beyond the round-number/obvious stop distance from the original signal, on the premise that a cluster of other traders' stops sits there and the market often runs them before reversing.",
+      "pseudocode": "// blocked: 'the obvious stop distance other traders are using' has no formula given\nobviousStopDistance = typicalStopDistanceForContext(); scaleInPrice = originalSignalPrice - (obviousStopDistance - tick); allowScaleInShort = high[0] >= scaleInPrice",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "the entry arithmetic (one tick beyond a distance) is trivial, but 'the obvious/appropriate stop size for the recent price action' is a discretionary judgment the book does not reduce to a formula"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R31-07"
+      ],
+      "merge_notes": "Adding a unit is a multi-unit feature too, but the harder blocker is upstream of that: there is no bar-level definition of 'the obvious stop distance' to test against, so this stays blocked on a design decision even if reduced to a single-position entry.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "'obvious' round-number stop distance for ScaleInJustBeyondObviousStopRunLevel"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FirstTradingDayOfMonthFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current bar falls within the first few trading days of the calendar month.",
+      "pseudocode": "Day(Date(0)) <= firstOfMonthWindow",
+      "sides": "same",
+      "parameters": {
+        "firstOfMonthWindow": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a plain calendar-day comparison"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "DayOfWeekEntry/DayOfWeekAnyOf test weekday, not day-of-month; SeasonalHalfYear tests month, not day; no existing rule tests day-of-month."
+      },
+      "sources": [
+        "R31-12"
+      ],
+      "merge_notes": "Absorbed from the misc bucket (R31-12, DollarCostAverageFixedCalendarInterval): the book cites dollar-cost averaging as a scaling analogy -- buy a fixed FRACTION OF CAPITAL on a fixed calendar schedule regardless of price. The capital-allocation/scheduled-fraction-of-cash part is a portfolio feature the engine's single-position model does not expose and is dropped. The underlying calendar test reduces to a trivial, independently useful Entry filter and is kept atomically.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [],
+  "cross_bucket": [],
+  "design_decisions": [
+    {
+      "topic": "limit-order fill model: touch-only vs traded-through fills",
+      "options": [
+        "treat any touch (high>=price or low<=price) as a fill, matching the engine's existing fill model, with no distinct 'touched but not through' category",
+        "add a distinct touch-only fill category requiring order-book-level detail the engine does not model",
+        "drop the signal as unobservable"
+      ],
+      "recommended": "drop -- the engine's fill model doesn't distinguish touch-only fills from trade-through fills, so R24-08's signal isn't observable as stated",
+      "gates": [
+        "FilledAtExtremeMoreTrendPressureReentry"
+      ]
+    },
+    {
+      "topic": "enumerable list of entry 'reasons' for TwoReasonsRequiredToEnter",
+      "options": [
+        "hand-pick a fixed list of existing Entry filters (signal-bar quality, MA pullback, breakout pullback, S/R test, counting setup) and count how many are true",
+        "rely on the pane system's implicit AND of filters instead of an explicit reason-counter",
+        "drop as too vague to mechanize consistently"
+      ],
+      "recommended": "drop or defer -- the pane system already ANDs entry filters, so requiring >=2 true filters is close to just placing two filter rules on the same entry; a literal 'reason' counter needs a hand-picked list this bucket can't fix on its own",
+      "gates": [
+        "TwoReasonsRequiredToEnter"
+      ]
+    },
+    {
+      "topic": "'obvious' round-number stop distance for ScaleInJustBeyondObviousStopRunLevel",
+      "options": [
+        "fix it to a small set of round-number distances (e.g. whole points) and test each as an input",
+        "derive it from recent realized volatility (e.g. an ATR multiple) as a proxy for 'typical' stop size",
+        "drop as discretionary, no bar-level test given"
+      ],
+      "recommended": "drop -- the book gives no formula for 'the obvious stop size traders are using'; substituting an ATR proxy would be inventing a new rule, not mechanizing this one",
+      "gates": [
+        "ScaleInJustBeyondObviousStopRunLevel"
+      ]
+    }
+  ],
+  "bucket_summary": "9 candidates, all genuinely about position sizing / multi-unit management except R26-01 (a mis-keyworded entry-quality meta-gate, kept here for lack of a better home). Two reduce cleanly to single-position rules once the multi-unit framing is dropped (StopRunReclaimReentry, BuyLimitBelowRisingMA priority A) and one more likewise (CounterSignalReversalPermission, a reversal-permission read of position state). Three are true multi-unit/average-entry-price features the single-position engine cannot express (ScaleInAddOnLimitEntry, ScaleInOnContinuedPullback, WidenCombinedStopToTwiceInitialOnScaleIn) and are graded D. The remaining three are C, each blocked on a real design decision (a fill-model distinction, an undefined 'reason' list, an undefined 'obvious stop size'). Also absorbed R31-12 from the misc bucket as FirstTradingDayOfMonthFilter (its calendar test only; the capital-allocation part is dropped as engine-unsupported). The two strays named in the brief, R28-42 and R29-12, were not present in either bucket file handed to this agent (their primary bucket per secondary.tsv is leg_counting) -- their content was not available here to evaluate for absorption."
+}

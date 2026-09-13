@@ -1,0 +1,1012 @@
+{
+  "bucket": "context_regime_always_in",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "AlwaysInDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "THE CANONICAL ALWAYS-IN STATE MACHINE. A persistent direction variable with three states (undefined / long / short). It starts UNDEFINED on the first evaluated bar and stays undefined until the first flip. It FLIPS to long on the bar that completes a run of `consecutiveBars` (default 2) consecutive strong bull trend bars — a strong bull trend bar being a bull close whose body is at least `bodyFraction` of its range and whose two tails are each no more than `tailFraction` of its range — provided the CONFIRMATION holds: the last bar of the run extends at least `extensionTicks` beyond the high of the bar before it. It flips to short on the mirror. Between flips it HOLDS its value through any number of pullback bars; nothing but an opposite qualifying flip clears it. The rule's long side is true only while the state is long, so an undefined state blocks BOTH sides — that strictness is what separates it from AlwaysInBlockCountertrend.",
+      "pseudocode": "// persistent: alwaysIn (int, 0 = undefined, +1 long, -1 short)\nstrongBull(i) = close[i] > open[i] && (close[i]-open[i]) >= bodyFraction*(high[i]-low[i]) && (high[i]-close[i]) <= tailFraction*(high[i]-low[i]) && (open[i]-low[i]) <= tailFraction*(high[i]-low[i]);\nstrongBear(i) = mirror;\nflipLong  = (forall i in 0..consecutiveBars-1: strongBull(i)) && (high[0] - high[1]) >= extensionTicks*tickSize;\nflipShort = (forall i in 0..consecutiveBars-1: strongBear(i)) && (low[1] - low[0])  >= extensionTicks*tickSize;\nif (flipLong) alwaysIn = +1; else if (flipShort) alwaysIn = -1; // else unchanged\n// long side of the rule:\nalwaysIn == +1",
+      "sides": "mirrored",
+      "parameters": {
+        "consecutiveBars": 2,
+        "bodyFraction": 0.6,
+        "tailFraction": 0.2,
+        "extensionTicks": 4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a persistent int plus two per-bar body/tail tests over a fixed window; no pivots, no EMA, no session state. Graded `research` by every source only because the DEFINITION was open — with the definition settled below the code is moderate"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "nothing in the corpus carries a persistent direction state"
+      },
+      "sources": [
+        "V15-15",
+        "V15-02",
+        "VP1-12",
+        "V24-12",
+        "T00-01",
+        "RP1-01",
+        "R28-07",
+        "T05-13",
+        "T15-09",
+        "TP3-03",
+        "T21-08",
+        "V11-07",
+        "T03-14",
+        "TP3-11",
+        "T15-24",
+        "T01-01"
+      ],
+      "merge_notes": "Sixteen restatements of one concept, from all three volumes; the trilogy's single most repeated primitive and MINING.md's canonical research example. The WINNER is V15-15, the Always In chapter's own state machine, whose flip trigger is V15-03/V15-01 (two consecutive strong trend bars) and whose confirmation is V15-08 (extension beyond the breakout bar's high) — those two ids live in other buckets and are cited, not claimed. It wins because it needs the least machinery (a persistent int and a body/tail test) and because it is the only definition that survives a pullback: every EMA proxy re-decides the direction on every bar, which is not what 'always-in' means. V15-05 (the follow-through bar must not close opposite) is SUBSUMED — the second bar of the run is itself a strong same-direction bar, so it cannot close opposite. V15-09 (direction persists unless an opposite strong trend bar appears within 8 bars) is a decay-window reading of the same persistence and is rejected: hold-until-opposite-flip is simpler and is what the chapter's text says. LOSING definitions, kept as citations: RP1-01 (close vs EMA, one bar), V15-02 / T00-01 (close > EMA and close > close[20]), T15-09 (close > EMA and EMA rising), TP3-03 / T21-08 (last spike direction), R28-07 / T03-13 (flips on a SINGLE strong trend bar — rejected as far too twitchy; the two-bar run is the same test with consecutiveBars=1, so it is reachable by parameter if Brian wants it), T05-13 (a single reversal bar that reverses many prior closes and lows — a genuinely different trigger, recorded in design_decisions), T15-24 (flip needs a spike below the channel and the EMA, follow-through, THEN a lower swing high with a bear signal bar — the richest definition and the one Brooks actually narrates, but it needs swing pivots and a trend line, so it loses on mechanizability), T01-01 (stray from ema_relations: net close change over 10 bars plus a majority of agreeing bars — no EMA at all, the cheapest alternative and worth recording). V11-07, T03-14 and TP3-11 add no test of their own: they are the concept used as a with-trend gate, which is this rule placed un-negated in the entry pane.",
+      "variants_kept_separate": [
+        "BarsBeyondEmaCount",
+        "AlwaysInBlockCountertrend",
+        "ConsecutiveClosesBeyondEmaRun"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarsBeyondEmaCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "AUTHORABLE-TODAY FALLBACK for the always-in direction: at least K of the last N bars closed above the EMA (long) / below it (short). Stateless — it re-reads the window every bar rather than latching a direction — so it drifts at the edges of a trend where the state machine would hold, but it needs nothing the corpus cannot already build.",
+      "pseudocode": "countIf(i, 0, lookback-1, close[i] > ema(close, emaLength)[i]) >= minBarsBeyond",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10,
+        "minBarsBeyond": 7,
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a CountIF over a fixed window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "CloseAboveAverage",
+        "relation": "variant",
+        "note": "CloseAboveAverage tests a single bar against a simple N-bar average; this counts how many of the last N bars sat beyond an EXPONENTIAL average, so it tolerates individual bars crossing back"
+      },
+      "sources": [
+        "R00-48",
+        "V25-09",
+        "V00-56",
+        "V24-45",
+        "T15-63",
+        "R22-11",
+        "T06-28",
+        "R04-10",
+        "T21-52",
+        "R08-25"
+      ],
+      "merge_notes": "This is the SAME rule the ema_relations bucket merges from V25-09 (block shorts when 7 of the last 10 closes are above the EMA) — the roll-up should keep ONE copy under this key. It is recorded here because R00-48 (majority of the last 10 or 20 bars above the moving average) is in this bucket and needs coverage, and because it is the recommended stand-in for AlwaysInDirection while that decision is unratified. R00-48's book values are 10 and 20 bars at a bare majority; V25-09's are 7 of 10. Default taken from V25-09, which is the stricter and more recent statement. Folded the ema_relations copy (V25-09, V00-56, V24-45, T15-63, R22-11, T06-28, R04-10, T21-52, R08-25): the identical countIf of closes beyond the EMA over a window, with the same 7-of-10 default. Kept here because the count is the authorable-today stand-in for the always-in direction.",
+      "variants_kept_separate": [
+        "AlwaysInDirection",
+        "ConsecutiveClosesBeyondEmaRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AlwaysInBlockCountertrend",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The PERMISSIVE with-trend gate: an entry is allowed unless the always-in direction is defined and OPPOSITE to it. Long side is true when the state is long OR undefined; only a defined short state blocks a long. This differs from AlwaysInDirection on exactly the undefined bars — before the first flip this rule permits both sides and AlwaysInDirection permits neither — which is Brooks's own wording: 'IF you believe there is an always-in direction, you should not take countertrend trades.'",
+      "pseudocode": "alwaysIn != -1   // long side: long or undefined",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a comparison on AlwaysInDirection's persistent state; inherits nothing else"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V15-11",
+        "T18-21",
+        "T01-03",
+        "V24-48",
+        "R30-03",
+        "R31-03"
+      ],
+      "merge_notes": "Five restatements plus one absorbed from the context_regime_trend_strength bucket. All say the same thing: do not trade against the direction you believe is in control. T18-21 was mined as a Switch ('prefer flat over short'); it is kept as an Entry filter because it never forces an exit, it only refuses new entries — the same reasoning CATALOG applies to EquityDrawdownFilter. V24-48 restricts LIMIT entries specifically; the engine has no resting limit orders (the standing convention converts them to signal-bar close then next-bar open), so it degenerates to this filter. T01-03 phrases the gate over T01-01's MarketInTrend rather than always-in, which is the same gate over a losing direction definition. R30-03 and R31-03 (the latter cross-bucketed here from context_regime_trend_strength, where it appears as AvoidScalingInAgainstStrongTrend) are the scalp and the scale-in wording of the identical filter. Kept SEPARATE from AlwaysInDirection despite the strong family resemblance because the two disagree on every undefined bar, and in a fresh backtest window that is a long stretch of bars.",
+      "variants_kept_separate": [
+        "AlwaysInDirection",
+        "CountertrendNeedsPriorTrendLineBreak"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "AlwaysInFlipEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Enter on the bar the always-in direction flips: buy at the next open on the bar that flips the state to long, sell on the bar that flips it to short. Brooks's reasoning is that once the flip is judged to have happened the directional probability of an equidistant move is at least 60 percent, so waiting for a pullback forfeits the move. Fires on the flip bar ONLY, not for the life of the state.",
+      "pseudocode": "alwaysIn[0] == +1 && alwaysIn[1] != +1",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an edge-detect on AlwaysInDirection's persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-24",
+        "T18-28"
+      ],
+      "merge_notes": "The only pure statement of the flip entry in this bucket. It is NOT the same rule as AlwaysInDirection used as a filter: that is true for every bar of a trend, this only for the first. Brooks's 'or on a tiny pullback' alternative is dropped — a sub-bar pullback is not observable on the bar series, and the standing convention already fills at the next open.",
+      "variants_kept_separate": [
+        "AlwaysInDirection",
+        "UnconfirmedAlwaysInFlipFade"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "UnconfirmedAlwaysInFlipFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Fade a flip that has not yet been confirmed. The always-in state is long, the current bar is the FIRST strong bear trend bar of what would become a flip to short, and it is not itself convincing (its body is below the strong-bar threshold, or it fails the extension test) — so bet the flip fails and enter LONG at the next open, with the standing direction. Mirrored for a bear state faded on a weak bull breakout bar.",
+      "pseudocode": "alwaysIn == +1 && strongBear(0) == false && close[0] < open[0] && (close[1] - close[0]) >= minSpikeAtr * atr(atrLookback) && (low[1] - low[0]) < extensionTicks*tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "minSpikeAtr": 0.75,
+        "atrLookback": 14,
+        "extensionTicks": 4
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the always-in state, a partial (unconfirmed) flip test, and a weakness test on the candidate breakout bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V24-33",
+        "R28-11"
+      ],
+      "merge_notes": "Two chapters, one trade. V24-33 sells the close of a weak bull breakout bar inside a bear trend expecting the follow-through bar not to confirm; R28-11 buys the close of the last bear trend bar of a bear spike inside a bull market for the same reason on the other side. They are mirrors of one rule, so they merge rather than staying apart. R28-11's three separate placements (at the close, at/below the low, and again at the next bar's close if it lacks a bear body, plus a stop above its high) collapse to one signal under the standing convention — the extra placements are order-routing detail the engine does not model, and are recorded here rather than kept as parameters. The unconfirmed-flip test is stated as 'a bear move big enough to be a candidate spike but not a qualifying strong bear trend bar', which is deliberately looser than AlwaysInDirection's own trigger; a tighter form would need the flip machine to expose 'one bar short of flipping'.",
+      "variants_kept_separate": [
+        "AlwaysInFlipEntry"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "CountertrendNeedsPriorTrendLineBreak",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The exception clause on the with-trend gate: a countertrend entry is permitted only if, within the last N bars, price has already closed beyond the trend line drawn through the last two same-side swing pivots, OR a trend-channel-line overshoot has reversed. Until one of those has happened, no countertrend entry is allowed however good the setup looks.",
+      "pseudocode": "trendLine = line through the last two swing lows (strength pivotStrength);\nbarsSince(close[i] < trendLine[i]) <= lookback || barsSince(trendChannelLineOvershootReversal) <= lookback",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 30,
+        "pivotStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs swing pivots, a two-point line projection forward, and a bars-since counter on each of the two conditions"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "TLValue"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "no line-projection rule exists in the corpus"
+      },
+      "sources": [
+        "V02-35",
+        "R26-02",
+        "V07-15",
+        "R10-01"
+      ],
+      "merge_notes": "V02-35's own note calls it 'the single most repeated rule of the trilogy', and this bucket bears that out. V02-35 is the cleanest statement and wins. R26-02 adds a steepness precondition ('if the trend is STEEP, never trade countertrend unless...') — the steepness measure is dropped as unstated and the rule is taken at its stronger reading, applying whenever the with-trend gate is on. V07-15 restates it as 'exceptionally strong momentum, no shorts until the bears show a significant sign of strength' and its own mining note flags it as a likely duplicate of V02-35; agreed. R10-01 adds 'at a magnet level' and an alternative escape ('or the move is a pullback in a higher time frame trend'); the magnet gate belongs to support_resistance_levels and the higher-time-frame escape needs a second data series, so both are dropped and only the shared permission clause is merged. Kept SEPARATE from AlwaysInBlockCountertrend: that filter blocks countertrend entries outright, this one re-opens them on a specific event, and they will not fire on the same bars.",
+      "variants_kept_separate": [
+        "AlwaysInBlockCountertrend",
+        "CountertrendNeedsPriorPush"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CountertrendNeedsPriorPush",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The cheap version of the same permission: before a countertrend long, at least one of the last N bars must have pushed its high more than K ticks above the prior bar's high — evidence the bulls can move price at all. Mirrored for a countertrend short on lows.",
+      "pseudocode": "countIf(i, 1, lookback, (high[i] - high[i+1]) > minPushTicks * tickSize) >= 1",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 5,
+        "minPushTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window scan of adjacent-bar high differences"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "LaggedHigherHigh asks whether ONE specific bar (N bars ago) made a higher high than the bar before it; this asks whether ANY of the last N bars did, and by more than a tick margin"
+      },
+      "sources": [
+        "T10-07"
+      ],
+      "merge_notes": "Behaviourally the same permission as CountertrendNeedsPriorTrendLineBreak but with no pivots and no line — the reason it earns an A while that one sits at B. Worth authoring first and testing as the poor man's substitute.",
+      "variants_kept_separate": [
+        "CountertrendNeedsPriorTrendLineBreak"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NoOppositeBarInLastN",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "None of the last N bars closed against the trend: for the long side, no bar in the window closed below its own open. The trend has run N straight bars without even a one-bar pullback.",
+      "pseudocode": "countIf(i, 0, minBarsNoPullback-1, close[i] < open[i]) == 0",
+      "sides": "mirrored",
+      "parameters": {
+        "minBarsNoPullback": 5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window loop over one open/close comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars requires every bar to close ABOVE its open, so a doji breaks the run; this requires only the ABSENCE of a bar closing below its open, so dojis are tolerated. The two differ on any window containing a tie bar"
+      },
+      "sources": [
+        "T19-10"
+      ],
+      "merge_notes": "The candidate's own note makes the doji distinction, and it is real: on the Emini's M1440 bars an exact open = close is rare, but on intraday bars it is not. Kept as its own rule rather than folded into ConsecutiveUpBars.",
+      "variants_kept_separate": [
+        "ConsecutiveClosesBeyondEmaRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveClosesBeyondEmaRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close has stayed above the EMA for at least N CONSECUTIVE bars (long) / below it (short) — Brooks's 'very strong trend' proxy, at which point he blocks countertrend trades entirely.",
+      "pseudocode": "forall i in 0..strongBars-1: close[i] > ema(close, emaLength)[i]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "strongBars": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a fixed-window streak test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "MomentumConsecutiveBars",
+        "relation": "variant",
+        "note": "MomentumConsecutiveBars counts consecutive bars whose close beats the close N bars ago; this counts consecutive bars whose close beats the EMA. Different reference series, different bars"
+      },
+      "sources": [
+        "TP4-14"
+      ],
+      "merge_notes": "Kept apart from BarsBeyondEmaCount on MERGE's own example (one gap bar versus a run of twenty are two rules): a single bar closing back through the EMA resets this rule and barely moves the count-of-N one. TP4-14's own note sources the 20-bar default to page 365. The context_regime_trend_strength bucket's T07-08 is this rule ANDed with Momentum and is dropped there as a composition.",
+      "variants_kept_separate": [
+        "BarsBeyondEmaCount",
+        "NoOppositeBarInLastN"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DipBelowPriorBarLowByTicks",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price traded a fixed number of ticks below the prior bar's low (long) / above its high (short) — the with-trend fade of a countertrend setup bar. In a bull trend the bear signal bar's low is where the countertrend scalpers rest their entries and, a few ticks lower, their targets; buying into that pool is the trade. At offsetTicks = 0 it is simply 'the bar traded at or below the prior bar's low'.",
+      "pseudocode": "low[0] <= low[1] - offsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "offsetTicks": 4
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison against a fixed tick offset from the prior bar's low"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseNearPriorLow",
+        "relation": "variant",
+        "note": "CloseNearPriorLow tests the CLOSE against the prior low plus an offset (a strong-close spike filter); this tests the LOW against the prior low MINUS an offset (a dip-fill test). Opposite sense, different operand"
+      },
+      "sources": [
+        "R28-25",
+        "R32-03"
+      ],
+      "merge_notes": "R28-25 places the buy limit two or three ticks above where the short scalpers take profit, which is six ticks below the bear signal bar's low — a net four ticks below that low, the default here. R32-03 buys at the failing setup bar's extreme, the same rule at offsetTicks = 0. One rule with a parameter, per MERGE's threshold clause; both book values recorded. Both candidates also carry a 'strong bull trend' context, which is NOT folded in — it is AlwaysInDirection or ConsecutiveClosesBeyondEmaRun in a separate pane, and the pane system ANDs entries. That decomposition is what makes this an A instead of a C.",
+      "variants_kept_separate": [
+        "FailedCountertrendScalpReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EmaTouchRecovery",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar traded down to or through the EMA and then closed back above it (long) — the countertrend push that traps with-trend traders out and then fails. Mirrored: traded up through the EMA and closed back below.",
+      "pseudocode": "low[0] <= ema(close, emaLength)[0] && close[0] > ema(close, emaLength)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one EMA, two comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus has no EMA touch-and-recover rule"
+      },
+      "sources": [
+        "T17-09"
+      ],
+      "merge_notes": "T17-09 wraps this in an 'after 11:30 a.m.' gate; the time gate is CATALOG's TimeWindow in a separate pane, so only the bar test is carried. Recorded as intraday in the book but the bar test itself is timeframe-agnostic.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedCountertrendScalpReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A three-bar trap: bar 2 was a bear signal bar (bear body), bar 1 triggered the short by trading below it, and bar 0 closes back above bar 2's high — where the trapped shorts' stops sit. Buy at the next open. Mirrored for the bull-signal-bar trap.",
+      "pseudocode": "close[2] < open[2] && low[1] < low[2] && close[0] > high[2]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset bar comparisons"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "not one of the Harris/EEC patterns; no catalog rule reads a signal bar plus its trigger plus its failure"
+      },
+      "sources": [
+        "T21-36"
+      ],
+      "merge_notes": "The candidate carries an always-in-long context; as with DipBelowPriorBarLowByTicks that context is a separate pane, and the bar pattern alone is trivially authorable — which is why this is an A and not a C. Chapter 22's 'failed high 2 becomes a low 2 short' is the same idea with a leg count attached and belongs to leg_counting.",
+      "variants_kept_separate": [
+        "DipBelowPriorBarLowByTicks"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BounceFromLowByAtr",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close has bounced at least K x ATR above the lowest low of the last N bars (long) / fallen K x ATR below the highest high (short) — a bounce large enough that traders read the reversal as underway.",
+      "pseudocode": "close[0] >= lowest(low, lookback) + bounceAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10,
+        "bounceAtr": 1.0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window lowest plus an ATR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "AtrBandBreakout",
+        "relation": "variant",
+        "note": "AtrBandBreakout measures from the Donchian MIDLINE outward in both directions; this measures upward from the window's LOW only, so in a downtrend the two disagree sharply"
+      },
+      "sources": [
+        "T21-61"
+      ],
+      "merge_notes": "Brooks quotes 'two points above the low' on the Emini; the ATR form is the portable reading and is taken as the default, with the fixed-point form reachable by pinning bounceAtr against a stable ATR.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CountertrendScalpPercentTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Take profit once open profit reaches a percentage of the entry price rather than a fixed dollar amount — the countertrend scalp target, since a trade against a strong trend usually only produces a pullback.",
+      "pseudocode": "ctx.MarketPosition() > 0 && close[0] >= ctx.EntryPrice() * (1 + scalpPercent)",
+      "sides": "same",
+      "parameters": {
+        "scalpPercent": 0.015
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one percentage comparison against the entry price"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "TakeProfit",
+        "relation": "variant",
+        "note": "TakeProfit is a fixed-dollar target; this scales with the entry price, so it behaves differently across instruments and across price levels within one instrument — which is the whole point on the weekly and monthly charts of the chapter it comes from"
+      },
+      "sources": [
+        "V22-01"
+      ],
+      "merge_notes": "Brooks says 1 or 2 percent; 1.5 percent is the midpoint default, both book values recorded. Note for the authoring pass: on back-adjusted continuous futures the entry price can be negative, which inverts the comparison — the rule needs an absolute-value guard or a note that it is for cash instruments only.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BlockEntriesAfterLosingMonth",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Net profit over the PRIOR completed calendar month was negative — block entries for the current month. Identical both sides.",
+      "pseudocode": "// persistent: monthStartEquity, priorMonthResult\nif (month(date[0]) != month(date[1])) { priorMonthResult = NetProfit - monthStartEquity; monthStartEquity = NetProfit }\npriorMonthResult >= 0",
+      "sides": "same",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a month-boundary detect and two persistent equity marks"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "NetProfit",
+        "Month",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "MonthlyProfitTarget",
+        "relation": "variant",
+        "note": "MonthlyProfitTarget is a Switch reading the CURRENT month's running gain against a target and forcing flat; this reads the PRIOR month's completed result and only refuses new entries"
+      },
+      "sources": [
+        "V25-08"
+      ],
+      "merge_notes": "Brooks scopes it to reversal (countertrend) entries only; the engine cannot tell which pane produced a fill, so the rule is authored as a blanket entry gate and the countertrend scoping is left to placement (put it only in a countertrend template). Recorded as an Entry filter, not a Switch, because it never forces flat.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallRangeEntryBarScalpTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "When the bar that produced the entry had a range smaller than K x ATR — a weak, slow break rather than a decisive one — cap the trade at a scalp target instead of holding for a swing.",
+      "pseudocode": "entryBarRange = the high-low range of the bar at BarsSinceEntry bars back;\nentryBarRange < minBreakAtrMultiple * atr(atrLookback) && ctx.OpenPositionProfit() >= scalpTicks * tickSize * bigPointValue",
+      "sides": "same",
+      "parameters": {
+        "minBreakAtrMultiple": 1.0,
+        "atrLookback": 14,
+        "scalpTicks": 4
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the entry bar's range carried forward through the trade, then an ATR comparison and a profit test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "BarsSinceEntry",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "AtrProfitTarget always exits at K x ATR of profit; this exits at a FIXED tick target but only when the entry bar was small, so it is a conditional target, not a scaled one"
+      },
+      "sources": [
+        "T17-07"
+      ],
+      "merge_notes": "The candidate anchors on 'the trend-line break bar', which would need the line machinery; re-anchored on the ENTRY bar, which the engine already knows and which is the same bar in the setup Brooks describes. That substitution is what makes it authorable at all.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionTrendDayDirection",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The day is a trend day and its direction is up (long side): once at least `openingBars` bars of the session have printed, the close sits at least `trendDayAtr` x ATR above the session's open. While that holds, only with-trend entries are permitted for the rest of the session.",
+      "pseudocode": "barsIntoSession >= openingBars && (close[0] - sessionOpen) >= trendDayAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "openingBars": 12,
+        "trendDayAtr": 2.0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "session-open detection and a bars-into-session counter, both reset on the date change, plus an ATR"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "OpenD",
+        "Date",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the corpus has no session-scoped rule; CalendarBoundaryExit reads Date but not the session open"
+      },
+      "sources": [
+        "R08-24",
+        "TP4-08",
+        "TP4-07"
+      ],
+      "merge_notes": "TP4-07 is the stray sent over from ema_relations and it is the cleanest of the three: 'sign of close minus session open once the opening range has printed'. It wins over R08-24's alternative ('a fraction of the session's bars closed on one side of the EMA'), which is recorded as the second option, and over TP4-08, which adds no test of its own — it is TP4-07 used as a with-trend gate. Deliberately kept separate from AlwaysInDirection: this resets every session and reads the session open, where always-in is continuous across the whole series, and the two will disagree on any gap day.",
+      "variants_kept_separate": [
+        "AlwaysInDirection",
+        "TrendResumptionDayContext"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendResumptionDayContext",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session opened with a strong trend leg and has since spent several hours inside a tight range: favour continuation in the morning leg's direction and block fresh countertrend entries. The tighter that midday range against the average daily range, the stronger the read.",
+      "pseudocode": "morningLegDirection != 0 && barsSinceMorningLeg >= minMiddayBars && (middayRangeHigh - middayRangeLow) <= tightRangeFraction * avgDailyRange",
+      "sides": "mirrored",
+      "parameters": {
+        "openBars": 12,
+        "minMiddayBars": 36,
+        "tightRangeFraction": 0.3,
+        "dayLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a session-scoped morning-leg direction, a running midday range measured from the end of that leg, and an average daily range over completed sessions"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "Date",
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T01-07",
+        "T25-03"
+      ],
+      "merge_notes": "T01-07 previews the pattern in one sentence ('strong trend on the open, then a tight trading range for several hours, good chance of a trend resumption day') and T25-03 is the fleshed-out chapter version with the tight-range fraction; same rule, T25-03's numbers win. T25-03's page 454 caveat — the midday action can be a weakly trending countertrend drift rather than a flat range — is NOT mechanized; tightRangeFraction is the proxy for both forms and should be loosened rather than special-cased. Depends on SessionTrendDayDirection for the morning leg.",
+      "variants_kept_separate": [
+        "SessionTrendDayDirection"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SessionTrendDayDirection"
+      ]
+    },
+    {
+      "key": "MaxCountertrendTradesPerSession",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block a countertrend entry once `maxCountertrend` countertrend entries have already been taken this session. The counter resets on the date change and increments whenever a fill lands against the always-in direction.",
+      "pseudocode": "// persistent, reset on Date change\nif (date[0] != date[1]) countertrendEntriesToday = 0;\nif (newEntryFilled && entryDirection != alwaysIn) countertrendEntriesToday++;\ncountertrendEntriesToday < maxCountertrend",
+      "sides": "same",
+      "parameters": {
+        "maxCountertrend": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a per-session counter fed by position-history reads, and it must classify each fill as with- or countertrend, which needs the always-in state at fill time"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "TotalTrades",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "LastTradeCooldown",
+        "relation": "variant",
+        "note": "LastTradeCooldown gates on bars elapsed since the last exit and its result; this gates on a COUNT of entries within the session and only counts the countertrend ones"
+      },
+      "sources": [
+        "TP4-13"
+      ],
+      "merge_notes": "Brooks says 'not more than two or three'; 2 is taken as the default, 3 recorded. Blocked on the always-in decision only for the classification step — if Brian would accept counting ALL entries rather than only countertrend ones, the dependency disappears and this becomes a B.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "PriorSessionAlwaysInBias",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The always-in direction as it stood on the LAST bar of the previous session, held constant through today — yesterday's close direction carries over into today's open. Unlike AlwaysInDirection this does not update intraday; it is a fixed bias for the session.",
+      "pseudocode": "// persistent, latched on the date change\nif (date[0] != date[1]) priorSessionAlwaysIn = alwaysIn[1];\npriorSessionAlwaysIn == +1",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a date-change latch over AlwaysInDirection's state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "VP3-03"
+      ],
+      "merge_notes": "VP3-03 mines it as the EMA proxy read at a fixed offset; re-expressed as a latch on the canonical state, which is both cheaper and closer to the text ('yesterday's always-in direction going into the close'). Brooks's 'until price action contradicts it' clause is not mechanized — the clause has no stated trigger, and the natural reading is simply to AND this with AlwaysInDirection.",
+      "variants_kept_separate": [
+        "AlwaysInDirection"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirection"
+      ]
+    },
+    {
+      "key": "DeepPullbackRetracement",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The pullback has retraced at least F of the prior trend leg (from the leg's start to its extreme). Past that depth Brooks stops treating it as a pullback and starts treating it as a new trend in the opposite direction, so the with-trend bias should be dropped.",
+      "pseudocode": "retracement = (trendExtreme - close[0]) / (trendExtreme - trendStart);\nretracement >= deepRetracementFraction",
+      "sides": "mirrored",
+      "parameters": {
+        "deepRetracementFraction": 0.75,
+        "pivotStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the remembered start and extreme of the prior trend leg, which means swing pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-50"
+      ],
+      "merge_notes": "Note for the authoring pass: leg START and leg EXTREME are not what the settled leg definition (R17-01 HighLowBarCount) provides — that counter gives leg NUMBERS without prices, so this rule needs pivots regardless and cannot be built on it. The 75 percent figure is Brooks's own.",
+      "variants_kept_separate": [
+        "CorrectionBarsVsTrendLegBars"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CorrectionBarsVsTrendLegBars",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The correction has now lasted at least F times as many BARS as the trend leg it is correcting — Brooks's duration rule of thumb, used to hold off a continuation entry until the correction has had time to finish. Identical both sides: it counts bars, not direction.",
+      "pseudocode": "barsSinceCorrectionStart >= correctionFraction * trendLegLengthInBars",
+      "sides": "same",
+      "parameters": {
+        "correctionFraction": 0.5,
+        "pivotStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a swing detector to bound the prior leg in bars, plus a persistent counter for the correction; the comparison itself is trivial once those exist"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V21-01"
+      ],
+      "merge_notes": "Duration, where DeepPullbackRetracement is depth — both listed on each other so the authoring pass sees the pair and can test whether they coincide. 'About half' is Brooks's phrasing; 0.5 is a reading, and the source's example was a 20 to 30 bar bear channel.",
+      "variants_kept_separate": [
+        "DeepPullbackRetracement"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveClimaxesBlockWithTrend",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Two or more consecutive climactic spikes have printed with little intervening pullback — withhold fresh with-trend entries and expect a two-legged countertrend correction of at least minCorrectionBars instead.",
+      "pseudocode": "climaxCount(spikeBars, bodyFraction, maxGapBars) >= minConsecutiveClimaxes && barsSinceLastClimax < minCorrectionBars",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeBars": 3,
+        "bodyFraction": 0.6,
+        "minConsecutiveClimaxes": 2,
+        "minCorrectionBars": 10
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'climax' has no settled bar-level definition, and counting consecutive ones needs a persistent counter over that undefined primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R12-11"
+      ],
+      "merge_notes": "Kept here rather than sent to climax_reversal because the statement is a regime gate on with-trend entries, not a climax pattern; the climax_reversal bucket owns the climax primitive itself and this rule should depend on whatever key that bucket settles on. Figure 12.6 counts a THIRD consecutive sell climax and expects a correction of at least 10 bars, which is where minCorrectionBars comes from.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "climax classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CountertrendTimeCutoff",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Countertrend entries are allowed only before a cutoff time of day; after it, with-trend only. Identical both sides.",
+      "pseudocode": "Time < cutoffTime",
+      "sides": "same",
+      "parameters": {
+        "cutoffTime": 1400
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a single Time comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "duplicate",
+        "note": "Time values are HHMM integers, so 'Time < 1400' is exactly TimeWindow(0, 1359) with its inclusive boundaries. Do not author again — place TimeWindow with the cutoff minus one minute"
+      },
+      "sources": [
+        "T15-30",
+        "T21-35"
+      ],
+      "merge_notes": "T15-30 puts the cutoff at two-thirds through the session (about 1400 ET) for scaling into countertrend channel trades; T21-35 puts it at the halfway mark (1100 PST for the Emini) for countertrend scale-ins in a channel. One rule, two book values, both instrument- and session-specific — which is another reason to reach for TimeWindow's inputs rather than a new rule.",
+      "variants_kept_separate": [
+        "ReportTimeBlackout"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReportTimeBlackout",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block new entries within a few minutes either side of a known recurring report release time; wait for the report bar to close and the direction to settle. Identical both sides.",
+      "pseudocode": "!(reportTime - reportBlockMinutes <= Time && Time <= reportTime + reportBlockMinutes)",
+      "sides": "same",
+      "parameters": {
+        "reportTime": 700,
+        "reportBlockMinutes": 5
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one two-sided Time comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "duplicate",
+        "note": "exactly TimeWindow(reportTime - N, reportTime + N) with the per-placement negate toggle on — the same construction EEC #18 already uses. Do not author again"
+      },
+      "sources": [
+        "T23-17"
+      ],
+      "merge_notes": "Kept apart from CountertrendTimeCutoff (a one-sided cutoff versus a two-sided blackout) even though both reduce to TimeWindow, because they take different inputs and would be placed differently. The candidate's own note is right that one-off events such as an FOMC announcement do not recur at a fixed clock time and are out of reach; HHMM arithmetic across an hour boundary is also wrong for a window that straddles one, which the authoring pass should handle by choosing report times away from the hour.",
+      "variants_kept_separate": [
+        "CountertrendTimeCutoff"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R22-13",
+      "reason": "not a bar-level test: it gates the CHART'S BAR INTERVAL (no fades off 1-minute bars), which is a data-window and template choice, not something a rule can read"
+    },
+    {
+      "id": "R17-16",
+      "reason": "composition of HighLowBarCount (leg_counting R17-01) + AlwaysInBlockCountertrend + a breakout-pullback entry; adds no bar-level test of its own — 'wait for the countertrend H1 to fail, then take the with-trend entry' is those three panes"
+    },
+    {
+      "id": "R20-06",
+      "reason": "no bar-level test: 'other evidence that a trend might reverse' is explicitly left undefined and its own parameter is null; the mechanizable content is AlwaysInBlockCountertrend applied to the double-top and head-and-shoulders entries"
+    },
+    {
+      "id": "R31-02",
+      "reason": "multi-unit scale-in is not expressible: the engine trades one unit, so the described adding-at-each-new-extreme has no representation; the remaining content is AlwaysInBlockCountertrend"
+    },
+    {
+      "id": "V19-10",
+      "reason": "no bar-level test: 'the initial move may reassert later in the day' has no stated trigger and no expiry, and the candidate's own note calls it a heuristic rather than a decidable test"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "T20-03",
+      "belongs_in": "leg_counting",
+      "note": "the ABC pullback is a three-leg pattern with a constraint on leg B's extreme — pure leg counting, no always-in or regime content; it should be built on the settled HighLowBarCount (R17-01) definition"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "always-in direction",
+      "options": [
+        "SETTLED: a persistent state machine that flips on `consecutiveBars` (default 2) consecutive strong trend bars (body >= 0.6 of range, both tails <= 0.2 of range) with the last bar extending >= 4 ticks beyond the previous bar's high, starts UNDEFINED, and holds through pullbacks until an opposite flip (V15-15 composing V15-01 / V15-03 / V15-05 / V15-08 / V15-09)",
+        "flip on a SINGLE strong trend bar (R28-07, T03-13) — reachable from the settled rule at consecutiveBars = 1, and rejected as its default because a lone spike bar in a range would flip it several times a session",
+        "flip on a single strong REVERSAL bar that reverses the closes and lows of many prior bars (T05-13) — a different trigger, worth testing as a second rule later, but it needs a bars-reversed count that nothing else in the corpus uses",
+        "flip only after a spike that closes below both the channel line and the EMA, then follow-through, then a LOWER SWING HIGH with a bear signal bar (T15-24) — the richest and most faithful definition, rejected on mechanizability: swing pivots plus a trend line, and it lags the flip by several bars",
+        "stateless EMA proxies: close vs EMA on one bar (RP1-01), close > EMA and close > close[20] (V15-02, T00-01), close > EMA with the EMA rising (T15-09) — all rejected because they re-decide the direction every bar and so cannot 'hold through the pullback', which is the concept's whole content",
+        "last spike direction (TP3-03, T21-08) — the settled option in different words, but with the spike left undefined",
+        "net close change over N bars plus a majority of agreeing bars, no EMA at all (T01-01, the ema_relations stray) — the cheapest alternative and a reasonable A-grade stand-in",
+        "AUTHORABLE-TODAY FALLBACK: BarsBeyondEmaCount, at least 7 of the last 10 closes beyond the EMA (V25-09, R00-48) — stateless and therefore not the real concept, but it is buildable now and every gated rule below can be authored against it and re-pointed later"
+      ],
+      "recommended": "Author AlwaysInDirection as the two-consecutive-strong-trend-bars state machine with the extension confirmation, undefined until the first flip, holding until an opposite flip. It is the definition the Always In chapter itself operationalizes, it needs no pivots and no EMA, and every rejected proxy is reachable from it by parameter or is strictly more machinery for the same idea. Until it is authored, place BarsBeyondEmaCount (already an A) wherever AlwaysInDirection is called for — the gated rules below then move from C to B immediately.",
+      "gates": [
+        "AlwaysInDirection",
+        "AlwaysInBlockCountertrend",
+        "AlwaysInFlipEntry",
+        "UnconfirmedAlwaysInFlipFade",
+        "MaxCountertrendTradesPerSession",
+        "PriorSessionAlwaysInBias"
+      ]
+    },
+    {
+      "topic": "climax classification",
+      "options": [
+        "a run of `spikeBars` consecutive same-direction trend bars (the spike reading used by this bucket's always-in flip)",
+        "a bar or run whose range exceeds K x ATR, with an exhaustion close",
+        "a third or later push in the same direction with accelerating bar ranges"
+      ],
+      "recommended": "Defer to the climax_reversal bucket, which owns the primitive; ConsecutiveClimaxesBlockWithTrend should take a depends_on_keys reference to whatever key that bucket settles on rather than defining a climax here.",
+      "gates": [
+        "ConsecutiveClimaxesBlockWithTrend"
+      ]
+    }
+  ],
+  "bucket_summary": "Fifty-seven candidates, and roughly a third of them were the same sentence: 'the market has an always-in direction, trade only with it.' Sixteen collapsed into the canonical AlwaysInDirection state machine and five more into the permissive AlwaysInBlockCountertrend gate, leaving 25 rules, 5 drops and one leg-counting stray sent to leg_counting. The always-in design decision is settled here as a persistent two-strong-trend-bar flip with an extension confirmation, undefined until the first flip and holding through pullbacks, with BarsBeyondEmaCount as the authorable-today stand-in. The A-list is the ten rules that survive without it — BarsBeyondEmaCount, CountertrendNeedsPriorPush, NoOppositeBarInLastN, ConsecutiveClosesBeyondEmaRun, DipBelowPriorBarLowByTicks, EmaTouchRecovery, FailedCountertrendScalpReversal, BounceFromLowByAtr, CountertrendScalpPercentTarget and BlockEntriesAfterLosingMonth — several of them rescued by peeling the research-grade context off a candidate and letting the pane system AND it back in."
+}

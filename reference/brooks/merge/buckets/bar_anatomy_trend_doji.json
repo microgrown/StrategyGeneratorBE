@@ -1,0 +1,4951 @@
+[
+  {
+    "id": "R00-01",
+    "name": "TrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      11,
+      16
+    ],
+    "quote": "trend bar: A bar with a body, which means that the close was above or below the open, indicating that there is at least a minor price movement.",
+    "description": "Shared primitive: the current bar has a body that is at least a fraction of its range and closed up (long) / down (short).",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same primitive as ranges ch8 R08-01; dedup pass should merge."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-02",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      11
+    ],
+    "quote": "doji: A candle with a small body or no body at all... Neither the bulls nor the bears control the bar. All bars are either trend bars or nontrend bars, and those nontrend bars are called dojis.",
+    "description": "Shared primitive: the current bar's body is at most a small fraction of its range.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [
+      "Same primitive as ranges ch8 R08-03."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-49",
+    "name": "BuyClimaxAfterConsecutiveTrendBars",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R00-01"
+    ],
+    "pages": [
+      21
+    ],
+    "quote": "I saw 15 consecutive bull trend bars on the daily chart after a protracted bull run. This was an unusually strong buy climax, and an important statement by the market.",
+    "description": "Take (partial or full) profits on a long when the last N bars were all bull trend bars after a protracted prior bull run -- a buy-climax exhaustion signal (mirror: sell climax after N consecutive bear trend bars).",
+    "pseudocode": "for i in 0..climaxBars-1: R00-01[i]; then ctx.OpenPositionProfit() > 0",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxBars": 15,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "take partial or full profits",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop plus open profit"
+    },
+    "el_words_needed": [
+      "OpenPositionProfit"
+    ],
+    "likely_existing_rule": "ConsecutiveCloseExit",
+    "confidence": "medium",
+    "notes": [
+      "Same family as ranges ch8 R08-20 (climaxBars=6 there); dedup pass should merge, keeping both thresholds as notable variants."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R01-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      36
+    ],
+    "quote": "Both bars 14 and 15 were strong bull trend bars with good-sized bodies and without significant tails.",
+    "description": "Shared primitive: the current bar is a bull trend bar (closed up, body is most of its range).",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same construction as RP1-02/R08-01; the dedup pass should merge all trend-bar primitives across chapters."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01_example_of_how_to_trade_a_breakout.json",
+    "chapter_title": "Example of How to Trade a Breakout"
+  },
+  {
+    "id": "R02-10",
+    "name": "MicroGapAfterTrendBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R02-01"
+    ],
+    "pages": [
+      39
+    ],
+    "quote": "The low of the bar after a bull trend bar is at or above the high of the bar before the bull trend bar, creating a micro gap, which is a sign of strength.",
+    "description": "Sign of strength: a three-bar micro gap forms around a trend bar — the bar following it never trades back into the range of the bar preceding it.",
+    "pseudocode": "BullTrendBar[1] && low[0] >= high[2] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 0,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (gap-quality test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a three-bar structural test built on the trend-bar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same construction as chapter 1's TrailingStopInMicroMeasuringGap gap test (R01-03) and R08's gap family."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-13",
+    "name": "TrendBarDominanceInRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "R02-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "There was growing buying pressure in the trading range, represented by many large bull trend bars, and the bull trend bars were clearly more prominent than the bear trend bars in the range.",
+    "description": "Sign of strength: over the trading range preceding the breakout, bull trend bars clearly outnumber bear trend bars.",
+    "pseudocode": "countIf(BullTrendBar, rangeLookback) - countIf(BearTrendBar, rangeLookback) >= dominanceThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "dominanceThreshold": 3,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a CountIF over a fixed window on a bar-classification series"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R02-20",
+    "name": "UnfavorableRallyContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The overall context makes a breakout unlikely, like a rally to test the high of a trading range day, but the rally has bear bars, many overlapping bars, bars with prominent tails, and a couple of pullbacks along the way.",
+    "description": "Sign of weakness: the leg leading into the breakout already shows two-sided character (bear bars, overlap, tails, pullbacks).",
+    "pseudocode": "overlapFraction(rallyLookback) >= highOverlapThreshold || countIf(BearTrendBar, rallyLookback) >= someBearBars",
+    "sides": "mirrored",
+    "parameters": {
+      "rallyLookback": 10,
+      "highOverlapThreshold": 0.5,
+      "someBearBars": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "aggregates several undefined bar-quality measures into one judgment"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R03-06",
+    "name": "DojiSignalBarLessReliable",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      47
+    ],
+    "quote": "doji bars are not reliable signal bars",
+    "description": "Filter: a doji bar is a weaker signal bar than a trend bar; reduce confidence in (or skip) entries whose signal bar is a doji.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (signal-quality filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/03_initial_breakout.json",
+    "chapter_title": "Initial Breakout"
+  },
+  {
+    "id": "R03-07",
+    "name": "TrappedBuyerStopRunShort",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      48
+    ],
+    "quote": "Bar 1 was a strong bull trend bar that trapped early buyers ... A buy was not even triggered on this 5 minute chart, since the next bar did not go above the bar 1 high ... Place an order to short on a stop at one tick below the low of bar 1, which is where those longs will have their protective stops.",
+    "description": "After a strong trend bar fails to trigger its own continuation (the next bar never exceeds its high), place a sell stop just below its low to catch the stop-running liquidation of the traders trapped long inside it.",
+    "pseudocode": "close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && high[0] <= high[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "sell stop one tick below the trapping bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a two-bar structural test with a remembered trapping-bar low used as the stop level"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/03_initial_breakout.json",
+    "chapter_title": "Initial Breakout"
+  },
+  {
+    "id": "R03-09",
+    "name": "FadeSmallBarAtBarbwireExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R03-08"
+    ],
+    "pages": [
+      48
+    ],
+    "quote": "like with any trading range, you should never buy at its high or sell at its low. You can fade small bars at its extremes",
+    "description": "Inside barbwire, fade (short) a small bar that trades up to the range's recent high, or fade (buy) one that trades down to its recent low.",
+    "pseudocode": "Barbwire[0] && (high[0] - low[0]) <= smallBarAtr * atr(atrLookback) && close[0] >= highest(high, barbwireBars)[0] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "smallBarAtr": 0.5,
+      "atrLookback": 14,
+      "toleranceTicks": 1,
+      "barbwireBars": 3
+    },
+    "book_order_type": "sell stop or limit near the range extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an ATR-relative bar-size test layered on the barbwire primitive"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/03_initial_breakout.json",
+    "chapter_title": "Initial Breakout"
+  },
+  {
+    "id": "R04-02",
+    "name": "TrendBarResetsPushCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      51
+    ],
+    "quote": "smart money would not have bought the bar 11 breakout because it was a possible third push up after the exceptionally strong bar 6 breakout bar reset the count and formed the first push up.",
+    "description": "An exceptionally strong, large-range trend bar resets the push/leg counter used to judge how extended a channel is — it becomes push #1 again rather than a continuation of the prior count.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= resetRangeMultiple * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "resetRangeMultiple": 1.5,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (state-reset rule feeding a push/leg counter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an ATR-relative bar-size test that mutates persistent push-count state used by R02-37/R03-05"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Complements R03-15 (OutsideBarResetsLegCounter): here the reset trigger is an exceptionally large trend bar rather than an outside bar."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/04_breakout_entries_in_existing_strong_trends.json",
+    "chapter_title": "Breakout Entries in Existing Strong Trends"
+  },
+  {
+    "id": "R06-04",
+    "name": "TrendBarActsAsGapPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      60
+    ],
+    "quote": "Because all trend bars are gaps, traders can see intraday equivalents of the traditional gaps that are so common on daily charts... a breakout is a variant of a gap.",
+    "description": "Shared primitive: a trend bar b functions as a gap when the bar after it does not overlap the bar before it (low[b-1] and high[b+1] leave a gap), even though no traditional gap prints on the chart.",
+    "pseudocode": "isTrendBar[b] && low[b+1] >= high[b-1]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar/gap classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the identified trend bar plus its neighbors, evaluated once the following bar closes"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This is the general form of R08-08's 'first non-trend bar defines gap top' construction, phrased around any single trend bar rather than a whole breakout leg."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/06_gaps.json",
+    "chapter_title": "Gaps"
+  },
+  {
+    "id": "RP2-11",
+    "name": "TopsFromRangesBottomsFromClimaxesFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      68
+    ],
+    "quote": "Most major tops do not come from climaxes made of huge bars and volume, which are more common at major bottoms. More often, a top comes from a trading range, like a double top or a head and shoulders top, followed by a breakout in the form of a bear spike.",
+    "description": "Context asymmetry filter: weight climax-based reversal entries (large trend bars, exhaustion gaps) more heavily near suspected bottoms, and weight range/double-top/head-and-shoulders breakout-failure entries more heavily near suspected tops.",
+    "pseudocode": "if searchingForBottom: preferSignal(ClimaxReversalEntry) else if searchingForTop: preferSignal(DoubleTopOrRangeBreakoutFailureEntry)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (signal-weighting heuristic)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "'major top' vs 'major bottom' identification is itself a design decision; this is an asymmetry heuristic, not a standalone testable trigger"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Book explicitly hedges: 'tops can be climactic, and bottoms can be trading ranges' — this is a tendency, not a rule."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07-part_ii_magnets_support_and_resistance.json",
+    "chapter_title": "Part II: Magnets: Support and Resistance"
+  },
+  {
+    "id": "R08-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      76
+    ],
+    "quote": "the breakout bar is a relatively large bull trend bar and the low of the next bar is above the breakout point",
+    "description": "Shared primitive: the current bar is a bull trend bar (closed up, body is most of the range).",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar OHLC arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; 0.6 is a reading of a body that dominates the bar."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R08-02",
+    "name": "LargeTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-01"
+    ],
+    "pages": [
+      76
+    ],
+    "quote": "the breakout bar is a relatively large bull trend bar",
+    "description": "Shared primitive: a bull trend bar whose range is at least K times the N-bar ATR.",
+    "pseudocode": "R08-01 && (high[0] - low[0]) >= rangeMultiple * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "rangeMultiple": 1.5,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "needs an ATR window"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "'Relatively large' is read as a multiple of ATR."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R08-03",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      76
+    ],
+    "quote": "wait for the first small bull trend bar, bear trend bar, or doji bar. Its low is then the top of the gap.",
+    "description": "Shared primitive: the current bar has a tiny body relative to its range.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R08-08",
+    "name": "GapTopFromFirstNonTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-02",
+      "R08-03"
+    ],
+    "pages": [
+      76
+    ],
+    "quote": "If the bar after the breakout is also a large bull trend bar, then wait for the first small bull trend bar, bear trend bar, or doji bar. Its low is then the top of the gap.",
+    "description": "Primitive for the measuring-gap top: after the breakout bar, scan forward; the first bar that is not a large bull trend bar (small bull, bear body, or doji) defines gapTop = its low.",
+    "pseudocode": "isNonTrend = !LargeTrendBar[0] || close[0] < open[0] || DojiBar[0]; first such bar after breakout: gapTop = low[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "rangeMultiple": 1.5,
+      "atrLookback": 14,
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (level construction)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "forward scan state after a breakout event"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R08-19",
+    "name": "NoFadeAfterConsecutiveTrendBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-01"
+    ],
+    "pages": [
+      77
+    ],
+    "quote": "the signal bar was the third consecutive strong bull trend bar. This was too much momentum to be a reliable short.",
+    "description": "Filter blocking countertrend shorts when the signal bar is the Nth (or later) consecutive bull trend bar; long side: block countertrend longs after N consecutive bear trend bars.",
+    "pseudocode": "consecutiveBearTrendBars(bodyFraction) < maxConsecutive  (blocks a countertrend long; mirror for shorts)",
+    "sides": "mirrored",
+    "parameters": {
+      "maxConsecutive": 3,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop over recent bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R08-20",
+    "name": "ClimacticConsecutiveTrendBarsExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-01"
+    ],
+    "pages": [
+      77
+    ],
+    "quote": "Since bar 13 was the sixth consecutive bull trend bar, the momentum up was still strong. When this much strength occurs after a protracted bull trend, it sometimes represents a climactic exhaustion",
+    "description": "Take (partial or full) profits on a long when the bar is the Nth consecutive bull trend bar after a protracted trend.",
+    "pseudocode": "consecutiveBullTrendBars(bodyFraction) >= climaxBars && ctx.OpenPositionProfit() > 0",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxBars": 6,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "take partial or full profits",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop plus open profit"
+    },
+    "el_words_needed": [
+      "OpenPositionProfit"
+    ],
+    "likely_existing_rule": "ConsecutiveCloseExit",
+    "confidence": "medium",
+    "notes": [
+      "Monthly AAPL example; Brooks says take profits but do not initiate shorts on that alone."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R11-01",
+    "name": "ShrinkingBullBodies",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90
+    ],
+    "quote": "The bull bodies become smaller.",
+    "description": "Shared primitive, stage 1 of the bull-trend weakening sequence: the current bull bar's body is smaller than the prior bull bar's body.",
+    "pseudocode": "close[0] > open[0] && close[1] > open[1] && (close[0] - open[0]) < (close[1] - open[1])",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context signal, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar body comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "First of an explicit 22-item ordered checklist (pp. 90-91) of bull-trend weakening signs; the bear-trend version is given verbatim as a mirror in the text."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R11-04",
+    "name": "SmallBodyOrDojiBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90
+    ],
+    "quote": "A bar has a very small body or a doji body.",
+    "description": "Stage 4: the current bar's body is a small fraction of its own range.",
+    "pseudocode": "abs(close[0] - open[0]) <= smallBodyFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "smallBodyFraction": 0.3
+    },
+    "book_order_type": "n/a (context signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar body arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [
+      "Same shape as R08-03's DojiBar with a looser threshold."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R11-15",
+    "name": "RallyToNewHighContainsOppositeColorBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90,
+      91
+    ],
+    "quote": "The next rally to a new high has one or more bear trend bars and a pullback or two.",
+    "description": "Stage marker: the leg that makes the next new high itself contains one or more opposite-color (bear) trend bars, a sign the trend is weakening even while still making progress.",
+    "pseudocode": "close[0] > highest(high, lookback)[1] && countOppositeColorTrendBars(legStart, 0, bodyFraction) >= 1",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the current leg's start to persist plus a count over it"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "RP4-04",
+    "name": "FewConsecutiveTrendBarsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      133
+    ],
+    "quote": "There are many bull and bear trend bars but few instances where there are three or four consecutive bull trend bars or bear trend bars.",
+    "description": "A trading-range clue: trend bars occur often, but runs of 3-4 or more consecutive same-direction trend bars are rare; a run at or beyond that length argues against the trading-range classification.",
+    "pseudocode": "consecutiveTrendBarCount = countConsecutiveTrendBars(direction = UP);\nlooksLikeTradingRange = consecutiveTrendBarCount < maxConsecutiveTrendBars;",
+    "sides": "same",
+    "parameters": {
+      "maxConsecutiveTrendBars": 3
+    },
+    "book_order_type": "n/a (regime clue, one input to RP4-01)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a running streak count of a per-bar trend-bar classification, similar in shape to the corpus's existing ConsecutiveUpBars counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "Structurally similar to ConsecutiveUpBars but counts trend-bar classification (body dominates range) rather than close-above-open, and is used as a range/trend regime clue rather than a standalone entry."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R21-09",
+    "name": "BuyClimaxExhaustionTrendBarAtRangeBottom",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R11-26"
+    ],
+    "pages": [
+      147
+    ],
+    "quote": "Buying at the close or below the low of a large bear trend bar near the bottom of the range, since it is often an exhaustive sell climax and the end of the sell-off in a trading range.",
+    "description": "Treat an unusually large bear trend bar near the bottom of the trading range as a likely exhaustive sell climax, and buy at its close or on a limit order below its low.",
+    "pseudocode": "isLargeBearTrendBar = close[0] < open[0] && (open[0] - close[0]) >= largeBodyAtrMultiple * atr(atrLookback);\nnearBottom = close[0] <= rangeLow + nearExtremeAtr * atr(atrLookback);\nenterLongLimit = isLargeBearTrendBar && nearBottom; // limit at close[0] or at low[0] - offsetTicks*tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "nearExtremeAtr": 0.3,
+      "atrLookback": 14,
+      "largeBodyAtrMultiple": 1.5,
+      "offsetTicks": 1
+    },
+    "book_order_type": "limit order at the close of, or below the low of, the large bear trend bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a bar-size (body vs ATR) test combined with the range-location test"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "medium",
+    "notes": [
+      "Mirror-image test of BodyBelowAtrFraction (large instead of small body relative to ATR)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R21-15",
+    "name": "OpeningBarDojiPredictsTradingRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      148
+    ],
+    "quote": "The first bar of the day was a doji, and that increased the chances of a trading range day.",
+    "description": "If the very first bar of the session is a doji, treat that as a (weak) signal favoring a trading-range day, persisted as a day-context flag.",
+    "pseudocode": "isFirstBarOfSession = barsSinceSessionOpen == 0;\nisDoji = abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0]);\ndayLikelyTradingRange = isFirstBarOfSession && isDoji; // persists for the remainder of the session once true",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (day-context classification)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a single-bar doji test on the session's first bar, latched for the rest of the session"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Doji body-fraction primitive is likely already defined in trends chapter 2 (Trend Bars, Doji Bars, and Climaxes); reuse that definition on the first bar of the session."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R22-12",
+    "name": "BarbwireSmallBarFadeAtExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-03"
+    ],
+    "pages": [
+      157
+    ],
+    "quote": "You can also fade small bars near the top and bottom of barbwire if there is an entry. For example, if there is a small bar near the high, especially if it is a bear reversal bar, look to scalp a short with an entry order to sell at one tick below the low of that bar on a stop.",
+    "description": "Within barbwire, fade a small bar (range well below the pattern's typical bar size) that forms near the top of the pattern by shorting one tick below its low (mirrored: buy above a small bar near the bottom).",
+    "pseudocode": "isSmallBar = (high[0] - low[0]) <= smallBarFraction * barbwireAvgBarRange[0];\nnearTop = high[0] >= barbwireHigh[0] - nearExtremeAtr * atr(atrLookback);\nenterShortNextBarOpen = isBarbwire[0] && isSmallBar && nearTop;",
+    "sides": "mirrored",
+    "parameters": {
+      "smallBarFraction": 0.6,
+      "nearExtremeAtr": 0.3,
+      "atrLookback": 14
+    },
+    "book_order_type": "sell stop one tick below the low of the small bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a relative bar-size test plus a range-extreme location test, gated on the barbwire primitive"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R28-20",
+    "name": "BuyBearCloseAtStartOfStrongSwing",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "Buy a bear close after at least a couple of strong bull trend bars at the start of a strong bull swing.",
+    "description": "After at least twoBarsMin strong bull trend bars at the start of a strong bull swing, buy the close of the first bar that closes bearish.",
+    "pseudocode": "hadStrongBullRunRecently = countStrongBullTrendBars(lookback = twoBarsMin) >= twoBarsMin;\nisBearCloseBar = close[0] < open[0];\nenterLongAtClose = hadStrongBullRunRecently && isBearCloseBar && isStartOfStrongBullSwing[0];",
+    "sides": "mirrored",
+    "parameters": {
+      "twoBarsMin": 2
+    },
+    "book_order_type": "buy at the close of the bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a short trend-bar-run count plus a research-grade 'start of a strong swing' context test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R29-02",
+    "name": "EntryBarIsStrongTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      202
+    ],
+    "quote": "If the entry bar is a doji, then rely on your original stop.",
+    "description": "Shared primitive for this chapter: once the entry bar (the bar immediately following the signal bar, during which the position was filled) closes, classify it as a strong trend bar if its body is a large fraction of its range and closed in the trade's direction. Used to gate whether the stop tightens (R29-03).",
+    "pseudocode": "entryBarLow = low[ctx.BarsSinceEntry()]; entryBarHigh = high[ctx.BarsSinceEntry()]; entryBarBody = close[ctx.BarsSinceEntry()] - open[ctx.BarsSinceEntry()]; entryBarRange = entryBarHigh - entryBarLow; isEntryBarStrongTrendBar = ctx.BarsSinceEntry() >= 1 && entryBarBody > 0 && entryBarBody >= strongBodyFraction * entryBarRange;",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification used to gate a stop-tightening decision)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "single-bar body/range arithmetic, but the bar is located dynamically via BarsSinceEntry() rather than a fixed lag"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks contrasts this with a doji entry bar (a one-bar trading range), which should NOT trigger tightening.",
+      "strongBodyFraction=0.6 is a reading of 'strong'; Brooks gives no number here."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/29_protective_and_trailing_stops.json",
+    "chapter_title": "Protective and Trailing Stops"
+  },
+  {
+    "id": "R29-13",
+    "name": "AddOnBelowDojiSignalBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      202
+    ],
+    "quote": "experienced traders can consider adding on at a tick or two below a small doji entry bar in a possible new bull trend... relying on the initial stop location for the stop on the added contracts.",
+    "description": "Add a second unit to an existing long at a tick or two below a small doji entry bar (effectively buying below what would otherwise be a low 1 short signal bar), using the same initial stop as the first unit.",
+    "pseudocode": "// research: requires a second, independently sized/stopped unit added to an already-open position; the engine models a single position with a single stop, not stacked units\nisSmallDojiEntryBar = ctx.BarsSinceEntry() >= 1 && abs(close[ctx.BarsSinceEntry()] - open[ctx.BarsSinceEntry()]) <= dojiBodyFraction * (high[ctx.BarsSinceEntry()] - low[ctx.BarsSinceEntry()]);\naddOnPrice = low[ctx.BarsSinceEntry()] - addOnOffsetTicks * tick;\nallowAddOnLong = ctx.MarketPosition() > 0 && isSmallDojiEntryBar && low[0] <= addOnPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "dojiBodyFraction": 0.3,
+      "addOnOffsetTicks": 1
+    },
+    "book_order_type": "buy limit (or stop) a tick or two below the doji entry bar's low, added to an existing long",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "multi-unit/pyramided positions with independently tracked stops are not modeled by the engine"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Per the mining brief: scaling-in candidates are recorded even though they need multi-unit positions the engine does not support."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/29_protective_and_trailing_stops.json",
+    "chapter_title": "Protective and Trailing Stops"
+  },
+  {
+    "id": "R32-05",
+    "name": "DojiSignalBarWeakensSetup",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      221
+    ],
+    "quote": "Bar 30 was a large doji bear reversal bar and a high 2 buy setup... The doji bar was a weak signal bar.",
+    "description": "Treat a doji signal bar (a bar whose body is a small fraction of its range) as a weak/low-confidence signal -- appropriate to fade rather than take at face value, especially when the doji is also unusually large.",
+    "pseudocode": "signalBarIsDoji = abs(close[1] - open[1]) <= dojiBodyFraction * (high[1] - low[1]); weakSignal = signalBarIsDoji;",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.3
+    },
+    "book_order_type": "n/a (bar-quality classification used to downgrade or fade a setup)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar body/range comparison at a fixed lag"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "A generic doji-bar classification is very likely already defined as a primitive in earlier chapters (trend/bar-pattern chapters); recorded here since this chapter uses it explicitly as a fade reason."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/32_getting_trapped_in_or_out_of_a_trade.json",
+    "chapter_title": "Getting Trapped In or Out of a Trade"
+  },
+  {
+    "id": "V00-01",
+    "name": "TrendBarByBody",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      27
+    ],
+    "quote": "A bar with a body, which means that the close was above or below the open, indicating that there is at least a minor price movement.",
+    "description": "Literal glossary test for a trend bar: the bar has any nonzero body (close != open). Weaker than a body-fraction test; kept because it is Brooks's own minimal definition, distinct from a 'most of the range' body-fraction reading.",
+    "pseudocode": "close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (bar classification used as a signal-bar test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar comparison of open and close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "The book elsewhere (and other chapters) use a body-fraction version of this same idea; this is the literal 'has any body at all' reading."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-02",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      16,
+      17
+    ],
+    "quote": "A candle with a small body or no body at all.",
+    "description": "A doji is the complement of a trend bar: its body is at most a small fraction of the bar's range (or of a fixed tick count on lower time frames). Neither side controls the bar.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "bare arithmetic on one bar, but the threshold is a judgment call Brooks does not number precisely"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives tick examples ('one or two ticks on a 5 minute chart') rather than a fraction; 0.1 is a reading of 'small or no body'."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-36",
+    "name": "TrendBarMajorityInDirection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V00-01"
+    ],
+    "depends_on": [
+      "V00-01"
+    ],
+    "pages": [
+      54
+    ],
+    "quote": "Most of the bars are trend bars in the direction of the trend.",
+    "description": "Over a lookback window, most bars are trend bars closing in the trend's direction, a sign-of-strength context filter.",
+    "pseudocode": "countIf(close[i] > open[i], i in 0..lookback-1) >= majorityFraction * lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "majorityFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a counting loop over a window, gated on an already-assumed trend direction"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-38",
+    "name": "ShavedBodyBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      24
+    ],
+    "quote": "A shaved top has no tail at the top and a shaved bottom has no tail at the bottom.",
+    "description": "A bar with (approximately) no tail at one or both ends: for a bull bar, the close sits at or within a tick of the high (shaved top) or the open sits at or within a tick of the low (shaved bottom).",
+    "pseudocode": "high[0] - close[0] <= shaveTicks*tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "shaveTicks": 1
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic against a tick tolerance"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-47",
+    "name": "GrowingTrendBarDominanceInRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V00-01"
+    ],
+    "pages": [
+      56,
+      58
+    ],
+    "quote": "There is growing buying pressure in the trading range, represented by many large bull trend bars, and the bull trend bars are clearly more prominent than the bear trend bars in the range.",
+    "description": "Over a lookback window inside a trading range, the sum (or count) of bull trend-bar bodies exceeds that of bear trend-bar bodies by a margin, ahead of a breakout.",
+    "pseudocode": "sumIf(close[i]-open[i], close[i]>open[i], lookback) > dominanceMultiple * sumIf(open[i]-close[i], close[i]<open[i], lookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "dominanceMultiple": 1.5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window-summation loop comparing two conditional sums"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-08",
+    "name": "StopSizedToCounterTrendBarRange",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      73,
+      90
+    ],
+    "quote": "Some traders will use an initial protective stop that is about the same number of ticks as the bear trend bar is tall, and others will use their usual stop, like two points in the Emini.",
+    "description": "Place the protective stop at a distance about equal to the faded countertrend bar's own high-low range, rather than a fixed tick amount.",
+    "pseudocode": "stopDistance = stopFraction * range(signalBarOffset)",
+    "sides": "same",
+    "parameters": {
+      "stopFraction": 1.0,
+      "signalBarOffset": 1
+    },
+    "book_order_type": "n/a (stop placement rule)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar range arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "VP1-09",
+    "name": "FadeLargeCounterTrendBarInTrend",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      73,
+      89,
+      90
+    ],
+    "quote": "if there is a bull trend and it forms a large bear trend bar closing on its low, most traders will expect this reversal attempt to fail, and many will buy at the close of the bear bar.",
+    "description": "In an established trend, when a large countertrend trend bar forms and closes on its extreme, enter with the trend at the close of that bar / just beyond its extreme, betting the countertrend attempt fails.",
+    "pseudocode": "close[0] < open[0] && body(0) >= bodyMultiple * avgBody(lookback) && close[0] <= low[0] + closeTolerance * range(0) // entered at close (market) or on a stop below low[0]; established uptrend context assumed via a separate trend filter",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyMultiple": 1.5,
+      "lookback": 10,
+      "closeTolerance": 0.1
+    },
+    "book_order_type": "buy at the close of the bar and/or on a stop one tick below its low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window average of bodies plus a close-position test on the signal bar"
+    },
+    "el_words_needed": [
+      "Average",
+      "AbsValue"
+    ],
+    "likely_existing_rule": "ReversalBarBodyAboveAverage (V02-02), applied to the opposite (fade) trend context",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "VP1-18",
+    "name": "ShavedBarPattern",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      96
+    ],
+    "quote": "It had great momentum and a shaved top and bottom, meaning that the bulls were extremely aggressive and higher prices should follow.",
+    "description": "Primitive: a trend bar with (near) zero tails at both ends - the open sits at the bar's low and the close at its high (bull case), a stronger variant of a strong trend bar.",
+    "pseudocode": "close[0] > open[0] && (open[0] - low[0]) <= tailToleranceTicks*tick && (high[0] - close[0]) <= tailToleranceTicks*tick",
+    "sides": "mirrored",
+    "parameters": {
+      "tailToleranceTicks": 0
+    },
+    "book_order_type": "n/a (bar classification, strengthens a signal-bar or momentum test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "A zero-tail special case of BullReversalBarShape/StrongReversalBarShape."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V01-11",
+    "name": "StrongTrendBarPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      105
+    ],
+    "quote": "The rally did not contain two consecutive strong bull trend bars, so the bulls were unable to regain control of the market.",
+    "description": "Primitive: a bar is a 'strong' trend bar when its body is at least a fraction of its range (tails not restricted), used to grade follow-through strength.",
+    "pseudocode": "close[0] > open[0] && body(0) >= bodyFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BullReversalBarShape (V02-01), without the tail constraint",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V01-12",
+    "name": "AbsenceOfConsecutiveStrongTrendBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V01-11"
+    ],
+    "pages": [
+      105
+    ],
+    "quote": "The rally did not contain two consecutive strong bull trend bars, so the bulls were unable to regain control of the market.",
+    "description": "Filter: over the last lookback bars of a countertrend move, no window of countBars consecutive strong trend bars occurred in the move's direction, signaling weak follow-through.",
+    "pseudocode": "not exists i in 0..lookback-countBars: forall j in 0..countBars-1: StrongTrendBar(i+j)",
+    "sides": "mirrored",
+    "parameters": {
+      "countBars": 2,
+      "lookback": 10
+    },
+    "book_order_type": "n/a (context filter suppressing with-move entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window loop over a persistent per-bar classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V02-30",
+    "name": "PullbackBullBarFraction",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      108
+    ],
+    "quote": "many overlapping bars with many being bull trend bars.",
+    "description": "Over the last N bars of a down move, at least a fraction of the bars have bull bodies - the sellers lack conviction.",
+    "pseudocode": "close[0] < close[pullbackBars] && countif(i in 0..pullbackBars-1, close[i] > open[i]) >= bullFraction * pullbackBars",
+    "sides": "mirrored",
+    "parameters": {
+      "pullbackBars": 5,
+      "bullFraction": 0.5
+    },
+    "book_order_type": "n/a (assessment of the test leg)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of bull bodies"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V02-38",
+    "name": "WedgeBullFlagBuyAboveBearBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      110
+    ],
+    "quote": "if the market is in a wedge bull flag and they are looking for it to reverse back up into the bull trend, they might even be willing to buy above a bear trend bar.",
+    "description": "In a bull trend, after three pushes down (wedge bull flag), buy when the close exceeds the high of the prior bar even if that prior bar was a bear trend bar.",
+    "pseudocode": "bullTrendContext && threePushesDown(pivotStrength) && close[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2
+    },
+    "book_order_type": "buy stop above the bear trend bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "three-push (wedge) recognition needs pivots and leg counting"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingLowBar"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The point Brooks makes is that the signal-bar requirement relaxes with context."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V03-10",
+    "name": "ConsecutiveTrendBarsFadeSignal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      132
+    ],
+    "quote": "Once he saw five or more consecutive bear bars, he could then place a limit order to short at the high of the prior bar, expecting the first reversal attempt after a strong bear spike to fail.",
+    "description": "After N or more consecutive same-direction trend bars (a spike), place a with-trend entry at a limit price at the prior bar's extreme, betting that the first countertrend reversal attempt will fail. Long side: after N consecutive bull trend bars, buy at a limit at the low of the prior bar.",
+    "pseudocode": "consecutiveTrendBars(direction=up, n=consecutiveBars) && limitPrice == low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "consecutiveBars": 5
+    },
+    "book_order_type": "limit order at the high/low of the prior bar (mechanized here as a resting limit checked against next bar's range)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a persistent same-direction trend-bar counter plus a limit-fill check"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from ConsecutiveUpBars in the main catalog, which tests close>open streaks for a momentum continuation entry; this is a countertrend-fade entry placed WITH the established trend after a bar-count streak of true trend bars."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/03_major_trend_reversal.json",
+    "chapter_title": "Major Trend Reversal"
+  },
+  {
+    "id": "V09-05",
+    "name": "TwoBarReversalEntryAfterLargeBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      274,
+      275
+    ],
+    "quote": "Since this was a two-bar reversal, the safest entry was below the lower of the two bars, which was the large bull trend bar, because very often the market goes below the bear bar, but not below both bars.",
+    "description": "After a two-bar reversal (a small bar closing opposite a larger trend bar that preceded it), the safer stop-entry is beyond the extreme of the pair rather than only beyond the current bar - long version: enter above the higher high of the two bars.",
+    "pseudocode": "close[1] < open[1] && (open[1] - close[1]) >= priorBarDominance * (close[0] - open[0]) && entryLevel = max(high[0], high[1])",
+    "sides": "mirrored",
+    "parameters": {
+      "priorBarDominance": 1.0
+    },
+    "book_order_type": "buy/sell stop one tick beyond the extreme of the two-bar pair, not just the current bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state over a fixed two-bar window, no swing-pivot detection needed"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks gives no numeric test for 'large' vs 'small' bar in the pair; priorBarDominance is a reading of it."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/09_failures.json",
+    "chapter_title": "Failures"
+  },
+  {
+    "id": "V15-01",
+    "name": "StrongTrendBarPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      325,
+      326
+    ],
+    "quote": "There usually has to have been at least two consecutive strong bull trend bars before most traders will believe that the always-in direction is long",
+    "description": "Primitive: the current bar is a strong bull trend bar - bull close, body at least a fraction of its range, and small tails.",
+    "pseudocode": "close[0] > open[0] && body(0) >= bodyFraction * range(0) && (high[0] - close[0]) <= tailFraction * range(0) && (open[0] - low[0]) <= tailFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification used throughout the chapter's always-in tests)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same shape as V02-01 in this book's chapter 2; defined again here since this chapter's always-in tests depend on it directly.",
+      "Used via depends_on by most other candidates in this file."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-03",
+    "name": "AlwaysInFlipTwoConsecutiveStrongTrendBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V15-01"
+    ],
+    "pages": [
+      323,
+      325,
+      326
+    ],
+    "quote": "There usually has to have been at least two consecutive strong bull trend bars before most traders will believe that the always-in direction is long, and at least two consecutive strong bear trend bars before they will think that always in is short.",
+    "description": "The always-in direction flips to long when the current bar and the bar before it are both strong bull trend bars (consecutiveBars, default 2, is the tunable count Brooks calls 'two or more').",
+    "pseudocode": "forall i in 0..consecutiveBars-1: StrongTrendBarPrimitive[i] (bull)",
+    "sides": "mirrored",
+    "parameters": {
+      "consecutiveBars": 2,
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "enter at the market or on the first pullback once the second consecutive trend bar closes",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a fixed-offset loop over the strong-trend-bar primitive, but treated as the chapter's core cross-bar always-in test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "This is the chapter's single most concrete, most repeated always-in test.",
+      "ConsecutiveUpBars tests close vs. own open with no size/tail requirement; this adds the strong-trend-bar shape."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-04",
+    "name": "AlwaysInFlipSingleTrendBarInContext",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V15-01"
+    ],
+    "pages": [
+      325
+    ],
+    "quote": "If the context is right, even a single trend bar with an average range can be enough to make traders believe that the always-in position has flipped to the opposite direction.",
+    "description": "A weaker, single-bar version of V15-03: one bull trend bar with a range near the average bar range can flip the always-in direction, but only when the surrounding context favors a reversal - a design decision Brooks leaves unspecified.",
+    "pseudocode": "// research: 'if the context is right' has no bar-level definition in this chapter\nclose[0] > open[0] && range(0) >= rangeMultiple * avgRange(rangeLookback) && contextFavorsReversal[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeMultiple": 1.0,
+      "rangeLookback": 20
+    },
+    "book_order_type": "enter at the market or on a small pullback",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'if the context is right' is explicitly a judgment call with no bar-level test given; the single-bar size threshold alone is not what Brooks is describing"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Kept distinct from V15-03 because Brooks treats the one-bar and two-bar cases as different confidence levels, not the same test with N=1."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V15-14",
+    "name": "FirstHourTwoTrendBarScalpSetup",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V15-03"
+    ],
+    "depends_on": [
+      "V15-03"
+    ],
+    "pages": [
+      325,
+      326
+    ],
+    "quote": "During the first hour, before a clear trend is established, two consecutive bull trend bars will make traders look for buy scalps, and two consecutive bear trend bars will make them look for sell scalps.",
+    "description": "The two-consecutive-strong-trend-bar always-in flip test (V15-03), restricted to the first N bars of the session and used for a scalp rather than a swing target.",
+    "pseudocode": "barsSinceSessionOpen() < firstHourBars && AlwaysInFlipTwoConsecutiveStrongTrendBars[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "firstHourBars": 12,
+      "consecutiveBars": 2,
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "enter at the market or on the first pullback, targeting a scalp rather than a full swing",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "adds a session-time gate (bars since the session open) to the moderate V15-03 test"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "firstHourBars is chart-timeframe-dependent; 12 assumes 5-minute bars for a 60-minute window and should be re-derived per timeframe."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V16-01",
+    "name": "StrongTrendBarPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      345,
+      355
+    ],
+    "quote": "Bar 4 ... was a strong bear trend bar and likely to form a new low of the day at a minimum.",
+    "description": "Primitive: the current bar is a strong bull trend bar - bull close, body at least a fraction of its range, and small tails.",
+    "pseudocode": "close[0] > open[0] && body(0) >= bodyFraction * range(0) && (high[0] - close[0]) <= tailFraction * range(0) && (open[0] - low[0]) <= tailFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification used by other candidates in this file)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same shape as V02-01 and V15-01; redefined locally here since this file's candidates depend on it."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "VP3-01",
+    "name": "FadeNonDojiBarAfterMove",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      359
+    ],
+    "quote": "they avoid doji signal bars, but will often short below either a bull or a bear trend bar after a move up, or buy above a bull or a bear trend bar after a move down.",
+    "description": "In the opening range, after a move up over the last few bars, fade the next non-doji bar (bull or bear body) by shorting one tick below its low; mirrored for a move down.",
+    "pseudocode": "(close[1] - close[moveBars+1]) >= moveTicks*tick && abs(close[0]-open[0]) > dojiBodyFraction*(high[0]-low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "moveBars": 3,
+      "moveTicks": 8,
+      "dojiBodyFraction": 0.25
+    },
+    "book_order_type": "stop one tick below the signal bar's low (short) / above its high (long)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a 'move up/down over the last few bars' measure plus a non-doji test; no pivot detection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "'a move up' has no precise Brooks definition here; moveBars/moveTicks are readings."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "VP3-04",
+    "name": "FirstBarDojiImpliesTwoSidedDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      361,
+      372
+    ],
+    "quote": "If the first bar is a doji or the first several bars overlap and have prominent tails, the day is more likely to have lots of two-sided trading.",
+    "description": "Context filter: the first bar of the session is a doji -- raises the odds of a two-sided/trading-range day, favoring fade setups over breakout continuation.",
+    "pseudocode": "(ctx.SessionDate(0) != ctx.SessionDate(1)) && abs(close[0]-open[0]) <= dojiBodyFraction*(high[0]-low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.25
+    },
+    "book_order_type": "n/a (day-context bias filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "session-boundary primitive plus a single-bar doji test"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "A simpler, standalone version of chapter 19's V19-07, which additionally required the bar to sit inside yesterday's closing range."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "VP3-10",
+    "name": "ScalpLimitAtSpikeLowAfterConsecutiveTrendBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      362,
+      379,
+      380
+    ],
+    "quote": "if there are two consecutive strong bull trend bars and then a doji bar, they might place limit orders to buy at or below the low of the doji bar. Since they see it as a weak reversal signal, especially after such a strong bull spike, they expect it to fail.",
+    "description": "After N consecutive strong bull trend bars, place a resting limit order to buy at or below the low of the first weak pullback bar that follows (a doji or an opposite-colored bar), betting that the pullback fails and the bull spike resumes.",
+    "pseudocode": "consecutiveTrendBarSpike(1, spikeBars, up) && low[0] <= low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2
+    },
+    "book_order_type": "limit order at or below the pullback bar's low (long) / at or above its high (short) -- not a stop entry",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the multi-bar spike primitive plus a touch-level limit-order test; the limit fill is approximated by the bar's low/high trading through the level"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Explicitly a limit entry, not the book's usual stop-beyond-signal-bar convention; kept as a touch-of-level test since the engine cannot see intrabar order priority."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "V17-02",
+    "name": "FirstBarTrendContinuationScalp",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V17-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      383
+    ],
+    "quote": "Remember that if the first bar of the day is a trend bar, it is usually a setup for a scalp.",
+    "description": "If the first bar of the session is a bull trend bar, take a scalp long (mechanized as entry at the next bar's open once the first bar closes as a trend bar).",
+    "pseudocode": "(ctx.SessionDate(0) != ctx.SessionDate(1)) && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.7
+    },
+    "book_order_type": "stop one tick beyond the first bar's high (long) / low (short)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines the session-boundary primitive with a single-bar trend-bar test"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "'Usually a setup for a scalp' is Brooks's framing of the exit as a small, fast target rather than a swing; captured here only as the entry."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17_patterns_related_to_the_premarket.json",
+    "chapter_title": "Patterns Related to the Premarket"
+  },
+  {
+    "id": "V17-03",
+    "name": "FirstBarTrendFailureReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V17-01"
+    ],
+    "depends_on": [
+      "V17-02"
+    ],
+    "pages": [
+      383
+    ],
+    "quote": "If it fails, especially with an opposite trend bar, it is a setup in the opposite direction.",
+    "description": "The first bar of the session was a bull trend bar (a failed long setup), and the very next bar is a bear trend bar that closes below the first bar's open: enter short (mechanized at the following bar's open).",
+    "pseudocode": "(ctx.SessionDate(1) != ctx.SessionDate(2)) && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] < open[0] && (open[0] - close[0]) >= bodyFraction * (high[0] - low[0]) && close[0] < open[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.7
+    },
+    "book_order_type": "stop one tick beyond the failure bar's low (short) / high (long)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two-bar pattern anchored on the session-boundary primitive, otherwise fixed-offset comparisons"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks does not give a precise 'failure' threshold; using close beyond the first bar's open as the fail test is a reading of 'if it fails'."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17_patterns_related_to_the_premarket.json",
+    "chapter_title": "Patterns Related to the Premarket"
+  },
+  {
+    "id": "V19-02",
+    "name": "ConsecutiveTrendBarSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      404,
+      410,
+      419
+    ],
+    "quote": "if there is a gap up or down and then a three- or four-bar bear spike within the first hour and the trend bars are large with little overlap and only small tails, the odds of a bear trend day increase.",
+    "description": "Shared primitive: N consecutive trend bars in the same direction, each with body at least bodyFraction of its range and minimal overlap with the bar before it -- a 'spike'.",
+    "pseudocode": "consecutiveTrendBarSpike(0, spikeBars, up) := for k in 0..spikeBars-1: (close[k] > open[k] && (close[k]-open[k]) >= bodyFraction*(high[k]-low[k]) && (k == spikeBars-1 || low[k] >= low[k+1] - maxOverlapTicks*tick))",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "bodyFraction": 0.7,
+      "maxOverlapTicks": 2
+    },
+    "book_order_type": "n/a (bar-sequence classification used as context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a fixed-length loop over consecutive bars applying a per-bar trend-bar test plus a bar-to-bar overlap test; no pivot detection needed"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks uses this with spikeBars=2 for a lighter 'always-in' read and spikeBars=3-4 for a stronger trend-day read; both are captured by parameterizing spikeBars rather than by two separate primitives."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-03",
+    "name": "AlwaysInFromTwoConsecutiveTrendBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V19-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      404,
+      410
+    ],
+    "quote": "Traders often look for a pair of consecutive bull trend bars in the first hour or so. If they are present, traders would see them as a sign that the market is always-in long, at least for a scalp.",
+    "description": "Two consecutive bull trend bars in the first hour set an always-in-long bias (context filter enabling with-trend long scalps/pullback entries).",
+    "pseudocode": "consecutiveTrendBarSpike(0, 2, up)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.7,
+      "maxOverlapTicks": 2
+    },
+    "book_order_type": "n/a (always-in context filter)",
+    "timeframe": "intraday-only",
+    "confidence": "medium",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "instance of V19-02 with spikeBars fixed at 2"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-05",
+    "name": "PullbackEntryAfterConsecutiveTrendBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V19-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      404
+    ],
+    "quote": "if there have been consecutive strong bear trend bars and then a bar trades above the high of the prior bar, many traders will short below the low of that pullback bar for a scalp.",
+    "description": "After a consecutive-bear-trend-bar spike, the first bar that trades above the high of the prior bar is a pullback bar: enter short one tick below that pullback bar's low (mechanized as close-then-next-open).",
+    "pseudocode": "consecutiveTrendBarSpike(1, spikeBars, down) && high[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 2,
+      "bodyFraction": 0.7,
+      "maxOverlapTicks": 2
+    },
+    "book_order_type": "stop one tick below the pullback bar's low (short) / above its high (long)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the spike primitive plus a single fixed-offset comparison for the pullback bar"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is a trend-continuation ('H2/L2'-style) entry; likely overlaps with a named counting-setup primitive from the trilogy's counting chapters not in this book."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V19-07",
+    "name": "DojiFirstBarInYesterdayClosingRangeRangeDayBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V19-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      404
+    ],
+    "quote": "If the first bar is a doji bar in the middle of yesterday's closing range, then the bar is a one-bar trading range, and the odds of a trading range day are increased.",
+    "description": "Context filter: the first bar of the session is a doji and its range sits inside (near the middle of) yesterday's closing range -- raises the odds of a range day, favoring fade/mean-reversion setups over breakout entries.",
+    "pseudocode": "(ctx.SessionDate(0) != ctx.SessionDate(1)) && (high[0]-low[0]) <= dojiRangeFraction*avgRange(rangeLookback) && abs(close[0]-open[0]) <= dojiBodyFraction*(high[0]-low[0]) && low[0] >= yesterdayClosingRangeLow(closingRangeBars) && high[0] <= yesterdayClosingRangeHigh(closingRangeBars)",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.25,
+      "dojiRangeFraction": 1.0,
+      "closingRangeBars": 5,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (day-context bias filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines the session-boundary primitive, a doji test, and a comparison against a fixed prior window's high/low"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "'Middle of yesterday's closing range' is read as fully contained within it; Brooks gives no exact bar count for the closing range, so closingRangeBars=5 is a guess."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "V24-01",
+    "name": "TrendBarBody",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      483
+    ],
+    "quote": "the reversal signal bar should be strong",
+    "description": "Classifies the current bar as a strong bull (or bear) trend bar: it closes near its high (low) and its body is most of its range. Used throughout this chapter as the signal-bar quality test for every setup listed below.",
+    "pseudocode": "close[0] > open[0] && (close[0]-open[0]) >= bodyFraction*(high[0]-low[0]) && (high[0]-close[0]) <= tailFraction*(high[0]-low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "tailFraction": 0.25
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on OHLC"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TrendBarBodyFraction",
+    "confidence": "high",
+    "notes": [
+      "Foundational primitive; every setup below that requires 'a strong signal bar' depends on this."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V25-07",
+    "name": "AvoidDojiAsSignalBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      563
+    ],
+    "quote": "The best signal bars are trend bars in the direction of your trade. Doji bars are one-bar trading ranges and therefore usually terrible signal bars.",
+    "description": "Do not use a doji bar as the signal bar for an entry; require the signal bar to be a trend bar in the trade's direction instead.",
+    "pseudocode": "!isDojiBar(1)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (a signal-bar quality gate applied wherever a setup's signal bar is tested)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a negation of an already-defined doji-bar classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Composes with the DojiBar primitive already defined in reference/brooks/mined/reversals/00_front_matter.json; this candidate is that primitive negated and applied as a signal-bar quality filter rather than redefining doji itself."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/25_trading_guidelines.json",
+    "chapter_title": "Trading Guidelines"
+  },
+  {
+    "id": "T00-02",
+    "name": "TrendBarPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      25
+    ],
+    "quote": "trend bar A bar with a body, which means that the close was above or below the open, indicating that there is at least a minor price movement.",
+    "description": "Primitive, bare/minimal form: bar 0 is a trend bar simply because it has any body at all (close differs from open) -- no fraction-of-range threshold. Contrast with T07-02 BullTrendBar, which requires the body to be a large fraction of the range.",
+    "pseudocode": "close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "All bars are either this or DojiPrimitive (T00-03); the two are complements at whatever dojiBodyFraction is chosen."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-03",
+    "name": "DojiPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      15
+    ],
+    "quote": "doji A candle with a small body or no body at all... Neither the bulls nor the bears control the bar.",
+    "description": "Primitive: bar 0 is a doji (a nontrend bar) -- its body is a small fraction of its range. Brooks gives no fixed tick count and notes the threshold scales with the instrument and time frame.",
+    "pseudocode": "abs(body(0)) <= dojiBodyFraction * range(0)",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "medium",
+    "notes": [
+      "Existing rule measures the body against the ATR, not the bar's own range; this is the book's own-range form."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-24",
+    "name": "ConsecutiveTrendBarsClimaxFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      44
+    ],
+    "quote": "I saw 15 consecutive bull trend bars on the daily chart after a protracted bull run. This was an unusually strong buy climax.",
+    "description": "At least N of the last N bars are trend bars in the same direction after an extended run: classify as a climax and block fresh with-trend entries.",
+    "pseudocode": "count over k in 0..climaxBars-1 of (close[k] > open[k]) >= climaxBars - allowedExceptions",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxBars": 15,
+      "allowedExceptions": 0
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of trend-bar direction"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "Brooks's example is on the daily chart; the same run-length test applies intraday."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-29",
+    "name": "SmallOrNoTailsTrendBarsContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      56
+    ],
+    "quote": "There are bars with no tails or small tails in either direction, indicating urgency.",
+    "description": "The average tail fraction of the last N bars is below a threshold: a trend-strength filter.",
+    "pseudocode": "average(tailFraction, tailBars)[0] <= maxTailFraction",
+    "sides": "same",
+    "parameters": {
+      "tailBars": 5,
+      "maxTailFraction": 0.25
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average of a per-bar ratio over a window"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-30",
+    "name": "FewLargeBarsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      57
+    ],
+    "quote": "Not many large bars appear (not even large trend bars).",
+    "description": "Fewer than K of the last N bars have a range at or above a multiple of the recent average range: absence of outsized bars, a sign the trend is not yet climactic.",
+    "pseudocode": "count over k in 0..lookback-1 of (range(k) >= largeMultiple * avgRange(lookback)) < maxLargeBars",
+    "sides": "same",
+    "parameters": {
+      "lookback": 10,
+      "largeMultiple": 1.5,
+      "maxLargeBars": 2
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count against an average-range threshold"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-43",
+    "name": "FollowThroughBarNotDojiInside",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T00-03",
+      "T00-04"
+    ],
+    "depends_on": [],
+    "pages": [
+      61
+    ],
+    "quote": "The bar after the signal bar is not a doji inside bar and instead is a strong entry bar (a bull trend bar with a relatively large body and small tails).",
+    "description": "Block the entry unless the entry bar (bar 0, immediately after the signal bar 1) is a trend bar in the signal direction and not a doji-and-inside bar.",
+    "pseudocode": "!(InsideBarPrimitive[0] && DojiPrimitive[0]) && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (entry-bar quality filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "combination of two already-trivial primitives"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "TP1-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      66
+    ],
+    "quote": "Is that bar a trend bar, opening near one end and closing near the other, or is it a trading range bar with a small body and one or two large tails?",
+    "description": "Primitive: bar 0 is a bull trend bar, opening near its low and closing near its high, with a body that is most of the bar's range.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; this and the corpus's TrendBarBodyFraction/BullTrendBar rules are the same idea, redefined here as the book's earliest use of the concept."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01-part_i_price_action.json",
+    "chapter_title": "Part I: Price Action"
+  },
+  {
+    "id": "TP1-02",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      66
+    ],
+    "quote": "Is that bar a trend bar, opening near one end and closing near the other, or is it a trading range bar with a small body and one or two large tails?",
+    "description": "Primitive: bar 0 is a trading-range (doji) bar, the opposite of a trend bar -- a small body relative to its range, with one or two large tails.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.3
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Direction-agnostic; whether the doji leans bull or bear is a separate close-position test, not part of this primitive."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01-part_i_price_action.json",
+    "chapter_title": "Part I: Price Action"
+  },
+  {
+    "id": "TP1-08",
+    "name": "ExtremeConsecutiveTrendBarsFadeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "TP1-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      79,
+      80
+    ],
+    "quote": "The market can reach extremes in any type of behavior, like the number of consecutive bear trend bars; the number of consecutive days where the range is half of the average or twice the average; and just about anything else that you can imagine.",
+    "description": "Context filter: N or more consecutive same-direction trend bars is an extreme state that institutions fade; permits a countertrend (fade) entry only once this extreme count is reached. Brooks's caveat ('unless you are very confident, do not fade the trend') is not separately mechanizable and is left as a confidence note.",
+    "pseudocode": "consecutiveSameDirectionTrendBars(0) >= extremeBarCount",
+    "sides": "same",
+    "parameters": {
+      "extremeBarCount": 8
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'extreme' is a design decision -- which measure and threshold count as extreme is not specified by Brooks"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "low",
+    "notes": [
+      "Brooks lists several other extreme measures (range vs. average, consecutive higher-highs) as equally valid; this candidate mines only the trend-bar-count version."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01-part_i_price_action.json",
+    "chapter_title": "Part I: Price Action"
+  },
+  {
+    "id": "T02-01",
+    "name": "TrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90
+    ],
+    "quote": "If there is a body, then the close trended away from the open and the bar is a trend bar.",
+    "description": "Primitive: bar 0 is a bull trend bar, with a body that is at least a fraction of its range (a plainer, looser threshold than a 'strong' trend bar).",
+    "pseudocode": "close[0] > open[0] && body(0) >= bodyFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.5
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "ConsecutiveUpBars at consecutiveBars=1 is the bodyFraction=0 special case (any close above open); this adds the size threshold.",
+      "Chapter 7 (already mined) defines the same primitive with bodyFraction 0.6 as 'strong'; the dedup pass should merge these."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-02",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90
+    ],
+    "quote": "If the body appears tiny or nonexistent on the chart, the bar is a doji; neither the bulls nor the bears controlled the bar, and the bar is essentially a one-bar trading range.",
+    "description": "Primitive: bar 0 is a doji (nontrend) bar, its body a small fraction of its range. Direction-agnostic.",
+    "pseudocode": "abs(body(0)) <= dojiBodyFraction * range(0)",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks: 'in trading, close is close enough,' explicitly rejecting a zero-tolerance definition (open == close) in favor of a small-fraction threshold."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-04",
+    "name": "TrendingDojiRun",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T02-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      95,
+      99
+    ],
+    "quote": "if there is a series of dojis, each with a higher close and most with a high above the high of the prior bar and a low above the low of the prior bar, the market is displaying trending closes, highs, and lows, so a trend is in effect.",
+    "description": "Context filter: the last runBars bars are all doji bars, but each has a higher close, high, and low than the one before it -- a trend is in effect despite the small bodies, permitting with-trend entries that a plain doji count would otherwise block.",
+    "pseudocode": "for k in 0..runBars-1: DojiBar[k] && close[k] > close[k+1] && high[k] >= high[k+1] && low[k] >= low[k+1]",
+    "sides": "mirrored",
+    "parameters": {
+      "runBars": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-offset pairwise comparisons across a small window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Book example: 'four dojis in a row' each trending, ending in a bull reversal bar at a new swing low."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-05",
+    "name": "TrendBarBodyAboveRecentMedian",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      93
+    ],
+    "quote": "The bulls can demonstrate stronger control by having the body be about the same size as or larger than that of the median body size over the past five or 10 bars.",
+    "description": "Context filter: a bull trend bar's body is at least as large as the median absolute body size of the last N bars, a sign of stronger with-trend control.",
+    "pseudocode": "body(0) >= medianBody(bodyLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyLookback": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a median requires ordering the window's body sizes, more than a running average"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives 'five or 10 bars'; 10 chosen as the default."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-06",
+    "name": "LargeTrendBarExhaustionBreakoutFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90,
+      93
+    ],
+    "quote": "If the bar is very large and especially if it develops in a trend, it might represent exhaustion or a one-bar false breakout that is trapping new bulls, only to reverse down in the next bar or two.",
+    "description": "Block a with-trend breakout entry whose signal bar is abnormally large relative to recent bars (possible exhaustion / one-bar false-breakout trap).",
+    "pseudocode": "!(range(1) >= exhaustionMultiple * avgRange(rangeLookback))",
+    "sides": "same",
+    "parameters": {
+      "exhaustionMultiple": 2.0,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average range over a window"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "p90: 'an extremely large body after a protracted move or a breakout can represent an exhaustive, climactic end of a trend, and no trade should be taken until more price action unfolds.'"
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-08",
+    "name": "RequireSecondCounterTrendBarConfirmation",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T02-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      91,
+      101
+    ],
+    "quote": "An experienced trader would have needed follow-through in the form of a second or third bull trend bar before believing that the always-in trade had reversed to up.",
+    "description": "Block treating a single trend bar against the established trend as a reversal signal; require at least confirmBars consecutive trend bars in the new direction before permitting an entry in that direction.",
+    "pseudocode": "countConsecutiveBullTrendBars(endingAt=0) >= confirmBars",
+    "sides": "mirrored",
+    "parameters": {
+      "confirmBars": 2
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "small fixed-length streak check"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "p91: 'What they need to see is follow-through selling in the form of maybe just one more bear trend bar' -- the mirror-direction statement of the same idea."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-09",
+    "name": "AccumulatingCounterTrendBodiesPressure",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T02-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      94
+    ],
+    "quote": "If bear bodies are starting to accumulate in a bull trend or trading range, it is a sign of selling pressure and the bears might soon be able to create a downtrend.",
+    "description": "Context filter: at least K of the last N bars are bull trend bars, signaling building buying pressure that permits anticipatory long entries even against the prevailing trend.",
+    "pseudocode": "countBullTrendBars(N) >= K",
+    "sides": "mirrored",
+    "parameters": {
+      "N": 10,
+      "K": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of a bar classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [
+      "p236-240: signs of buying pressure in a bear trend also include lower tails and bull reversal bars at swing lows -- those are separate primitives, not folded in here."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-13",
+    "name": "OpenNearBarExtremeStrength",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      93
+    ],
+    "quote": "Additional signs of strength are discussed in another section and include the open being on or near the low, the close on or near the high",
+    "description": "Context filter: a bull trend bar's open sits near its own low (little to no lower wick before the up-move began), a sign of strength.",
+    "pseudocode": "(open[0] - low[0]) <= nearFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "nearFraction": 0.2
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T03-12",
+    "name": "StrongTrendBarPrimitive",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      111
+    ],
+    "quote": "the bar 3 strong bull trend bar showed you that the always-in position was up and you should look to buy either at the market or above the bar 5 pullback.",
+    "description": "Primitive: bar 0 is a strong trend bar -- closes up (bull) with a body that is a large fraction of its range and a range at or above the recent average range.",
+    "pseudocode": "close[0] > open[0] && (close[0]-open[0]) >= strongBodyFraction*range(0) && range(0) >= rangeMultiple*avgRange(rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.7,
+      "rangeMultiple": 1.0,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average range over a window plus single-bar arithmetic"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T03-13",
+    "name": "AlwaysInFlipOnStrongTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T03-12"
+    ],
+    "depends_on": [],
+    "pages": [
+      111
+    ],
+    "quote": "Always in is discussed in detail in the third book, but it basically means that if you have to be in the market at all times, either long or short, the always-in position is whatever your current position is.",
+    "description": "A persistent 'always-in' direction variable flips to long the bar a bull StrongTrendBarPrimitive closes, and flips to short on a bear one; otherwise it holds its prior value.",
+    "pseudocode": "if StrongTrendBarPrimitive.bull[0] then alwaysIn = +1; else if StrongTrendBarPrimitive.bear[0] then alwaysIn = -1; else alwaysIn unchanged",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (state update)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a persistent state variable carried between bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T04-03",
+    "name": "StrongTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      114
+    ],
+    "quote": "Strong bull trend bar in a bull spike.",
+    "description": "Primitive: bar 0 is a 'strong' trend bar -- closes up (bull side) with a body that is most of its range AND a range at or above the recent average (not just any trend bar).",
+    "pseudocode": "close[0] > open[0] && (close[0]-open[0]) >= strongBodyFraction*(high[0]-low[0]) && (high[0]-low[0]) >= avgRange(rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.7,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average range over a window plus single-bar arithmetic"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no numbers for 'strong'; values are a reading of the qualifier."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T04-12",
+    "name": "BeginnerTrendBarSignalFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      115
+    ],
+    "quote": "A beginning trader should enter only when the signal bar is also a trend bar in the direction of the trade, and should trade only in the direction of the trend.",
+    "description": "Filter: require the signal bar (bar 1) to be a trend bar in the trade's direction and the market to be in a matching trend.",
+    "pseudocode": "close[1] > open[1] && BullTrendContext",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar test plus a trend-context read"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "Momentum",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T05-09",
+    "name": "DojiLargeRangeNoReversalFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      122
+    ],
+    "quote": "If the body is tiny so that the bar is a doji but the bar is large, it usually should not be used as a basis for a reversal trade. ... It is better to wait for a second signal.",
+    "description": "Block a reversal entry when the signal bar is a large-range doji (a small body relative to a large range): treat it as a one-bar trading range rather than a reversal.",
+    "pseudocode": "!(abs(body(0)) <= dojiBodyFrac * range(0) && range(0) >= largeRangeMultiple * avgRange(rangeLookback))",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFrac": 0.1,
+      "largeRangeMultiple": 1.3,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average range over a window"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/05_signal_bars_reversal_bars.json",
+    "chapter_title": "Signal Bars: Reversal Bars"
+  },
+  {
+    "id": "T06-01",
+    "name": "TrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      131,
+      137,
+      217
+    ],
+    "quote": "if the bar is a strong bull trend bar, traders will buy at the market as soon as the bar closes",
+    "description": "Primitive: bar 0 is a trend bar, closing in the direction of its body with a body that is most of its range.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Chapter-local primitive; the same shape is defined independently in T07-02 (chapter 7). Dedup pass should merge."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-02",
+    "name": "StrongTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T06-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      131
+    ],
+    "quote": "A very important signal bar is a strong trend bar, especially during the spike phase of a trend.",
+    "description": "Primitive: bar 0 is a trend bar with an unusually large body fraction and a range at or above a multiple of the recent average range -- Brooks's 'strong' trend bar.",
+    "pseudocode": "TrendBar[0] && (close[0] - open[0]) >= strongBodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= rangeMultiple * avgRange(rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.8,
+      "rangeMultiple": 1.0,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "adds an average-range window to the trivial trend-bar test"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no numeric threshold for 'strong'; the two multipliers are a reading of the text."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-04",
+    "name": "StrongTrendBarCloseEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T06-02",
+      "T06-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      131
+    ],
+    "quote": "One common approach is to wait for a bar to close and if the bar is a strong bull trend bar, traders will buy at the market as soon as the bar closes.",
+    "description": "Enter with the trend at the close of a strong trend bar occurring during a trend spike.",
+    "pseudocode": "StrongTrendBar[0] && TrendSpikeContext[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order (or an aggressive limit at the close price) placed immediately once the bar closes; other traders use a stop one tick beyond the bar's high/low instead -- both mechanize to next-bar-open here",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "inherits the spike-identification design decision from TrendSpikeContext"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-14",
+    "name": "SmallBarNearBigBarExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      165,
+      289
+    ],
+    "quote": "A small bar near the high or low of a big bar (trend bar or outside bar) or trading range (especially if its body is in the direction of your trade, indicating that your side has taken control).",
+    "description": "A small-range bar forming near the low of a larger recent bar or swing, closing up (with-trend/fade buy setup showing that buyers have taken control at that level).",
+    "pseudocode": "(high[0] - low[0]) <= smallFraction * avgRange(rangeLookback) && low[0] <= lowest(low, bigBarLookback)[1] + nearTicks * tick && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "smallFraction": 0.5,
+      "rangeLookback": 10,
+      "bigBarLookback": 5,
+      "nearTicks": 2
+    },
+    "book_order_type": "buy stop one tick above high[0]",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a small-bar test plus proximity to a recent local extreme, both window-based"
+    },
+    "el_words_needed": [
+      "Average",
+      "Lowest"
+    ],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "medium",
+    "notes": [
+      "'Big bar' here is approximated as the lowest low of a short recent window; Brooks's actual test is visual bar-size comparison, not a specific lookback."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-15",
+    "name": "DojiPoorSignalFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      135,
+      176,
+      178
+    ],
+    "quote": "Note that doji bars are rarely good signal bars because they are one-bar trading ranges and when the market is in a trading range, you should not be looking to buy above the high or go short below the low.",
+    "description": "Context filter: a doji bar (near-zero body relative to its range) is rarely a good signal bar. Brooks allows two exceptions -- a with-trend doji in a strong trend, and a doji at the extreme of a trading range -- but only the with-trend exception is mechanized here; the trading-range-extreme exception needs a trading-range/extreme detector, which this filter does not attempt.",
+    "pseudocode": "isDoji = (high[0] - low[0]) > 0 && abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0]); filter blocks a breakout-of-bar-0 entry when isDoji, unless TrendSpikeContext[0] holds (same direction as the intended trade)",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.15
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the doji test itself is trivial, but the book's exceptions (with-trend in a strong trend, or at a trading-range extreme) require the same trend/range judgment calls flagged elsewhere in this file"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-32",
+    "name": "MiddayDojiFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T06-15"
+    ],
+    "depends_on": [],
+    "pages": [
+      140
+    ],
+    "quote": "that is when the bar is a small doji (small relative to the recent bars), especially if it has no body, it is near the moving average, and it occurs approximately between 10:00 a.m. and 11:00 a.m. PST. These have a very high failure rate.",
+    "description": "Blocks a doji-based signal bar (see DojiPoorSignalFilter) that also falls within a specific time-of-day window and is near a flat moving average -- an even weaker subset of the general doji-filter case, intraday only.",
+    "pseudocode": "isDoji (as in T06-15) && abs(close[0] - ema[0]) <= flatEmaTicks * tick && ctx.Time() >= windowStart && ctx.Time() <= windowEnd",
+    "sides": "same",
+    "parameters": {
+      "windowStart": 1000,
+      "windowEnd": 1100,
+      "flatEmaTicks": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines the doji test with a time-window check and a proximity-to-EMA check"
+    },
+    "el_words_needed": [
+      "Time",
+      "XAverage"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [
+      "Time window is stated in PST; the engine's ctx.Time() is exchange-clock, matching the corpus's existing TimeWindow/TimeOfDayExit convention."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T07-02",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      189,
+      196
+    ],
+    "quote": "Here, it was a strong bear trend bar, and trapped longs will likely exit below such a strong bear trend bar.",
+    "description": "Primitive: bar 0 is a bull trend bar, closing up with a body that is most of its range.",
+    "pseudocode": "close[0] > open[0] && body(0) >= bodyFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; 0.6 is a reading of 'trend bar'. 'Strong' trend bar = a higher fraction (0.8) and range >= avgRange."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-04",
+    "name": "SmallBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      186,
+      192
+    ],
+    "quote": "unless it is followed by a small bar near the high or low of the outside bar, setting up a fade.",
+    "description": "Primitive: bar 0 has a small range relative to recent bars.",
+    "pseudocode": "range(0) <= smallFraction * avgRange(rangeLookback)",
+    "sides": "same",
+    "parameters": {
+      "smallFraction": 0.5,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "average of range over a window"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-16",
+    "name": "SmallBarNearExtremeOfOutsideBarFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-01",
+      "T07-04"
+    ],
+    "depends_on": [],
+    "pages": [
+      186,
+      192
+    ],
+    "quote": "Bar 5 was an outside bar followed by a small inside bar near its high. Again, this yielded a great short with minimal risk, especially since the inside bar was a bear bar.",
+    "description": "The prior bar was an outside bar and this bar is a small bar sitting near the outside bar's LOW: buy above the small bar, expecting a move toward the opposite end of the outside bar. Better if the small bar has a bull body.",
+    "pseudocode": "OutsideBar[1] && range(0) <= smallFraction * range(1) && low[0] <= low[1] + nearFraction * range(1) && (!requireBody || close[0] > open[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "smallFraction": 0.4,
+      "nearFraction": 0.25,
+      "requireBody": false
+    },
+    "book_order_type": "buy stop one tick above the small bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Per convention the small bar is the signal bar; enter at the next open after it closes."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-25",
+    "name": "OutsideBarBreakoutBarIsStrongTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-01",
+      "T07-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      189
+    ],
+    "quote": "You could either short below bar 1 or wait to see what the breakout bar looks like after it closes. Here, it was a strong bear trend bar... it makes sense to short below the low of that bear bar.",
+    "description": "The bar before last was an outside bar; the last bar broke out above it and closed as a strong bull trend bar; enter long above that breakout bar (signal bar = the breakout bar).",
+    "pseudocode": "OutsideBar[1] && close[0] > high[1] && close[0] > open[0] && body(0) >= strongBodyFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "strongBodyFraction": 0.7
+    },
+    "book_order_type": "buy stop one tick above the high of the breakout (trend) bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "fixed-offset bar tests"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Per convention the strong breakout bar is the signal bar and the entry is the next open, which is slightly earlier than Brooks's stop beyond it."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-27",
+    "name": "StrongestOfRecentBullTrendBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      191,
+      192
+    ],
+    "quote": "Bar 4 was the third bull trend bar in the prior five bars, and therefore was reversing up from a third push down. It was also the strongest, with the biggest range and smallest tails",
+    "description": "At least K of the last N bars are bull trend bars, and the current one is the strongest of them (largest range, smallest tail fraction): buy above it (bulls gaining strength).",
+    "pseudocode": "countBullTrendBars(N) >= K && BullTrendBar[0] && range(0) == highest(range, N)[0] && tailFraction(0) <= minTailFraction(bullBars in N)",
+    "sides": "mirrored",
+    "parameters": {
+      "N": 5,
+      "K": 3
+    },
+    "book_order_type": "buy stop one tick above the bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop counting trend bars and comparing ranges"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [
+      "Bar 4 was 'almost an outside up bar'; the third-push aspect is T07-32 territory and is not included."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-34",
+    "name": "OutsideBullBarTwoBarReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-01",
+      "T07-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      195
+    ],
+    "quote": "there was a bull outside bar that formed a two-bar reversal, and therefore, created a buy setup.",
+    "description": "The prior bar closed down and this bar is an outside bar with a bull body (two-bar reversal where the second bar engulfs the first): buy above it.",
+    "pseudocode": "close[1] < open[1] && OutsideBar[0] && BullTrendBar[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the outside bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Also 'a micro double bottom with the doji bar before it'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-35",
+    "name": "OutsideBarBuyAboveEarlierBullBarHigh",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-01",
+      "T07-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      196
+    ],
+    "quote": "it would be safer to wait a few more ticks until it went above the high of that bull trend bar from two bars earlier. Buying above a bull bar usually has a higher chance of leading to a profitable trade.",
+    "description": "An outside up bar is forming after a pullback and a bull trend bar occurred within the last K bars: enter only once the close exceeds the highest high of the last K bars (above the earlier bull bar), not merely the prior bar's high.",
+    "pseudocode": "OutsideBar[0] && exists k in 2..K: BullTrendBar[k]; && close[0] > highest(high, K)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "K": 3
+    },
+    "book_order_type": "buy stop one tick above the high of the earlier bull trend bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "small fixed window"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-38",
+    "name": "RecentBullTrendBarStrengthFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T07-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      196,
+      197
+    ],
+    "quote": "A high 2 alone is not a setup. There first has to be earlier strength, usually in the form of a high 1 leg that breaks a trend line, or at least an earlier strong bull trend bar.",
+    "description": "Permit a long pullback entry only if a strong bull trend bar (large body, range at least average) occurred within the last K bars.",
+    "pseudocode": "exists k in 1..K: close[k] > open[k] && body(k) >= strongBodyFraction * range(k) && range(k) >= avgRange(rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "K": 10,
+      "strongBodyFraction": 0.7,
+      "rangeLookback": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window scan with an average range"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p196 bar 3: 'there was a bull trend bar a couple of bars earlier, showing strength'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-42",
+    "name": "ClimacticTrendBarNewExtremeThenOppositeInsideBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T07-02",
+      "T07-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      197
+    ],
+    "quote": "Bar 4 was a large bull trend bar (climactic) that formed a higher high, and it was followed by a strong bear inside bar that was the signal for the short.",
+    "description": "Long side: the prior bar was a large bear trend bar making a new N-bar low (sell climax) and this bar is an inside bar with a bull body: buy above the inside bar (expect at least two legs up).",
+    "pseudocode": "close[1] < open[1] && range(1) >= largeMultiple * avgRange(rangeLookback) && low[1] <= lowest(low, swingLookback)[2] && InsideBar[0] && close[0] > open[0] && body(0) >= bodyFraction * range(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "largeMultiple": 1.5,
+      "rangeLookback": 10,
+      "swingLookback": 20,
+      "bodyFraction": 0.5
+    },
+    "book_order_type": "buy stop one tick above the inside bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "lowest and average over windows plus fixed-offset tests"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T10-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      207,
+      209
+    ],
+    "quote": "the move had about four consecutive bull trend bars or two or three large bull trend bars",
+    "description": "Shared primitive: the current bar is a bull trend bar — it closed up and its body is at least a fraction of its high-low range.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; 0.6 reads 'body is most of the range'. Used by T10-05, T10-06, T10-12, T10-13, T10-16, T10-18."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-05",
+    "name": "ConsecutiveTrendBarsBlockCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T10-01"
+    ],
+    "pages": [
+      207,
+      209,
+      210
+    ],
+    "quote": "Bar 1 followed five bull trend bars, which is too much upward momentum to be shorting the first attempt down.",
+    "description": "Countertrend gate, written for a LONG (countertrend) entry: fewer than N of the last N bars were bear trend bars. Equivalently, do not buy the first reversal after N or more consecutive bear trend bars.",
+    "pseudocode": "countTrue(isBearTrendBar(i) for i in 1..minConsecutive) < minConsecutive",
+    "sides": "mirrored",
+    "parameters": {
+      "minConsecutive": 4
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of a single-bar classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "Brooks uses four (p207), five (p209 bar 1), and four (p209 bar 5; p210 'high 2 after four bear trend bars should not be bought'). This is ConsecutiveUpBars negated with the trend-bar body test added.",
+      "Brooks's remedy is to wait for the second entry (T10-03), not to skip the trade altogether."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-06",
+    "name": "LargeTrendBarsBlockCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T10-01"
+    ],
+    "pages": [
+      207
+    ],
+    "quote": "the move had about four consecutive bull trend bars or two or three large bull trend bars, there is too much momentum for you to be placing an order in the opposite direction",
+    "description": "Countertrend gate for a LONG entry: fewer than K of the last N bars were bear trend bars with range above a multiple of ATR.",
+    "pseudocode": "countTrue(isBearTrendBar(i) && (high[i] - low[i]) > largeBarAtrMult * atr(atrLength) for i in 1..lookback) < maxLargeBars",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 5,
+      "maxLargeBars": 2,
+      "largeBarAtrMult": 1.5,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "ATR plus a window count"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "'Large' is not quantified; 1.5x ATR is a placeholder for the grid."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-11",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      210
+    ],
+    "quote": "Bar 11 was a doji reversal bar after a big bull trend bar.",
+    "description": "Shared primitive: the bar's body is at most a small fraction of its range.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiBodyFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiBodyFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-12",
+    "name": "DojiAfterBigTrendBarReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T10-01",
+      "T10-11"
+    ],
+    "depends_on": [],
+    "pages": [
+      210
+    ],
+    "quote": "Bar 11 was a doji reversal bar after a big bull trend bar.",
+    "description": "LONG form (mirror of the book's short): the previous bar was a big bear trend bar (range above K x ATR) and the current bar is a doji — a possible sell climax and reversal. Enter long at the next open.",
+    "pseudocode": "isBearTrendBar(1) && (high[1] - low[1]) > bigBarAtrMult * atr(atrLength) && isDoji(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "bigBarAtrMult": 2.0,
+      "atrLength": 20
+    },
+    "book_order_type": "sell stop one tick below the doji's low (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "ATR plus fixed-offset bar tests"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks treats this as a scalp toward the moving average (T10-15) rather than a swing."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-13",
+    "name": "BuyClimaxBigBarAfterRun",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T10-01"
+    ],
+    "pages": [
+      210
+    ],
+    "quote": "A big bull trend bar after five to 10 bar bull trend bars is a buy climax and is likely to be followed by about 10 or more sideways to down bars before the bulls return.",
+    "description": "Exit the long when the current bar is a bull trend bar with range above K x ATR and at least M of the last N bars were bull trend bars (buy climax).",
+    "pseudocode": "ctx.MarketPosition() > 0 && isBullTrendBar(0) && (high[0] - low[0]) > bigBarAtrMult * atr(atrLength) && countTrue(isBullTrendBar(i) for i in 1..lookback) >= minTrendBars",
+    "sides": "mirrored",
+    "parameters": {
+      "bigBarAtrMult": 2.0,
+      "atrLength": 20,
+      "lookback": 10,
+      "minTrendBars": 5
+    },
+    "book_order_type": "take profits at the market / on the close",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "ATR plus a window count; no persistent state"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Companion Entry filter is T10-14."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T10-16",
+    "name": "ThreeConsecutiveSellClimaxesBuy",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T10-01",
+      "T10-02"
+    ],
+    "pages": [
+      210
+    ],
+    "quote": "All three bear spikes in this channel down from that low 4 short constitute consecutive sell climaxes, and once there are three, the odds of at least a two-legged rally are high.",
+    "description": "Three separate bear spikes (each a run of at least S consecutive bear trend bars, separated by at least one non-bear-trend bar) within the last N bars, followed by a bull reversal bar: buy.",
+    "pseudocode": "countSpikes(isBearTrendBar, minSpikeBars, lookback) >= 3 && isBullReversalBar(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "minSpikeBars": 2,
+      "lookback": 30
+    },
+    "book_order_type": "buy stop above the reversal bar (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "counting distinct runs (spikes) inside a variable window is pattern recognition, not a fixed-offset test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The spikes in the example were 4, 4 and 2 bars long; minSpikeBars=2 matches.",
+      "Target: 'at least a two-legged rally' — see T14-15 for leg-count exits."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T11-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      212
+    ],
+    "quote": "they would have seen a series of bull trend bars and a strong bull trend.",
+    "description": "Shared primitive: the current bar is a bull trend bar, closing up with a body that is at least a fraction of its range.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseRangePosition",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; other chapters define the same primitive, merged in dedup."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/11_late_and_missed_entries.json",
+    "chapter_title": "Late and Missed Entries"
+  },
+  {
+    "id": "T11-02",
+    "name": "ConsecutiveBullTrendBarRun",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T11-01"
+    ],
+    "pages": [
+      212
+    ],
+    "quote": "Once the market starts forming four or more consecutive bull trend bars that are not too large and therefore possibly climactic, traders should buy at least a small position at the market instead of waiting for a pullback.",
+    "description": "Context filter: at least minRunBars of the last minRunBars bars are bull trend bars (T11-01).",
+    "pseudocode": "countTrue(isBullTrendBar(i) for i in 0..minRunBars-1) >= minRunBars",
+    "sides": "mirrored",
+    "parameters": {
+      "minRunBars": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of a single-bar classification"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/11_late_and_missed_entries.json",
+    "chapter_title": "Late and Missed Entries"
+  },
+  {
+    "id": "T11-03",
+    "name": "NotClimacticBarSize",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      212
+    ],
+    "quote": "not too large and therefore possibly climactic",
+    "description": "Filter: the most recent bar's range does not exceed a climactic multiple of ATR, so a late entry does not buy an exhaustion bar.",
+    "pseudocode": "(high[0] - low[0]) <= climaxAtrMultiple * atr(atrLength)",
+    "sides": "same",
+    "parameters": {
+      "climaxAtrMultiple": 2.0,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "single ATR comparison"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd (negated)",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/11_late_and_missed_entries.json",
+    "chapter_title": "Late and Missed Entries"
+  },
+  {
+    "id": "T11-04",
+    "name": "LateMarketEntryAfterTrendRun",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T11-02",
+      "T11-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      211,
+      212
+    ],
+    "quote": "If you look at any chart and think that if you had taken the original entry you would still be holding the swing portion of your trade, then you need to enter at the market.",
+    "description": "When a run of consecutive, non-climactic bull trend bars has formed (a clear always-in-like move), enter long even without an original position, mechanized as entering at the next bar's open instead of a market fill mid-bar.",
+    "pseudocode": "ConsecutiveBullTrendBarRun && NotClimacticBarSize",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order immediately (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "combines two window/ATR tests already defined; no new cross-bar state beyond them"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The position-sizing half of this idea (trade only the shares you'd still be holding) is rejected below; the engine trades fixed size."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/11_late_and_missed_entries.json",
+    "chapter_title": "Late and Missed Entries"
+  },
+  {
+    "id": "T13-06",
+    "name": "GapOrLargeTrendBarIsOneBarTrend",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      226
+    ],
+    "quote": "It is helpful to consider a gap opening and any large trend bar to be effectively breakouts and each should be treated as if it is a one-bar trend, since breakouts commonly fail and you need to be prepared to fade them if there is a setup.",
+    "description": "Primitive: a session gap-open, or any single bar whose range exceeds a multiple of ATR, is treated as its own miniature one-bar trend, whose 'trend line' is simply that bar's own extreme (its low for a bull one-bar trend).",
+    "pseudocode": "isOneBarTrend(i) = (high[i] - low[i]) >= largeBarAtrMultiple * atr(atrLength) || isSessionGap(i); oneBarTrendLine = low[i]",
+    "sides": "mirrored",
+    "parameters": {
+      "largeBarAtrMultiple": 2.0,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a single-bar ATR (or session-gap) test; the 'trend line' is just that bar's own extreme, no pivot search needed"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "OpenD",
+      "CloseD"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13_trend_lines.json",
+    "chapter_title": "Trend Lines"
+  },
+  {
+    "id": "T15-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      251,
+      258,
+      268
+    ],
+    "quote": "there is often a large bull trend bar or two that form as the market tests the top of the channel.",
+    "description": "Primitive: the current bar is a bull trend bar, closing up with a body that is at least fraction F of its range. Reused by the channel-top climax, breakout-strength and spike candidates in this chapter.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseRangePosition",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; 'large' trend bars on p251/p268 could add a range >= K x ATR test (parameter largeBarAtrMultiple, default 1.5)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-02",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      271,
+      277
+    ],
+    "quote": "The bar after bar 8 was a doji bar, which indicates that the market is still two-sided.",
+    "description": "Primitive: the current bar is a doji, its body no larger than fraction F of its range. Used as a weak-signal-bar test (do not take the setup) and as a two-sided-trading marker.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiFraction": 0.25
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [
+      "Existing BodyBelowAtrFraction uses ATR as the denominator; Brooks's doji is relative to the bar's own range."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-17",
+    "name": "ClimacticTrendBarAtChannelLine",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T15-01",
+      "T15-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      251
+    ],
+    "quote": "The result is that there is often a large bull trend bar or two that form as the market tests the top of the channel. ... this one will likely fail as well.",
+    "description": "Vacuum test of the channel line: a large bull trend bar whose high reaches the trend channel line is a short (long side: a large bear trend bar whose low reaches the bear channel line is a buy). Enter at the next open.",
+    "pseudocode": "close[0] < open[0] && (open[0] - close[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= largeBarAtrMultiple * atr(atrLength) && low[0] <= channelLine[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "largeBarAtrMultiple": 1.5,
+      "atrLength": 14,
+      "pivotStrength": 2
+    },
+    "book_order_type": "institutions short at the close of the trend bar / on the small pause bar after it",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel line"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks warns this attracts 'overly eager bulls'; as a with-trend filter, do NOT buy a large trend bar whose high is at the channel line."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-37",
+    "name": "TrendBarCountInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T15-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      258,
+      297
+    ],
+    "quote": "maybe there were two or three good-sized bull trend bars within the past several bars",
+    "description": "Reversal-strength filter: at least minCount bull trend bars (body >= bodyFraction of range, range >= largeBarAtrMultiple x ATR) among the last windowBars.",
+    "pseudocode": "count over i in 0..windowBars-1 of (close[i] > open[i] && (close[i] - open[i]) >= bodyFraction * (high[i] - low[i]) && (high[i] - low[i]) >= largeBarAtrMultiple * atr(atrLength)) >= minCount",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 6,
+      "minCount": 2,
+      "bodyFraction": 0.6,
+      "largeBarAtrMultiple": 1.0,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count with ATR"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-46",
+    "name": "FadeTrendBarCloseBeyondSwingHigh",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T15-01",
+      "T15-11"
+    ],
+    "depends_on": [],
+    "pages": [
+      274
+    ],
+    "quote": "Bears will short the closes of bull trend bars above prior swing highs, like the bar after bar 22, and the closes of small bull bars that follow, like bar 23, for scalps.",
+    "description": "Countertrend scalp in a two-sided channel. Long side: a bear trend bar closes below the lowest low of the prior lookback bars (excluding the current bar); buy at the next open.",
+    "pseudocode": "close[0] < open[0] && (open[0]-close[0]) >= bodyFraction * (high[0]-low[0]) && close[0] < lowest(low, lookback) over bars 1..lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market / limit at the close of the trend bar, scaling in higher",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "lowest-low window plus a single-bar test"
+    },
+    "el_words_needed": [
+      "Lowest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "medium",
+    "notes": [
+      "Only in a channel with two-sided trading (T15-11, T15-27, T15-29); in a tight channel this is exactly where Brooks says not to fade."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-51",
+    "name": "ConsecutiveTrendBarsSpike",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T15-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      275,
+      270,
+      266
+    ],
+    "quote": "the market had eight consecutive bull trend bars in the strong bull spike up to bar 3, so the market was likely to have a test of the high after a pullback.",
+    "description": "Spike filter: at least spikeBars consecutive bull trend bars ending at bar 0 (or ending within recentBars). Sets the expectation of a test of the spike high after a pullback (buy the pullback: T15-18, T15-25) and, per p270, marks climactic behaviour.",
+    "pseudocode": "for all i in 0..spikeBars-1: close[i] > open[i] && (close[i]-open[i]) >= bodyFraction * (high[i]-low[i])",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 8,
+      "bodyFraction": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "ConsecutiveUpBars tests close > open only; the body-fraction test is the addition.",
+      "p266: every spike is a climax; consecutive climaxes lead to a larger correction (T15-57)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-52",
+    "name": "ConsecutiveBearBarsBlockFirstBuy",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      276
+    ],
+    "quote": "Bar 4 was the fourth consecutive down bar, which is enough bearish momentum to make traders hesitant to buy above its high",
+    "description": "Filter: do not buy the first reversal attempt when the pullback has had at least minBearBars consecutive bear bars; wait for a two-legged pullback (a high 2, T15-19).",
+    "pseudocode": "count of consecutive bars ending at bar 1 with close < open < minBearBars",
+    "sides": "mirrored",
+    "parameters": {
+      "minBearBars": 4
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "short fixed-length loop"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "high",
+    "notes": [
+      "p276 adds the fade: shorting on a limit at the high of that fourth bar was a reasonable scalp, which is T15-18 mirrored."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T16-06",
+    "name": "BuyCloseOfEveryBullBarInMicroChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T16-02"
+    ],
+    "pages": [
+      281
+    ],
+    "quote": "These traders will try to copy what the computers are doing and will buy every bull close.",
+    "description": "While a bull micro channel is confirmed, buy at the close of every bull bar (aggressive continuous add-on).",
+    "pseudocode": "MicroChannelRunLength[1] >= minBars && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "minBars": 5
+    },
+    "book_order_type": "market at the close of the bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar test gated on the persisted run counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-11",
+    "name": "TwoSidedDojiCountInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      290
+    ],
+    "quote": "both bars 10 and 12 were doji bars in areas of other bars with tails, and therefore were signs of two-sided trading.",
+    "description": "The count of doji bars in the last windowBars is at least minCount -- a sign the market is becoming two-sided; discount fresh trend-line-break countertrend signals and prefer waiting for high-probability setups when this count is high.",
+    "pseudocode": "countTrue(abs(close[i] - open[i]) <= dojiFraction * (high[i] - low[i]) for i in 0..windowBars-1) >= minCount",
+    "sides": "same",
+    "parameters": {
+      "windowBars": 10,
+      "minCount": 2,
+      "dojiFraction": 0.25
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count of a single-bar classification"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "TP3-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      306
+    ],
+    "quote": "Trends can be very steep, with a series of trend bars with large bodies, very little overlap between adjacent bars, and small tails.",
+    "description": "Shared primitive for this chapter: the current bar is a bull trend bar, closing up with a body that is at least a fraction of its range.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BodyBelowAtrFraction (inverse idea), CloseRangePosition",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives no number; 0.6 reads 'large body'. Other chapters define the same primitive; merge in dedup."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-20",
+    "name": "BuyCloseOfAnyTrendBarInStrongBull",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "TP3-01"
+    ],
+    "depends_on": [
+      "TP3-03"
+    ],
+    "pages": [
+      312
+    ],
+    "quote": "They also buy on the close of both any bull or bear trend bar. They see the bear trend bar as a brief opportunity to buy at a better price and the bull trend bar as a sign that the market is about to move up quickly.",
+    "description": "In a strong bull trend (always-in long), buy at the close of any trend bar, bull or bear (bear form is direction-agnostic: any bar whose body is at least bodyFraction of its range).",
+    "pseudocode": "alwaysInLong && abs(close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market at the close of the bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic; context filter separate"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Split further if useful: buy close of bull trend bar vs buy close of bear trend bar (Chapter 18 lists them separately)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-21",
+    "name": "ExitSpikeOnFirstNonTrendBar",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "TP3-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      309
+    ],
+    "quote": "Others will wait for the bar to close, and if the bar is not another strong bull trend bar, they will sell at the close of the bar, realizing that they might be selling too early",
+    "description": "Exit (partial in the book) a long entered in a spike when the current bar closes and is not another bull trend bar.",
+    "pseudocode": "ctx.MarketPosition() > 0 && !(close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]))",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market at the close of the bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar test on the exit side"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Add a minimum ctx.BarsSinceEntry() >= 1 so the entry bar itself cannot trigger it."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-28",
+    "name": "LargerBearBarsAppearing",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      312,
+      313
+    ],
+    "quote": "As the two-sided trading increases and the sell-offs have more bear trend bars and last for more bars, the strong bulls will want to buy only at the bottom of the developing trading range",
+    "description": "Two-sidedness sign: the largest bear body in the last windowBars is at least bodyMultiple times the average bull body in the same window. Long filter: require the opposite.",
+    "pseudocode": "maxBearBody = highest(max(open[i] - close[i], 0), windowBars); avgBullBody = average(max(close[i] - open[i], 0), windowBars); maxBearBody < bodyMultiple * avgBullBody",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 10,
+      "bodyMultiple": 1.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "two window statistics"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-31",
+    "name": "ExceptionallyLargeTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "TP3-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      313
+    ],
+    "quote": "all strong bulls and bears love to see a large bull trend bar or two, especially if it is exceptionally large, because they expect it to be a brief, unusually great opportunity.",
+    "description": "Shared primitive: the current bar is a bull trend bar whose range is at least rangeMultiple times the average range of the prior rangeLookback bars (a possible buy climax bar).",
+    "pseudocode": "BullTrendBar(0) && (high[0] - low[0]) >= rangeMultiple * avgRange(rangeLookback)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeMultiple": 2.0,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window average of range"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T18-09",
+    "name": "BuySpikeAtCloseOfEachTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T18-05"
+    ],
+    "depends_on": [
+      "T18-05"
+    ],
+    "pages": [
+      319,
+      320
+    ],
+    "quote": "Buying a bull spike in a strong bull breakout at the market, at the close of every bull trend bar in the spike.",
+    "description": "While an active bull spike (T18-05) is in progress, buy at the close of every bull trend bar within it.",
+    "pseudocode": "BullSpikeActive() && close[0] > open[0] && (close[0]-open[0]) >= bodyFraction*(high[0]-low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market order at the close of the bar; mechanized as the close condition true on bar 0, filled at next bar's open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines a per-bar trend-bar test with the spike-state dependency"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T18-11",
+    "name": "BuyCloseFirstBearBarInBullSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T18-05"
+    ],
+    "depends_on": [
+      "T18-05"
+    ],
+    "pages": [
+      320,
+      329
+    ],
+    "quote": "Buying the close of the first bear bar in a bull spike.",
+    "description": "Buy at the close of the first bar that closes down (a bear bar) after an active bull spike has been running -- traders expect the countertrend bar to fail immediately.",
+    "pseudocode": "BullSpikeActive(1) && close[1] > open[1] && close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order at the close of the bear bar; mechanized as the condition true on bar 0, filled at next bar's open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the spike-state dependency plus a 'first' qualifier (prior bar still in the spike, current bar breaks it)"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T18-15",
+    "name": "BuyBelowBullBarBreakoutAboveFlag",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T18-04"
+    ],
+    "depends_on": [
+      "T18-04"
+    ],
+    "pages": [
+      320
+    ],
+    "quote": "Buying below a bull bar that breaks above a bull flag, anticipating a breakout pullback.",
+    "description": "As soon as a bull bar closes above a bull flag's high (the breakout bar itself), place a limit buy below that breakout bar, anticipating the breakout-pullback entry of T18-04 will follow.",
+    "pseudocode": "close[0] > open[0] && close[0] > flagHigh && close[1] <= flagHigh",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "limit order below the breakout bar's low or midpoint",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "shares the flag/breakout-level dependency of T18-04"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T18-19",
+    "name": "BuyCloseFirstBearTrendBarBelowMaInStrongTrend",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T18-01"
+    ],
+    "depends_on": [
+      "T18-01"
+    ],
+    "pages": [
+      321,
+      331
+    ],
+    "quote": "In a strong bull trend, buy on the close of the first bear trend bar that has a close below the moving average.",
+    "description": "In a strong bull trend, buy at the close of the first bear trend bar whose close falls below the moving average (the prior bar's close having been at/above it).",
+    "pseudocode": "close[1] >= ema[1] && close[0] < open[0] && (open[0]-close[0]) >= bodyFraction*(high[0]-low[0]) && close[0] < ema[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "emaLength": 20
+    },
+    "book_order_type": "market order at the close of the bar; mechanized as the condition true on bar 0, filled at next bar's open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a two-bar EMA-relative test plus a trend-bar classification; the 'strong trend' qualifier is left as an external gate"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T19-01",
+    "name": "TrendBarClassification",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      337
+    ],
+    "quote": "Most of the bars are trend bars in the direction of the trend.",
+    "description": "Primitive: the current bar is a bull trend bar -- its body covers most of the bar's high-low range and it closed up.",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.7
+    },
+    "book_order_type": "n/a (bar classification used to build other signs)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic on open/high/low/close"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no numeric fraction here; reused as the base for several other signs in this chapter."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T19-03",
+    "name": "FractionOfBarsAreTrendBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T19-01"
+    ],
+    "pages": [
+      337
+    ],
+    "quote": "Most of the bars are trend bars in the direction of the trend.",
+    "description": "Sign-of-strength context filter: over the last N bars, at least a fraction F of them are bull trend bars (T19-01) -- a sign the up move is strong and should be favored for with-trend entries.",
+    "pseudocode": "countTrendBars(close, open, high, low, lookback, bodyFraction) >= minFraction * lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "minFraction": 0.6,
+      "bodyFraction": 0.7
+    },
+    "book_order_type": "n/a (context filter, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window loop counting a per-bar classification over N bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T19-08",
+    "name": "FewLargeBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      338
+    ],
+    "quote": "Not many large bars appear (not even large trend bars).",
+    "description": "This bar's range is not much larger than the recent average bar range -- the trend lacks big or climactic bars, a sign of an orderly, strong trend.",
+    "pseudocode": "(high[0] - low[0]) <= rangeMultiple * average(high[0..lookback-1] - low[0..lookback-1])",
+    "sides": "same",
+    "parameters": {
+      "rangeMultiple": 1.5,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window average of bar range compared with a multiple"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "Roughly the negation of BarRangeAboveStd but expressed as a plain multiple of the mean rather than a standard-deviation band."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T21-01",
+    "name": "BullTrendBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      355,
+      356
+    ],
+    "quote": "There is a spike that is made up of one or more trend bars",
+    "description": "Primitive: the bar is a bull trend bar, closing up with a body that is at least a fraction of its range (small tails).",
+    "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseRangePosition",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-02",
+    "name": "LargeTrendBarClimax",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "T21-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      363,
+      382
+    ],
+    "quote": "Every large trend bar should be thought of as a spike, a breakout, a gap, and a climax.",
+    "description": "Primitive: a large bull trend bar, i.e. a bull trend bar whose range is at least a multiple of the recent average bar range (or ATR).",
+    "pseudocode": "bullTrendBar[0] && (high[0] - low[0]) >= sizeMultiple * average(high - low, rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "sizeMultiple": 2.0,
+      "rangeLookback": 20,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "one average over a window"
+    },
+    "el_words_needed": [
+      "Average",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-04",
+    "name": "DojiBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      361
+    ],
+    "quote": "if there are more dojis, and if there are bigger pullbacks",
+    "description": "Primitive: a doji is a bar whose body is a small fraction of its range.",
+    "pseudocode": "abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+    "sides": "same",
+    "parameters": {
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar arithmetic"
+    },
+    "el_words_needed": [
+      "AbsValue"
+    ],
+    "likely_existing_rule": "BodyBelowAtrFraction",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-33",
+    "name": "DojiCountInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-04"
+    ],
+    "depends_on": [],
+    "pages": [
+      361
+    ],
+    "quote": "if there are more dojis",
+    "description": "Primitive/filter: number of doji bars in the last N bars is at most a threshold (strong trend); its negation flags two-sided trading.",
+    "pseudocode": "dojis = count over k in 0..lookback-1 of dojiBar[k]; dojis <= maxDojis",
+    "sides": "same",
+    "parameters": {
+      "lookback": 10,
+      "maxDojis": 3,
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (context measure)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-37",
+    "name": "FadeLargeTrendBarLateInTrend",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      362,
+      370,
+      378
+    ],
+    "quote": "some will look for a large bull trend bar that breaks above a prior swing high. They will see it as a possible exhaustive top",
+    "description": "Entry (countertrend, long side mirrored): after a bear trend has run at least N bars (or a bear channel is in its later part), a large bear trend bar breaks below the prior swing low; buy at the next open (Brooks: limit at its close and below its low), expecting an exhaustive climax and a two-legged correction.",
+    "pseudocode": "barsInBearTrend >= minTrendBars && largeBearTrendBar[0] && low[0] < swingLow[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "minTrendBars": 20,
+      "sizeMultiple": 2.0,
+      "rangeLookback": 20,
+      "swingStrength": 2
+    },
+    "book_order_type": "limit order at the close of the bar and below its low (scaling in)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "trend-age counter plus swing pivot"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 370: 'bar 13 was a large bear trend bar ... at the end of a relatively long bear leg, it was more likely to be an exhaustive climax that should lead to at least a 10-bar, two-legged ... correction.'",
+      "Page 378 'buy vacuum': the large bar 'always forms just below one or more resistance levels'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-38",
+    "name": "ConsecutiveClimaxes",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      363,
+      382
+    ],
+    "quote": "When there are consecutive climaxes (separated by a pause or a small pullback), they are usually followed by a two-legged correction that tests the pause that followed the first climax.",
+    "description": "Primitive: two large bull trend bars (climaxes) within M bars of each other, separated by at least one non-trend or pause bar. The second climax completes the spike-and-climax variant.",
+    "pseudocode": "largeBullTrendBar[0] && exists k in 2..maxGapBars: largeBullTrendBar[k] && exists j in 1..k-1: !bullTrendBar[j]",
+    "sides": "mirrored",
+    "parameters": {
+      "maxGapBars": 5,
+      "sizeMultiple": 2.0,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "short backward scan of bar classifications"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Page 376: 'Consecutive climaxes are usually followed by a deeper pullback, often to the bottom of the second climax.'"
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  }
+]

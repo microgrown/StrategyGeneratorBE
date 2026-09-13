@@ -1,0 +1,3607 @@
+[
+  {
+    "id": "R00-43",
+    "name": "MicroTrendChannelLine",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      13
+    ],
+    "quote": "micro trend channel line: A trend channel line drawn across the highs or lows of three to five consecutive bars.",
+    "description": "Shared primitive: a short channel line fit through the highs (bear) or lows (bull) of the last 3-5 consecutive bars.",
+    "pseudocode": "microChannelLine = fitLine(high, microChannelBars)",
+    "sides": "mirrored",
+    "parameters": {
+      "microChannelBars": 4
+    },
+    "book_order_type": "n/a (line construction)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "line projection over a short window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-44",
+    "name": "TrendChannelLineOvershoot",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R00-43"
+    ],
+    "pages": [
+      16
+    ],
+    "quote": "trend channel line overshoot: One or more bars penetrating a trend channel line.",
+    "description": "The current bar's high (bull channel line) trades beyond the projected trend channel line -- a climax-warning signal, often preceding a reversal.",
+    "pseudocode": "high[0] > microChannelLine[0] + overshootTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "overshootTicks": 0
+    },
+    "book_order_type": "n/a (climax context; often the trigger to take profits or fade)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "depends on the channel-line primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-45",
+    "name": "TrendChannelLineUndershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R00-43"
+    ],
+    "pages": [
+      16
+    ],
+    "quote": "trend channel line undershoot: A bar approaches a trend channel line but the market reverses away from the line without reaching or penetrating it.",
+    "description": "The current bar approaches the projected trend channel line within a tolerance but reverses without reaching it -- a sign of weakening momentum inside the channel.",
+    "pseudocode": "high[0] < microChannelLine[0] - undershootTicks * tickSize && high[0] > microChannelLine[0] - undershootBandTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "undershootTicks": 1,
+      "undershootBandTicks": 4
+    },
+    "book_order_type": "n/a (weakening-momentum context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "depends on the channel-line primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-46",
+    "name": "MicroChannel",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "R00-43",
+      "R00-14"
+    ],
+    "depends_on": [
+      "R00-43"
+    ],
+    "pages": [
+      13
+    ],
+    "quote": "micro channel: A very tight channel where most of the bars have their highs and lows touching the trend line and, often, also the trend channel line... it has no pullbacks or only one or two small pullbacks.",
+    "description": "Filter: over the last N bars, most bars touch (within tolerance) both the micro trend line and the micro trend channel line, and at most K PullbackBars occurred -- the most extreme, least-fadeable trend context.",
+    "pseudocode": "touchFraction(microChannelBars) >= minTouchFraction && countPullbackBars(microChannelBars) <= maxPullbacks",
+    "sides": "mirrored",
+    "parameters": {
+      "microChannelBars": 8,
+      "minTouchFraction": 0.7,
+      "maxPullbacks": 2
+    },
+    "book_order_type": "n/a (context filter discouraging countertrend entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "depends on the channel-line primitive plus a touch-fraction and pullback count"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "RP1-13",
+    "name": "ChannelGapTestContinuation",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "RP1-01",
+      "RP1-02"
+    ],
+    "pages": [
+      33
+    ],
+    "quote": "Once the market trades down to the area of the first of those channel bars, it often goes slightly below its low, and that puts the market in the gap area ... the test of the gap is usually followed by a resumption of the trend rather than the start of a reversal down.",
+    "description": "After a breakout spike is followed by a tight trend channel, price testing back down into the area of (and slightly below) the first channel bar's low, while still in the with-trend regime, is a continuation buy rather than a reversal signal.",
+    "pseudocode": "AlwaysInTrendContext && low[0] <= channelStartLow + toleranceTicks * tickSize && low[0] >= channelStartLow - maxUndershootAtr * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 2,
+      "maxUndershootAtr": 0.5,
+      "atrLookback": 14
+    },
+    "book_order_type": "buy at or slightly below the first channel bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs channel-bar identification after a spike and a remembered start-of-channel low"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01-part_i_breakouts_transitioning_into_a_new_trend.json",
+    "chapter_title": "Part I: Breakouts: Transitioning into a New Trend"
+  },
+  {
+    "id": "R05-22",
+    "name": "SpikeTopRetestAfterChannelBreak",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      52
+    ],
+    "quote": "The top of a spike in a spike and channel bull trend. Once the market breaks below the channel, it usually tests down to the top of the spike, and eventually to the bottom of the channel.",
+    "description": "After a spike-and-channel bull trend's channel breaks (a close below the channel line), expect the decline to retest the top of the original spike, then the bottom of the channel.",
+    "pseudocode": "spikeTop = high of the last bar of the identified spike; channelBroken && low[0] <= spikeTop + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "book_order_type": "profit-taking limit / countertrend target at the spike top",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs spike and channel-line detection/projection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/05_failed_breakouts_breakout_pullbacks_and.json",
+    "chapter_title": "Failed Breakouts, Breakout Pullbacks, and Breakout Tests"
+  },
+  {
+    "id": "RP2-09",
+    "name": "SlopingChannelCounterFlagBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      69,
+      70
+    ],
+    "quote": "any upward-sloping channel should be thought of as a bear flag, even if it is part of a bull market, because eventually there will be a break below the trend line and the market will behave as if the channel was a bear flag for trading purposes. Likewise, any downward-sloping channel should be thought of as a bull flag",
+    "description": "Filter/context: regardless of the larger trend, treat any currently rising channel as a bear flag (expect an eventual downside break to trade) and any falling channel as a bull flag (expect an eventual upside break to trade).",
+    "pseudocode": "channelSlope(recentChannelBars) > 0 => treatAsBearFlag; channelSlope(recentChannelBars) < 0 => treatAsBullFlag",
+    "sides": "mirrored",
+    "parameters": {
+      "recentChannelBars": 15
+    },
+    "book_order_type": "n/a (context filter shaping which breakout to trade)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs channel-line detection and a persistent slope read"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07-part_ii_magnets_support_and_resistance.json",
+    "chapter_title": "Part II: Magnets: Support and Resistance"
+  },
+  {
+    "id": "R07-05",
+    "name": "ChannelHeightEqualsSpikeHeightTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R07-01",
+      "R07-02"
+    ],
+    "pages": [
+      71
+    ],
+    "quote": "There is a variation of this in spike and channel trends where the height of the channel is often about the same as the height of the spike. This is especially true when the spike is strong... The channel that follows usually will find some resistance in that area and the market will often then correct down to the bottom of the channel.",
+    "description": "After a spike ends and a channel begins, expect the channel's own height to approximate the spike's height; once price extends spikeHeight beyond the end of the spike (within the channel), treat that as resistance/a profit-taking area.",
+    "pseudocode": "target = spikeEndPrice + spikeHeight; high[0] >= target - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "book_order_type": "profit-taking limit at the projection",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "arithmetically identical to R07-02's target; the only new content is the channel-height framing"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Numerically the same target as R07-02 when measured from the spike's end; kept separate because the book frames it as a channel property, not a spike property, and pairs it with R07-06's channel-bottom correction target."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07_measured_moves_based_on_the_size_of_the_first.json",
+    "chapter_title": "Measured Moves Based on the Size of the First Leg (the Spike)"
+  },
+  {
+    "id": "R10-03",
+    "name": "TrendChannelLineRetestMagnet",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      81
+    ],
+    "quote": "Trend channel lines.",
+    "description": "A trend channel line (parallel to the trend line, drawn through the extreme swing on the trend side) is a magnet: price is often drawn to test it, marking possible exhaustion.",
+    "pseudocode": "channelLine = line through the trend-side pivot, parallel to the opposing trend line; high[0] >= channelLine[0] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (level construction; fade or ride the touch)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and parallel-line projection"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/10_other_magnets.json",
+    "chapter_title": "Other Magnets"
+  },
+  {
+    "id": "R10-04",
+    "name": "SpikeChannelStartRetest",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      81
+    ],
+    "quote": "Spike and channel: the start of the channel is usually tested before long.",
+    "description": "After a spike-into-channel trend transition, the bar where the channel began (the first bar after the spike's momentum eased) is a magnet the market usually retests.",
+    "pseudocode": "channelStartLevel = close[c] where bar c is the identified spike-to-channel transition bar; low[0] <= channelStartLevel + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (level construction)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "spike-vs-channel classification is pattern recognition over a variable-length window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/10_other_magnets.json",
+    "chapter_title": "Other Magnets"
+  },
+  {
+    "id": "RP3-06",
+    "name": "MicroChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      82
+    ],
+    "quote": "The final leg of a pullback is often a micro channel against the trend (a bear micro channel at the end of a bull flag or a bull micro channel at the end of a bear flag). ... especially if the micro channel has four or more bars.",
+    "description": "Shared primitive: over the last N bars, each bar's body is the same color and consecutive bars overlap only slightly (a tight, small-tailed channel), with N at or above a minimum length to count as significant.",
+    "pseudocode": "for i in 0..microChannelBars-2: close[i] < open[i] && (min(high[i], high[i+1]) - max(low[i], low[i+1])) <= overlapFraction * (high[i+1] - low[i+1])  (bear micro channel; bull mirrors on close[i] > open[i])",
+    "sides": "mirrored",
+    "parameters": {
+      "microChannelBars": 4,
+      "overlapFraction": 0.25
+    },
+    "book_order_type": "n/a (pattern classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop of two-bar overlap and color checks, akin to R08-18's thin area"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11-part_iii_pullbacks_trends_converting_to_trading_ranges.json",
+    "chapter_title": "Part III: Pullbacks: Trends Converting to Trading Ranges"
+  },
+  {
+    "id": "RP3-07",
+    "name": "MicroChannelBreakoutEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "RP3-06"
+    ],
+    "pages": [
+      82
+    ],
+    "quote": "If the trend is strong, there is often no pullback and therefore entering on the breakout of the micro channel is a reasonable trade.",
+    "description": "In a strong trend, enter on a stop beyond the extreme of a bear MicroChannel (buy) when it breaks with a with-trend bar, without waiting for a further pullback.",
+    "pseudocode": "MicroChannel[1] && close[0] > highest(high, microChannelBars)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "microChannelBars": 4,
+      "overlapFraction": 0.25
+    },
+    "book_order_type": "buy stop above the micro channel's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "depends on the MicroChannel window plus a breakout test"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Companion filter: the book prefers this only when 'the underlying trend is strong' -- see RP3-13."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11-part_iii_pullbacks_trends_converting_to_trading_ranges.json",
+    "chapter_title": "Part III: Pullbacks: Trends Converting to Trading Ranges"
+  },
+  {
+    "id": "RP3-12",
+    "name": "BreakoutPullbackAfterStrongChannelBreak",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      88,
+      89
+    ],
+    "quote": "When a channel is steep, it is better not to enter a reversal trade on the breakout through the trend line and instead wait to see if there is a breakout pullback that sets up a second signal. ... The test can be a lower high, a double top, or a higher high.",
+    "description": "When a trend channel is too steep/tight to trade its first trend-line breakout, skip that first breakout and instead wait for a pullback that retests the channel's extreme (a lower high, double top, or higher high in a bull channel) and take the reversal signal that forms there.",
+    "pseudocode": "SteepChannel[b] (channel identified over channelBars ending at breakout bar b) && close[0] < trendLine[0] (breakout bar b) && high[i] retests within retestTicks of high[b] for some i in (b, b+retestWindow] && bearReversalBar[i]",
+    "sides": "mirrored",
+    "parameters": {
+      "channelBars": 4,
+      "retestWindow": 10,
+      "retestTicks": 3
+    },
+    "book_order_type": "sell stop below the retest bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs channel-steepness classification, trend-line projection, and a persisted retest window"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the chapter's central worked example (Figure PIII.3, bars 2/4, 6, 8-9/11, 12-14/16, 17/20, 21/23) and is formalized further in the next chapter (First Pullback Sequence)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11-part_iii_pullbacks_trends_converting_to_trading_ranges.json",
+    "chapter_title": "Part III: Pullbacks: Trends Converting to Trading Ranges"
+  },
+  {
+    "id": "R16-02",
+    "name": "SubdivisionInTightChannelCaution",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R16-01"
+    ],
+    "pages": [
+      106
+    ],
+    "quote": "When you are looking for a two-legged move and see one but the two legs are in a relatively tight channel of any kind, such as a wedge, they might in fact be subdivisions of the first leg ... This is especially true if the number of bars in each of the two legs looks inadequate compared to the pattern it is correcting.",
+    "description": "If the two apparent legs of a correction sit in a tight channel/wedge and together run fewer bars than a minimum fraction of the pattern they are correcting, treat them as subdivisions of a single first leg rather than a completed two-legged correction, and require a further leg before entering with the trend.",
+    "pseudocode": "isTightChannel(correctionBars) && correctionBars < minCorrectionFraction * patternBars -> treatAsSingleLeg (do not yet trade the with-trend entry)",
+    "sides": "same",
+    "parameters": {
+      "minCorrectionFraction": 0.5
+    },
+    "book_order_type": "n/a (entry-blocking filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs both a channel/tightness test and the bar-span of the pattern being corrected, which requires pivot detection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks gives no numeric fraction; minCorrectionFraction is a reading of 'the number of bars ... looks inadequate.'",
+      "Same guideline restated more specifically for wedges in chapter 17's R17-15."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/16_counting_the_legs_of_trends_and_trading_ranges.json",
+    "chapter_title": "Counting the Legs of Trends and Trading Ranges"
+  },
+  {
+    "id": "R18-07",
+    "name": "SpikeAndChannelMinimumTargetExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      126
+    ],
+    "quote": "As with all spike and channel patterns, the minimum target is the start of the channel, which was the high following bar 1, and there was enough room for at least a long scalp.",
+    "description": "In a spike-and-channel wedge pullback, the minimum profit target for a long scalp is the price level marking the start of the channel (the extreme reached right after the spike).",
+    "pseudocode": "minTargetPrice = channelStartExtreme; // the extreme (e.g. high) of the bar marking the end of the spike / start of the channel, identified when the pattern formed\nexitLongAtTarget = high[0] >= minTargetPrice",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "limit exit (or discretionary scale-out) at the channel-start price",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "the target price itself is a stored constant once known, but identifying the spike/channel boundary requires pivot/pattern detection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Spike-and-channel is likely already a shared primitive from the Trends book; not redefined here."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/18_wedge_and_other_three_push_pullbacks.json",
+    "chapter_title": "Wedge and Other Three-Push Pullbacks"
+  },
+  {
+    "id": "R19-01",
+    "name": "DuelingLinesPullbackEnd",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      129
+    ],
+    "quote": "A pullback in a bull trend always ends at a support level, and a pullback in a bear trend always ends at a resistance level, and therefore all pullbacks are dueling lines patterns.",
+    "description": "A pullback ends where two independent lines coincide at the same price near the current bar -- e.g., the pullback's own (falling) trend channel line intersecting the larger trend's (rising) trend line, or the trend line coinciding with a horizontal swing level or the moving average -- which increases the odds the pullback reverses back into the larger trend's direction there.",
+    "pseudocode": "// requires trend-line / channel-line projection from pivots, plus support/resistance level tracking\npullbackChannelLinePrice = channelLineValue(pullbackChannelLine, currentBarIndex);\nmajorTrendLinePrice = trendLineValue(majorTrendLine, currentBarIndex);\nisDuelingLinesConfluence = abs(pullbackChannelLinePrice - majorTrendLinePrice) <= confluenceTolerance\n   || abs(majorTrendLinePrice - horizontalSupportLevel) <= confluenceTolerance\n   || abs(majorTrendLinePrice - movingAverageValue[0]) <= confluenceTolerance;",
+    "sides": "mirrored",
+    "parameters": {
+      "confluenceTolerance": 2
+    },
+    "book_order_type": "n/a (context/confluence filter feeding a with-trend pullback-end entry)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs trend-line and trend-channel-line projection from swing pivots plus tracked support/resistance levels (horizontal swing points, moving average) and a price-proximity test between them"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Shared primitive for this chapter; Brooks says ALL pullbacks technically qualify, he just reserves the term for cases where the trader can actually see the confluence -- treated here as a detectable/tunable-tolerance condition rather than a universal truth."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/19_dueling_lines_wedge_pullback_to_the_trend_line.json",
+    "chapter_title": "Dueling Lines: Wedge Pullback to the Trend Line"
+  },
+  {
+    "id": "RP4-02",
+    "name": "TrendChannelVsTradingRangeSlopeFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "RP4-01"
+    ],
+    "pages": [
+      133
+    ],
+    "quote": "It can be mostly horizontal, which indicates that the bulls and bears are in balance, or it can be slightly sloping... If it slopes too much, it should be considered to be a trend channel and not a trading range.",
+    "description": "A sloping range is still a trading range only while its containing lines' slope stays below some magnitude; beyond that it should be classified as a trend channel instead.",
+    "pseudocode": "// requires trend-line slope from the range's containing lines\nrangeLineSlope = slopeOfLine(rangeBoundaryPivots);\nisStillTradingRange = abs(rangeLineSlope) <= maxTradingRangeSlope;",
+    "sides": "same",
+    "parameters": {
+      "maxTradingRangeSlope": null
+    },
+    "book_order_type": "n/a (regime classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a trend-line slope computed from the range's boundary pivots, and the cutoff magnitude is not given numerically"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "RP4-09",
+    "name": "FinalLegChannelReversalBuySetup",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "RP4-01"
+    ],
+    "depends_on": [
+      "RP4-01"
+    ],
+    "pages": [
+      134,
+      139
+    ],
+    "quote": "The final leg down in most trading ranges in bull markets is a bear channel, which is a last-ditch attempt by the bears to create a top and a new bear trend. A bear channel is a bull flag. Bulls can buy the reversal up from the bottom of the trading range or on the breakout pullback that usually follows soon afterward.",
+    "description": "In a bull-trend trading range, the final leg down to the range's bottom is usually a channel (not a single spike); buy the reversal up from that bottom, or the breakout pullback that follows, since the channel down is functionally a bull flag.",
+    "pseudocode": "isChannelNotSpike = legMoveClassification(finalLegDown) == CHANNEL; // as opposed to SPIKE\nisRangeBottomReversal = isTradingRange[1] && isChannelNotSpike && low[1] <= rangeLow + rangeLowTolerance && close[0] > open[0] && close[0] > high[1];\nenterLongNextBarOpen = isRangeBottomReversal;",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLowTolerance": 2
+    },
+    "book_order_type": "buy stop one tick above the reversal bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the trading-range context, tracked range boundaries, and a spike-vs-channel classification of the final leg"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R22-02",
+    "name": "SlopingTightChannelWidthTest",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-01"
+    ],
+    "pages": [
+      157,
+      158
+    ],
+    "quote": "When a tight trading range slopes slightly up or down, it is still a tight trading range and it should be treated the same way... This is the same for a tight channel, which is just a sloping tight trading range.",
+    "description": "Generalizes R22-01 to a sloped micro-channel: the perpendicular width between the fitted upper and lower channel lines over the lookback window is small relative to the average daily range.",
+    "pseudocode": "// requires trend-channel-line projection from swing pivots\nchannelWidth = perpendicularDistance(upperChannelLine, lowerChannelLine, rangeLookback);\naverageDailyRange = average(dailyHigh - dailyLow, adrLookbackDays);\nisTightSlopingChannel = channelWidth <= tightRangeFraction * averageDailyRange;",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 10,
+      "tightRangeFraction": 0.24,
+      "adrLookbackDays": 20
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and trend-channel-line projection (trends chapter 14) in addition to R22-01's size test"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R26-08",
+    "name": "DuelingLinesConvergence",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      187
+    ],
+    "quote": "Dueling lines.",
+    "description": "Shared primitive: two independently-drawn lines (e.g., a trend line and a trend channel line, or lines from two different swings) project to approximately the same price near the current bar, each independently suggesting support/resistance there; their convergence reinforces a reversal or test signal at that level.",
+    "pseudocode": "// hard: requires trend-line/channel-line projection from pivots for two independent lines\nlineAValue = trendLineValue(lineA, currentBarIndex);\nlineBValue = trendLineValue(lineB, currentBarIndex);\nisDuelingLinesZone = abs(lineAValue - lineBValue) <= duelingLinesTolerance;",
+    "sides": "same",
+    "parameters": {
+      "duelingLinesTolerance": 2
+    },
+    "book_order_type": "n/a (pattern classification used as a signal precondition)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs two independent trend-line/channel-line projections from pivots and a proximity test between them"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Listed only as one bullet item here ('Dueling lines.') but used substantively as a named setup in chapter 28's worked examples; defined here since this is the first chapter of this mining batch to name it."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R28-15",
+    "name": "ChannelEarlyStageLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "Buy below the low of the prior bar in a bull channel, especially when the channel is in its early stages.",
+    "description": "In the early stage of a bull channel, place a buy-limit order below the low of the prior bar.",
+    "pseudocode": "limitPrice = low[0];\nenterLongOnLimitNextBar = isBullChannel[0] && isEarlyStageChannel[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy limit order below the low of the prior bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'channel' and its 'early stage' (a bars-since-breakout style measure) are research-grade phase classifications"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-17",
+    "name": "MicroChannelPrimitive",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "Buy below the low of the prior bar in a bull micro channel, expecting the first breakout below the channel to fail.",
+    "description": "Shared primitive: a micro channel is a short run of same-direction trend bars with minimal overlap and small pullbacks, too brief to be a full channel.",
+    "pseudocode": "// hard: needs a run-length/overlap test over a short variable-length window\nisBullMicroChannel[0];",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (pattern classification used as a signal precondition)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs pattern recognition over a variable-length recent window (consecutive trend bars with small overlap)"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Likely duplicates the micro-channel primitive already mined in the trends book's chapter 16 (16_micro_channels.json); defined locally here since chapter 16 was not part of this mining batch."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-18",
+    "name": "MicroChannelFirstBreakoutFailEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "R28-17"
+    ],
+    "depends_on": [
+      "R28-17"
+    ],
+    "pages": [
+      193
+    ],
+    "quote": "Buy below the low of the prior bar in a bull micro channel, expecting the first breakout below the channel to fail.",
+    "description": "In a bull micro channel, place a buy-limit order below the low of the prior bar, expecting the first break below the channel to fail.",
+    "pseudocode": "limitPrice = low[0];\nenterLongOnLimitNextBar = isBullMicroChannel[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy limit order below the low of the prior bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits R28-17's variable-length pattern recognition"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-19",
+    "name": "SpikeChannelBottomTestEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193
+    ],
+    "quote": "When there is a spike and channel bull trend and a low-momentum pullback to the bottom of the channel, buy the test of the bottom of the channel.",
+    "description": "In a spike-and-channel bull trend, when a low-momentum pullback tests the bottom of the channel, buy that test.",
+    "pseudocode": "limitPrice = channelBottomLine[0];\nenterLongOnLimitNextBar = isSpikeAndChannelBullTrend[0] && isLowMomentumPullback[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy at the test of the bottom of the channel (limit or at market)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs spike-and-channel classification, a channel trend-line projection, and a momentum measure for the pullback"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "R28-32",
+    "name": "StairsPatternPullbackLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193,
+      194
+    ],
+    "quote": "If the market is in a stairs pattern, enter on a limit order for the pullback to the prior stair. For example... consider placing a buy limit order at four points below the prior swing low for a rally up to test that swing low.",
+    "description": "In a stairs pattern, place a limit order at a fixed distance beyond the most recent stair's swing extreme, anticipating a pullback that tests it.",
+    "pseudocode": "limitPrice = mostRecentSwingLow[0].price - stairPullbackDistance;\nenterLongOnLimitNextBar = isStairsPattern[0] && low[1] <= limitPrice;",
+    "sides": "mirrored",
+    "parameters": {
+      "stairPullbackDistance": 4
+    },
+    "book_order_type": "buy limit order a fixed distance below the prior swing low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a stairs-pattern classification (a variable-length swing-structure pattern) plus swing-pivot detection"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Likely duplicates the stairs-pattern primitive already mined in the trends book's chapter 26 (26_stairs_broad_channel_trend.json)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "V00-59",
+    "name": "TrendChannelLineOvershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      27,
+      54
+    ],
+    "quote": "One or more bars penetrating a trend channel line.",
+    "description": "A bar's high (low) penetrates a rising (falling) trend channel line projected from recent swing highs (lows), often a climax/reversal sign.",
+    "pseudocode": "high[0] > trendChannelLine(0)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context/climax classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and trend-channel-line projection from those pivots"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-60",
+    "name": "TrendChannelLineUndershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V00-59"
+    ],
+    "pages": [
+      27,
+      28
+    ],
+    "quote": "A bar approaches a trend channel line but the market reverses away from the line without reaching or penetrating it.",
+    "description": "A bar approaches but does not reach a trend channel line before reversing away from it, the mirror case of an overshoot.",
+    "pseudocode": "high[0] < trendChannelLine(0) && trendChannelLine(0) - high[0] <= undershootTolerance",
+    "sides": "mirrored",
+    "parameters": {
+      "undershootTolerance": 5
+    },
+    "book_order_type": "n/a (context/climax classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the same trend-channel-line projection as the overshoot primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-61",
+    "name": "MicroChannelTightness",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      21,
+      22
+    ],
+    "quote": "A very tight channel where most of the bars have their highs and lows touching the trend line and, often, also the trend channel line.",
+    "description": "A micro trend channel: most bars in a short lookback have their extremes essentially on both the trend line and the trend channel line (an extremely tight, low-pullback move).",
+    "pseudocode": "countIf(abs(high[i] - trendChannelLine(i)) <= tolerance, lookback) >= majorityFraction * lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 5,
+      "tolerance": 2,
+      "majorityFraction": 0.7
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs trend-line and trend-channel-line projection plus a tolerance-based counting loop against both lines"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-15",
+    "name": "TrendChannelLineOvershootReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      84,
+      527
+    ],
+    "quote": "One trend will often end with a trend channel line overshoot and reversal followed by a two-legged move that breaks the trend line.",
+    "description": "Price briefly exceeds (overshoots) the trend channel line (the parallel line on the far side of the channel from the trend line) then reverses back inside the channel - an early warning of trend exhaustion.",
+    "pseudocode": "high[1] > channelLine(1) && close[0] < channelLine(0) // channelLine projected parallel to the trend line through the opposite extremes; mirrored for bear channels",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context/pattern signal, feeds an Entry elsewhere)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs both trend-line and parallel channel-line projection from swing pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "VP1-30",
+    "name": "MicroChannelWeakensReversalOdds",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      99,
+      100
+    ],
+    "quote": "the micro channel down from bar 29 was so tight that the probability of success was not high [for the reversal attempt].",
+    "description": "Concept: a reversal attempt against a tight micro-channel (a run of small, overlapping, persistently same-direction bars) has lower odds; needs a micro-channel detector before it is codable.",
+    "pseudocode": "n/a - classification concept (micro-channel = a run of small-range, minimally-overlapping same-direction bars)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "micro-channel detection is a pattern-recognition design decision, not a fixed test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "VP1-33",
+    "name": "DuelingLinesPattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      88,
+      89
+    ],
+    "quote": "The market will probably form a dueling lines bottom around the bull trend line drawn below the bars 1, 2, and 4 lows... and the trend channel line drawn below the bars 9 and 13 lows.",
+    "description": "Concept: a reversal setting up where two independently drawn trend/channel lines from different pivots converge near the same price - a named Brooks pattern combining two trend-line projections, which needs a design decision to formalize.",
+    "pseudocode": "n/a - classification concept over two independently projected lines",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "combines two trend-line projections plus a convergence/coincidence test that Brooks does not quantify"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V01-21",
+    "name": "SpikeAndChannelDayType",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      103
+    ],
+    "quote": "Since the day was a spike and channel bull at that point, the sell-off might have just tested the bar 4 start of the bull channel",
+    "description": "Concept: classifying the day's trend as 'spike and channel' (an initial strong spike followed by a persistent, shallower channel trend) is a session-level pattern that needs a design decision (how to detect the spike-to-channel transition) before it is codable.",
+    "pseudocode": "n/a - classification concept",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "the spike-to-channel transition is a subjective read, not a fixed test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V02-21",
+    "name": "TrendChannelLineOvershootReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      108
+    ],
+    "quote": "The reversal began as a reversal from an overshoot of a trend channel line from the old trend.",
+    "description": "Price poked below the bear trend channel line (parallel of the bear trend line anchored at the lows) within the last K bars and this bar closes back above it.",
+    "pseudocode": "tcl = parallel of bear trend line through swingLow[1]; lowest(low, overshootBars, 0) < tcl && close[0] > tcl",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "overshootBars": 3
+    },
+    "book_order_type": "buy stop above the reversal bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs pivots, a trend line and a parallel channel projection"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V03-08",
+    "name": "SteepChannelTestBlocksReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      122,
+      130,
+      131
+    ],
+    "quote": "If the rally is in a very tight, steep channel with no pullbacks and very little overlap between consecutive bars... the odds are increased that the bull trend will resume, despite that earlier strong sell-off and breakout below the bull trend line.",
+    "description": "If the test move back toward the prior extreme is a steep, low-overlap channel (little bar-to-bar overlap, no pullbacks), treat it as likely trend continuation and do not take the reversal trade; wait for a breakout of that channel and a pullback first.",
+    "pseudocode": "channelSteepness(testLeg) >= steepnessThreshold && barOverlapFraction(testLeg) <= overlapThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "steepnessThreshold": "undefined -- needs a design decision",
+      "overlapThreshold": "undefined -- needs a design decision"
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"steep, low-overlap channel\" has no numeric definition in the text; needs a chosen slope/overlap metric before coding"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Recurs across three separate chart examples (bars 12-13 AAPL, bars 11-14 GS, bar 6-7 GS); clearly an important Brooks concept even though it resists a crisp default."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/03_major_trend_reversal.json",
+    "chapter_title": "Major Trend Reversal"
+  },
+  {
+    "id": "V04-09",
+    "name": "ChannelLineBreakoutFailsWithinBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      148
+    ],
+    "quote": "most trend channel line breakouts fail within about five bars and the market then reenters the channel and usually pokes through the opposite side of the channel",
+    "description": "After price breaks out beyond a trend channel line, if it closes back inside the channel within N bars, expect it to continue through and poke the opposite trend line rather than resume the breakout direction.",
+    "pseudocode": "brokeChannelLine[k] (for some k <= failBars) && close[0] back inside channel",
+    "sides": "mirrored",
+    "parameters": {
+      "failBars": 5
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires trend-channel-line projection from pivots, on top of a bar-count window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TrendChannelLineOvershootReversal",
+    "confidence": "medium",
+    "notes": [
+      "Builds on V02-21 TrendChannelLineOvershootReversal by adding the specific ~5-bar failure window."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-10",
+    "name": "TrendChannelLineBreakStrengthensTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      148
+    ],
+    "quote": "The break of a trend line means that a possible trend reversal is underway, but breaking a trend channel line means that the trend has increased in strength and is now steeper.",
+    "description": "Classify a break of the (outer) trend channel line as a WITH-trend strengthening signal, opposite in implication to a break of the (inner) trend line, which signals a possible reversal. Used to route the same 'line break' event into the correct filter (V03-01 vs. this one) depending on which line was broken.",
+    "pseudocode": "brokeTrendChannelLine(0) => favor with-trend entries, not reversal setups",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context routing rule)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires distinguishing trend-line breaks from trend-channel-line breaks, both needing pivot/line projection"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-14",
+    "name": "SteepChannelTestUnreliableForCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      171,
+      173
+    ],
+    "quote": "When a channel is steep, it is a losing strategy to buy every reversal from a trend channel line overshoot. Instead wait until there is a strong breakout of the channel... and then look to buy the breakout pullback.",
+    "description": "In a steep channel, suppress countertrend trend-channel-line-overshoot entries; wait instead for a confirmed breakout of the channel and then a breakout-pullback entry.",
+    "pseudocode": "channelSteepness(currentChannel) >= steepnessThreshold => suppress trendChannelLineOvershoot entries until channelBreakoutConfirmed",
+    "sides": "mirrored",
+    "parameters": {
+      "steepnessThreshold": "undefined -- needs a design decision"
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "same undefined 'steep channel' metric flagged in V03-08; restated here specifically for trend-channel-line overshoots"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Duplicate of V03-08 SteepChannelTestBlocksReversal in spirit; dedup pass should merge across chapters 3 and 4."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-18",
+    "name": "ChannelStartLevelRetestExpectation",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      155
+    ],
+    "quote": "The start of the channel usually gets tested within a day or two.",
+    "description": "The price level where a channel began (the spike-to-channel transition point) is likely to be revisited within roughly one to two days; can be used as a magnet/target level for later trades, though the book gives no strict bar count.",
+    "pseudocode": "channelStartLevel is likely to be touched again within retestBars",
+    "sides": "same",
+    "parameters": {
+      "retestBars": "undefined -- 'a day or two', needs a session-length-dependent bar count"
+    },
+    "book_order_type": "n/a (magnet-level context note)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "needs a recorded channel-start level plus a decision on how to convert 'a day or two' into a bar count across timeframes"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V10-04",
+    "name": "TrendChannelLineBreakStrongCloseContinuation",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      287
+    ],
+    "quote": "The huge bear trend bar closed well below the line, confirming the strength of the trend channel line failure to contain the bear trend... Climactic volume in the absence of bullish price action is no reason to fade a strong bear trend.",
+    "description": "When a bar breaks a trend channel line but closes well beyond it in the trend direction (a strong trend-direction close, not a reversal-shaped bar), that confirms trend strength rather than a reversal - a filter against fading the trend even on huge volume.",
+    "pseudocode": "brokeTrendChannelLine[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter against a countertrend entry)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires trend-channel-line detection/projection from pivots, in addition to the trend-bar body test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Direct contrast case to V10-01: same volume-climax setup, but the bar's shape (strong trend-direction close, not a reversal bar) argues against taking the reversal."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/10_huge_volume_reversals_on_daily_charts.json",
+    "chapter_title": "Huge Volume Reversals on Daily Charts"
+  },
+  {
+    "id": "V20-06",
+    "name": "GapAsSpikeForChannelTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V20-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      424
+    ],
+    "quote": "The gap should be looked at as if it is one huge, invisible trend bar. For example, if there is a large gap up and it is followed by a minor pullback and then a channel type of rally for the rest of the day, this is likely a gap spike and channel bull trend, with the gap being the spike.",
+    "description": "Treat a large gap as the 'spike' leg of a spike-and-channel trend: if a minor pullback is followed by a channel-type continuation in the gap's direction, classify the day as a gap spike-and-channel trend in that direction.",
+    "pseudocode": "isLargeGap(0) && isMinorPullback(1, gapEndBar) && isChannel(pullbackEndBar, 0)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (day-pattern classification)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires pivot/pullback detection and channel-line projection over a variable-length window following the gap, on top of the gap test itself"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "'Spike and channel' is expected to be a shared primitive defined in another chapter (e.g. the trends volume or the reversals climax chapters); this candidate is the gap-specific instance of it."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/20_gap_openings_reversals_and_continuations.json",
+    "chapter_title": "Gap Openings: Reversals and Continuations"
+  },
+  {
+    "id": "V23-02",
+    "name": "FadeStairsPatternBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      459,
+      470
+    ],
+    "quote": "When a market is in a stairs pattern, you can fade each new breakout with options, expecting a pullback into the prior stair.",
+    "description": "When a trend is advancing in a 'stairs' pattern (a series of small breakouts, each followed by a shallow pullback that stays roughly at or above/below the prior step), fade each new marginal breakout, expecting a pullback back into the prior stair rather than sustained follow-through.",
+    "pseudocode": "isStairsPattern(trendDirection) && close[0] > priorStairHigh -> fade entry short, target = priorStairLevel",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "enter on a limit at the breakout extreme, or on the close of a weak signal bar (per the book's example); mechanized here as a fade entered at the next bar's open once the breakout+weak-bar condition is true",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "identifying a 'stairs pattern' -- a trend of small, roughly-equal steps, distinct from an accelerating spike-and-channel or a three-push wedge -- is a design decision before this could be coded, not just a computation"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/23_options.json",
+    "chapter_title": "Options"
+  },
+  {
+    "id": "V24-16",
+    "name": "StairsPatternReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      487
+    ],
+    "quote": "Buying a third or fourth push down in a bear stairs pattern for a test of the low of the prior push down.",
+    "description": "In a 'stairs' trend (a series of small pushes each making a marginal new extreme with a brief pause between), fade the third or fourth consecutive push, targeting a test of the low (high) of the push before it. Mirrored for a bull stairs pattern.",
+    "pseudocode": "pushCount(direction,lookback) >= 3 && pushCount(direction,lookback) <= 4 && eachPushIsMarginalNewExtreme(tolTicks) && TrendBarBody(opposite)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 30,
+      "tolTicks": 4
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a push-counter over marginal new extremes, similar to wedge detection but without convergence"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-21",
+    "name": "MicroChannelBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V24-10"
+    ],
+    "depends_on": [],
+    "pages": [
+      485,
+      511
+    ],
+    "quote": "If there is a bear micro channel down to the bottom of the range, wait for the bull breakout and look to buy the pullback",
+    "description": "A micro channel is 4+ consecutive same-direction, heavily overlapping trend bars with no real pullback. Do not enter on its first breakout; wait for the breakout to hold and enter on the first pullback from it (a form of BreakoutPullbackEntry gated by a preceding micro-channel).",
+    "pseudocode": "microChannelBars = countConsecutiveOverlappingTrendBars(direction) >= 4; brokeOut = microChannelBars[1] && close[0] closes beyond channel against direction; entry = brokeOut[1] && pullback[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "minChannelBars": 4
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a consecutive-bar counter with an overlap test, then reuses the breakout-pullback primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MicroChannel",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-43",
+    "name": "AvoidCountertrendScalpInWeakChannel",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V24-12",
+      "V24-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      493,
+      522
+    ],
+    "quote": "Countertrend scalps are most tempting in weak channels, where the with-trend setups just don't look strong enough... An impatient trader who buys above the bull reversal bar on a stop will consistently lose money.",
+    "description": "Block a counter-trend reversal-bar entry (e.g. a bull reversal bar in an established bear channel) that fades a new trend extreme, since these setups have a demonstrated negative trader's equation.",
+    "pseudocode": "ctx.AlwaysInShort() && TrendBarBody(bull) && low[0] <= lowest(low,channelLookback,1) => blockEntry(long)",
+    "sides": "mirrored",
+    "parameters": {
+      "channelLookback": 20
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on the always-in read plus a qualitative 'weak channel' judgment Brooks never fully formalizes"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "T00-17",
+    "name": "ShrinkingStairsPattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      22
+    ],
+    "quote": "shrinking stairs A stairs pattern where the most recent breakout is smaller than the previous one... indicating waning momentum.",
+    "description": "Over the last three swing breakouts in a trend, each new-extreme increment is smaller than the prior one: a fading-momentum filter that argues against the next with-trend breakout.",
+    "pseudocode": "(swingHigh(1) - swingHigh(2)) < (swingHigh(2) - swingHigh(3)) && (swingHigh(2) - swingHigh(3)) < (swingHigh(3) - swingHigh(4))",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "swing-pivot detection over four pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T00-45",
+    "name": "NoTrendChannelOvershootFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      57
+    ],
+    "quote": "No significant trend channel line overshoots occur, and the minor ones result in only sideways corrections.",
+    "description": "Block entries when the market has recently produced a significant trend-channel-line overshoot -- needs the channel-projection machinery from chapters 14-16.",
+    "pseudocode": "!(exists k in 0..lookback-1: high[k] - channelLine[k] >= significantOvershootAtr * atr(atrLength))",
+    "sides": "mirrored",
+    "parameters": {
+      "significantOvershootAtr": 0.5,
+      "atrLength": 14,
+      "lookback": 10
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on trend-channel-line projection (chapters 14-16) plus a threshold for 'significant', both design decisions"
+    },
+    "el_words_needed": [
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T03-08",
+    "name": "ChannelDetection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T03-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      108
+    ],
+    "quote": "This channel is a weaker bull move, and channels are usually the start of a trading range.",
+    "description": "Primitive context: following a spike, a run of overlapping, shallower-sloped bars constitutes a 'channel' -- approximated as the average range since the spike ended being smaller than the spike's own average range, with substantial bar-to-bar overlap.",
+    "pseudocode": "SpikeDetection ended at bar k; avgRange(k-1) < channelRangeFraction * avgRange(spikeBars)[k] && overlapCount(1, k-1) >= minOverlapBars",
+    "sides": "same",
+    "parameters": {
+      "channelRangeFraction": 0.7,
+      "minOverlapBars": 3
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'channel' recognition needs a design decision beyond the average-range/overlap proxy used here"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T03-09",
+    "name": "BuyChannelLowRetest",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T03-08",
+      "T03-04"
+    ],
+    "depends_on": [],
+    "pages": [
+      108,
+      109,
+      111
+    ],
+    "quote": "Bar 7 was a higher low test of the bar 5 swing low and a second test of yesterday's low, and the market reversed up in a double bottom.",
+    "description": "After a bull spike-and-channel forms, price pulls back to test the channel's starting swing low and holds above it (a higher low): buy above the higher-low signal bar. Mirrored for a bear channel's retest of its starting swing high.",
+    "pseudocode": "ChannelDetection.bull[k] (channel started at swing low k) && SwingLevelTest(lowSide, level=swingLowPrice[k]) && low[0] > swingLowPrice[k] && close[nextbar] > high[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the higher-low signal bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "composes swing detection and the research-grade channel primitive"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "DoubleBottomPullbackLong",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T03-16",
+    "name": "TrendChannelLineBreakoutFailFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      107
+    ],
+    "quote": "rarely the market will break out above the trend channel line and the bull trend will accelerate. Usually the breakout will fail within five bars or so and the market will then reverse.",
+    "description": "Price closed above an upper trend channel line (drawn across recent swing highs), accelerating the trend; if within K bars it closes back below that line, fade back into the channel (short). Mirrored: a bear channel-line breakout down that fails, buy.",
+    "pseudocode": "exists j in 1..failBars: close[j] > trendChannelLineValue[j]; && close[0] < trendChannelLineValue[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "failBars": 5
+    },
+    "book_order_type": "sell stop one tick below the bar that closed back inside the channel",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs trend-channel-line projection from swing pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T04-11",
+    "name": "ChannelBuyAtOrBelowPriorBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      115
+    ],
+    "quote": "All bars in a channel: Buy at or below prior bar, sell at or above prior bar.",
+    "description": "In an established channel, buy when this bar trades at or below the prior bar's low (approximating a limit entry within the channel).",
+    "pseudocode": "ChannelContext && low[0] <= low[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy limit at or below the prior bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'channel' recognition needs pivot/line-projection design decisions covered in later chapters (15-16), not in this one"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/04_bar_basics_signal_bars_entry_bars_setups_and.json",
+    "chapter_title": "Bar Basics: Signal Bars, Entry Bars, Setups, and Candle Patterns"
+  },
+  {
+    "id": "T06-30",
+    "name": "AllBarsInChannelLimitEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T06-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      138
+    ],
+    "quote": "When there is a strong bull channel, bulls will place limit orders to buy at or below the low of the prior bar, and bears will place limit orders to short at or above the high of every bar.",
+    "description": "In a strong bull channel (approximated here by the same sustained-trend proxy as TrendSpikeContext, extended over more bars), buy at or below the prior bar's low with a resting limit order. Mirror: in a bear channel, sell at or above the prior bar's high.",
+    "pseudocode": "TrendSpikeContext[0] (bull, spikeBars = channelBars) && low[0] <= low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "channelBars": 8
+    },
+    "book_order_type": "resting buy limit order at or below the prior bar's low, working continuously while the channel context holds -- not a stop; assumes a fill at low[1] on this bar rather than the usual next-bar-open mechanization, since a limit order can fill intrabar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "channel is approximated by the sustained-trend-bar proxy already used for TrendSpikeContext; the intrabar limit fill is also an exception to the standard close-then-next-open mechanization and would need explicit engine support"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "'Channel' is a chart-pattern concept (a shallow, sustained trend with small pullbacks) that Brooks develops fully elsewhere in the trilogy; not re-derived from scratch here."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "TP2-02",
+    "name": "TrendChannelLine",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP2-01"
+    ],
+    "pages": [
+      221,
+      222
+    ],
+    "quote": "Line 4 is a trend channel line in a bull trend and is above the highs, and line 9 is a trend channel line in a bear trend and is below the lows.",
+    "description": "Primitive: the trend channel line is a parallel of the trend line anchored at the pivot on the opposite side that lies between the trend line's two anchors. channelLine[0] is its value at bar 0.",
+    "pseudocode": "anchor = swing high between swingLow(2).bar and swingLow(1).bar; channelLine[0] = anchor.price + slope * (0 - anchor.bar)",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the trend line plus a search for the extreme pivot between its anchors"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13-part_ii_trend_lines_and_channels.json",
+    "chapter_title": "Part II: Trend Lines and Channels (introduction)"
+  },
+  {
+    "id": "TP2-04",
+    "name": "ChannelShapeClassification",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP2-01",
+      "TP2-02"
+    ],
+    "pages": [
+      221
+    ],
+    "quote": "The lines defining the channel most often are parallel or roughly parallel, but are convergent in wedges and most other triangles, and divergent in expanding triangles.",
+    "description": "Classify the channel by comparing its width (channel line minus trend line) now versus k bars ago: narrowing width flags a wedge/triangle context (favors a reversal read), widening flags an expanding triangle (favors a range read), and roughly equal width is a standard parallel channel (favors continuation).",
+    "pseudocode": "widthNow = channelLine[0] - trendLine[0]; widthEarlier = channelLine[k] - trendLine[k]; isWedge = widthNow < widthEarlier * convergeFraction; isExpanding = widthNow > widthEarlier / convergeFraction",
+    "sides": "same",
+    "parameters": {
+      "convergeFraction": 0.7,
+      "k": 10
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs both projected lines evaluated at two points in time"
+    },
+    "el_words_needed": [
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Chapter 14 mechanizes the wedge case in more detail (T14-08)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13-part_ii_trend_lines_and_channels.json",
+    "chapter_title": "Part II: Trend Lines and Channels (introduction)"
+  },
+  {
+    "id": "T13-11",
+    "name": "DuelingLinesConfluence",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T13-02"
+    ],
+    "pages": [
+      231
+    ],
+    "quote": "This is where a trend channel line in a pullback or a leg of a channel intersects the channel's trend line.",
+    "description": "Confluence filter: a signal bar is stronger when a smaller, locally drawn trend/channel line (e.g., of the current pullback) intersects the larger channel's trend line at roughly the same price -- two independently drawn lines 'dueling' at the same level.",
+    "pseudocode": "abs(smallTrendLine[0] - largeTrendLine[0]) <= confluenceTolAtr * atr(atrLength)",
+    "sides": "same",
+    "parameters": {
+      "confluenceTolAtr": 0.15,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires two independently anchored trend-line objects; choosing the smaller line's anchors (which pullback, which pivots) is a discretionary design decision"
+    },
+    "el_words_needed": [
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13_trend_lines.json",
+    "chapter_title": "Trend Lines"
+  },
+  {
+    "id": "T14-04",
+    "name": "ChannelLineOvershootReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T14-03"
+    ],
+    "pages": [
+      239
+    ],
+    "quote": "A trend channel line is a useful tool for fading a trend that has gone too far, too fast. Look for an overshoot that reverses, especially if it is the second penetration that is reversing.",
+    "description": "Fade at the channel line: the bar's high pokes above the projected bull trend channel line and the bar closes back below it with a bear-reversal quality close; sell at the next open (mirror: buy on a bear channel undershoot).",
+    "pseudocode": "high[0] > channelLine[0] && close[0] < channelLine[0] && close[0] < open[0] && (open[0] - close[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.5
+    },
+    "book_order_type": "stop one tick beyond the reversal bar (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel line"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/14_trend_channel_lines.json",
+    "chapter_title": "Trend Channel Lines"
+  },
+  {
+    "id": "T14-05",
+    "name": "SecondPenetrationPreferredForFade",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T14-04"
+    ],
+    "pages": [
+      239
+    ],
+    "quote": "especially if it is the second penetration that is reversing.",
+    "description": "Prefer the channel-line fade (T14-04) on the second time within lookback bars that the line has been penetrated, rather than the first.",
+    "pseudocode": "countTrue(penetratedChannelLine(i) for i in 1..lookback) >= 1 && penetratedChannelLine(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 15
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window count of a derived per-bar penetration flag"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/14_trend_channel_lines.json",
+    "chapter_title": "Trend Channel Lines"
+  },
+  {
+    "id": "T14-06",
+    "name": "SlopingChannelIsOppositeFlag",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T14-02"
+    ],
+    "pages": [
+      239
+    ],
+    "quote": "In general, any channel that is sloping up to the right can be thought of as a bear flag and it is likely that there will be a breakout through the bottom of the channel... Similarly, a channel that slopes down to the right can be thought of as a bull flag.",
+    "description": "Classification: an up-sloping channel is treated as a bear flag (bias toward an eventual downside breakout filter); a down-sloping channel is a bull flag (bias upside).",
+    "pseudocode": "slope(trendLine) > 0 -> treat as bear flag; slope(trendLine) < 0 -> treat as bull flag",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the trend line's projected slope, itself pivot-dependent"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/14_trend_channel_lines.json",
+    "chapter_title": "Trend Channel Lines"
+  },
+  {
+    "id": "T14-07",
+    "name": "FailedBreakoutOfFallingChannelWithinNBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T14-02"
+    ],
+    "pages": [
+      239
+    ],
+    "quote": "If the market falls through the bottom of a falling channel, the breakout will usually fail within about five bars and lead to a reversal, but it can also be the start of a new, stronger bear leg.",
+    "description": "In a falling (bull-flag) channel, a recent close below its trend line within the last failWindowBars followed by a close back above it is a failed-breakout buy; enter at the next open.",
+    "pseudocode": "exists i in 1..failWindowBars with close[i] < trendLine[i] && close[0] > trendLine[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "failWindowBars": 5
+    },
+    "book_order_type": "buy stop above the reversal bar (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected trend line evaluated across a small window"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/14_trend_channel_lines.json",
+    "chapter_title": "Trend Channel Lines"
+  },
+  {
+    "id": "T14-12",
+    "name": "AnchorSpikeExclusionForChannelLine",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T14-03"
+    ],
+    "pages": [
+      239,
+      240
+    ],
+    "quote": "Sometimes there will be a single spike up within an otherwise fairly tight channel, and when that is the case, it is usually best to ignore it and use the other bars for the location of the trend channel line.",
+    "description": "Design decision: when selecting the anchor pivot for a trend channel line, exclude an outlier spike bar unless subsequent price action starts respecting the wider line that includes it.",
+    "pseudocode": "anchor excludes outlier pivots unless a later bar's high/low tests the wider line derived from the outlier",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'usually best to ignore it... unless the market decides otherwise' is explicitly a judgment call with no numeric threshold given"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/14_trend_channel_lines.json",
+    "chapter_title": "Trend Channel Lines"
+  },
+  {
+    "id": "T15-07",
+    "name": "BullTrendChannelLineParallel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-04",
+      "T15-06"
+    ],
+    "pages": [
+      250,
+      269
+    ],
+    "quote": "They will also create a parallel of the line and drag it to the top of the first leg up, and this is their first creation of a channel.",
+    "description": "Primitive: the trend channel line is a parallel of the bull trend line anchored at the swing high that lies between the two anchoring swing lows. channelLine[0] is its value at bar 0; channelHeight = channelLine[0] - trendLine[0].",
+    "pseudocode": "anchor = swing high between swingLow(2).bar and swingLow(1).bar; channelLine[0] = anchor.price + slope * (0 - anchor.bar); channelHeight = channelLine[0] - trendLine[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the trend line plus a search for the highest pivot between its anchors"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "p269: the anchor should be the swing that 'contained all of the sell-offs'; using the highest high between the anchors satisfies that."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-08",
+    "name": "BullChannelConfirmedByTwoLegs",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-04",
+      "T15-05"
+    ],
+    "pages": [
+      250,
+      251
+    ],
+    "quote": "if the leg down ends and is comparable in size to the first leg down (the leg after the first leg up), and then it reverses up again, traders will now begin to assume that a bull channel is underway",
+    "description": "Context filter: a bull channel exists once there are two higher swing lows separated by a higher swing high, and the second leg down is comparable in size to the first (ratio within [1/legRatio, legRatio]).",
+    "pseudocode": "l1 = swingLow(2); h1 = swingHigh between l1 and l2; l2 = swingLow(1); leg1 = h0.price - l1.price where h0 = swing high before l1; leg2 = h1.price - l2.price; l2.price > l1.price && leg2 >= leg1 / legRatio && leg2 <= leg1 * legRatio",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "legRatio": 2.0
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "leg identification from pivots plus a design decision on how 'comparable' is measured and when the channel is considered dead"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Gates T15-14, T15-15, T15-19 and the other channel trades."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-10",
+    "name": "TightChannelSmallPullbacks",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      250,
+      252,
+      258
+    ],
+    "quote": "When a channel is especially tight, meaning that the trend line and trend channel lines are close together and the pullbacks are small, it is a sign that the trend is strong",
+    "description": "Context filter: over the last windowBars the market made net progress of at least netAtr x ATR while the largest pullback from the running high was at most pullbackAtr x ATR. When true, trade only with the trend (p252, p258).",
+    "pseudocode": "maxPullback = max over i in 0..windowBars-1 of (highest(high, windowBars - i) starting at bar i+... running high up to bar i) - low[i]; (close[0] - close[windowBars]) >= netAtr * atr(atrLength) && maxPullback <= pullbackAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 10,
+      "netAtr": 2.0,
+      "pullbackAtr": 1.0,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window loop tracking a running high and the deepest retracement below it"
+    },
+    "el_words_needed": [
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p258: in a steep channel where most pullbacks were one bar, do not buy a breakout above the prior bar even if it breaks the bear trend line; wait for a breakout pullback (T15-36, T15-38).",
+      "p261: many tight channels had only one- to three-tick one-bar pullbacks and lasted about 10 bars; chapter 16 covers that micro-channel form."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-11",
+    "name": "BroadSwingChannelTwoSided",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      252,
+      261
+    ],
+    "quote": "When the slope is less steep and there are broad swings within the channel, some lasting five or even 10 bars, the market is behaving more like a trading range and can be traded in both directions.",
+    "description": "Context filter: within the last windowBars there was at least one countertrend swing lasting >= swingBars consecutive bars (for a bull channel, a run of swingBars bars each making a lower high). When true, countertrend trades are permitted.",
+    "pseudocode": "exists i in 0..windowBars-swingBars such that for all j in i..i+swingBars-1: high[j] < high[j+1]",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 20,
+      "swingBars": 5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "nested window loop counting a run of lower highs"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The logical complement of T15-10; p261 Figure 15.1 makes the same point (channel from bars 3 to 8 traded in both directions)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-12",
+    "name": "ChannelSlopeSteep",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      252,
+      258
+    ],
+    "quote": "The steeper the slope and the closer together the lines are, the stronger the channel is and the stronger the momentum is.",
+    "description": "Context filter: the slope of the linear regression of closes over slopeBars, in ATR per bar, is at least minSlopeAtr. Steep means with-trend only; below the threshold, allow two-sided trading.",
+    "pseudocode": "slope = linearRegSlope(close, slopeBars); slope / atr(atrLength) >= minSlopeAtr",
+    "sides": "mirrored",
+    "parameters": {
+      "slopeBars": 10,
+      "minSlopeAtr": 0.25,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "regression slope over a fixed window is a single loop"
+    },
+    "el_words_needed": [
+      "LinearRegSlope",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-14",
+    "name": "ExitLongAtTrendChannelLine",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-07"
+    ],
+    "pages": [
+      250,
+      269
+    ],
+    "quote": "Whenever the market rallies up to that trend channel line, traders will take profit on their longs, and look to short.",
+    "description": "Exit the long when the bar's high reaches the projected trend channel line (the top of the bull channel).",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= channelLine[0] - touchTolAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "touchTolAtr": 0.0,
+      "atrLength": 14,
+      "pivotStrength": 2
+    },
+    "book_order_type": "limit order at the channel line",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel line"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "p269: shorts take partial profits at the bottom of a bear channel (mirror)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-15",
+    "name": "ChannelLineOvershootReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-07",
+      "T15-01"
+    ],
+    "pages": [
+      251,
+      269
+    ],
+    "quote": "especially if there is an overshoot of the trend channel line and a strong bear reversal bar, traders will short aggressively because the odds of a successful downside breakout have increased.",
+    "description": "Countertrend fade at the channel line. Long side (bear channel): the bar's low pokes below the projected bear trend channel line and the bar closes as a bull trend bar back inside the channel; buy at the next open.",
+    "pseudocode": "low[0] < channelLine[0] && close[0] > channelLine[0] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "pivotStrength": 2
+    },
+    "book_order_type": "stop one tick beyond the reversal bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel line"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks wants this only after the third push (T15-16) and, for beginners, not at all in a tight channel (T15-10)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-16",
+    "name": "ThreePushesInChannel",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-04",
+      "T15-08"
+    ],
+    "pages": [
+      251,
+      258,
+      267
+    ],
+    "quote": "Traders will usually not look for a reversal and a downside breakout of the channel until after that third leg up forms.",
+    "description": "Context filter for channel reversals: at least pushCount consecutive higher swing highs have formed since the channel began. Enables countertrend fades and channel-breakout shorts.",
+    "pseudocode": "count = number of consecutive k with swingHigh(k).price > swingHigh(k+1).price, starting at k = 1; count + 1 >= pushCount",
+    "sides": "mirrored",
+    "parameters": {
+      "pushCount": 3,
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "leg counting over detected pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "p258: most channels have at least three legs before they end, especially wedges."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-18",
+    "name": "BuyBelowPriorBarLowInBullChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-08",
+      "T15-09"
+    ],
+    "pages": [
+      252,
+      253,
+      255,
+      264,
+      273,
+      278
+    ],
+    "quote": "when the market is in a bull channel, bulls are buying below the low of the prior bar and bears are selling above swing highs.",
+    "description": "In a bull channel (always-in long), the current bar trades below the prior bar's low by at least dipTicks; buy at the next open. This is the mechanical form of the limit order 'one to three ticks below the low of the prior bar'. Prior bar may be a bear signal bar (low 1 / low 2); Brooks expects those to fail (p250, p264, p272).",
+    "pseudocode": "low[0] <= low[1] - dipTicks * tickSize && (!requirePriorBearBody || close[1] < open[1])",
+    "sides": "mirrored",
+    "parameters": {
+      "dipTicks": 1,
+      "requirePriorBearBody": 0
+    },
+    "book_order_type": "limit order 1-3 ticks below the prior bar's low (p273); some bulls place it one tick above the low (p272)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison; the channel context comes from depends_on"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseNearPriorLow",
+    "confidence": "high",
+    "notes": [
+      "p273: risk is 'to below the most recent swing low' (T15-47).",
+      "p255: in the second half of the day this is the only acceptable channel trade for many traders (T15-29).",
+      "p250 (no-space page): at a possible bear bottom in a weak bull channel, buy below the low 1/2/3 signal bars expecting them to fail; set requirePriorBearBody = 1 for that reading."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-22",
+    "name": "EntryNotNearChannelTop",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-07"
+    ],
+    "pages": [
+      252,
+      262
+    ],
+    "quote": "Since the channel was so tight, the objective of testing the lower end of the channel was met on that next bar, but there was not enough room for a profitable short and no trade should be taken.",
+    "description": "Filter for with-trend entries: the would-be entry price (next open, approximated by close[0]) is at least minRoomFraction of the channel height below the channel line.",
+    "pseudocode": "(channelLine[0] - close[0]) >= minRoomFraction * channelHeight",
+    "sides": "mirrored",
+    "parameters": {
+      "minRoomFraction": 0.5,
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel lines"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "An absolute form (room >= minRoomAtr x ATR) is a reasonable alternative."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-23",
+    "name": "PriceInLowerHalfOfChannel",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-06",
+      "T15-07"
+    ],
+    "pages": [
+      250,
+      252,
+      256
+    ],
+    "quote": "When it is in a trading range, traders can consider buying when in the lower half of the range, but the odds of success become less as the channel progresses into the upper half of the range.",
+    "description": "Filter: the close is in the lower fraction of the channel (below trendLine + fraction x channelHeight). For a horizontal range use the Donchian midline: close < (highest(high,N) + lowest(low,N)) / 2.",
+    "pseudocode": "close[0] <= trendLine[0] + fraction * channelHeight /* horizontal proxy: close[0] < (highest(high, rangeBars) + lowest(low, rangeBars)) / 2 */",
+    "sides": "mirrored",
+    "parameters": {
+      "fraction": 0.5,
+      "rangeBars": 20,
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "sloping version needs the channel lines; the horizontal proxy is simple"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "TLValue"
+    ],
+    "likely_existing_rule": "AtrBandBreakout",
+    "confidence": "medium",
+    "notes": [
+      "p256: the middle of the channel has a magnetic pull; bulls and bears both trade comfortably there."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-25",
+    "name": "FixedIntervalPullbackFromRecentHigh",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-09"
+    ],
+    "pages": [
+      253,
+      273
+    ],
+    "quote": "Some will buy on a pullback to the moving average, or below the low of the prior bar, or on pullbacks at fixed intervals, like every 50 cents below the most recent high in AAPL.",
+    "description": "In a bull channel, buy when the bar's low is at least pullbackAtr x ATR (or pullbackTicks) below the highest high of the last lookback bars. p273 sizes the interval from the channel's prior pullbacks (five to nine ticks).",
+    "pseudocode": "highest(high, lookback) - low[0] >= pullbackAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "pullbackAtr": 0.5,
+      "atrLength": 14
+    },
+    "book_order_type": "limit orders at fixed intervals below the most recent high (scaling in)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "highest-high window plus ATR"
+    },
+    "el_words_needed": [
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks scales in; the engine takes one entry, so this is the first tranche only.",
+      "A tick-denominated variant (pullbackTicks default 7, from p273) is closer to his Emini example."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-27",
+    "name": "BearBodyCountInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      254,
+      252,
+      266
+    ],
+    "quote": "Their selling begins to create selling pressure in the form of more bars with bear bodies, larger bear bodies, tails on the tops of the bars, and more bars with lows below the low of the prior bar.",
+    "description": "Selling-pressure filter in a bull channel: the number of bear-body bars in the last windowBars is at least minCount. Signals building two-sided trading; Brooks then favours shorting above bars rather than buying below them (p252) and expects a downside breakout.",
+    "pseudocode": "count over i in 0..windowBars-1 of (close[i] < open[i]) >= minCount",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 10,
+      "minCount": 4
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "medium",
+    "notes": [
+      "p266: 'the channel up had several bear bodies, which was a sign of building selling pressure' before a four-bar bear spike."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-31",
+    "name": "FailedChannelBreakoutReentry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-07",
+      "T15-16"
+    ],
+    "pages": [
+      255,
+      256,
+      257,
+      262,
+      267
+    ],
+    "quote": "If it reverses, it usually reenters the channel, and with any channel breakout that reenters the channel, it usually tests the opposite side of the channel.",
+    "description": "Countertrend entry (also an exit for with-trend longs): within the last breakoutBars a bar closed above the bull channel line, and the current bar closes back inside the channel. Long side written for a bear channel: a recent close below the bear channel line followed by a close back above it; buy at the next open.",
+    "pseudocode": "exists i in 1..breakoutBars with close[i] < channelLine[i] && close[0] > channelLine[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "breakoutBars": 5,
+      "pivotStrength": 2
+    },
+    "book_order_type": "stop below the bear reversal bar after the failed breakout",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the projected channel line on several bars"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "p257: after a failed breakout of the top of a bull channel the reversal should have at least two legs and last at least 10 bars.",
+      "p255: the sell-off after a climactic breakout usually lasts at least 10 bars and breaks the bottom of the channel."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-35",
+    "name": "OppositeChannelLineTargetAfterReentry",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-06",
+      "T15-31"
+    ],
+    "pages": [
+      257,
+      259,
+      262,
+      263
+    ],
+    "quote": "Whenever there is a breakout of any channel and then a reversal back into the channel, the market will try to test the other side of the channel, and will usually try to break out of it, at least by a little.",
+    "description": "Target for a position entered on a failed channel breakout (T15-31): exit at the opposite channel line. Long side (entered on a failed downside breakout of a bear channel): exit when high[0] >= the bear trend line above.",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= oppositeLine[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2
+    },
+    "book_order_type": "limit at the opposite channel line",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "projected line"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "TLValue",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "p262 Figure 15.2 bar 17: if the channel is so tight the opposite side is one bar away, there is no room and no trade (T15-22)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-36",
+    "name": "FirstBreakoutOfTightChannelFails",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-10"
+    ],
+    "pages": [
+      258,
+      265,
+      266
+    ],
+    "quote": "Usually the first breakout of a tight, prolonged channel will fail. The trend will then resume and often break out to a new extreme",
+    "description": "Filter: block countertrend entries on the first breakout against a tight channel (T15-10 true for at least minChannelBars). Count breakouts (bars closing beyond the channel's trend line) since the tight channel started; allow the fade only when breakoutCount >= 2 or a breakout pullback has formed (T15-38).",
+    "pseudocode": "tightChannelAge >= minChannelBars && breakoutCountSinceChannelStart >= 2",
+    "sides": "mirrored",
+    "parameters": {
+      "minChannelBars": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "hard",
+      "reason": "persisted channel age and breakout counter tied to a projected line"
+    },
+    "el_words_needed": [
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p265: when the first breakout fails the resumed trend often reaches a measured move equal to the height of that failed reversal attempt (a further Exit target)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-45",
+    "name": "CorrectionToChannelStartTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-08"
+    ],
+    "pages": [
+      253,
+      254,
+      257,
+      303
+    ],
+    "quote": "That pullback often has to go all the way to the beginning of the channel, where they began buying earlier, and this is part of the reason why channels often lead to a correction all the way to the bottom of the channel, where there is usually a bounce.",
+    "description": "Target for a short taken at the end of a bull channel: exit when price reaches the channel's starting low (the first swing low of the channel). Long side (short-covering mirror written as a long taken at the end of a bear channel): exit when high[0] >= the swing high where the bear channel began.",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= channelStartPrice - tolAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "tolAtr": 0.1,
+      "atrLength": 14,
+      "pivotStrength": 2
+    },
+    "book_order_type": "limit order near the start of the channel",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the channel's first pivot persisted"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p254: the bounce at the channel start is often followed by a trading range."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-56",
+    "name": "CountertrendChannelIsFlag",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T15-08",
+      "T15-03",
+      "T15-15"
+    ],
+    "depends_on": [],
+    "pages": [
+      250,
+      257,
+      264,
+      302
+    ],
+    "quote": "When a bull channel forms in a bear trend, it is a bear flag, and traders should look to short near the top, or on the pullback from a downside breakout.",
+    "description": "A channel against the larger trend is a flag. Long side: a bear channel (two lower swing highs with comparable legs) forming while the larger trend is up (close above a slow EMA / close above close[trendLookback]); buy near the bottom of the bear channel (T15-15 mirrored) or the pullback after the upside breakout (T15-38).",
+    "pseudocode": "BearChannelConfirmed && close[0] > ema(close, slowMaLength) && (ChannelLineOvershootReversal(long) || BreakoutPullbackEntry(long))",
+    "sides": "mirrored",
+    "parameters": {
+      "slowMaLength": 50,
+      "trendLookback": 50
+    },
+    "book_order_type": "stop entries at the channel line reversal or breakout pullback",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "channel detection plus a larger-trend context"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "SwingHigh",
+      "SwingLow",
+      "TLValue"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p257: even without a preceding trend every bull channel should be traded as a bear flag."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T16-01",
+    "name": "MicroChannelBarBull",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      279
+    ],
+    "quote": "Unlike a conventional channel where pullbacks are common, a micro channel progresses with no pullbacks, or rare, small pullbacks, making it an extremely tight channel.",
+    "description": "Shared primitive, the simple-counter mechanization of a micro channel: a bar that does not pull back -- its low is at or above the prior bar's low (no overlap of the prior bar's low extreme).",
+    "pseudocode": "low[0] >= low[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare two-bar comparison on fixed offsets"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Approximates Brooks's visual 'most bars touch or are close to the trend line' with a strict no-lower-low test; bear form mirrors with high[0] <= high[1]."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-02",
+    "name": "MicroChannelRunLength",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T16-01"
+    ],
+    "pages": [
+      279,
+      289
+    ],
+    "quote": "A micro channel can last for 10 or more bars, and other times it will run for about 10 bars, have a small pullback, and then resume for another 10 bars or so.",
+    "description": "Counter: the number of consecutive bars satisfying T16-01, reset to 0 on the first bar that violates it. A confirmed micro channel exists once the count reaches minBars.",
+    "pseudocode": "count = number of consecutive i starting at 0 with low[i] >= low[i+1]; isMicroChannel = count >= minBars",
+    "sides": "mirrored",
+    "parameters": {
+      "minBars": 5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a run-length counter over a single fixed per-bar test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars (counts a different per-bar test)",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-03",
+    "name": "MicroChannelBreakoutBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T16-02"
+    ],
+    "pages": [
+      280
+    ],
+    "quote": "Eventually one of the bars penetrates through the trend line or the trend channel line, creating a breakout.",
+    "description": "The first bar after a confirmed micro channel whose low breaks below the prior bar's low (violating T16-01).",
+    "pseudocode": "MicroChannelRunLength[1] >= minBars && low[0] < low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "minBars": 5
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single comparison against a persisted counter's threshold"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-05",
+    "name": "ShallowPullbackBuyDuringMicroChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T16-02"
+    ],
+    "pages": [
+      281
+    ],
+    "quote": "If the biggest pullback in the micro channel has been five ticks, they will place limit orders to buy any three- or four-tick pullback.",
+    "description": "While a bull micro channel is confirmed, buy when a bar dips below the prior bar's low by no more than dipTicks -- a pullback shallower than the channel's own history.",
+    "pseudocode": "MicroChannelRunLength[1] >= minBars && low[0] < low[1] && low[0] >= low[1] - dipTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "minBars": 5,
+      "dipTicks": 4
+    },
+    "book_order_type": "limit order 1-2 ticks below the low of the prior bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "adds one tick-tolerance comparison to the breakout test"
+    },
+    "el_words_needed": [
+      "MinMove"
+    ],
+    "likely_existing_rule": "CloseNearPriorLow",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-07",
+    "name": "MicroChannelClimaxAge",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T16-02"
+    ],
+    "pages": [
+      283
+    ],
+    "quote": "When a micro trend line extends for about 10 or more bars, the odds increase substantially that there will soon be a tradable reversal. This type of trend is unsustainable and therefore a type of climax.",
+    "description": "Once MicroChannelRunLength reaches climaxBars, expect an imminent breakout/reversal: favor the with-trend breakout-pullback entry (T16-04) over adding more (T16-06), and be ready for a genuine reversal rather than assuming every breakout fails.",
+    "pseudocode": "MicroChannelRunLength[0] >= climaxBars",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxBars": 10
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a plain threshold on the existing run-length counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T16-14",
+    "name": "ReversalContextGatesMicroChannelFade",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      281,
+      282,
+      283
+    ],
+    "quote": "The overall context can give a clue to which outcome is more likely. For example, if the market is in a strong bear trend and the bull micro channel is just a pullback, the odds favor that the breakout below the micro channel will be followed by more selling.",
+    "description": "Whether a micro-channel breakout should be traded with the micro channel's own direction (T16-04 style) or against it (fading it as a flag in the larger trend) depends on the prevailing higher-level trend/always-in read.",
+    "pseudocode": "tradeDirection = alwaysInLong ? withMicroChannel : againstMicroChannel",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires the AlwaysInLong/trend-context primitive (defined elsewhere) to resolve; Brooks explicitly says the same pattern trades opposite ways depending on context"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/16_micro_channels.json",
+    "chapter_title": "Micro Channels"
+  },
+  {
+    "id": "T19-19",
+    "name": "NoTrendChannelOvershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      338
+    ],
+    "quote": "No significant trend channel line overshoots occur, and the minor ones result in only sideways corrections.",
+    "description": "Price does not significantly overshoot the projected trend channel line, and any minor overshoot is followed by a sideways (not countertrend) correction.",
+    "pseudocode": "// needs channel-line projection from swing pivots, plus classification of the post-overshoot correction as sideways vs countertrend",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs trend-line/channel projection from pivots and a subsequent price-action classification"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T21-13",
+    "name": "ChannelStartLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "T21-12"
+    ],
+    "depends_on": [],
+    "pages": [
+      356,
+      359,
+      369
+    ],
+    "quote": "The market usually corrects to the start of the channel, which is a test of the gap",
+    "description": "Primitive with state: the start (bottom) of the bull channel is the lowest low of the pullback that followed the spike; remembered as channelStart when T21-12 fires. It is also the bottom of the breakout gap, and the target for the later correction.",
+    "pseudocode": "on T21-12 firing: channelStart = lowest(low, pullbackBars)[1]; channelStartBar = that bar",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (level primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state derived from the spike/pullback machine"
+    },
+    "el_words_needed": [
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-16",
+    "name": "ChannelBuyBelowPriorBarLow",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T21-08"
+    ],
+    "pages": [
+      355,
+      364,
+      371
+    ],
+    "quote": "in a bull channel, it is better to buy below the low of the prior bar and hold part of the trade for a swing",
+    "description": "Entry: in a bull channel (always-in long), the current bar traded below the prior bar's low; buy at the next open (Brooks buys with a limit order at or below the prior low).",
+    "pseudocode": "alwaysInLong && low[0] < low[1] - limitOffsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "limitOffsetTicks": 0
+    },
+    "book_order_type": "limit order at or below the prior bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison; context comes from the always-in filter"
+    },
+    "el_words_needed": [
+      "MinMove",
+      "PriceScale"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Close-based form loses the limit fill; the authoring pass may prefer 'low[0] < low[1] && close[0] > low[1]' to require the dip held."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-23",
+    "name": "ChannelWithTrendBreakoutFailsWithinFiveBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      355
+    ],
+    "quote": "The channel will rarely break out in the with-trend direction, but when it does, the breakout usually fails within five bars and then the market reverses.",
+    "description": "Entry (fade, long side mirrored): a bar closed below the lower trend-channel line of a bear channel (with-trend breakout); within failBars a bar closes back above that line: buy at the next open.",
+    "pseudocode": "channelLine = projectLine(swingLow[2], swingLow[1]) /* bear trend channel line */; breakoutBar = last bar with close < channelLine; barIndex - breakoutBar <= failBars && close[0] > channelLine.at(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "failBars": 5,
+      "swingStrength": 2
+    },
+    "book_order_type": "buy stop above the failure bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "trend-channel line projection from swing pivots"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-25",
+    "name": "ThreePushesInChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      356,
+      368,
+      373
+    ],
+    "quote": "The channel ends at some measured move target, and often on a third push.",
+    "description": "Primitive: three consecutive higher swing highs (pushes) since the channel started, each separated by a pullback. 'Most three-push patterns function exactly like wedges' regardless of shape.",
+    "pseudocode": "swingHigh[1] > swingHigh[2] && swingHigh[2] > swingHigh[3] && swingHigh[3] > channelStartHighRef && all three formed after channelStartBar",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "swing-pivot detection and leg counting"
+    },
+    "el_words_needed": [
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-29",
+    "name": "ChannelBreakoutPullbackEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      356,
+      359
+    ],
+    "quote": "if there is a bull spike and channel and the market breaks below the channel, look to short a lower high",
+    "description": "Entry (long side mirrored): after a bar closes above the upper line of a bear channel (countertrend breakout), do not buy the breakout; wait for a pullback that forms a higher low (or a lower low / double bottom test) and buy when a bar closes above that pullback's signal-bar high.",
+    "pseudocode": "breakoutAboveBearChannelSeen && pullbackLow = lowest(low since breakout) && pullbackLow > preBreakoutLow (higher low variant) && close[0] > high[1] && low[1] == pullbackLow-ish",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2,
+      "maxPullbackBars": 20
+    },
+    "book_order_type": "buy stop above the pullback signal bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "channel line projection plus pullback tracking"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 366: the pullback can test the old extreme with a lower high, a double top, or a higher high; parameterize which variants qualify.",
+      "Page 383: 'two-legged lower low pullback from that channel breakout' is the same setup."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-30",
+    "name": "TightChannelNoCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-03",
+      "T21-04"
+    ],
+    "depends_on": [
+      "T21-08"
+    ],
+    "pages": [
+      358,
+      361
+    ],
+    "quote": "if the channel is fairly tight, it is tradable only in the with-trend direction because the pullbacks will not go far enough for a countertrend trade to be profitable",
+    "description": "Filter: the channel is tight (over the last N bars the deepest pullback from the running high is below a fraction of ATR, or no close below the EMA) - block countertrend entries; long side reads 'bull channel is tight, longs only'.",
+    "pseudocode": "alwaysInLong && maxPullbackDepth(lookback) < tightFraction * atr && countBelowEma(lookback) == 0",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "tightFraction": 1.0,
+      "emaLength": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window statistics plus an EMA"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 361: 'do not take countertrend trades in the hope that an ABC pullback will extend far enough for a scalper's profit.'"
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-31",
+    "name": "OppositeBodyCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      361,
+      364
+    ],
+    "quote": "if there are more and stronger bull trend bars, if there are more dojis, and if there are bigger pullbacks",
+    "description": "Primitive/filter: the number of bars with a body against the trend in the last N bars. In a bull channel, a count at or above a threshold is a sign of two-sided trading (weak channel); long side reads 'few bear bodies, channel still strong'.",
+    "pseudocode": "bearBodies = count over k in 0..lookback-1 of (close[k] < open[k]); bearBodies <= maxOpposite",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "maxOpposite": 3
+    },
+    "book_order_type": "n/a (context measure)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window count"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "TailBarCountDominance",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-32",
+    "name": "AverageOverlapInWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      361,
+      364
+    ],
+    "quote": "If the channel has lots of overlap between adjacent bars and many trend bars in the opposite direction and several pullbacks that last several bars, it is a weak channel.",
+    "description": "Primitive/filter: the mean bar-overlap fraction over the last N bars; below the threshold the move is a strong channel/spike, above it the channel is weak and two-sided.",
+    "pseudocode": "avgOverlap = average(overlapFrac, lookback); avgOverlap <= maxAvgOverlap",
+    "sides": "same",
+    "parameters": {
+      "lookback": 10,
+      "maxAvgOverlap": 0.5
+    },
+    "book_order_type": "n/a (context measure)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "window average of a two-bar quantity"
+    },
+    "el_words_needed": [
+      "Average",
+      "MinList",
+      "MaxList"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-34",
+    "name": "WeakChannelPermitsBothDirections",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T21-31",
+      "T21-32",
+      "T21-33"
+    ],
+    "depends_on": [],
+    "pages": [
+      361,
+      364
+    ],
+    "quote": "The more of these signs of two-sided trading that are present, the more willing the bulls will be to buy with limit orders at and below the lows of prior bars and swing lows",
+    "description": "Composite filter: at least K of the two-sidedness signs (opposite bodies above threshold, average overlap above threshold, dojis above threshold, a pullback longer than P bars) are present, so countertrend entries are permitted.",
+    "pseudocode": "signs = (bearBodies > maxOpposite) + (avgOverlap > maxAvgOverlap) + (dojis > maxDojis) + (longestPullback(lookback) >= pullbackBars); signs >= minSigns",
+    "sides": "same",
+    "parameters": {
+      "lookback": 10,
+      "minSigns": 2,
+      "pullbackBars": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "several window statistics plus a pullback-length scan"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-42",
+    "name": "CorrectionToChannelStartTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-13"
+    ],
+    "depends_on": [],
+    "pages": [
+      356,
+      359,
+      368
+    ],
+    "quote": "a channel in a spike and channel bull usually corrects down in two legs to the start of the channel",
+    "description": "Exit for a countertrend short taken after a bull channel breaks down: cover when the low reaches the channel start (bottom of the pullback after the spike) within a tolerance. Long side: a long against a bear channel exits at the bear channel start.",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= channelStart - toleranceAtr * atr",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceAtr": 0.25
+    },
+    "book_order_type": "limit order at the channel start",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads a remembered level"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Page 369: the gap 'had a good chance of being tested over the next 10 bars or so' - the test is a breakout test."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-62",
+    "name": "FixedAmountBeyondChannelTest",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T21-08"
+    ],
+    "pages": [
+      372
+    ],
+    "quote": "Other bears will short on a fixed amount below every test of the top of the channel, like one or two points down after the test",
+    "description": "Entry (long side mirrored): in a bull channel, after a bar tests the channel's lower line, buy when price has moved a fixed amount above that test bar's low (momentum resumption).",
+    "pseudocode": "alwaysInLong && testBar = last bar with low <= bullTrendLine + tol && close[0] >= low[testBar] + moveAtr * atr",
+    "sides": "mirrored",
+    "parameters": {
+      "moveAtr": 0.5,
+      "swingStrength": 2
+    },
+    "book_order_type": "buy stop a fixed amount above the test",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "trend-line test detection"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-82",
+    "name": "ChannelIsFirstLegOfTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T21-13"
+    ],
+    "depends_on": [],
+    "pages": [
+      359,
+      362,
+      383
+    ],
+    "quote": "Any channel is usually the first leg of a trading range and is most often followed by a countertrend move that tests the start of the channel",
+    "description": "Filter for trading-range tactics: once a bull channel has run at least N bars after the spike, fades of new highs (shorts above prior swing highs) are permitted because the channel is treated as the first leg of a coming range. Long side reads 'bear channel mature, buy below swing lows allowed'.",
+    "pseudocode": "channelActive && (barIndex - channelStartBar) >= matureBars",
+    "sides": "mirrored",
+    "parameters": {
+      "matureBars": 20
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "counter since channel start"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Page 383: 'experienced traders ... began to short above every prior swing high, and many scaled in higher. They exited their shorts around the bar 22 double bottom test'. Pair with T21-42 as the exit."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T23-12",
+    "name": "FixedStopPreferredInTightSmallPullbackChannel",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T23-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      438
+    ],
+    "quote": "None of these pullbacks would have hit a two-point money stop, which is usually the best stop to use in a strong trend...it makes more sense to rely on the original two-point stop.",
+    "description": "Exit: on a small pullback trend day, use a fixed price/ATR-based stop rather than a swing-low/prior-bar-low price-action stop, since the many small sideways bars get such stops hit too often.",
+    "pseudocode": "smallPullbackTrendDay && ctx.MarketPosition() != 0 && ctx.OpenPositionProfit() <= -fixedStopAtr * atr * bigPointValue",
+    "sides": "same",
+    "parameters": {
+      "fixedStopAtr": 0.5
+    },
+    "book_order_type": "n/a (stop-style choice)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an ATR-scaled money stop, conditioned on the regime flag"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "AtrTrailingStop",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T26-01",
+    "name": "StairsPatternDetection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      461,
+      463
+    ],
+    "quote": "A stairs day is a variant of a trending trading range day where there are at least three trading ranges...The day has broad swings, but trending highs and lows.",
+    "description": "Primitive: at least N consecutive swing legs with trending highs and lows (each swing low above the one before it and each swing high above the one before it, for a bull stairs; mirrored for bear), where each breakout also retraces back past its own breakout point before the next leg (overlap between consecutive swings).",
+    "pseudocode": "count = 0; for k in 1..maxLegs-1: (swingLow[k] > swingLow[k+1]) && (swingHigh[k] > swingHigh[k+1]) && breakoutOverlap(k); if all true, count++; stairsDetected = count >= (minStairs - 1)",
+    "sides": "mirrored",
+    "parameters": {
+      "minStairs": 3,
+      "swingStrength": 2,
+      "maxLegs": 6
+    },
+    "book_order_type": "n/a (structure primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection, a run test across several pivots, and an overlap test between consecutive legs"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Related to T22-10 (higher swings inside a range) but adds the overlap requirement and treats the whole thing as a with-trend channel, not a range about to break out."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/26_stairs_broad_channel_trend.json",
+    "chapter_title": "Stairs: Broad Channel Trend"
+  }
+]

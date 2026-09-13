@@ -1,0 +1,751 @@
+{
+  "bucket": "context_regime_trading_range",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "RangeWidthBelowAtrMultiple",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "CANONICAL TRADING-RANGE CLASSIFICATION for the whole corpus: the height of the last N bars (highest high minus lowest low) is no more than K times the N-bar ATR. Identical both sides. At the loose default (20 bars, 4.0 ATR) this is 'the market is in a trading range'; at a tight setting (15 bars, 1.2 ATR) it is 'tight trading range'. Negate the placement for 'the market is trending'.",
+      "pseudocode": "highest(high, rangeLookback)[0] - lowest(low, rangeLookback)[0] <= rangeAtrMultiple * atr(atrLookback)[0]",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 20,
+        "rangeAtrMultiple": 4.0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window loops plus the existing WFSafe_AvgTrueRange rolling accumulator; no pivots, no persistent state, no session boundary"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "AdxBelowThreshold",
+        "relation": "variant",
+        "note": "Four sources (T00-08, T01-02, T03-01, T07-07, V02-36) name AdxBelowThreshold as the corpus's nearest low-trend proxy. It is a variant, not a duplicate: ADX measures directional movement over a Wilder-smoothed DI spread and can sit low inside a slow drift; this measures the literal height of the window against its own ATR, which is what Brooks describes. Both should be tested."
+      },
+      "sources": [
+        "RP4-01",
+        "V02-36",
+        "R22-01",
+        "R02-21",
+        "VP1-26"
+      ],
+      "merge_notes": "This rule IS the trading-range design decision (see design_decisions). Five candidates offered a definition and the width-over-ATR form won. V02-36 states it outright (20 bars, 4.0 x ATR14) and is the definition kept. R22-01 states the same shape with the recent average DAILY range as the denominator (range height <= 0.24 x ADR); the ATR denominator wins because it needs no second data series and self-scales across instruments and bar sizes -- R22-01's 0.24-of-ADR reading is preserved as the reason the tight setting sits far below the loose one. RP4-01 is the chapter-wide primitive that lists the clue set (bar overlap, swing count, flat MA) without combining them; VP1-26 ('both the bull and bear case were valid') adds no test at all -- both are citations. R02-21 ('in a trading range for several days') is this rule placed on a daily series with rangeLookback about 10; its '3 of the last 10 days' counter is not carried, because a 10-bar width test measures the same thing without one. Brooks's numbers vary by chapter; treat rangeAtrMultiple as the optimizable input and expect the useful band to run roughly 1.0 (barbwire-tight) to 5.0 (a broad range).",
+      "variants_kept_separate": [
+        "OverlappingBarRun",
+        "TightRangeBlocksEntries",
+        "TradingRangeDay"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OverlappingBarRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars overlaps the bar before it by at least fraction F of that earlier bar's range -- Brooks's bar-overlap reading of 'sideways, two-sided trading'. Identical both sides. At overlapBars = 1 this is his minimum trading range: a single bar largely overlapped by the one before it.",
+      "pseudocode": "for k in 0 .. overlapBars - 1: (minList(high[k], high[k+1]) - maxList(low[k], low[k+1])) >= overlapFraction * (high[k+1] - low[k+1])",
+      "sides": "same",
+      "parameters": {
+        "overlapBars": 4,
+        "overlapFraction": 0.5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed-length loop of two-bar arithmetic; MinList/MaxList are on tick-grid price operands, which the register permits"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Nothing in the catalog measures bar-to-bar range overlap. TwoBarRangePosition builds a two-bar envelope but asks where the close sits inside it."
+      },
+      "sources": [
+        "R00-20",
+        "R00-21",
+        "T01-02",
+        "T03-01",
+        "T07-07"
+      ],
+      "merge_notes": "KEPT DELIBERATELY SEPARATE from RangeWidthBelowAtrMultiple per the merge brief: a range that is tight by bar overlap and one that is tight by N-bar width over ATR are two rules until someone measures that they coincide (three heavily overlapping large bars are wide in ATR terms; a slow drift of small non-overlapping bars is narrow). R00-20 is this rule at overlapBars = 1 -- one rule at a fixed parameter, so merged, not kept apart. R00-21 (4 bars, 0.6) is the same loop with a stricter fraction. T01-02, T03-01 and T07-07 all restate it at 5 bars, 0.5 from three different chapters of the Trends volume. The denominator disagrees: T03-01 divides by min(range(k), range(k+1)), the other four by the older bar's range -- the older bar's range wins, one subtraction rather than a MinList, and it makes an inside bar pass automatically, which is Brooks's intent. Defaults 4 / 0.5 split the difference between R00-21's 4 / 0.6 and the Trends volume's 5 / 0.5.",
+      "variants_kept_separate": [
+        "RangeWidthBelowAtrMultiple"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "Barbwire",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Brooks's named barbwire pattern: three bars that largely overlap, at least one of them a doji. Measured as the merge brief's chosen form -- more than half of the MIDDLE bar's height lies inside the range spanned by its two neighbours, and any of the three is a doji. Identical both sides; used negated to suppress breakout entries.",
+      "pseudocode": "middleOverlap = minList(high[1], maxList(high[0], high[2])) - maxList(low[1], minList(low[0], low[2])); middleContained = middleOverlap >= barbwireOverlapFraction * (high[1] - low[1]); hasDoji = DojiBar[0] || DojiBar[1] || DojiBar[2]; middleContained && hasDoji",
+      "sides": "same",
+      "parameters": {
+        "barbwireOverlapFraction": 0.5,
+        "dojiBodyFraction": 0.2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed three-bar containment test plus three doji tests; no variable-length window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "InsideBar is named by R22-03 as a neighbour but tests a strict two-bar containment with no doji term."
+      },
+      "sources": [
+        "R00-19",
+        "R03-08",
+        "R22-03",
+        "T00-08",
+        "R22-17"
+      ],
+      "merge_notes": "One rule from four restatements across two volumes; all four say the same thing (3+ overlapping bars, at least one doji). R22-03's mechanization wins: Brooks gives an explicit measuring guide there ('look at the second of the three bars... if more than half of its height is within the range of the bars before and after it') which turns a variable-length judgement into a fixed three-bar test. The losers all need a variable-length overlap scan: R00-19 defers to a multi-bar TradingRangeOver(N), R03-08 uses a countIf over barbwireBars - 1 pairs, T00-08 is research-graded because 'largely overlap' is left open. Carried as a composite because barbwire is a named Brooks setup Brian would want tested as the book states it. Thresholds: overlap 0.5 (R22-03) vs 0.6 (R03-08); doji body 0.1 (R22-03, T00-08) vs 0.2 (R03-08) -- 0.2 chosen to match the already-merged DojiBar default so the two rules agree on what a doji is.",
+      "variants_kept_separate": [
+        "OverlappingBarRun",
+        "TightRangeBlocksEntries"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "OverlappingBarRun",
+        "DojiBar"
+      ]
+    },
+    {
+      "key": "TightRangeBlocksEntries",
+      "role": "Switch",
+      "is_filter": false,
+      "description": "While the last N bars are unusually tight (height no more than K times the ATR), block all new entries whatever else the chart shows -- Brooks's 'a tight trading range trumps everything'. Identical both sides.",
+      "pseudocode": "highest(high, rangeLookback)[0] - lowest(low, rangeLookback)[0] <= tightAtrMultiple * atr(atrLookback)[0]",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 15,
+        "tightAtrMultiple": 1.2,
+        "atrLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "the same window-versus-ATR comparison as RangeWidthBelowAtrMultiple, wired to the Switch role"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "MonthlyProfitTarget",
+        "relation": "variant",
+        "note": "The only existing Switch. Same role plumbing, entirely different trigger. NOTE FOR AUTHORING: MonthlyProfitTarget both blocks entries and forces flat; Brooks wants only the block here ('wait for the breakout'), not a forced exit. If the Switch role cannot block without forcing flat, author it as an Entry filter used negated and say so."
+      },
+      "sources": [
+        "R22-04",
+        "V24-44"
+      ],
+      "merge_notes": "This is the tight-range measure at Switch role, and it is deliberately NOT folded into RangeWidthBelowAtrMultiple even though the arithmetic is identical: the pane system ANDs entries, so an Entry filter can only veto the pane it sits in, while Brooks's claim is a global override across every placement. Same precedent as the catalog's ConsecutiveCloseExit vs MomentumConsecutiveBars -- one condition, two roles, two rules. Defaults are V24-44's (15 bars, 1.2 x the 20-bar average range), the only source that states numbers; R22-04 states the override and defers the measure. R22-04 says all entries, V24-44 says stop entries specifically -- the corpus has no order-type dimension, so all entries is kept.",
+      "variants_kept_separate": [
+        "RangeWidthBelowAtrMultiple",
+        "Barbwire"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "RangeWidthBelowAtrMultiple"
+      ]
+    },
+    {
+      "key": "RangeExtremeFade",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the bottom fraction of the last N bars' range (long) / the top fraction (short) -- buy the low of a range, sell the high, the inversion of trend logic. Mirrored.",
+      "pseudocode": "rangeHigh = highest(high, rangeLookback)[0]; rangeLow = lowest(low, rangeLookback)[0]; (close[0] - rangeLow) <= nearExtremeFraction * (rangeHigh - rangeLow)",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 20,
+        "nearExtremeFraction": 0.25
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window extremes and a ratio"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "ClosePercentileRank",
+        "relation": "variant",
+        "note": "ClosePercentileRank ranks the close among the last N CLOSES by counting; this places the close on the high-low envelope of the window. Different windows, different bars. Also near TwoBarRangePosition, which is this measure over a two-bar envelope with the book's epsilon."
+      },
+      "sources": [
+        "R07-11",
+        "R11-26",
+        "V24-17",
+        "V24-49",
+        "R21-08"
+      ],
+      "merge_notes": "Four restatements of one measure. The fade sense is the rule; the blocking sense ('do not buy near the top of a range', V24-49) is the same rule on the opposite side, redundant by construction under the per-placement flip. R11-26 measures the offset in ATR (rangeLow + 0.3 x ATR) rather than as a fraction of the range height; the fraction wins because it needs no second series and degrades gracefully when the range is wide. V24-17 adds a bear reversal signal bar to the fade -- that half is carried by the bar_anatomy_reversal_signal bucket, so only the location test is kept here (atomic beats composite). R07-11 supplies the reason Brooks gives: about 80 percent of attempts to break out of a trading range fail. Defaults: 0.2 (R07-11, V25-01), 0.25 (R17-11), 0.3 (R11-26, RP4-08) -- 0.25 taken as the midpoint. Intended use is AND-ed with RangeWidthBelowAtrMultiple, which is why neither carries the other's terms.",
+      "variants_kept_separate": [
+        "CloseNearSessionExtreme",
+        "RangeMidpointZone"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RangeMidpointZone",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the middle band of the last N bars' range -- within F of the range height either side of its midpoint. Identical both sides. Brooks uses it negated: do not take a stop entry in the middle of a range, where the fill is bad in both directions.",
+      "pseudocode": "rangeHigh = highest(high, rangeLookback)[0]; rangeLow = lowest(low, rangeLookback)[0]; rangeMid = (rangeHigh + rangeLow) / 2; absValue(close[0] - rangeMid) <= midpointFraction * (rangeHigh - rangeLow)",
+      "sides": "same",
+      "parameters": {
+        "rangeLookback": 20,
+        "midpointFraction": 0.17
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window extremes, a midpoint and one absolute difference"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R32-04",
+        "R21-12"
+      ],
+      "merge_notes": "R21-12 was sent here as a stray from breakouts_signal_strength and fits exactly: it and R32-04 are the same midpoint-distance test with the same intent, differing only in the band width (0.17 of the range, which makes the excluded zone the middle third, vs 0.15). 0.17 kept. NOT the negation of RangeExtremeFade: that rule's negation on the long side still admits the top of the range, whereas this excludes both extremes at once. R21-12's 'limit orders are still reasonable there' carve-out is not modelled -- the corpus has no order-type dimension.",
+      "variants_kept_separate": [
+        "RangeExtremeFade",
+        "RangeMidpointTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RangeMidpointTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit when price reaches the midpoint of the prior N-bar range -- the magnetic middle a failed breakout is pulled back to. Mirrored: the long exits when the high reaches the midpoint from below, the short when the low reaches it from above.",
+      "pseudocode": "rangeMid = (highest(high, rangeLookback)[1] + lowest(low, rangeLookback)[1]) / 2; high[0] >= rangeMid - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 40,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window extremes averaged; the window is offset one bar so the target does not move with the current bar's own extreme"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog exit targets a computed price level; AtrProfitTarget and TakeProfit both work in open profit."
+      },
+      "sources": [
+        "R10-10",
+        "V07-07",
+        "R15-05"
+      ],
+      "merge_notes": "Three statements of one magnet. V07-07 gives the mechanism (breakout attempts inside a range get pulled back to its middle), R10-10 lists the middle alongside the two extremes as the retested levels -- the extremes half is already carried by breakouts_pullback_retest's BreakoutLevelRetest, so only the midpoint is taken here. R15-05, sent as a stray, is the same target at session scale ('most trading range days close somewhere in the middle') and is absorbed: an N-bar window sized to the session reproduces it without a trading-range-day classifier. R10-10's 'fat area' (a secondary intraday range sitting in the middle) is not modelled -- it needs a nested range detector and Brooks gives no test for it.",
+      "variants_kept_separate": [
+        "RangeMidpointZone",
+        "RangeHeightProjectionTarget"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RangeHeightProjectionTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the long when the high reaches the range-height measured move -- the top of the prior N-bar range plus that range's own height (mirrored for the short). Brooks's standard trading-range target.",
+      "pseudocode": "rangeHigh = highest(high, rangeLookback)[1]; rangeLow = lowest(low, rangeLookback)[1]; target = rangeHigh + (rangeHigh - rangeLow); high[0] >= target - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 20,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the stateless rolling form is two window extremes; the book's form freezes the projection at the breakout bar, which would need a persistent variable"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "AtrProfitTarget",
+        "relation": "variant",
+        "note": "Both are computed targets, but AtrProfitTarget scales open profit by ATR and never looks at where the range was; this projects a price from the window's own height."
+      },
+      "sources": [
+        "R08-13"
+      ],
+      "merge_notes": "The stateless rolling form is taken over the book's frozen-at-the-breakout form, on the merge brief's most-mechanizable rule; R08-13's own notes propose exactly that simplification. The rolling target drifts as the window rolls, which is the cost -- flagged for the authoring pass. Brooks's own caveat is that the exact distance is only approximate however it is measured.",
+      "variants_kept_separate": [
+        "RangeMidpointTarget"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TradingRangeDay",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The session so far is a trading-range day: the range travelled since the open (highest high minus lowest low of the session's bars) is no more than F of the recent average daily range. Identical both sides. Used to permit fade and scalp entries and to suppress with-trend swing entries.",
+      "pseudocode": "sessionHigh = highest(high, barsSinceSessionOpen)[0]; sessionLow = lowest(low, barsSinceSessionOpen)[0]; (sessionHigh - sessionLow) <= dayRangeFraction * average(priorDailyRange, adrLookbackDays)",
+      "sides": "same",
+      "parameters": {
+        "dayRangeFraction": 0.7,
+        "adrLookbackDays": 20,
+        "minSessionBars": 12
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a session boundary (running high/low reset on each new date) and a rolling average of completed daily ranges"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time",
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Nothing in the catalog is session-scoped except TimeOfDayExit and TimeWindow, which only read the clock."
+      },
+      "sources": [
+        "T17-04",
+        "T05-12",
+        "T07-33",
+        "R21-14"
+      ],
+      "merge_notes": "The day-scale sibling of RangeWidthBelowAtrMultiple, kept apart because its window is the session rather than a bar count and it therefore needs the session machinery. The width definition is chosen for the same reason it won at bar scale, and it beats the two counting definitions in the sources: T07-33 wants K reversals plus tailed bars in the first N bars and R21-14 wants four or five reversals in the first hour, both of which need a 'reversal' defined before they can be coded and both of which are only predictive of the day type, not a measurement of it. T17-04 states the gate as plain NOT(trend day); T05-12 uses the classification permissively (a trending trading range day often reverses late). minSessionBars guards the classification from firing on the first few bars, when every session is narrow. dayRangeFraction is a fresh reading, not a book number -- Brooks never quantifies a trading-range day.",
+      "variants_kept_separate": [
+        "RangeWidthBelowAtrMultiple",
+        "CloseNearSessionExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseNearSessionExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the bottom fraction of the day's range so far (long) / the top fraction (short) -- the session-scoped form of the range-position test, which is how Brooks states it for trading-range days. Mirrored.",
+      "pseudocode": "dayHigh = highest(high, barsSinceSessionOpen)[0]; dayLow = lowest(low, barsSinceSessionOpen)[0]; (close[0] - dayLow) <= nearExtremeFraction * (dayHigh - dayLow)",
+      "sides": "mirrored",
+      "parameters": {
+        "nearExtremeFraction": 0.2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a running session high and low reset on each new date, then one ratio"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time",
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-21",
+        "V25-01"
+      ],
+      "merge_notes": "Kept separate from RangeExtremeFade because the window is the session, not a bar count -- the two disagree constantly (early in a session the day's range is a handful of bars, late it may be wider than any 20-bar window). V25-01 states it as a block ('do not buy near the top of the day's range'), RP4-21 as a permission (look for a reversal at the day's extreme going into the last hour or two); one is the other flipped, so they are one rule. RP4-21's final-hours term is the catalog's TimeWindow AND-ed alongside, not carried here. V25-01's day-type gate is TradingRangeDay, likewise a separate pane.",
+      "variants_kept_separate": [
+        "RangeExtremeFade",
+        "TradingRangeDay"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarRangeAboveSessionAverage",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "This bar's high-low range is at least as large as the average bar range of the session so far. Identical both sides. Brooks's gate on range scalps: a tight range is only worth fading when the bars in it are big enough to pay.",
+      "pseudocode": "sessionAvgBarRange = average(high - low, barsSinceSessionOpen); (high[0] - low[0]) >= sizeMultiple * sessionAvgBarRange",
+      "sides": "same",
+      "parameters": {
+        "sizeMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a running session sum of bar ranges and a bar count, both reset on each new date"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time",
+        "Date"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd compares the bar against a fixed N-bar mean plus K standard deviations; this compares it against the session-to-date mean, whose window grows through the day. Also near bar_anatomy_trend_doji's merged BarRangeAboveAtrMultiple."
+      },
+      "sources": [
+        "R22-14"
+      ],
+      "merge_notes": "The session-average bar range is the same measure R21-13 uses for a money stop (exits_stops bucket) -- one shared primitive, flagged for the roll-up. R22-14's other half, Brooks allowing a four- or five-point range to still count as tight when the bars are large, is the reason RangeWidthBelowAtrMultiple divides by ATR rather than by points: a wide-bar tight range already scores as tight on the ATR scale, so that half needs no rule.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EntryBarClosedAgainstPosition",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A position is open and the current bar closed against it (a bull bar while short, a bear bar while long) -- permission to reverse rather than wait for the stop. Reads position state deliberately. Mirrored: the long side fires when short and the bar closed up.",
+      "pseudocode": "ctx.MarketPosition() < 0 && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads MarketPosition at signal time plus one bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "FlatOrOpenLossExceeds",
+        "relation": "variant",
+        "note": "Both are entries that read position state to decide whether a fresh signal may reverse the open trade. FlatOrOpenLossExceeds gates on dollars of open loss; this gates on the sign of the current bar, so it can fire on the first bar of the trade before any loss has accrued."
+      },
+      "sources": [
+        "R22-10"
+      ],
+      "merge_notes": "Brooks states it inside the barbwire-fade sequence (once the fade is on and its entry bar closes against you, reverse in the breakout direction), but the test itself carries no barbwire term and no breakout term -- it is the generic 'my entry bar failed' permission, so it is carried atomically. Its parent, the fade itself, is already merged in breakouts_pullback_retest as BarbwireBreakoutFade (R12-16, R22-09, T07-32); this is the reversal leg that rule's sources describe, and the two should be placed together.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarsSinceExtremeExceeds",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "No new extreme for N bars: the highest high of the last N bars is below the highest high of the longer window behind it (mirrored for lows). Brooks's test for a pullback that has outgrown its trend and become a trading range.",
+      "pseudocode": "highest(high, rangeBars)[0] < highest(high, rangeBars + priorLookback)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeBars": 10,
+        "priorLookback": 10
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two nested window extremes, no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "That rule asks whether the close broke the prior window's extreme; this asks whether the recent window failed to. Related but not a negation -- both windows here are extremes of highs, and neither reads the close."
+      },
+      "sources": [
+        "T21-14"
+      ],
+      "merge_notes": "Brooks frames it as a state machine off the end of a spike ('if the pullback extends for more than 10 bars it has grown into a trading range'). The stateless two-window form is taken instead, per the most-mechanizable rule: it needs no spike detector and no bar counter, and fires on the same bars whenever the spike high is inside the outer window. Pair it with breakouts_signal_strength's StrongTrendBarRun as a separate pane if the spike context is wanted. Brooks's 10 bars is kept as the default for both windows.",
+      "variants_kept_separate": [
+        "DeepPullbackMeansRange"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DeepPullbackMeansRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The current pullback has retraced at least fraction F of the prior leg -- once pullbacks get this deep, Brooks says they behave like trading ranges rather than flags, and a new high above the old one is a range breakout likely to fail. Mirrored.",
+      "pseudocode": "legHigh = highest(high, legLookback)[0]; pullbackLow = lowest(low, pullbackLookback)[0]; legLow = lowest(low, legLookback)[0]; (legHigh - pullbackLow) >= maxPullbackFraction * (legHigh - legLow)",
+      "sides": "mirrored",
+      "parameters": {
+        "legLookback": 40,
+        "pullbackLookback": 10,
+        "maxPullbackFraction": 0.5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "three window extremes; the book's swing-pivot anchoring is replaced by nested windows"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-35"
+      ],
+      "merge_notes": "TP3-35 anchors the leg on swing pivots (lastSwingHigh, priorSwingLow, pivotStrength 2). Replaced by nested highest/lowest windows per the most-mechanizable rule -- no pivot search, no persistent pivot state, and the corpus already reaches for Highest/Lowest everywhere. swing_structure has merged a related PullbackDepthFromRecentHigh; the roll-up should compare the two and keep one. Brooks's page-314 aside is worth carrying to the authoring pass: every trading range sits inside either a bull or a bear trend, so this rule is a trend-quality filter, not a regime flag on its own.",
+      "variants_kept_separate": [
+        "BarsSinceExtremeExceeds",
+        "RangeWidthBelowAtrMultiple"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "HolidayWeekWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's date falls in a holiday week -- 20 to 31 December, or 1 to 7 July. Identical both sides. Brooks: on those days only the first hour trades normally, after which the market usually settles into a tight range.",
+      "pseudocode": "(ctx.Month(0) == 12 && ctx.DayOfMonth(0) >= 20) || (ctx.Month(0) == 7 && ctx.DayOfMonth(0) <= 7)",
+      "sides": "same",
+      "parameters": {
+        "decStartDay": 20,
+        "julEndDay": 7
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two calendar comparisons on the bar's date"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Month",
+        "DayOfMonth"
+      ],
+      "catalog_match": {
+        "rule": "SeasonalHalfYear",
+        "relation": "variant",
+        "note": "Both split the year by calendar date, but SeasonalHalfYear is a month threshold that picks a side; this is a two-window set membership and is direction-agnostic."
+      },
+      "sources": [
+        "VP3-12"
+      ],
+      "merge_notes": "Kept in this bucket rather than sent to time_session because the claim is a regime prediction (a tight range for the rest of the day), not a session-clock filter; the intraday half of that claim is not modelled. The date bounds are the miner's reading of 'Christmas week' and 'the week of the Fourth of July', not Brooks's numbers -- carried as inputs so they can be moved.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ExtendedMoveInRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Inside a trading range, price has been going one way for five to ten bars, so only fade entries against that move are worth taking. The measurable part is exactly the catalog's Momentum (net form) or MomentumConsecutiveBars at lookback 1 (consecutive form), used flipped and AND-ed with a range filter.",
+      "pseudocode": "close[0] > close[extendedMoveBars]   // catalog Momentum(extendedMoveBars), placed flipped to block with-move entries",
+      "sides": "mirrored",
+      "parameters": {
+        "extendedMoveBars": 7
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one close comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "Momentum",
+        "relation": "duplicate",
+        "note": "Identical bars. The consecutive-bars readings (V24-47, V25-05, T07-31) are equally MomentumConsecutiveBars(lookback = 1, consecutiveBars = N), also already in the catalog. The trading-range context Brooks attaches is a separate AND-ed pane (RangeWidthBelowAtrMultiple), not part of this condition."
+      },
+      "sources": [
+        "R21-02",
+        "V24-47",
+        "V25-05",
+        "T07-31"
+      ],
+      "merge_notes": "Four candidates from three volumes, all saying the same thing and all reducible to catalog rules already authored. R21-02 measures a net move over five to ten bars (Momentum); V24-47, V25-05 and T07-31 count consecutive bars or leg bars in one direction (MomentumConsecutiveBars at lookback 1). R21-02's own miner flagged the Momentum equivalence. Recorded so the authoring pass can see that Brooks's fade-after-an-extended-move guidance is already covered, and so the pairing (a momentum rule placed flipped alongside a range filter) is on record as a strategy to test. Brooks gives 5 to 10 bars; 7 is the midpoint and the input should be optimized over that band.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "RangeWidthBelowAtrMultiple"
+      ]
+    },
+    {
+      "key": "MidSessionWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's close time falls inside the mid-session window, roughly 08:30 to 11:30 PST -- the two-sided, range-bound middle third of the day. Identical both sides; used negated to keep entries out of it.",
+      "pseudocode": "ctx.Time() >= middayStart && ctx.Time() <= middayEnd",
+      "sides": "same",
+      "parameters": {
+        "middayStart": 830,
+        "middayEnd": 1130
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one clock-time window test"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Time"
+      ],
+      "catalog_match": {
+        "rule": "TimeWindow",
+        "relation": "duplicate",
+        "note": "TimeWindow(830, 1130) is this rule exactly, boundaries inclusive, and the catalog already documents the negated placement as the way to express 'outside this window'. Do not author again; place TimeWindow with these inputs."
+      },
+      "sources": [
+        "V11-02"
+      ],
+      "merge_notes": "Kept as a D row rather than dropped so the authoring pass sees the specific input pair Brooks gives, and the clock convention: his times are PST exchange-clock hours, and the corpus's Time is the exchange clock, so they transfer only if the data's session is aligned. His carve-out ('unless signals are especially strong') is not mechanized.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R11-22",
+      "reason": "composition of TrendBarCountDominanceInWindow (bar_anatomy_trend_doji) negated on both sides -- 'bull and bear bars about equally prominent', abs(bullCount - bearCount) <= 2, is exactly NOT(dominance >= 3) placed on each side, and entry panes AND"
+    },
+    {
+      "id": "R12-15",
+      "reason": "composition of Barbwire + HighLowBarCount (swing_structure), flipped: a low-2 signal inside barbwire, bought on the expectation that its breakout fails"
+    },
+    {
+      "id": "R15-04",
+      "reason": "composition of TradingRangeDay + TimeWindow + CloseNearSessionExtreme + a failed-breakout term already carried by breakouts_pullback_retest"
+    },
+    {
+      "id": "R17-11",
+      "reason": "composition of RangeExtremeFade + HighLowBarCount (swing_structure) + CloseBeyondEma (ema_relations)"
+    },
+    {
+      "id": "RP4-08",
+      "reason": "composition of RangeExtremeFade + HighLowBarCount (swing_structure) -- a High2 valid only near the range bottom, a Low2 only near the top"
+    },
+    {
+      "id": "R26-13",
+      "reason": "composition of TightRangeBlocksEntries + FadeSmallBarAtTightRangeExtreme (bar_anatomy_trend_doji) + a failed-breakout re-entry; the block and both of its carve-outs are each carried elsewhere"
+    },
+    {
+      "id": "V16-09",
+      "reason": "composition of Barbwire + RangeExtremeFade -- buy the low-side breakout of barbwire, short the high-side"
+    },
+    {
+      "id": "V23-03",
+      "reason": "composition of RangeExtremeFade + HighLowBarCount (swing_structure); the same idea as RP4-08 stated from the fade side"
+    },
+    {
+      "id": "T13-13",
+      "reason": "composition of OverlappingBarRun (at overlapBars 1, overlapFraction 0.8) + BarRangeAboveAtrMultiple (bar_anatomy_trend_doji)"
+    },
+    {
+      "id": "R21-08",
+      "reason": "stray from breakouts_signal_strength; composition of RangeExtremeFade + StrongTrendBarRun (breakouts_signal_strength) + a limit order at a prior swing low. Brooks himself flags the combination as too hard to execute"
+    },
+    {
+      "id": "R22-17",
+      "reason": "stray from breakouts_signal_strength; composition of Barbwire + StrongTrendBarRun (breakouts_signal_strength) + TimeWindow + a support/resistance touch (support_resistance_levels), with no bar-level test given for 'ends a multi-bar spike'"
+    }
+  ],
+  "cross_bucket": [],
+  "design_decisions": [
+    {
+      "topic": "trading-range classification (the corpus-wide primitive several buckets deferred)",
+      "options": [
+        "N-bar width in ATR units: highest(high,N) - lowest(low,N) <= K * ATR (V02-36 at 20/4.0, V24-44 at 15/1.2)",
+        "N-bar width against the recent average DAILY range, in points (R22-01, at about 0.24 of ADR)",
+        "a run of bars each overlapping the prior bar by a fraction of its range (R00-20, R00-21, T01-02, T03-01, T07-07)",
+        "the flat-EMA clue, already merged in ema_relations as EmaFlat (RP4-06, VP3-05)",
+        "counting reversals or swing-direction changes in a window (R21-14, T07-33)",
+        "the existing catalog AdxBelowThreshold as a low-trend proxy (named by five sources)",
+        "a combination of clues left to the authoring pass (RP4-01)"
+      ],
+      "recommended": "N-bar width in ATR units, authored as RangeWidthBelowAtrMultiple (rangeLookback 20, rangeAtrMultiple 4.0, atrLookback 14). It is the only definition that is a direct measurement of the thing Brooks describes rather than a symptom of it; it needs no pivots, no persistent state, no session boundary and no second data series; it self-scales across instruments and bar intervals, which the points-based ADR form (R22-01) does not; and the corpus already has the machinery (Highest/Lowest windows and WFSafe_AvgTrueRange, cf. AtrDollarsBelow and AtrBandBreakout). TIGHT RANGE is the same rule at a tighter setting, not a second rule: about 15 bars and 1.2 x ATR (V24-44), the band R22-01's 0.24-of-ADR reading also lands in. BARBWIRE (R22-03) is defined relative to it as the named three-bar case -- middle bar more than half contained by its neighbours, at least one doji -- and stays a separate rule because the doji term is not implied by width. The bar-overlap test (R00-21) STAYS A SEPARATE RULE, OverlappingBarRun, because it disagrees with the width test on real bars (three large overlapping bars are wide in ATR terms; a slow drift of small non-overlapping bars is narrow) and nobody has measured that they coincide. Reversal counting is rejected: it needs 'reversal' defined first, and it predicts the regime rather than measuring it. EmaFlat and AdxBelowThreshold are kept as independent panes to AND alongside, not folded in.",
+      "gates": [
+        "RangeWidthBelowAtrMultiple",
+        "TightRangeBlocksEntries",
+        "Barbwire",
+        "RangeExtremeFade",
+        "RangeMidpointZone",
+        "RangeMidpointTarget",
+        "ExtendedMoveInRange",
+        "OverlappingBarRun"
+      ]
+    },
+    {
+      "topic": "the tight-range entry block: Switch role or negated Entry filter",
+      "options": [
+        "Switch role, as R22-04 states it ('a tight trading range trumps everything'), blocking every placement at once",
+        "an Entry filter placed negated in each pane, which only vetoes the pane it sits in",
+        "Switch role but also forcing flat, which is what the one existing Switch (MonthlyProfitTarget) does"
+      ],
+      "recommended": "Switch role, blocking new entries only. Brooks's claim is explicitly global ('it does not matter what else you see on the chart'), which an AND-ed Entry filter cannot express, and he says to wait for the breakout rather than to exit, so it must not force flat. If the engine's Switch role cannot block without forcing flat, author it as the negated Entry filter and record the divergence.",
+      "gates": [
+        "TightRangeBlocksEntries"
+      ]
+    },
+    {
+      "topic": "trading-range DAY classification (day-scale, distinct from the bar-window regime)",
+      "options": [
+        "session range so far against the recent average daily range (the width test at session scale)",
+        "at least K reversals in the first hour or the first N bars (R21-14, T07-33)",
+        "no separate day classification: reuse RangeWidthBelowAtrMultiple with the lookback sized to the session"
+      ],
+      "recommended": "Session range against the N-day average daily range, authored as TradingRangeDay with a minimum session-bar guard. It is the width decision applied one scale up, so the two agree by construction. The reversal-count forms need 'reversal' defined and would inherit whatever leg or pivot definition that decision picks. On a daily (M1440) series the day classification is unnecessary -- RangeWidthBelowAtrMultiple over 10 bars is Brooks's 'in a trading range for several days' (R02-21).",
+      "gates": [
+        "TradingRangeDay",
+        "CloseNearSessionExtreme",
+        "BarRangeAboveSessionAverage"
+      ]
+    }
+  ],
+  "bucket_summary": "49 candidates, overwhelmingly restatements of one deferred primitive -- 'the market is in a trading range' -- collapsed to 17 rules, 9 drops and 2 stray drops. The bucket's job was the trading-range design decision, and it is taken here: RangeWidthBelowAtrMultiple (N-bar height over ATR) is canonical, tight range is the same rule at a tighter multiple, barbwire is the named three-bar case, and the bar-overlap test survives as a separate rule per the brief. Five candidates offered a definition and fourteen more merely depended on one, which is why nothing in this file is priority C. The A-list is RangeWidthBelowAtrMultiple, OverlappingBarRun, Barbwire, TightRangeBlocksEntries (the one Switch), RangeExtremeFade, RangeMidpointZone, RangeMidpointTarget, EntryBarClosedAgainstPosition, BarsSinceExtremeExceeds and HolidayWeekWindow; the five B rules are all blocked only on session machinery or a third window. Two rules are D: Brooks's fade-after-an-extended-move guidance is the catalog's Momentum, and his mid-day avoidance window is TimeWindow(830, 1130) negated."
+}

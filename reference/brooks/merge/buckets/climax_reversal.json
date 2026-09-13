@@ -1,0 +1,1329 @@
+[
+  {
+    "id": "R01-13",
+    "name": "ThirdConsecutiveClimaxLateSessionAvoidCountertrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      37
+    ],
+    "quote": "Bar 24 was a two-bar bull spike and the third consecutive buy climax without a correction. There was not enough time left in the day for a 10-bar, two-legged correction, so not many bears were willing to short it.",
+    "description": "Filter: after the Nth consecutive buy climax, avoid initiating a countertrend short if too little of the session remains for a full multi-bar, two-legged correction to complete.",
+    "pseudocode": "consecutiveClimaxCount(minSpikeBars) >= climaxThreshold && barsRemainingInSession(sessionEndTime) < minCorrectionBars",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxThreshold": 3,
+      "minSpikeBars": 2,
+      "minCorrectionBars": 10,
+      "sessionEndTime": 1600
+    },
+    "book_order_type": "n/a (context filter blocking a countertrend entry)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "climax counting has no agreed mechanical definition, compounded with a session-time gate"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Same climax-counting concept as RP1-14/RP1-15, restated with an explicit end-of-session constraint."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01_example_of_how_to_trade_a_breakout.json",
+    "chapter_title": "Example of How to Trade a Breakout"
+  },
+  {
+    "id": "R05-11",
+    "name": "ConsecutiveClimaxTwoLegCorrectionFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      54
+    ],
+    "quote": "Bars 1, 2, 3, and 5 ended bear spikes, and consecutive sell climaxes often lead to a correction that lasts at least 10 bars and has at least two legs.",
+    "description": "Filter: after climaxesRequired consecutive sell (or buy) climax bars, expect a correction of at least minCorrectionBars bars with at least two legs; block fresh with-trend entries and favor the countertrend side for that stretch.",
+    "pseudocode": "consecutiveClimaxCount(climaxAtrMultiple, atrLookback) >= climaxesRequired => blockWithTrendEntry for minCorrectionBars bars",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxAtrMultiple": 1.5,
+      "atrLookback": 14,
+      "climaxesRequired": 2,
+      "minCorrectionBars": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "leg counting has no agreed mechanical definition; 'climax' itself needs a design decision"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Closely related to R08-16 (TwoLegsThenTwoLegCorrection); dedup pass should compare."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/05_failed_breakouts_breakout_pullbacks_and.json",
+    "chapter_title": "Failed Breakouts, Breakout Pullbacks, and Breakout Tests"
+  },
+  {
+    "id": "R17-07",
+    "name": "ClimaxFilterBlocksCountEntry",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      110,
+      111
+    ],
+    "quote": "The final component is a filter -- do not take a high 1 following a significant buy climax, and don't take a low 1 short after a significant sell climax.",
+    "description": "Never take a High 1 buy after a significant recent buy climax, nor a Low 1 short after a significant sell climax -- a climax exhausts the very trend the count is supposed to continue.",
+    "pseudocode": "!recentBuyClimax(climaxLookback) -> allow R17-03 (High 1)",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxLookback": 10
+    },
+    "book_order_type": "n/a (entry-blocking filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'climax' needs a design decision (large-range/exhaustion-bar detection); already defined as a primitive in the Trends volume, not redefined here"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Climax primitive is defined in trends chapter 2 (trend bars, doji bars, and climaxes)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/17_bar_counting_high_and_low_1_2_3_and_4_patterns.json",
+    "chapter_title": "Bar Counting: High and Low 1, 2, 3, and 4 Patterns and ABC Corrections"
+  },
+  {
+    "id": "RP4-18",
+    "name": "ClimaxImpliesTradingRangeTransition",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      137,
+      143
+    ],
+    "quote": "Whenever there is a spike up and then a spike down, or vice versa, the market has formed a climax reversal... This two-sided trading that usually takes place after a climax is a trading range, and it can be as brief as a single bar or can last for dozens of bars. The eventual breakout will usually lead to a measured move that approximates the height of the spike.",
+    "description": "A sharp spike in one direction immediately followed by a sharp spike in the opposite direction (a buy or sell climax) is typically followed by a transition into a trading range, whose eventual breakout tends to approximate a measured move equal to the height of the initiating spike.",
+    "pseudocode": "// depends on a climax/spike primitive assumed defined elsewhere in the corpus\nisClimaxReversal = isSpike(priorLeg, direction = UP) && isSpike(currentLeg, direction = DOWN) && legsAreAdjacent(priorLeg, currentLeg);\nexpectTradingRangeTransition = isClimaxReversal[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (regime-transition context flag)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on spike/climax pattern recognition and a regime-transition judgment, both design decisions"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "RP4-19",
+    "name": "ConsecutiveClimaxReversalOddsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      140,
+      145
+    ],
+    "quote": "Consecutive sell climaxes usually lead to a pullback, at least to the moving average, lasting at least 10 bars and having at least two legs, and sometimes they can lead to a trend reversal.",
+    "description": "Two or more consecutive climaxes in the same direction raise the odds of at least a two-legged pullback lasting a minimum number of bars (toward the moving average), and increase the odds of an eventual trend reversal.",
+    "pseudocode": "// depends on a climax primitive assumed defined elsewhere in the corpus\nconsecutiveClimaxCount = countConsecutiveClimaxes(direction = DOWN, maxGapBars = climaxGapBars);\nexpectSignificantPullback = consecutiveClimaxCount >= minConsecutiveClimaxes;",
+    "sides": "mirrored",
+    "parameters": {
+      "minConsecutiveClimaxes": 2,
+      "climaxGapBars": 3,
+      "minPullbackBars": 10
+    },
+    "book_order_type": "n/a (context filter raising expectation of a with-trend pullback / possible reversal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the underlying climax primitive plus a persistent streak counter across possibly non-adjacent climax bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R28-12",
+    "name": "ClimaxBarFadeEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192,
+      193
+    ],
+    "quote": "When there is a large bear trend bar that is a likely sell climax at the end of a bear trend or pullback in a bull trend, buy at the close of the bar, below its low, and at the close of the next bar (and on a stop above its high).",
+    "description": "After a large bear trend bar classified as a likely sell climax, buy at its close, at/below its low, at the close of the next bar, and on a stop above the next bar's high.",
+    "pseudocode": "isLikelySellClimax = isLargeBearTrendBar[0] && (isEndOfBearTrend[0] || isPullbackInBullTrend[0]);\nlimitPriceAtClose = close[0];\nlimitPriceAtLow = low[0];\nenterLongOnLimitNextBar = isLikelySellClimax && low[1] <= limitPriceAtLow;",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy at the close of the bar, below its low, at the close of the next bar, and on a stop above that bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a large-bar and sell-climax classification plus multiple order placements"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The 'sell climax' primitive likely duplicates a climax primitive already mined in the trends book's trend-bars/doji/climaxes chapter."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/28_entering_on_limits.json",
+    "chapter_title": "Entering on Limits"
+  },
+  {
+    "id": "V00-58",
+    "name": "ClimaxOvershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      16
+    ],
+    "quote": "A move that has gone too far too fast and has now reversed direction to either a trading range or an opposite trend. Most climaxes end with trend channel overshoots and reversals.",
+    "description": "A climax: an accelerated, overextended move that ends with an overshoot of its trend channel line and then reverses. The design decision is what counts as 'too far too fast' before coding a test.",
+    "pseudocode": "n/a - design decision needed for 'too far too fast'",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (regime classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the concept is real and heavily used in this book, but needs a design decision (rate-of-move threshold, channel-overshoot detection) before it can be coded at all"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-20",
+    "name": "ConsecutiveClimaxCorrection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      86,
+      95,
+      96
+    ],
+    "quote": "Consecutive buy climaxes usually are followed by a protracted correction that has at least two legs.",
+    "description": "After climaxNumber consecutive climax spikes (each a strong breakout with minimal intervening pullback) in the same direction, expect/require at least a minCorrectionBars-bar, two-legged correction - used to suppress fresh with-trend entries or favor countertrend scalps until the correction plays out. A climax signals an expected pause, not necessarily a trend reversal.",
+    "pseudocode": "climaxCount(sinceSessionStart, maxPullbackTicks) >= climaxNumber // suppresses with-trend Entry candidates until countLegs(sinceLastClimax) >= 2 and barsSince(lastClimax) >= minCorrectionBars",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxNumber": 3,
+      "minCorrectionBars": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "climax identification and leg counting are both design decisions Brooks does not reduce to a fixed test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BuyClimaxCountWithoutPullback (V01-16)",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V01-16",
+    "name": "BuyClimaxCountWithoutPullback",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      106
+    ],
+    "quote": "Bar 9 was the third consecutive buy climax without much of a pullback (bars 1 to 3 was the first, and bars 5 to 6 was the second).",
+    "description": "Primitive: counts consecutive climactic spike moves (each a mini-breakout without a significant intervening pullback) within the session; the Nth such climax raises exhaustion odds.",
+    "pseudocode": "climaxCount(sinceSessionStart, maxPullbackTicks) == climaxNumber",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxNumber": 3
+    },
+    "book_order_type": "n/a (context counter for exhaustion odds)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "identifying a 'climax' spike is itself a design decision, then counting them consecutively compounds it"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "SpikeWithoutPullback (V02-04), applied repeatedly across the session and counted",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01_example_of_how_to_trade_a_reversal.json",
+    "chapter_title": "Example of How to Trade a Reversal"
+  },
+  {
+    "id": "V03-06",
+    "name": "MajorTrendReversalFourPartSetup",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V03-01",
+      "V03-02",
+      "V03-03",
+      "V03-04",
+      "V03-05"
+    ],
+    "depends_on": [
+      "V03-01",
+      "V03-02",
+      "V03-05"
+    ],
+    "pages": [
+      113
+    ],
+    "quote": "Four things are needed for a major trend reversal: 1. A trend... 2. A countertrend move... that breaks the trend line... 3. A test of the trend's extreme, and then a second reversal... 4. The second reversal going far enough for there to be a consensus that the trend has reversed.",
+    "description": "The book's full definition of a major trend reversal: an established trend, a trend-line break reaching the EMA, a test of the trend's extreme (over- or undershoot), and a second reversal that goes far enough to convince most traders the trend has changed. Item 4 (\"far enough for consensus\") is explicitly a design decision, not a bar-level test.",
+    "pseudocode": "trendExists && trendLineBroken(V03-02) && testOfExtreme(V03-03_or_V03-04) && secondReversalConfirmed(V03-05) && secondReversalMagnitude >= consensusThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "consensusThreshold": "undefined -- Brooks gives no number"
+    },
+    "book_order_type": "n/a (composite context definition)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires a design decision for what counts as \"far enough for consensus\" (item 4); the rest chains hard sub-candidates"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is the chapter's organizing definition; the authoring pass should treat items 1-3 as the composable, gradeable parts and flag item 4 as out of scope for a mechanical rule."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/03_major_trend_reversal.json",
+    "chapter_title": "Major Trend Reversal"
+  },
+  {
+    "id": "V04-01",
+    "name": "ClimaxBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      139,
+      140
+    ],
+    "quote": "Any trend bar or series of trend bars where the bar or bars have relatively large ranges are climaxes... A climax ends as soon as there is any interruption of the strong trending behavior.",
+    "description": "Primitive: a trend bar whose range is large relative to recent bars (a multiple of average true range) qualifies as a climax bar, whichever direction it closes.",
+    "pseudocode": "(close[0] > open[0] || close[0] < open[0]) && (high[0] - low[0]) >= climaxRangeMultiple * average(trueRange, lookback)",
+    "sides": "same",
+    "parameters": {
+      "climaxRangeMultiple": 2.0,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a rolling ATR/average-range comparison"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives no fixed multiple; 'maybe twice the size of many of the bear trend bars' (page 140) is the closest he comes to a number, used as the default."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-05",
+    "name": "ConsecutiveClimaxWithoutPause",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V04-01",
+      "V04-02"
+    ],
+    "depends_on": [
+      "V04-01",
+      "V04-02"
+    ],
+    "pages": [
+      144,
+      145,
+      152,
+      157
+    ],
+    "quote": "Both bulls and bears will sell when there is a second or third consecutive buy climax without much of a correction between the climaxes, and this selling can lead to a climactic reversal... Two consecutive buy climaxes create two pushes up and is effectively a double top... Three consecutive buy climaxes is a wedge top.",
+    "description": "Count same-direction climax bars (V04-01) separated only by small pause bars (not full opposite corrections). The Nth consecutive climax (2 = double top/bottom, 3 = wedge top/bottom) with minimal correction between climaxes raises the odds of at least a 10-bar, two-legged reversal.",
+    "pseudocode": "consecutiveClimaxCount(direction, maxPauseBars, maxPauseRangeFraction) >= climaxCountThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxCountThreshold": 2,
+      "maxPauseBars": 3,
+      "maxPauseRangeFraction": 0.5
+    },
+    "book_order_type": "n/a (context signal feeding an entry at the close of the qualifying climax bar)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a persistent counter across climax/pause bar classifications with a tunable pause tolerance"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The book repeats this pattern (2nd/3rd consecutive climax => reversal odds rise) across several chart examples (AAPL, SPY, Emini); this is one of the chapter's two or three most important mechanizable ideas."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-08",
+    "name": "ExhaustionBarAfterProtractedTrendWithoutPullback",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      150,
+      151
+    ],
+    "quote": "when a bull trend goes on for 40 bars without much of a pullback and then has the biggest bull trend bar of the trend... the odds of follow-through buying are less than with all of the other breakouts earlier in the trend... the chance of success is probably less than 30 percent.",
+    "description": "If the current trend bar is the largest trend bar of the entire trend so far, AND the trend has run at least N bars without a significant pullback, treat this strongest-looking breakout as more likely to be exhaustion (fade it) rather than a continuation.",
+    "pseudocode": "(high[0]-low[0]) == highestBarRangeSinceTrendStart && barsSinceTrendStart >= minTrendBars && barsSinceLastSignificantPullback >= minTrendBars",
+    "sides": "mirrored",
+    "parameters": {
+      "minTrendBars": 40
+    },
+    "book_order_type": "n/a (fade filter -- flips the usual with-trend breakout-follow bias)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a persisted trend start point, a 'largest bar of the trend so far' running max, and a 'no significant pullback' tracker"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the chapter's clearest statement of its core thesis ('sometimes the strongest breakout attempts are the most likely to fail'); worth prioritizing in the authoring pass despite the complexity."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V04-11",
+    "name": "StopSizedToClimaxBarHeight",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V04-01"
+    ],
+    "pages": [
+      141,
+      152
+    ],
+    "quote": "they should use a stop that is about as many ticks as the bull trend bar is tall... The aggressive, experienced bulls who bought at the close of bar 15 could have used a protective stop equal to about the height of the bar, which was four points.",
+    "description": "When entering at the close of a climax bar (fading it, with-trend), size the initial protective stop to roughly the climax bar's own high-low range rather than a fixed dollar amount or generic ATR multiple.",
+    "pseudocode": "initialStopDistance = high[entryBarIndex] - low[entryBarIndex]",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "protective stop placed at entry price minus/plus the signal bar's own range",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads one recorded bar's range at entry time and holds it as the stop distance for the trade"
+    },
+    "el_words_needed": [
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/04_climactic_reversals_a_spike_followed_by_a_spike.json",
+    "chapter_title": "Climactic Reversals: A Spike Followed by a Spike in the Opposite Direction"
+  },
+  {
+    "id": "V24-14",
+    "name": "MajorTrendReversalSetup",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "V24-13",
+      "V24-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      487,
+      496,
+      526
+    ],
+    "quote": "Major trend reversal: Following a strong break of the trend line, look for a weak trend resumption to fail on a test of the trend's extreme; the reversal signal bar should be strong. After a bear trend, look to buy a higher low, double bottom, or lower low.",
+    "description": "A major trend reversal: (1) a strong trend-line break with momentum, (2) a subsequent test of the trend's extreme that fails (higher low / double bottom / lower low after a downtrend; mirrored for an uptrend), (3) a strong reversal signal bar on that test.",
+    "pseudocode": "TrendLineBreak(direction) && barsSince(TrendLineBreak) <= testWindow && priceTestsExtreme(direction, tolTicks) && TrendBarBody(oppositeOfDirection)",
+    "sides": "mirrored",
+    "parameters": {
+      "testWindow": 25,
+      "tolTicks": 6
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "composes a trend-line break, a swing-extreme test, and a signal-bar quality check"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MajorTrendReversal",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-20",
+    "name": "ClimaxBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      509,
+      527,
+      546
+    ],
+    "quote": "Whenever there is a trend of 10 or 20 or more bars and it then has a huge bull trend bar, the bar often represents exhaustion.",
+    "description": "After an extended run in one direction, a single trend bar whose range is a large multiple of the recent average range signals likely exhaustion (a buy or sell climax) and increases the chance of at least a two-legged correction.",
+    "pseudocode": "extendedRun = barsSinceTrendStart(direction) >= minRunBars; climax = (high[0]-low[0]) >= climaxMultiple*averageRange(rangeLookback) && TrendBarBody(direction)",
+    "sides": "mirrored",
+    "parameters": {
+      "minRunBars": 10,
+      "climaxMultiple": 2.0,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "an average-range window comparison plus a bar-count-since-trend-start state"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "ClimaxBar",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-26",
+    "name": "PullbackNotAfterClimaxFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V24-04",
+      "V24-20"
+    ],
+    "depends_on": [],
+    "pages": [
+      488
+    ],
+    "quote": "Buying a high 1 pullback in a strong bull spike in a bull trend, but not after a strong buy climax.",
+    "description": "Blocks a one-leg pullback entry (V24-04) when the most recent trend bar was a climax bar (V24-20); the high 1 (low 1) is only taken while the spike has not yet exhausted itself.",
+    "pseudocode": "PullbackEntryOneLeg && !ClimaxBar[lookbackBars]",
+    "sides": "mirrored",
+    "parameters": {
+      "lookbackBars": 3
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a small backward-looking check on the climax-bar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-34",
+    "name": "PostClimaxReentryDelay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V24-09",
+      "V24-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      511
+    ],
+    "quote": "After a final flag, traders usually wait for at least a 10-bar, two-legged pullback to the moving average before buying again.",
+    "description": "After a final-flag or climax exhaustion signal, suppress with-trend re-entries until at least N bars have passed and the pullback has shown two legs to the moving average.",
+    "pseudocode": "barsSinceFinalFlag <= minWaitBars || PullbackLegCount(down,lookback) < 2 => blockEntry",
+    "sides": "mirrored",
+    "parameters": {
+      "minWaitBars": 10
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a bar-count-since-event gate combined with the leg-count primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-46",
+    "name": "ConsecutiveClimaxBarsExpectCorrection",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "V24-20"
+    ],
+    "depends_on": [],
+    "pages": [
+      527
+    ],
+    "quote": "Consecutive buy climaxes are usually followed by at least a two-legged correction.",
+    "description": "When two or more climax bars (V24-20) occur within a short span in the same direction, treat the next opposite-direction signal bar as higher-confidence, expecting at least a two-legged correction.",
+    "pseudocode": "climaxCountRecent(direction,shortLookback) >= 2 => boost confidence of the next TrendBarBody(opposite) signal",
+    "sides": "mirrored",
+    "parameters": {
+      "shortLookback": 8
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a short-window count of the climax-bar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "T02-03",
+    "name": "ClimaxEndsOnBreakBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T02-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      92
+    ],
+    "quote": "if there are three consecutive bull trend bars and then the next bar is a small bull trend bar with a prominent tail on the top, an inside bar, a doji, or a bear trend bar, then the climax ended with the three bull trend bars.",
+    "description": "A run of climaxBars consecutive bull trend bars ended at bar 1, and bar 0 is not itself a same-strength bull trend bar (a pause, tailed bar, inside bar, doji, or bear bar broke the streak): the buy climax has ended, which gates fade/reversal setups.",
+    "pseudocode": "countConsecutiveBullTrendBars(endingAt=1) >= climaxBars && !TrendBar[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "climaxBars": 3
+    },
+    "book_order_type": "n/a (context state)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a persistent streak counter of consecutive same-direction trend bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-10",
+    "name": "ProtractedTrendClimacticReversalSetup",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T02-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      102,
+      104
+    ],
+    "quote": "Whenever a large bear trend bar forms in a bear trend that has gone on for 30 or more bars without much of a pullback, it often represents a sell vacuum and an exhaustive sell climax.",
+    "description": "Long side (the book's bear-trend example): after a bear trend of at least minTrendBars bars with no pullback larger than pullbackMaxFraction of the move, a bar forms whose range is abnormally large versus recent bars: buy, expecting an exhaustive sell climax and reversal.",
+    "pseudocode": "barsSinceTrendStart(bear) >= minTrendBars && maxPullbackFraction(minTrendBars) <= pullbackMaxFraction && range(0) >= climaxMultiple * avgRange(rangeLookback) && close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "minTrendBars": 30,
+      "pullbackMaxFraction": 0.3,
+      "climaxMultiple": 1.5,
+      "rangeLookback": 10
+    },
+    "book_order_type": "buy at the market as the bar closes, or above its high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "'a trend that has gone on for 30+ bars without much pullback' needs a trend-length and pullback-size design decision, on top of the range comparison"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "p104: the Figure 2.5 example has each bear body in the final spike progressively larger, reinforcing the climax read."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T02-11",
+    "name": "MinimumCorrectionAfterClimaxFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T02-10"
+    ],
+    "depends_on": [],
+    "pages": [
+      102,
+      104
+    ],
+    "quote": "Both are expecting a larger correction that should have at least two legs, last at least 10 bars, and poke a little above the moving average.",
+    "description": "After a climactic reversal setup (T02-10) fires, block resuming the old trend direction (fading the correction) until at least minCorrectionBars bars and two legs have elapsed since the climax bar.",
+    "pseudocode": "barsSince(ClimaxEndsOnBreakBar_or_ProtractedTrendClimacticReversalSetup) < minCorrectionBars || legsSinceClimax < 2 -> block old-trend-direction entries",
+    "sides": "same",
+    "parameters": {
+      "minCorrectionBars": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs leg counting anchored to a specific climax bar, on top of a simple bar count"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/02_trend_bars_doji_bars_and_climaxes.json",
+    "chapter_title": "Trend Bars, Doji Bars, and Climaxes"
+  },
+  {
+    "id": "T06-25",
+    "name": "ExhaustionBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T06-02",
+      "T06-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      136,
+      140
+    ],
+    "quote": "An unusually large trend bar that forms in a trend that has lasted for 10 or more bars usually means that the market is exhausted and will correct for at least 10 bars.",
+    "description": "Primitive: an unusually large trend bar (well beyond the recent average range) occurring after an already-established run of same-direction trend bars -- a climactic exhaustion bar.",
+    "pseudocode": "TrendBar[0] (bull) && (high[0] - low[0]) >= exhaustionMultiple * avgRange(rangeLookback) && TrendSpikeContext[1] (bull, spikeBars = establishedTrendBars)",
+    "sides": "mirrored",
+    "parameters": {
+      "exhaustionMultiple": 1.5,
+      "rangeLookback": 10,
+      "establishedTrendBars": 10
+    },
+    "book_order_type": "n/a (bar classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an average-range comparison plus the TrendSpikeContext judgment for 'the trend has lasted 10 or more bars'"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "AtrRising",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T06-26",
+    "name": "ExhaustionCorrectionFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T06-25"
+    ],
+    "depends_on": [],
+    "pages": [
+      136
+    ],
+    "quote": "usually means that the market is exhausted and will correct for at least 10 bars, and sometimes it leads to a reversal.",
+    "description": "Blocks new with-trend entries for a number of bars after an exhaustion bar, since a correction of at least that many bars is expected.",
+    "pseudocode": "filter blocks a with-trend entry when exists k in 0..correctionBars-1 such that ExhaustionBar[k] (same direction as the intended trade)",
+    "sides": "same",
+    "parameters": {
+      "correctionBars": 10
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a windowed lookback over the ExhaustionBar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/06_signal_bars_other_types.json",
+    "chapter_title": "Signal Bars: Other Types"
+  },
+  {
+    "id": "T10-14",
+    "name": "NoLongsAfterBuyClimaxForNBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T10-13"
+    ],
+    "pages": [
+      210
+    ],
+    "quote": "is likely to be followed by about 10 or more sideways to down bars before the bulls return",
+    "description": "Gate on LONG entries: no buy climax (T10-13's condition) occurred within the last P bars.",
+    "pseudocode": "barsSince(buyClimaxCondition) > blockBars",
+    "sides": "mirrored",
+    "parameters": {
+      "blockBars": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a bars-since counter that persists across bars"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/10_second_entries.json",
+    "chapter_title": "Second Entries"
+  },
+  {
+    "id": "T13-14",
+    "name": "SessionMoveNearAverageDailyRangeExhaustion",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      235
+    ],
+    "quote": "The average daily range was about 20 points, so once the market got down to about 20 points below the open, this gave traders another reason to look for a bounce.",
+    "description": "Intraday filter: once the session's move from the open reaches close to the recent average daily range (from daily bars), treat further movement as exhausted and favor countertrend/reversal setups over continuation.",
+    "pseudocode": "abs(close[0] - sessionOpen) >= rangeFraction * avgDailyRange(dailyLookback)",
+    "sides": "same",
+    "parameters": {
+      "rangeFraction": 0.9,
+      "dailyLookback": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a daily-bar average range computed alongside the intraday series (a multi-timeframe read) plus a session-open reference"
+    },
+    "el_words_needed": [
+      "Average",
+      "OpenD"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13_trend_lines.json",
+    "chapter_title": "Trend Lines"
+  },
+  {
+    "id": "T15-32",
+    "name": "ClimaxCooldownBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T15-31"
+    ],
+    "pages": [
+      253,
+      256,
+      257
+    ],
+    "quote": "The strong bulls see the spike up as a gift and they exit their longs and will now buy again only after at least a two-legged pullback lasting at least 10 bars.",
+    "description": "Filter blocking new with-trend longs after a buy climax (failed breakout above the channel or a large bull spike): require at least cooldownBars since the climax bar before buying again.",
+    "pseudocode": "barsSince(climaxBar) >= cooldownBars",
+    "sides": "mirrored",
+    "parameters": {
+      "cooldownBars": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a persisted bar index of the last climax event"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks also wants two legs; the leg count is the hard part and is left to the authoring pass."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "T15-57",
+    "name": "ConsecutiveClimaxCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T15-51"
+    ],
+    "depends_on": [],
+    "pages": [
+      266
+    ],
+    "quote": "This was the third or fourth consecutive buy climax (every spike, whether it is one bar or many bars, is a climax) ... Consecutive climaxes usually lead to a larger correction",
+    "description": "Filter: the number of separate bull spikes (runs of >= spikeBars consecutive bull trend bars, separated by at least one non-spike bar) within the last windowBars is at least minClimaxes. When true, expect a larger correction: block new longs / allow fades.",
+    "pseudocode": "count of disjoint runs of >= spikeBars bull trend bars within bars 0..windowBars-1 >= minClimaxes",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 30,
+      "spikeBars": 2,
+      "minClimaxes": 3
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "run detection over a window with state"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Shown on a weekly SPY chart (Figure 15.4)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/15_channels.json",
+    "chapter_title": "Channels"
+  },
+  {
+    "id": "TP3-33",
+    "name": "ConsecutiveClimaxCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "TP3-31"
+    ],
+    "depends_on": [],
+    "pages": [
+      313
+    ],
+    "quote": "especially if the move is the second or third consecutive buy climax, they step aside.",
+    "description": "Filter: the number of exceptionally large bull trend bars (buy climaxes) in the last windowBars, with no bear climax between, is at least climaxCount -> block new longs / expect a correction.",
+    "pseudocode": "countIf(ExceptionallyLargeTrendBar(i), i in 0..windowBars-1) < maxClimaxes",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 30,
+      "maxClimaxes": 2,
+      "rangeMultiple": 2.0,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "counting loop over a window"
+    },
+    "el_words_needed": [
+      "CountIF",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks means consecutive climaxes separated by pushes, not adjacent bars; the count-in-window proxy is a simplification."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "TP3-34",
+    "name": "NoBuyUntilTenBarCorrectionAfterClimax",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "TP3-31"
+    ],
+    "depends_on": [],
+    "pages": [
+      313
+    ],
+    "quote": "the bulls will not consider buying again until at least a 10-bar, two-legged correction, and even then, only if the sell-off looks weak.",
+    "description": "Filter: after a climax bar in a mature trend, block new longs until at least blockBars bars have passed (Brooks also wants two legs down, which is TP3-29's structure).",
+    "pseudocode": "barsSince(ExceptionallyLargeTrendBar && TrendAgeBars >= minTrendBars) >= blockBars",
+    "sides": "mirrored",
+    "parameters": {
+      "blockBars": 10,
+      "minTrendBars": 30
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "bars-since counter keyed on a compound event"
+    },
+    "el_words_needed": [
+      "MRO"
+    ],
+    "likely_existing_rule": "LastTradeCooldown (structure only)",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T18-06",
+    "name": "BuyClimaxBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      319,
+      329
+    ],
+    "quote": "Buying a high 1 pullback in a strong bull spike in a bull trend, but not after a buy climax.",
+    "description": "Primitive: an exceptionally large, extended bull trend bar occurring late in a mature bull move -- a buy climax that warrants a larger correction rather than an immediate with-trend entry.",
+    "pseudocode": "// needs a design decision on what qualifies as a 'climax' bar (extreme range relative to recent bars + an already-extended prior move)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (state classification used to suppress other entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks does not give a numeric test for 'climax'; same open question as T19-17 (NoClimaxBar)"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Expect to merge with T19-17."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18_example_of_how_to_trade_a_trend.json",
+    "chapter_title": "Example of How to Trade a Trend"
+  },
+  {
+    "id": "T19-17",
+    "name": "NoClimaxBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      338
+    ],
+    "quote": "No big climaxes appear.",
+    "description": "Absence of a climax bar (an exceptionally large, extended trend bar signaling exhaustion) in the recent window -- a sign of an orderly, strong trend.",
+    "pseudocode": "// needs a design decision on what qualifies as a 'climax' bar (extreme range + extended prior move + failure to follow through)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Brooks does not give a numeric test for 'climax' here; a design decision is needed on how to define one before coding"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T21-39",
+    "name": "ExitAfterSecondClimax",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-38"
+    ],
+    "depends_on": [],
+    "pages": [
+      363,
+      377
+    ],
+    "quote": "They took their remaining profits on the two-bar buy climax up to bar 15, on the small bear inside bars that followed, and on the strong bear trend bar after that",
+    "description": "Exit: close a long once a second consecutive buy climax has printed (take profits into the climax) or, more conservatively, on the first bear-body bar after it.",
+    "pseudocode": "ctx.MarketPosition() > 0 && consecutiveClimaxesSeen && (exitOnClimaxClose || close[0] < open[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "exitOnClimaxClose": false,
+      "maxGapBars": 5
+    },
+    "book_order_type": "limit sell into the climax close / market on the first bear bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "state remembered from the climax detector"
+    },
+    "el_words_needed": [
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-41",
+    "name": "ThirdConsecutiveClimaxReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-38"
+    ],
+    "depends_on": [],
+    "pages": [
+      382
+    ],
+    "quote": "Usually when there are two consecutive climaxes, there is at least a two-legged correction. When there are three, the reversal is generally even larger",
+    "description": "Entry (countertrend, long side): after three consecutive sell climaxes (three large bear trend bars each separated by a pause within the window), buy on the first bull-body bar.",
+    "pseudocode": "threeConsecutiveSellClimaxes within window && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "maxGapBars": 5,
+      "windowBars": 15,
+      "sizeMultiple": 2.0
+    },
+    "book_order_type": "buy stop above the first bull bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "counts climaxes over a window with separation"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-75",
+    "name": "ParabolicAccelerationClimaxExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      362,
+      376,
+      383
+    ],
+    "quote": "This increase in the slope creates a parabolic shape, which is unsustainable and therefore a type of climax.",
+    "description": "Exit: the channel is accelerating - the net gain of the last K bars exceeds a multiple of the net gain of the K bars before that; take profits on the long (do not short it).",
+    "pseudocode": "ctx.MarketPosition() > 0 && (close[0] - close[legBars]) > accelMultiple * (close[legBars] - close[2*legBars]) && (close[legBars] - close[2*legBars]) > 0",
+    "sides": "mirrored",
+    "parameters": {
+      "legBars": 4,
+      "accelMultiple": 1.5
+    },
+    "book_order_type": "limit / market into strength",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "fixed-offset close differences"
+    },
+    "el_words_needed": [
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 376: 'never look to short such a strong bull trend' - exit only, not a countertrend entry."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T23-09",
+    "name": "FadeClimaxOnSmallPullbackDayAfterEleven",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T23-08"
+    ],
+    "depends_on": [],
+    "pages": [
+      414,
+      422
+    ],
+    "quote": "If sometime between 11:00 a.m. PST and noon the market has two relatively large consecutive bull trend bars breaking out to a new high, the move is more likely an exhaustive buy climax than the start of a new leg.",
+    "description": "Entry (countertrend, long side mirrored): after 11:00 a.m. on a small pullback bull trend day, two consecutive large bull trend bars break to a new high; short at (or a tick above) the close of the second one, expecting a two-legged, roughly 10-bar pullback.",
+    "pseudocode": "smallPullbackTrendDay && Time >= lateCutoffTime && largeBullTrendBar[1] && largeBullTrendBar[0] && close[0] > highest(high, priorBars)[1]  /* long side is the mirror on a bear small-pullback day */",
+    "sides": "mirrored",
+    "parameters": {
+      "lateCutoffTime": 1100,
+      "sizeMultiple": 1.5,
+      "rangeLookback": 20
+    },
+    "book_order_type": "limit order at (or a tick beyond) the close of the second climax bar, scaling in higher",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "combines the small-pullback-day regime filter with a two-bar climax pattern"
+    },
+    "el_words_needed": [
+      "Average",
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Similar in spirit to T21-38/T21-39/T22-07 (consecutive-climax fades); this variant is specific to the small pullback trend day regime and the 11am-to-noon window."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  }
+]

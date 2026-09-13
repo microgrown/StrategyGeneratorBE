@@ -1,0 +1,792 @@
+{
+  "bucket": "ema_relations",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "EmaGapBar",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar does not touch the N-bar EMA: its low is above the EMA (long) / its high below it (short) -- Brooks's 'moving average gap bar'.",
+      "pseudocode": "low[0] > ema(close, emaLength)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs an EMA; a single-bar comparison otherwise"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "CloseAboveAverage",
+        "relation": "variant",
+        "note": "CloseAboveAverage compares the CLOSE with its own N-bar SIMPLE average; this compares the bar's LOW (long) / HIGH (short) with an EXPONENTIAL average, so it fires on different bars. Four mining agents guessed CloseAboveAverage as the existing rule; none of them is right."
+      },
+      "sources": [
+        "R00-23",
+        "R01-11",
+        "R11-17",
+        "R13-02",
+        "R14-01",
+        "V00-13",
+        "V01-09",
+        "V09-03",
+        "T00-12",
+        "T19-12"
+      ],
+      "merge_notes": "Ten restatements of one single-bar test, one per chapter as the mining brief required, all with emaLength 20 and all identical in behaviour. Half state the long side as low[0] > ema (a bar clear ABOVE the average, R00-23/V00-13/V09-03/T00-12/T19-12) and half as high[0] < ema (a bar clear BELOW it, R01-11/R11-17/R13-02/R14-01/V01-09) -- these are the same rule under the per-placement flip, and the long side is taken as low[0] > ema because it is the majority and because it reads as the long side in isolation. WATCH THE POLARITY: the gap-bar ENTRY (EmaGapBarBreakoutEntry) buys after a bar entirely BELOW the EMA in a bull trend, i.e. it uses this rule's SHORT-side test on its long side; that is why the entry is carried separately rather than as EmaGapBar plus a breakout pane. R01-11 adds an optional gapTicks cushion (default 0, i.e. inert) and is dropped as a parameter because a tick offset would pull in MinMove/PriceScale for no stated book value. V09-03 states it as 'the pullback failed to reach the moving average', which is the same bars. R08-25's 'at least one such bar in the last N bars' is the same test wrapped in a window count and is carried by BarsBeyondEmaCount. XAverage has no register row yet.",
+      "variants_kept_separate": [
+        "EmaGapBarRun",
+        "EmaTouch",
+        "CloseBeyondEma"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EmaGapBarRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Price has gone at least N consecutive bars without any bar touching the N-bar EMA -- Brooks's '20 gap bars', a strong but overdone trend.",
+      "pseudocode": "barsSinceEmaTouch = (low[0] <= ema(close, emaLength)[0] && high[0] >= ema(close, emaLength)[0]) ? 0 : barsSinceEmaTouch[1] + 1; barsSinceEmaTouch >= gapBarsRequired",
+      "sides": "same",
+      "parameters": {
+        "emaLength": 20,
+        "gapBarsRequired": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus one persistent bars-since-touch counter; no window loop"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Nothing in the catalog carries a bars-since-event counter; MomentumConsecutiveBars is the closest shape but counts a price relation over a fixed window, not a reset-on-event streak."
+      },
+      "sources": [
+        "R13-01",
+        "R00-24",
+        "V00-14",
+        "T00-13",
+        "T19-13",
+        "TP1-09",
+        "V23-01"
+      ],
+      "merge_notes": "R13-01's definition wins: one persistent counter that resets when the bar's range straddles the EMA, tested against a threshold. The four 'twenty gap bars' restatements (R00-24, V00-14, T00-13, T19-13) all express it as a fixed-length loop over the EmaGapBar primitive, which costs a 20-deep loop and an EMA read per bar for the same bars; kept as citations. Direction is dropped with the loop: the counter is direction-agnostic (sides 'same'), which differs from the mirrored loop forms only when price gaps clean across the EMA without a straddling bar -- rare, and recorded here as the cost of the cheaper machine. Book thresholds: 20 (five sources, the default), 30 (V23-01), 45 on the daily (TP1-09). V23-01 also fades the extreme streak countertrend and predicts an EMA touch within 10 bars; the fade is this same rule with the placement flipped, and the 10-bar window is a target/exit idea not carried here. Brooks says outright that 20 'is arbitrary ... any large number of bars', so gapBarsRequired is an optimizer input, not a book constant. Kept apart from the one-bar EmaGapBar per MERGE.md.",
+      "variants_kept_separate": [
+        "EmaGapBar",
+        "BarsBeyondEmaCount",
+        "PullbackDepthBeyondEma",
+        "BarsSinceEmaCross"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EmaGapBarBreakoutEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The previous bar was entirely below the EMA (a moving-average gap bar) and this bar closes above its high: the book's moving-average-gap-bar fade, bought with the trend. Short is the mirror.",
+      "pseudocode": "high[1] < ema(close, emaLength)[1] && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA read one bar back plus a fixed-offset price comparison; no persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHigh(lookback=1) is exactly the breakout half. The gap-bar half cannot be supplied by a second pane, because EmaGapBar evaluates at bar 0 and this needs it at bar 1; the panes AND same-bar conditions only."
+      },
+      "sources": [
+        "R13-03",
+        "R14-02",
+        "T07-40",
+        "T15-59",
+        "T21-57",
+        "V24-11",
+        "R06-09",
+        "R26-11",
+        "R12-14"
+      ],
+      "merge_notes": "Eight statements of the same two-term entry across all three volumes; T07-40/T15-59/T21-57 give it in this exact form. Everything the sources wrap around it is a separate pane and is dropped from the rule: the 'strong trend' precondition (T07-40, T21-57's strongBars, T15-59's 80%-of-20-bars count, V24-11's prior-bars-on-the-trend-side) is BarsBeyondEmaCount or EmaGapBarRun; R13-03's 20-gap-bar precondition is EmaGapBarRun; V24-11's bear-body requirement on the gap bar is bar_anatomy's TrendBarBody. The 'FIRST gap bar since the trend began' qualifier (R14-02, R26-11) is dropped as unmechanizable without a trend origin, which is the always-in decision; EmaGapBarRun is the authorable stand-in for 'the trend has been strong up to here'. R06-09's sell stop trailed down one tick below each new bar's low until filled collapses to a single signal-bar-close/next-bar-open entry under the standing convention. If EmaGapBar is later given a lag input, this rule becomes EmaGapBar(lag=1) + CloseAbovePriorHigh(1) and could be retired; it is carried whole because that input does not exist and because 'first moving average gap bar' is one of Brooks's named setups (its own chapter, ranges ch14).",
+      "variants_kept_separate": [
+        "SecondEmaGapBarEntry",
+        "TwentyGapBarPullbackEntry",
+        "EmaGapBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "EmaGapBar"
+      ]
+    },
+    {
+      "key": "SecondEmaGapBarEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The second attempt at the moving-average-gap-bar fade: take the gap-bar breakout only when one earlier attempt has already failed, and never a third.",
+      "pseudocode": "gapBarAttempts == 1 && high[1] < ema(close, emaLength)[1] && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "maxAttempts": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a persistent attempt counter that increments on each failed fade and resets when the trend's extreme is tested"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog rule remembers whether an earlier signal failed."
+      },
+      "sources": [
+        "R13-04",
+        "R14-03",
+        "R06-10",
+        "R13-05",
+        "R00-53",
+        "V00-66"
+      ],
+      "merge_notes": "Brooks's 'count to two, then stop' applied to the gap-bar fade, stated three times as the retry (R13-04, R14-03, R06-10) and once as the cap (R13-05, 'not worth buying a third time'); the cap is the same counter read the other way, so it is one rule, not two. R00-53 and V00-66 name a DIFFERENT 'second moving average gap bar setup' -- first gap bar, then a reversal toward the EMA that fails to reach it, then the next reversal -- which is this rule with PullbackDepthBeyondEma (depth 0, negated) supplying the failed-reach; both were graded hard and low confidence and are kept as citations rather than a second rule. Carried as a composite because it is a named book setup: it is EmaGapBarBreakoutEntry gated by leg_counting's SecondSignal (T21-28's price proxy -- a trigger fired and price traded back through the signal bar's extreme within N bars), and it should be authored on that machinery rather than a private counter.",
+      "variants_kept_separate": [
+        "EmaGapBarBreakoutEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "EmaGapBarBreakoutEntry",
+        "SecondSignal"
+      ]
+    },
+    {
+      "key": "TwentyGapBarPullbackEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The first bar to touch the EMA after a run of N bars that never touched it, closing back on the trend side: the '20 gap bar' pullback buy.",
+      "pseudocode": "barsSinceEmaTouch[1] >= gapBarsRequired && low[0] <= ema(close, emaLength)[0] && close[0] > ema(close, emaLength)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "gapBarsRequired": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the bars-since-touch counter read one bar back, plus a straddle test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T17-08",
+        "T18-18",
+        "R26-12"
+      ],
+      "merge_notes": "Carried whole even though it looks like EmaGapBarRun AND EmaTouch, because it is NOT that conjunction: the counter resets to 0 on the touch bar itself, so EmaGapBarRun evaluates FALSE on exactly the bar this rule fires. The rule needs the counter's PREVIOUS value, which no pair of ANDed panes can express. R26-12 states it as 'the first pullback that touches the moving average in more than 20 bars', T18-18 as a limit order one tick above the average once 20 bars have passed without a touch, T17-08 as the '20 gap bar pullback setup'; identical bars, and the limit-order mechanics collapse under the standing signal-bar-close/next-bar-open convention. Brooks's 'buyers at the moving average' claim is what the entry monetizes; the touch tolerance in the sources (0 to 1 tick) is dropped in favour of the exact straddle test.",
+      "variants_kept_separate": [
+        "EmaGapBarRun",
+        "EmaTouch",
+        "EmaGapBarBreakoutEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "EmaGapBarRun",
+        "EmaTouch"
+      ]
+    },
+    {
+      "key": "EmaTouch",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's range contains the N-bar EMA -- the average is tested this bar. Direction-agnostic.",
+      "pseudocode": "low[0] <= ema(close, emaLength)[0] && high[0] >= ema(close, emaLength)[0]",
+      "sides": "same",
+      "parameters": {
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs an EMA; two comparisons otherwise"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Nothing in the catalog tests whether a level falls inside the bar's range."
+      },
+      "sources": [
+        "T18-01",
+        "T15-20",
+        "T21-19",
+        "R11-14",
+        "V13-01",
+        "TP3-13",
+        "R11-28",
+        "V16-03"
+      ],
+      "merge_notes": "T18-01's exact straddle test wins over the tolerance forms (R11-14's 2 ticks, T15-20's 1 tick, V13-01's 2 ticks): it needs no MinMove/PriceScale and no stated book number exists. T15-20 and T21-19 add 'and the close held above the average', which is this rule ANDed with CloseBeyondEma in the entry pane -- no separate rule. T21-19 also requires the always-in direction, an external pane. R11-14 additionally requires the penetration to be no deeper than 2 ticks; that half is PullbackDepthBeyondEma. THE HIGHER-TIMEFRAME MOVING AVERAGE IS THIS RULE AT A LONGER emaLength, not a resampling problem: V13-01 gives Brooks's own arithmetic (a 90-bar EMA on 1-minute bars stands in for the 5-minute 20-bar EMA -- 90, not 100) and TP3-13 the 240-bar stand-in for the 60-minute average, so both collapse to EmaTouch(90) and EmaTouch(240) on a single series, and R11-28's 'first pullback to the 15-minute average, then the 30, then the 60' is several placements of this rule, not a rule. That retires the research grade all three carried. TP3-13's session-open window and prior-day-strong-bull halves are time_session and always-in panes.",
+      "variants_kept_separate": [
+        "EmaGapBar",
+        "TwentyGapBarPullbackEntry",
+        "PullbackDepthBeyondEma"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseBeyondEma",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close is above the N-bar EMA (long) / below it (short), optionally by a margin measured in ATRs.",
+      "pseudocode": "close[0] > ema(close, emaLength)[0] + marginAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "marginAtr": 0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs an EMA; one comparison otherwise"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "CloseAboveAverage",
+        "relation": "variant",
+        "note": "Same shape, different average: CloseAboveAverage uses EL's fresh N-bar SIMPLE Average of close, this uses XAverage (exponential, recursive), and it adds a margin. Different bars, so not a duplicate -- but if the authoring pass decides the corpus will only ever carry simple averages, this rule collapses into CloseAboveAverage and the whole bucket changes with it."
+      },
+      "sources": [
+        "T05-06",
+        "T06-27",
+        "T07-06",
+        "T15-03",
+        "R11-16",
+        "V02-17"
+      ],
+      "merge_notes": "Four chapters define 'the moving average' from scratch as the 20-bar EMA of closes and give close[0] > ema[0] as the canonical use (T05-06, T06-27, T07-06, T15-03); R11-16 is the same test written for the short side; V02-17 adds a margin ('breaks the moving average by many ticks') which becomes marginAtr, stated in ATRs rather than the source's 4 ticks so it survives a change of instrument. Brooks never varies the length: 20 in every source, and T05-06 notes its chapter says only 'the moving average' because 20 is assumed throughout the trilogy.",
+      "variants_kept_separate": [
+        "CloseCrossesEma",
+        "EmaGapBar",
+        "CloseWithinAtrOfEma"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseCrossesEma",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "This bar's close is on the far side of the EMA from the previous bar's close -- the first close through the average.",
+      "pseudocode": "close[1] <= ema(close, emaLength)[1] && close[0] > ema(close, emaLength)[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "MovingAverageCross",
+        "relation": "variant",
+        "note": "MovingAverageCross crosses two AVERAGES through EL's bridging `crosses` state machine; this crosses the CLOSE with one exponential average as a plain two-bar test, so equality runs re-fire where the state machine would bridge them. Same relation to CloseBeyondEma that MomentumChange has to Momentum: state versus event."
+      },
+      "sources": [
+        "R04-11",
+        "R12-13"
+      ],
+      "merge_notes": "R04-11's first term, 'the first close below the moving average' after a long run above it, is the whole rule; its other two terms (a two-bar reversal, then a bull inside bar) are bar_anatomy_reversal_signal's TwoBarReversal and the catalog's InsideBar and are ANDed in the pane, so the composite is not carried. Flagged for the roll-up: bar_anatomy_trend_doji merged T18-19 as CounterColorTrendBarClosingBelowEma, which is exactly this rule ANDed with TrendBarBody on the crossing bar -- that merge agent said its EMA half belonged here, and this is it. The 'first close in a long time' emphasis is BarsBeyondEmaCount or EmaGapBarRun as a second pane.",
+      "variants_kept_separate": [
+        "CloseBeyondEma",
+        "BarsSinceEmaCross"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NoTwoConsecutiveClosesBeyondEma",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "No two consecutive bars in the last N closed on the wrong side of the EMA for the trade's direction -- one of Brooks's listed signs of a strong trend.",
+      "pseudocode": "!exists k in 0..lookback-2: (close[k] < ema(close, emaLength)[k] && close[k+1] < ema(close, emaLength)[k+1])",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "lookback": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a two-bar scan; at the default lookback there is no loop at all"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T19-11",
+        "R00-56",
+        "V00-41",
+        "T00-32"
+      ],
+      "merge_notes": "The same sentence appears verbatim in all three volumes' sign-of-strength lists. T19-11's plain two-bar form wins; R00-56 and T00-32 wrap it in a window scan (lookback 20 and 10), which the lookback input reproduces, and the default 2 is the literal reading of 'no two consecutive'. V00-41 misreads it as a STRADDLE (one close above, one below) -- that is a different set of bars and is not carried; Brooks means two closes in a row on the side opposite the trend. R00-56 further requires both bars to be trend bars; dropped, because a per-bar body qualifier inside the scan cannot be supplied by a separate pane and the book's point survives without it. Note this survives a single close on the wrong side, which is exactly what distinguishes it from BarsBeyondEmaCount.",
+      "variants_kept_separate": [
+        "BarsBeyondEmaCount",
+        "CloseBeyondEma"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseWithinAtrOfEma",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close is no further than K ATRs from the N-bar EMA -- 'at the moving average'. Negate the placement for 'enough room to the moving average to be worth the trade'.",
+      "pseudocode": "abs(close[0] - ema(close, emaLength)[0]) <= nearAtr * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "emaLength": 20,
+        "nearAtr": 0.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA and an ATR-scaled band"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "CloseWithinAtrOfVwap",
+        "relation": "variant",
+        "note": "Identical construction with the session VWAP replaced by an N-bar EMA, and symmetric rather than one-sided per side. The VWAP rule is the template to copy."
+      },
+      "sources": [
+        "R01-08",
+        "R14-05",
+        "T06-29",
+        "R28-26"
+      ],
+      "merge_notes": "'At the moving average' (R01-08, within half an ATR) and 'enough room to the moving average' (R14-05, at least 4 ticks away) are one band read from opposite sides, so one rule with the per-placement negate toggle; R01-08's ATR scaling is kept over R14-05's ticks because the corpus runs across instruments. T06-29 and R28-26 (the stray sent over from bar_anatomy_reversal_signal, absorbed here) are the same book line -- 'buy the close of the first small bear trend bar with a close only a tick or two below the moving average' -- and contribute the tight two-tick reading of the band; their other halves are separate panes (the small-bar test is bar_anatomy's BarRangeBelowAverageMultiple, the counter-colour close-through is CloseCrossesEma plus TrendBarBody, already merged in bar_anatomy_trend_doji as CounterColorTrendBarClosingBelowEma, and the established-run precondition is BarsBeyondEmaCount). The SIGNED form some sources want ('just BELOW the average for a long') is this rule ANDed with CloseBeyondEma negated. Book values for the band: 0.5 ATR, 4 ticks, 2 ticks, 3 ticks -- no agreement, so nearAtr is an optimizer input.",
+      "variants_kept_separate": [
+        "CloseBeyondEma",
+        "PullbackDepthBeyondEma",
+        "EmaTouch"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackDepthBeyondEma",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "No close in the last N bars fell more than K ATRs below the EMA (long) -- the pullbacks have stayed shallow. Negate for Brooks's 'the bears pushed a pullback well below the moving average'.",
+      "pseudocode": "lowest(close - ema(close, emaLength), lookback)[0] >= -maxDepthAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "lookback": 20,
+        "maxDepthAtr": 1.0,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a window minimum of a derived series and an ATR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-36",
+        "V02-31",
+        "V01-02",
+        "R11-27",
+        "T15-39"
+      ],
+      "merge_notes": "TP3-36's definition wins: one Lowest over (close - EMA), compared against an ATR-scaled depth. The same measurement covers all four sources at different depths and senses -- V02-31's 'the average held as support' is maxDepthAtr near 0, V01-02's 'the sell-off did not even reach the moving average' is depth 0 read the other way (negate the placement), and TP3-36's 'well below' is depth around one ATR. Recorded loss: V02-31 and V01-02 measure the window's lowest LOW, not the lowest close, so a wick through the average counts for them and not here; close is chosen because TP3-36 is the only source that states a depth at all and because the EmaTouch rule already carries the wick-based question. R11-27 asks a different question -- whether each successive pullback penetrates DEEPER than the last -- which needs the previous pullback's depth retained across bars; it was graded hard and low confidence and is kept as a citation, with the window-minimum standing in for it.",
+      "variants_kept_separate": [
+        "EmaGapBarRun",
+        "CloseWithinAtrOfEma",
+        "EmaTouch"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EmaSlope",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The EMA has risen (long) / fallen (short) by at least K ATRs over the last N bars -- a steeply sloping moving average.",
+      "pseudocode": "ema(close, emaLength)[0] - ema(close, emaLength)[slopeLookback] >= slopeAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "slopeLookback": 5,
+        "slopeAtr": 0.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two reads of the same EMA series plus an ATR"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "Momentum",
+        "relation": "variant",
+        "note": "Momentum compares the CLOSE with the close N bars ago; this compares the EMA with its own value N bars ago and adds a threshold. Smoother, and it fires on a different set of bars."
+      },
+      "sources": [
+        "VP3-15"
+      ],
+      "merge_notes": "VP3-15's first term only. Its other terms are separate: the sell-off's distance below the average is PullbackDepthBeyondEma, and the strong reversal bar is bar_anatomy's. Its priorSessionEndOffset (measure yesterday's slope, trade today) is dropped -- a session-anchored offset for no stated benefit, and the slope is persistent enough that reading it on the current bar is the same information. The 20-tick threshold is VP3-15's own invention, restated here in ATRs; Brooks gives no number for 'steeply up'. Kept apart from EmaFlat: |slope| <= T and slope >= T are not each other's negation, so the negate toggle cannot produce one from the other.",
+      "variants_kept_separate": [
+        "EmaFlat"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EmaFlat",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The EMA has moved less than K ATRs over the last N bars -- 'the moving average is relatively flat', a trading-range clue. Direction-agnostic.",
+      "pseudocode": "abs(ema(close, emaLength)[0] - ema(close, emaLength)[slopeLookback]) <= flatAtr * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "emaLength": 20,
+        "slopeLookback": 5,
+        "flatAtr": 0.25,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a difference of two EMA readings against an ATR-scaled threshold"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-06",
+        "VP3-05"
+      ],
+      "merge_notes": "Both sources give the same lagged-difference test over 5 bars; neither gives a cutoff (RP4-06 leaves it literally null, VP3-05 guesses 2 ticks), so flatAtr is an optimizer input stated in ATRs for portability. Brooks uses it as one clue among several for a trading-range day, never alone -- the rest of that read (a first-bar doji, yesterday's closing range) is other buckets' and is ANDed in the pane.",
+      "variants_kept_separate": [
+        "EmaSlope"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarsSinceEmaCross",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close last crossed the EMA at least N bars ago -- the trend is mature (Brooks: 30 or more bars).",
+      "pseudocode": "barsSinceCrossUp = (close[0] > ema(close, emaLength)[0] && close[1] <= ema(close, emaLength)[1]) ? 0 : barsSinceCrossUp[1] + 1; barsSinceCrossUp >= minTrendBars",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "minTrendBars": 30
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA plus a persistent bars-since-cross counter"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "TP3-30"
+      ],
+      "merge_notes": "TP3-30 offers two proxies for 'how old is this trend' -- bars since the close crossed the EMA, or the bar offset of the window's lowest low. The cross counter is chosen: it needs no Lowest window, it reuses CloseCrossesEma's test as its reset, and it degrades gracefully in a range (the counter simply stays small). Brooks's use is a warning, not a signal -- a trend past 30 bars often breaks out unusually strongly but may be an exhaustion climax -- so the placement's direction is the author's call. Distinct from EmaGapBarRun, which counts bars since the average was TOUCHED rather than since the close last crossed it.",
+      "variants_kept_separate": [
+        "EmaGapBarRun",
+        "CloseCrossesEma"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "CloseCrossesEma"
+      ]
+    },
+    {
+      "key": "EmaGapBarFadeTrendGate",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block the moving-average-gap-bar fade when the always-in direction flipped within the last N bars: the gap bar then belongs to the trend that has just ended.",
+      "pseudocode": "barsSince(alwaysInDirection flipped) > withinBars",
+      "sides": "mirrored",
+      "parameters": {
+        "withinBars": 10
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "the trend-flip event is the always-in design decision; the bars-since counter on top of it is trivial"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R13-07",
+        "R13-06"
+      ],
+      "merge_notes": "The one candidate in this bucket that cannot be authored from EMA relations alone. Brooks's reason is specific and worth keeping: a first gap bar forming right after a strong trend reversal 'will likely fail, because that gap bar is a setup for the prior trend, which now has ended'. Once AlwaysInDirectionFilter exists, this is a bars-since-flip counter and nothing more, so it should be re-graded moderate the day that decision lands. Brooks gives no number for 'just reversed'; 10 bars is the mining agent's reading.",
+      "variants_kept_separate": [
+        "EmaGapBarBreakoutEntry"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in direction"
+      ],
+      "depends_on_keys": [
+        "AlwaysInDirectionFilter",
+        "EmaGapBarBreakoutEntry"
+      ]
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R28-27",
+      "reason": "composition of CloseWithinAtrOfEma + a 'quiet flag' classification that is itself research grade (bar_anatomy's BarRangeBelowAverageMultiple is the authorable half); the buy-limit-at-the-prior-bar mechanics collapse under the standing signal-bar-close/next-bar-open convention"
+    },
+    {
+      "id": "R28-28",
+      "reason": "composition of CloseWithinAtrOfEma + the same research-grade 'quiet flag' + TrendBarBody (a bear close); same book line as R28-27 with the order type changed, which the standing convention erases"
+    },
+    {
+      "id": "V24-29",
+      "reason": "composition of CloseWithinAtrOfEma + BarRangeBelowAverageMultiple (bar_anatomy) + AlwaysInDirectionFilter; the fourth restatement of the quiet-flag-at-the-average limit entry"
+    },
+    {
+      "id": "T18-14",
+      "reason": "composition of EmaTouch + BarRangeBelowAverageMultiple (bar_anatomy) + a lower-low term; same book line again"
+    },
+    {
+      "id": "R06-11",
+      "reason": "composition of EmaGapBar + a bull reversal bar (bar_anatomy_reversal_signal) + CloseWithinAtrOfEma negated (room for the scalp)"
+    },
+    {
+      "id": "R11-25",
+      "reason": "composition of EmaGapBarRun + CloseBeyondEma negated -- 'price touched the average and still has not reclaimed it after 10 to 20 bars'"
+    },
+    {
+      "id": "T10-20",
+      "reason": "composition of EmaTouch + CloseBeyondEma + BarsBeyondEmaCount; the bear-channel half Brooks actually describes was already dropped by the mining agent"
+    },
+    {
+      "id": "T05-17",
+      "reason": "composition of CloseBeyondEma + BarRangeAboveAtrMultiple + a multi-bar overlap test (both bar_anatomy_trend_doji)"
+    },
+    {
+      "id": "T15-21",
+      "reason": "composition of HighLowBarCount (leg_counting's High2) + EmaTouch + TrendBarBody + a trend-channel-line distance test (lines_channels_channels; needs SwingHigh/SwingLow/TLValue, none of which has a register row)"
+    },
+    {
+      "id": "V18-01",
+      "reason": "composition of EmaGapBar + a first-bar-of-session test (time_session; bar_anatomy_trend_doji already carries FirstBarOfSessionTrendBar). The mining note is right that the real gap test is open-versus-yesterday's-close, which is breakouts_volume_gap's"
+    },
+    {
+      "id": "V25-06",
+      "reason": "composition of EmaFlat + a tight-range classification (context_regime_trading_range) + an average-tail test (bar_anatomy) + TimeWindow (catalog), with every threshold invented by the mining agent"
+    },
+    {
+      "id": "TP3-24",
+      "reason": "composition of bar_anatomy window statistics (bear-body count, average tail fraction, average overlap) with a failed-breakout fade (breakouts_pullback_retest); no EMA term survives in the test, and its p314 EMA half is PullbackDepthBeyondEma"
+    },
+    {
+      "id": "R14-04",
+      "reason": "not a condition -- it selects a target MODE (swing to the trend extreme versus scalp back to the average) from a strong-trend read. The read is AlwaysInDirectionFilter and the target choice is a placement decision, not a rule"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "T01-01",
+      "belongs_in": "context_regime_always_in",
+      "note": "'the market is in a trend', proxied by net close change plus a majority of agreeing bars -- no EMA term at all; the chapter predates the average's introduction"
+    },
+    {
+      "id": "TP4-07",
+      "belongs_in": "context_regime_always_in",
+      "note": "the direction of the day's trend, offered as either close-versus-session-open or close-versus-EMA; that is the always-in decision, and its EMA option is BarsBeyondEmaCount"
+    },
+    {
+      "id": "R09-05",
+      "belongs_in": "support_resistance_levels",
+      "note": "reversals only at a magnet -- measured-move target, trend line, or higher-timeframe average; the EMA is one item in a list the level bucket owns"
+    },
+    {
+      "id": "V16-02",
+      "belongs_in": "support_resistance_levels",
+      "note": "the generic 'a level counts as tested only once price actually touches it' primitive; no EMA in the test (its el_words are MinMove/PriceScale)"
+    },
+    {
+      "id": "V03-02",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "a trend-line break counts only if the move also closes through the average; the EMA half is CloseBeyondEma, so all the content is the trend-line primitive (needs SwingHigh/SwingLow, no register row)"
+    },
+    {
+      "id": "T07-41",
+      "belongs_in": "exits_targets",
+      "note": "profit target at the highest high of the N bars before entry, anchored by BarsSinceEntry -- that bucket already merged PriorSwingExtremeTarget and EntryBarExtremeTarget"
+    },
+    {
+      "id": "T21-56",
+      "belongs_in": "exits_targets",
+      "note": "same target, phrased as 'the first pullback to the average is followed by a test of the trend high'; the EMA appears only in the entry that preceded it"
+    },
+    {
+      "id": "V25-09",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "V00-56",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "V24-45",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "T15-63",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "R22-11",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "T06-28",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "R04-10",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "T21-52",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    },
+    {
+      "id": "R08-25",
+      "belongs_in": "context_regime_always_in",
+      "note": "identical to context_regime_always_in BarsBeyondEmaCount, which owns the always-in fallback; folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "always-in direction",
+      "options": [
+        "Two consecutive strong trend bars flip the state (bar_anatomy_trend_doji's AlwaysInDirectionFilter, already recommended by that bucket, breakouts_pullback_retest, bar_anatomy_reversal_signal and leg_counting).",
+        "Majority of the last N closes on one side of the EMA -- authorable TODAY as this bucket's BarsBeyondEmaCount, and named as the proxy by T15-63 and TP4-07.",
+        "A run of N bars that never touch the EMA (this bucket's EmaGapBarRun), which is Brooks's own strong-trend flag.",
+        "Bars since the close last crossed the EMA (this bucket's BarsSinceEmaCross, TP3-30)."
+      ],
+      "recommended": "Concur with the four buckets that have already recommended two consecutive strong trend bars, and note what this bucket adds: options 2 to 4 are all authorable now, need no latched state beyond a counter, and give a DIRECTION, which is all the one C rule here (EmaGapBarFadeTrendGate) actually wants. If the strong-trend-bar flip is slow to land, BarsBeyondEmaCount(10, 7) is the cheapest usable stand-in -- V25-09 states it in exactly those numbers as a trading rule in its own right, so it is a book test rather than a compromise. It is a poorer flip DETECTOR than the trend-bar test (it lags by the window), which is why it is offered as the fallback, not the answer.",
+      "gates": [
+        "EmaGapBarFadeTrendGate"
+      ]
+    },
+    {
+      "topic": "XAverage (the exponential moving average) has no EL register row",
+      "options": [
+        "Probe and register XAverage, then author this bucket on the exponential average Brooks actually uses.",
+        "Substitute EL's fresh simple Average, which IS registered and which the catalog's CloseAboveAverage, MovingAverageCross and BollingerBandCross already use.",
+        "Author both and let the optimizer choose."
+      ],
+      "recommended": "Option 1. Every rule in this bucket reads an EMA and Brooks is explicit and unwavering that the average is the 20-bar EXPONENTIAL one; XAverage is recursive (each bar's value depends on the previous), so a simple average is not a near-miss but a different series, and substituting it would silently change every rule here. Recording this per the brief and NOT downgrading any priority for it -- it is a register gap to close before authoring, not a design question about behaviour. If the probe turns up a discrepancy in XAverage's seeding, that changes warm-up behaviour for all sixteen rules at once.",
+      "gates": []
+    }
+  ],
+  "bucket_summary": "93 candidates collapse to 16 rules. Two thirds of the bucket is restatement: ten definitions of the one-bar moving-average gap bar (EmaGapBar), seven of the 20-gap-bar run (EmaGapBarRun, taken on R13-01's single bars-since-touch counter rather than the five sources' 20-deep loops), nine of 'most of the last N bars are on one side of the average' (BarsBeyondEmaCount, which also absorbs the all-N forms), six of the bare close-versus-EMA test, and four of 'no two consecutive closes on the wrong side'. The two behaviourally distinct gap-bar rules are kept apart as instructed, and a third, TwentyGapBarPullbackEntry, is carried whole because it needs the run counter's PREVIOUS value -- the counter resets on the very bar the entry fires, so no pair of ANDed panes can express it. The best find is that the higher-timeframe moving average is not a resampling problem at all: Brooks gives the arithmetic himself (a 90-bar EMA on 1-minute bars for the 5-minute 20, 240 for the 60-minute), so V13-01, TP3-13 and R11-28 are just EmaTouch at a longer emaLength, and three research grades disappear. Thirteen candidates drop as compositions -- four of them the same quiet-flag-at-the-average limit entry, restated in two volumes -- and seven go to other buckets. The A-list is eleven rules led by EmaGapBar, EmaGapBarBreakoutEntry, EmaTouch, CloseBeyondEma and BarsBeyondEmaCount; four B's all turn on a persistent counter, and exactly one C waits on the always-in decision. No catalog duplicates: CloseAboveAverage, CloseAbovePriorHigh, MovingAverageCross, Momentum and CloseWithinAtrOfVwap are all variants, the last of these being the template to copy for CloseWithinAtrOfEma. Register gaps: XAverage (needed by all 16) and WFSafe_AvgTrueRange (the standing name for plain AvgTrueRange, needed by 5). SwingHigh, SwingLow and TLValue are recorded as needed by NO merged rule here -- the only two candidates that wanted them, T15-21 and V03-02, are dropped and cross-bucketed respectively, so they are lines_channels' and swing_structure's to register."
+}

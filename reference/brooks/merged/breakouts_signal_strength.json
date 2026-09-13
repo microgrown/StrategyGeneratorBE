@@ -1,0 +1,1376 @@
+{
+  "bucket": "breakouts_signal_strength",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "StrongTrendBar",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar is a strong trend bar: a with-trend body that is at least F of the bar's range, and both tails no larger than T of the range. Brooks's single-bar test for a breakout bar likely to follow through.",
+      "pseudocode": "close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - close[0]) <= tailFraction * (high[0] - low[0]) && (open[0] - low[0]) <= tailFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "tailFraction": 0.15,
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar OHLC arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "CloseRangePosition tests where the CLOSE sits in the bar's range; this tests the BODY as a fraction of range plus both tails. A shaved-top bull bar with a small body passes CloseRangePosition and fails this rule."
+      },
+      "sources": [
+        "RP1-02",
+        "R02-01"
+      ],
+      "merge_notes": "RP1-02 (ranges Part I intro) and R02-01 (ranges ch2 'Signs of Strength in a Breakout') are the same pseudocode character for character; the chapter agents were told to redefine shared primitives per file. Brooks gives no numbers anywhere: bodyFraction readings across the bucket are 0.5 (T04-15), 0.6 (RP1-02, R02-01, V15-05, V15-06, R31-10, T18-05, T21-05, T21-54, T21-55, T08-01) and 0.7 (V00-20, T03-07, R28-01, R28-09); tailFraction 0.15 (RP1-02, R02-01) vs 0.2 (V15-05, V15-06, V15-09). Kept the 0.6 / 0.15 majority as the default; both should be optimized. A `lag` input (as on the catalog's InsideBar) lets the several candidates that test the PRIOR bar (V15-05, R01-07, RP1-06, T04-15) use the same rule at lag 1 instead of a second rule.",
+      "variants_kept_separate": [
+        "StrongTrendBarRun",
+        "StrongTrendBarCount",
+        "ConsecutiveBarsLittleOverlap",
+        "BodyAboveAverageBody"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StrongTrendBarRun",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The last N bars are ALL strong trend bars in the same direction — the bucket's mechanized definition of a Brooks 'spike'. At N=2 it is the agreed always-in flip trigger.",
+      "pseudocode": "for k in 0..consecutiveBars-1: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k])",
+      "sides": "mirrored",
+      "parameters": {
+        "consecutiveBars": 3,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed-length window loop over a single-bar test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars is exactly this rule at bodyFraction = 0 (each bar merely closes above its own open). This adds the body-size requirement, which is the whole content of 'strong'. Author as a separate rule rather than re-parameterizing, since bodyFraction = 0 must keep reproducing ConsecutiveUpBars bit for bit."
+      },
+      "sources": [
+        "T03-07",
+        "TP3-04",
+        "T21-10",
+        "V24-27",
+        "R12-03",
+        "V15-06",
+        "V01-08"
+      ],
+      "merge_notes": "Seven chapters define 'spike' as a run of consecutive strong trend bars and every one of them is this loop. Run lengths quoted: 2 (V15-06, V24-27, T21-10 default), 3 (T03-07, R12-03), 4 (TP3-04), 5 (V01-08), and T21-10's note reports 10 on page 376 — one rule with consecutiveBars optimized, default 3. Chose the all-of-N run form over T04-04/T18-05's K-of-N count form as the definition Brooks actually states ('four consecutive large bull trend bars'); the count form is kept separately as StrongTrendBarCount. Per the always-in decision taken by context_regime_always_in, the flip is this rule at consecutiveBars = 2, so V01-08 ('always-in flips after a five-bar spike') needs no separate always-in primitive and is no longer research-grade. TP3-04 and T21-05 also require small tails / little overlap; the tails term is StrongTrendBar's tailFraction and the overlap term is ConsecutiveBarsLittleOverlap, both separate placements.",
+      "variants_kept_separate": [
+        "StrongTrendBar",
+        "StrongTrendBarCount",
+        "ConsecutiveBarsLittleOverlap"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ConsecutiveBarsLittleOverlap",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N consecutive bar pairs overlaps by no more than a fraction of the smaller bar's range — the 'little or no pulling back' half of Brooks's spike definition, independent of body size.",
+      "pseudocode": "for k in 0..consecutiveBars-1: (minList(high[k], high[k+1]) - maxList(low[k], low[k+1])) <= maxOverlapFraction * minList(high[k]-low[k], high[k+1]-low[k+1])",
+      "sides": "same",
+      "parameters": {
+        "consecutiveBars": 3,
+        "maxOverlapFraction": 0.3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed-length window loop over two-bar arithmetic"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T06-03",
+        "T21-05",
+        "T24-04"
+      ],
+      "merge_notes": "Three chapters define a spike as trend bars WITH LITTLE OVERLAP; the overlap term is the only content they add over StrongTrendBarRun, so it is carried as its own rule and the three candidates' body terms are StrongTrendBarRun in a second pane. maxOverlapFraction 0.5 (T06-03) vs 0.3 (T21-05, T24-04); default 0.3. Direction-agnostic as written (overlap is unsigned), so `same`; the direction comes from the StrongTrendBarRun placement it is ANDed with. T21-05 also requires rising closes, which is the catalog's MomentumConsecutiveBars(lookback=1, consecutiveBars=N) — a third pane, not part of this rule. MinList/MaxList are ACCEPTED here: both operands are tick-grid prices.",
+      "variants_kept_separate": [
+        "StrongTrendBarRun"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseWithinTicksOfHigh",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar closes at, or within X ticks of, its own high (long) / low (short) — a shaved close, one of Brooks's spike-quality signs.",
+      "pseudocode": "close[0] >= high[0] - toleranceTicks * (MinMove / PriceScale)",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "single-bar comparison against a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "CloseRangePosition measures the close as a FRACTION of the bar's range, so its strictness scales with bar size; this is an ABSOLUTE tick tolerance, so on a big bar it is far stricter and on a one-tick bar far looser. Not reachable by any setting of CloseRangePosition's threshold."
+      },
+      "sources": [
+        "R02-09"
+      ],
+      "merge_notes": "R02-09 states it as an existence scan over the spike window ('one or more bars in the spike'); mechanized as the single-bar test, which is the least machinery and composes with StrongTrendBarRun for the spike context. The miner already flagged CloseRangePosition as the likely existing rule; kept as a distinct rule because Brooks's wording is 'on its high or one tick below', an absolute tolerance, and V02-09 counts these bars by tick tolerance too.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarLowHoldsPriorClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's low never fell more than X ticks below the prior bar's close (long) / its high never rose more than X ticks above it (short) — near-zero give-back inside a spike.",
+      "pseudocode": "low[0] >= close[1] - toleranceTicks * (MinMove / PriceScale)",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison against a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseNearPriorLow",
+        "relation": "variant",
+        "note": "CloseNearPriorLow compares this bar's CLOSE with the prior bar's LOW plus an offset in price points (E13's spike filter, opposite sense). This compares this bar's LOW with the prior bar's CLOSE, and the offset is in ticks."
+      },
+      "sources": [
+        "R02-07",
+        "V00-45"
+      ],
+      "merge_notes": "Same sign of strength stated in ranges ch2 and reversals front matter. R02-07 wraps it in an existence scan over a 10-bar spike window and adds a lower bound (low[i] <= close[i+1], i.e. the bar DID dip); V00-45's plain one-sided single-bar form won — the lower bound is what Brooks's 'at or just one tick below' says loosely, but requiring an actual dip excludes the strongest case (a bar whose low is above the prior close), which is the opposite of the intent. Both sources give toleranceTicks = 1.",
+      "variants_kept_separate": [
+        "BarOpensAbovePriorClose"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarOpensAbovePriorClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar opens above the prior bar's close (long) / below it (short) — a gap open inside a spike, another of Brooks's spike-quality signs.",
+      "pseudocode": "open[0] > close[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison, no inputs"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog rule reads the open against the prior close."
+      },
+      "sources": [
+        "R02-08"
+      ],
+      "merge_notes": "Stated as an existence scan over the spike window; mechanized as the single-bar test, same treatment as BarLowHoldsPriorClose and CloseWithinTicksOfHigh. Zero inputs — the strictest of the three spike-quality signs and the cheapest to test.",
+      "variants_kept_separate": [
+        "BarLowHoldsPriorClose"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BodyAboveAverageBody",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars is a with-trend bar whose body is at least the average body size of the preceding M bars — Brooks's follow-through test ('the next two or three bars also have bull bodies that are at least the average size of the recent bull and bear bodies').",
+      "pseudocode": "for k in 0..consecutiveBars-1: close[k] > open[k] && (close[k] - open[k]) >= average(absValue(close - open), bodyLookback)[k+1]",
+      "sides": "mirrored",
+      "parameters": {
+        "consecutiveBars": 1,
+        "bodyLookback": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a fresh Average over an absolute-value price expression, read at a shifting offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "BodyBelowAtrFraction",
+        "relation": "variant",
+        "note": "BodyBelowAtrFraction compares the body with a FRACTION OF ATR and is a narrow-body filter, same both sides. This compares the with-trend body with the average BODY (not range/TR) and is mirrored. Negating this rule does not give BodyBelowAtrFraction — the baselines differ."
+      },
+      "sources": [
+        "R02-04",
+        "V00-44",
+        "T00-36",
+        "V02-03",
+        "V02-02",
+        "T07-44"
+      ],
+      "merge_notes": "One sentence, mined four times verbatim from three volumes (ranges ch2, reversals front matter, reversals ch2, trends front matter). followThroughBars: 3 (R02-04), 2 (T00-36), 2..3 (V02-03), 1 / single bar (V00-44) — one rule with consecutiveBars optimized, default 1 so it composes freely. bodyLookback: 20 (R02-04) vs 10 (V00-44, V02-03, T00-36); default 10. The average is taken ENDING ONE BAR BEFORE the bar being tested (offset k+1) so a big follow-through bar does not inflate its own baseline; R02-04 and V00-44 read it current-inclusive, T00-36 and V02-03 exclusive — chose exclusive as the reading that matches 'the recent bodies BEFORE the breakout'. V02-03 additionally requires a bull reversal bar at the far end of the window; that shape belongs to bar_anatomy_reversal_signal and is a separate pane. Folded the bar_anatomy_reversal_signal copy (V02-02, T07-44), which is this rule at consecutiveBars = 1: the same body-vs-average-body comparison, stated of the signal bar alone rather than of the follow-through run.",
+      "variants_kept_separate": [
+        "AvgBodyBelowRangeFraction",
+        "StrongTrendBar"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "AvgBodyBelowRangeFraction",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Over the last N bars, the average body is a small fraction of the average range — a weak spike ('bars with small bodies and tails'), as opposed to a run of large-bodied trend bars.",
+      "pseudocode": "average(absValue(close - open), lookback)[0] < weakBodyFraction * average(high - low, lookback)[0]",
+      "sides": "same",
+      "parameters": {
+        "lookback": 3,
+        "weakBodyFraction": 0.4
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two fresh Averages over price expressions, compared"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "BodyBelowAtrFraction",
+        "relation": "variant",
+        "note": "BodyBelowAtrFraction tests ONE body against ATR; this tests the AVERAGE body of a window against the AVERAGE range of the same window, so a single doji inside three big trend bars passes there and fails here."
+      },
+      "sources": [
+        "R32-01"
+      ],
+      "merge_notes": "Direction-agnostic (both averages are unsigned), so `same` — it is a spike-QUALITY test, and the direction comes from whatever it gates. Deliberately kept apart from StrongTrendBarRun negated: this averages over the window, so one weak bar among strong ones does not trip it, whereas negating the run form fires on any single weak bar. weakBodyFraction 0.4 and lookback 3 are the miner's readings of 'small bodies and tails'; Brooks gives no numbers.",
+      "variants_kept_separate": [
+        "StrongTrendBarRun",
+        "BodyAboveAverageBody",
+        "LargeTailedBarCount"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NonOppositeClose",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar does not close against the direction: close at or above its open (long) / at or below it (short). Brooks's stated MINIMUM requirement for a follow-through bar to confirm an always-in flip.",
+      "pseudocode": "close[0] >= open[0]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison, no inputs"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars(1) is close > open, and its catalog note says a tie bar FAILS both sides. This rule is the non-strict form, so a doji with close = open PASSES both sides — exactly Brooks's 'the follow-through bar must not have a bear close'. The tie behaviour is the whole point, so it is not a parameterization."
+      },
+      "sources": [
+        "V15-05",
+        "RP3-09",
+        "R01-07"
+      ],
+      "merge_notes": "All three candidates are 'a strong trend bar, then the next bar's close colour decides'. The strong-bar term is StrongTrendBar at lag 1 (a separate pane), so the only new content is the close-colour test on the current bar, which is this rule. V15-05 is the bull case (strong bull bar then no bear close: confirm the flip); RP3-09 and R01-07 are the same construction with the prior bar's direction and/or this rule's sense flipped — the per-placement negate and mirror toggles, redundant by construction. R01-07 uses the strict form (close > open, 'even a small bull body'); recorded as a book value, but the non-strict form is kept as the default because Brooks's own phrasing in V15-05 is a double negative ('not have a bear close').",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "HigherHighByTicks",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "This bar's high is at least X ticks above the prior bar's high (long) / its low X ticks below the prior low (short) — the follow-through bar extending 'many ticks', not 'a few ticks', beyond the breakout bar.",
+      "pseudocode": "high[0] >= high[1] + extensionTicks * (MinMove / PriceScale)",
+      "sides": "mirrored",
+      "parameters": {
+        "extensionTicks": 4
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison against a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "LaggedHigherHigh(lookback=0) would be high[0] > high[1] with no margin; the tick margin is the whole content here ('a few ticks beyond means a failed breakout; many ticks means a strong trend bar'), and LaggedHigherHigh has no margin input. At extensionTicks = 1 the two nearly coincide on a tick grid."
+      },
+      "sources": [
+        "V15-08"
+      ],
+      "merge_notes": "Brooks gives no number for 'a few' versus 'many'; extensionTicks = 4 is the miner's reading and is the input to optimize. Note the rule is knowable before the bar closes (it reads only highs), which matches the book's framing of judging the follow-through bar in progress.",
+      "variants_kept_separate": [
+        "BreakoutClearsPriorExtremeByMargin"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutClearsPriorExtremeByMargin",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's high clears the highest high of the previous N bars by at least X ticks (long), the low clears the lowest low by X ticks (short) — a breakout that goes far enough past the level for a stop entry there to be profitable, rather than one that barely pokes through.",
+      "pseudocode": "high[0] >= highest(high, lookback)[1] + marginTicks * (MinMove / PriceScale)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "marginTicks": 4
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "an EL Highest over bars 1..N plus a tick offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "CloseAbovePriorHighestHigh is Highest(High, N)[1] compared with the CLOSE and with no margin. This compares the HIGH and adds a tick margin; the two disagree on every bar that pokes above the level and closes back under it, which is precisely the case Brooks is separating."
+      },
+      "sources": [
+        "R02-06",
+        "V07-11"
+      ],
+      "merge_notes": "R02-06 ('the move above the swing high goes far enough for scalpers to profit', 4 ticks) and V07-11 ('a close several ticks below the bottom of the flag', 3 ticks) are the same margin test against different levels. Chose the fixed-window Highest(High, N)[1] as the level over R02-06's swing-pivot search and V07-11's remembered flag boundary — the least machinery, and the catalog already uses that construction. Book margins 3 and 4 ticks; default 4. V07-11 uses the close rather than the high against the level; that variant is the catalog's CloseAbovePriorHighestHigh plus this margin, and is worth testing as an input toggle if the authoring pass wants it.",
+      "variants_kept_separate": [
+        "HigherHighByTicks",
+        "MarginalBreakoutThenReverse"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MarginalBreakoutThenReverse",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The prior bar poked no more than X ticks above the highest high of the bars before it and this bar has closed back below that level — a failed marginal breakout, traded in the reversal direction.",
+      "pseudocode": "level = highest(high, lookback)[2]; high[1] > level && high[1] - level <= barelyTicks * (MinMove / PriceScale) && close[0] < level",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "barelyTicks": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EL Highest read at a two-bar offset, plus two comparisons; Max Bars Back must cover lookback + 2"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog rule tests a failed breakout."
+      },
+      "sources": [
+        "R02-26",
+        "R02-27",
+        "R04-04"
+      ],
+      "merge_notes": "R02-26 ('breaks a resistance level by only a tick or so and then reverses down') and R02-27 ('barely breaks one level but pulls back before reaching the next one that is just a little higher') are one behaviour: the breakout bar cleared the nearest level by almost nothing and price is back under it. R02-27's second, higher level cannot be mechanized without a set of remembered pivots (see the resistance-level design decision) and adds nothing on a fixed-window level, since not reaching a higher level is implied by reversing back under the lower one. Level taken as Highest(High, N)[2] — the extreme of the bars BEFORE the poking bar. B rather than A: it is a three-way test across three bar offsets and the [2]-offset Highest is easy to get wrong, but the definition itself is unambiguous.",
+      "variants_kept_separate": [
+        "BreakoutClearsPriorExtremeByMargin"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseAbovePriorHighestHigh",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Close is above the highest high (long) / below the lowest low (short) of the N bars ending one bar ago — the breakout bar whose close reverses the highs of 5, 20 or more prior bars.",
+      "pseudocode": "close[0] > highest(high, lookback)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "an EL Highest over bars 1..N"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "duplicate",
+        "note": "Identical bars: EEC #37's breakout term, already authored as rules/CloseAbovePriorHighestHigh.json with the same Highest(High, N)[1] construction. Do not author again."
+      },
+      "sources": [
+        "R02-17",
+        "V00-51",
+        "RP1-05",
+        "T00-38",
+        "R05-01",
+        "R08-06",
+        "T03-02",
+        "V02-12"
+      ],
+      "merge_notes": "Brooks's strongest single sign of strength, mined in ranges ch2 and the reversals front matter with the same quote ('a high and close above the highs and closes of five or even 20 or more bars'). R02-17 states it as two counts (how many prior highs the close exceeds, how many the high exceeds) and notes the close-based count is the stronger sign; over a contiguous window the close-based count reaching N is exactly close > Highest(High, N)[1], so the count form buys nothing and the catalog rule wins. V00-51 additionally ANDs close > Highest(Close, N), which is the catalog's Breakout — a second pane, not part of this rule. Brooks's 5-vs-20 is the lookback input. Folded the breakouts_other copy (RP1-05, T00-38): identical Highest(High, N)[1] test. Also folded the swing_structure copy (R05-01, R08-06, T03-02, V02-12): the same test again, so all three merged copies are one duplicate of rules/CloseAbovePriorHighestHigh.json.",
+      "variants_kept_separate": [
+        "BreakoutClearsPriorExtremeByMargin"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseAbovePriorHigh",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Close is above the high of the bar N bars ago (long) / below its low (short) — the close-based form of Brooks's buy stop one tick above the prior bar.",
+      "pseudocode": "close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHigh",
+        "relation": "duplicate",
+        "note": "Identical bars at lookback = 1; already authored. Do not author again."
+      },
+      "sources": [
+        "TP3-18",
+        "R12-08"
+      ],
+      "merge_notes": "The always-in-long gate TP3-18 pairs it with is StrongTrendBarRun(2) per the agreed always-in definition, a separate pane. Folded the breakouts_other copy (R12-08): the same close[0] > high[lookback] test at lookback 1.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NumBars",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The position has been open N bars or more — Brooks's 'upside breakouts usually do not go more than five to 10 bars before reversing'.",
+      "pseudocode": "ctx.BarsSinceEntry() >= numBarsExit",
+      "sides": "same",
+      "parameters": {
+        "numBarsExit": 7
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "bar count since entry"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "NumBars",
+        "relation": "duplicate",
+        "note": "Identical bars; already authored. Brooks's 5-to-10-bar window is a grid range for numBarsExit, not a new rule."
+      },
+      "sources": [
+        "T21-74"
+      ],
+      "merge_notes": "Recorded so the design-grid pass knows the book's range for this input on breakout-spike entries is 5..10 bars.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeRangeBarInWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least one of the last W bars had a range at least K times the average range of the N bars before it. Negated, it is Brooks's 'wait one to three bars after a volatility spike before entering'.",
+      "pseudocode": "exists i in 0..window-1: (high[i] - low[i]) >= rangeMultiple * average(high - low, lookback)[i+1]",
+      "sides": "same",
+      "parameters": {
+        "window": 1,
+        "rangeMultiple": 2.0,
+        "lookback": 15
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "window scan over a fresh Average of the range expression"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "BarRangeAboveStd is mean + K standard deviations of range on the CURRENT bar only. This is a MULTIPLE of the mean (no standard deviation, so no second pass over the window) and scans a window of bars. On a fat-tailed range distribution the two rank bars differently; and BarRangeAboveStd cannot express the window scan at all."
+      },
+      "sources": [
+        "V13-03"
+      ],
+      "merge_notes": "V13-03 turns Brooks's news-report advice ('when your competition has a big advantage, don't compete; wait one to three bars') into a price-only proxy: no large-range bar in the last waitBars bars. That is this rule NEGATED at window = waitBars, so one rule with the per-placement negate toggle covers both the positive (volatility burst present) and the delay use. Default window = 1 makes it the plain single-bar large-range test that R02-19, T21-50, T24-04 and TP3-12 also lean on. The average is exclusive of the tested bar so a huge bar does not raise its own bar.",
+      "variants_kept_separate": [
+        "OppositeLargeBarPair",
+        "OppositeLargeBarsInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OppositeLargeBarPair",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Two ADJACENT bars are both large relative to ATR and closed in opposite directions — 'big up + big down = big confusion = trading range'.",
+      "pseudocode": "(high[1] - low[1]) >= bigBarMultiple * atr(atrLookback)[1] && (high[0] - low[0]) >= bigBarMultiple * atr(atrLookback)[0] && ((close[1] > open[1]) != (close[0] > open[0]))",
+      "sides": "same",
+      "parameters": {
+        "bigBarMultiple": 1.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two ATR reads at different offsets plus a two-bar direction comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog rule pairs two bars by size and opposite direction."
+      },
+      "sources": [
+        "V03-09"
+      ],
+      "merge_notes": "Direction-agnostic by construction (it says nothing about which came first), so `same` — a regime filter, expected to be used negated as a trend-continuation gate. Kept strictly apart from OppositeLargeBarsInWindow: adjacency is the whole claim here, and the two rules can disagree on most bars. ATR is the register's WFSafe_AvgTrueRange rolling form (MW's standing override for plain AvgTrueRange).",
+      "variants_kept_separate": [
+        "OppositeLargeBarsInWindow",
+        "LargeRangeBarInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OppositeLargeBarsInWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Within the last N bars there was at least one large bull trend bar AND at least one large bear trend bar — two spikes in opposite directions close together, which usually resolves sideways rather than into a trend.",
+      "pseudocode": "exists i in 0..withinBars-1: (close[i] > open[i] && (high[i]-low[i]) >= sizeMultiple * average(high-low, lookback)[i+1]) && exists j in 0..withinBars-1: (close[j] < open[j] && (high[j]-low[j]) >= sizeMultiple * average(high-low, lookback)[j+1])",
+      "sides": "same",
+      "parameters": {
+        "withinBars": 5,
+        "sizeMultiple": 1.5,
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window scans over a large-trend-bar classification"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-50",
+        "T12-04",
+        "V04-03"
+      ],
+      "merge_notes": "Three statements of the same idea from two volumes: T21-50 ('two strong spikes in opposite directions within a few bars, then it goes sideways'), T12-04 (the same as alternating spikes over a 20-bar window) and V04-03 (reversals ch4's title concept, 'a large spike followed soon by a spike in the opposite direction' = a climactic reversal). Won the window-scan form over T12-04's 'count direction changes among detected spikes', which needs a spike-detection pass plus alternation bookkeeping for no behavioural gain at the two-spike case Brooks actually describes. Both directions are required, so the rule is direction-agnostic (`same`); V04-03's entry direction is a separate NonOppositeClose / StrongTrendBar pane on the current bar. Windows: 3 (V04-03), 5 (T21-50), 20 (T12-04); default 5. Uses the average-range definition of 'large' rather than ATR so it does not need a second ATR call site alongside OppositeLargeBarPair.",
+      "variants_kept_separate": [
+        "OppositeLargeBarPair",
+        "LargeRangeBarInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalSpikeLargerThanTrendSpike",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Given a spike followed by an opposite spike, the reversal spike's total travel exceeds the original spike's by a multiple — Brooks: 'if the reversal spike is larger, the odds of a reversal are greater'.",
+      "pseudocode": "reversalSpikeRange >= sizeMultiple * trendSpikeRange   // both extents come from the spike state machine",
+      "sides": "same",
+      "parameters": {
+        "sizeMultiple": 1.0
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs the START and END anchors of two spikes remembered across bars; the arithmetic is trivial once they exist"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V04-04"
+      ],
+      "merge_notes": "Blocked purely on the spike-extent decision: OppositeLargeBarsInWindow detects that both spikes happened, but comparing their SIZES needs each spike's first and last bar remembered (T21-07's state machine, dropped as unfireable on its own). If the decision lands on 'a spike is exactly consecutiveBars bars', the extents become highest(high, n) - lowest(low, n) at two fixed offsets and this drops to priority A.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "spike extent (the start and end anchors of a spike, and hence its height)"
+      ],
+      "depends_on_keys": [
+        "OppositeLargeBarsInWindow"
+      ]
+    },
+    {
+      "key": "ClosePositionInPriorBarRange",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the upper part of the PRIOR bar's range (long) / the lower part (short) — Brooks's 'especially if the bear close is in the top half of the range of the prior bar'.",
+      "pseudocode": "(close[0] - low[1]) / (high[1] - low[1] + epsilon) > threshold",
+      "sides": "mirrored",
+      "parameters": {
+        "threshold": 0.5,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "two-bar ratio with the corpus's zero-range epsilon"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "TwoBarRangePosition",
+        "relation": "variant",
+        "note": "TwoBarRangePosition places the close in the COMBINED two-bar range (MinList/MaxList of both bars); this places it in the PRIOR bar's range alone, so a close outside the prior bar's range gives a ratio above 1 or below 0, which the combined form can never produce. Not CloseRangePosition either — that uses the bar's own range."
+      },
+      "sources": [
+        "R28-34"
+      ],
+      "merge_notes": "The one atomic, fixed-offset test inside R28-34's five-term trading-range-day setup; the rest of that candidate (trading-range day, bull spike, near the top of the range, second reversal attempt) is a composition of other buckets' primitives. Epsilon carried as an input at the corpus's usual 1e-06, following CloseRangePosition, since an inside doji prior bar can have zero range.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeTailedBarCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K of the last N bars were both large (range at or above the window average) and tailed (body no more than a fraction of range) — the 'do not trade a breakout of a range full of big tailed bars' filter.",
+      "pseudocode": "countif(k in 0..lookback-1: (high[k]-low[k]) >= average(high-low, lookback)[k+1] && absValue(close[k]-open[k]) <= bodyFractionMax * (high[k]-low[k])) >= minCount",
+      "sides": "same",
+      "parameters": {
+        "lookback": 8,
+        "minCount": 4,
+        "bodyFractionMax": 0.5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "CountIF window loop over a two-term per-bar classification plus a fresh Average"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "AbsValue",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "TailBarCountDominance counts BULL-tail versus BEAR-tail bars and compares the two counts (mirrored, directional). This counts LARGE TAILED bars of either colour against a threshold (same both sides) and adds the range-versus-average term, which TailBarCountDominance does not have."
+      },
+      "sources": [
+        "T07-29"
+      ],
+      "merge_notes": "Kept as one rule rather than split into 'large bar count' and 'tailed bar count': Brooks's claim is about bars that are BOTH, and an AND inside a CountIF cannot be reproduced by ANDing two separate count panes (two different bars could satisfy the two counts). Intended use is negated — block breakout entries when the count is high. The note in T07-29 records the same point on p183 of the trends volume about large-range tight ranges.",
+      "variants_kept_separate": [
+        "AvgBodyBelowRangeFraction",
+        "StrongTrendBarCount"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedFollowThroughCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least K times in the last N bars, an against-trend bar was immediately followed by a with-trend bar — the opposing side keeps failing to get follow-through, so it is weak.",
+      "pseudocode": "countif(k in 1..lookback: close[k] < open[k] && close[k-1] > open[k-1]) >= minCount",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 6,
+        "minCount": 3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "CountIF over a TWO-bar pattern, so the counted expression's [1] offsets shift per counted bar — the TailBarCountDominance construction"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TailBarCountDominance",
+        "relation": "variant",
+        "note": "Same CountIF-over-a-true-series machinery, different counted pattern (a two-bar colour reversal rather than a one-bar tail test) and no bull-versus-bear count comparison."
+      },
+      "sources": [
+        "V19-14"
+      ],
+      "merge_notes": "The miner graded this hard, but the catalog's TailBarCountDominance already establishes that a CountIF over a genuine series with shifting offsets is a solved pattern in this corpus, so it is A. Counts (three failures in six bars) are readings of one narrated example, not numbers Brooks generalizes — both are inputs to optimize.",
+      "variants_kept_separate": [
+        "StrongTrendBarCount"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FirstOppositeTrendBarThenRecovery",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a one-sided trend, the FIRST against-trend trend bar in a long while printed within the last few bars, and this bar has now closed above that bar's high (long) — the first bear spike in a strong bull trend is almost always just a bull flag.",
+      "pseudocode": "k = smallest index in 1..flagBars with (close[k] < open[k] && (open[k]-close[k]) >= bodyFraction*(high[k]-low[k])); k exists && countif(j in k+1..k+strongBars: bear trend bar[j]) == 0 && close[0] > high[k]",
+      "sides": "mirrored",
+      "parameters": {
+        "flagBars": 5,
+        "strongBars": 20,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a backward scan for the FIRST qualifying bar, whose index k then drives both a second count window and the price comparison — a variable offset, not a fixed lag"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-53"
+      ],
+      "merge_notes": "Kept whole rather than split: the 'no other opposite trend bar in the preceding 20 bars' term is StrongTrendBarCount negated, but it must be measured FROM the found bar k, not from bar 0, so it cannot be a separate pane. Everything is bounded and deterministic (scan at most flagBars bars back), so the definition is clear — B, not C. Brooks states it only for the FIRST opposite spike, which is why the zero-count window is part of the rule.",
+      "variants_kept_separate": [
+        "StrongTrendBarCount"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LastTradeWasWinner",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The most recently closed position was profitable — Brooks: 'whenever a breakout trade results in a profit, it is a sign that the trend is strong'. Passes when no trade has closed yet.",
+      "pseudocode": "ctx.TotalTrades() == 0 || ctx.PositionProfit(1) > 0",
+      "sides": "same",
+      "parameters": {},
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads closed-trade history (the measured PositionProfit(1) / TotalTrades accessors)"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "PositionProfit",
+        "TotalTrades"
+      ],
+      "catalog_match": {
+        "rule": "LastTradeCooldown",
+        "relation": "variant",
+        "note": "LastTradeCooldown reads the same accessors but ANDs the win/loss branch with a BarsSinceExit wait, so it always passes eventually; this never passes after a loss until the next win. Not reachable by any setting of waitAfterWin/waitAfterLoss."
+      },
+      "sources": [
+        "T15-55"
+      ],
+      "merge_notes": "T15-55 wants the last trade to have been specifically a BREAKOUT entry that won, which would need each entry rule to tag itself — not something the pane system carries. Simplified to 'the last closed trade won', which the miner's own note anticipated, and which is the whole of the observable content in a strategy whose entries are breakouts anyway. The no-trades-yet branch follows LastTradeCooldown's precedent so the rule does not block every first entry.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "WeakEntryBarExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit at the first or second bar after entry if that bar did not close as a strong with-trend trend bar — Brooks's 'strong closes mean swing it, weak closes mean scalp it', recast as a binary scalp-versus-hold exit.",
+      "pseudocode": "n = ctx.BarsSinceEntry(); n <= maxBars && barWeak(n) && ctx.OpenPositionProfit() > 0   // barWeak(k) = close[k] <= open[k] || (close[k]-open[k]) < strongBodyFraction * (high[k]-low[k]), direction-adjusted",
+      "sides": "same",
+      "parameters": {
+        "strongBodyFraction": 0.6,
+        "maxBars": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "must index the bar series by BarsSinceEntry and adjust the body test by the open position's direction"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "BarsSinceEntry",
+        "OpenPositionProfit"
+      ],
+      "catalog_match": {
+        "rule": "NumBarsIfProfitable",
+        "relation": "variant",
+        "note": "NumBarsIfProfitable exits on elapsed bars plus a profit sign. This adds the bar-strength test on the entry bar itself and only fires in the first maxBars+1 bars, so it is an early-scalp exit rather than a time stop."
+      },
+      "sources": [
+        "T08-01"
+      ],
+      "merge_notes": "The chapter's only bar-level idea; the rest is intrabar behaviour in the final seconds of a bar, which is below the data. The miner recorded that Brooks's actual point is about position SIZE, which the engine cannot express — this is the honest binary approximation and should be labelled as such when authored. B because the BarsSinceEntry indexing plus the direction-dependent body test is real machinery, but the definition itself is unambiguous.",
+      "variants_kept_separate": [
+        "StrongTrendBar"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "StrongTrendBar"
+      ]
+    },
+    {
+      "key": "PriorBarStrongTrendDay",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The previous bar was a huge with-trend bar — range well above the recent average, closing in the top fraction of its own range — so this bar is expected to close above its open. Brooks's daily-bar follow-through claim, stated for daily charts but testable on any timeframe.",
+      "pseudocode": "(high[1] - low[1]) >= rangeMultiple * average(high - low, rangeLookback)[2] && close[1] > open[1] && (close[1] - low[1]) >= closeFraction * (high[1] - low[1])",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeMultiple": 1.5,
+        "rangeLookback": 20,
+        "closeFraction": 0.75
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fresh Average of the range expression plus fixed-offset comparisons"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "Shares the large-range idea with BarRangeAboveStd (std-based, current bar, same both sides) and the close-position idea with CloseRangePosition (current bar), but reads BAR 1 for all three terms and is mirrored."
+      },
+      "sources": [
+        "TP3-12",
+        "R04-07"
+      ],
+      "merge_notes": "Carried as a composite deliberately: it is a named Brooks claim ('after a huge bull trend day the next day usually closes above its open') that Brian would want tested exactly as stated, and its three terms all read bar 1, which no combination of the lag-0 catalog rules can express. R04-07 is the same claim ('yesterday was a strong trend-from-open bull day, so today should close above the open') stated against an undefined TrendDay primitive; TP3-12's definition won because it is measurable from bar 1's OHLC alone, which removes R04-07's research grade entirely. Pair with NumBars(1) as the exit to test the book's claim directly, per TP3-12's note. Brooks adds that it may repeat for several days in a row.",
+      "variants_kept_separate": [
+        "LargeRangeBarInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "LargeRangeBarInWindow",
+        "CloseRangePosition"
+      ]
+    },
+    {
+      "key": "BreakoutStrengthChecklist",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Brooks's own named composite: score a breakout by how many of the individual signs of strength are present and require at least K of them. 'The more of the following characteristics a bull breakout has, the more likely the breakout will be strong.'",
+      "pseudocode": "countTrue(StrongTrendBar, BodyAboveAverageBody, BreakoutClearsPriorExtremeByMargin, BarLowHoldsPriorClose, BarOpensAbovePriorClose, CloseWithinTicksOfHigh, CloseAbovePriorHighestHigh, ...) >= minSignsRequired",
+      "sides": "mirrored",
+      "parameters": {
+        "minSignsRequired": 4
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "Brooks gives a checklist with no required count and no weighting; which signs enter the score, and at what threshold, is a design decision"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-32"
+      ],
+      "merge_notes": "Kept, against the atomic-beats-composite default, because Brooks names it himself and the checklist is the organizing idea of the chapter this bucket is mostly drawn from. Note that it is an OR-flavoured score, so the pane system cannot build it by ANDing the member rules — that is the argument for authoring it once the scoring decision is made. Of R02-32's fifteen members, seven are merged rules in this file and the rest live in bar_anatomy, ema_relations and support_resistance_levels; the authoring pass should settle the member list before the threshold.",
+      "variants_kept_separate": [],
+      "priority": "C",
+      "design_decisions_needed": [
+        "signs-of-strength scoring (which signs enter the count, whether they are weighted, and the required minimum)"
+      ],
+      "depends_on_keys": [
+        "StrongTrendBar",
+        "BodyAboveAverageBody",
+        "BreakoutClearsPriorExtremeByMargin",
+        "BarLowHoldsPriorClose",
+        "BarOpensAbovePriorClose",
+        "CloseWithinTicksOfHigh",
+        "CloseAbovePriorHighestHigh"
+      ]
+    },
+    {
+      "key": "SpikeClearsMultipleResistanceLevels",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The move clears SEVERAL distinct resistance levels — the moving average, prior swing highs, a trend line, yesterday's high — each by more than a minimal margin, and the more of them that cluster close together, the more the breakout runs stops and continues.",
+      "pseudocode": "countLevelsCleared(levelSet, high[0], marginTicks) >= minLevelsCleared   // levelSet is the open design decision",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "swingLookback": 20,
+        "marginTicks": 4,
+        "minLevelsCleared": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a SET of remembered levels (EMA, swing pivots, trend-line projections, prior-session extremes) and a count over it; the corpus has no level-set primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-03",
+        "V16-13"
+      ],
+      "merge_notes": "R02-03 ('the spike breaks several resistance levels — the moving average, prior swing highs, trend lines — each by many ticks') and V16-13 ('buy stops above five different levels all within a tick or two of each other were hit in a cascade') are the same rule seen from two sides: R02-03 counts levels cleared, V16-13 counts levels CLUSTERED near the breakout point. Merged, with R02-03's count-cleared framing as the definition since it needs no clustering test. Blocked on the level-set decision, not on any one primitive: with the levels fixed to {XAverage(20), Highest(High,20)[1], prior session high} it becomes a B rule, and the trend-line member is what pushes it to research (lines_channels owns trend-line projection). Note SwingHigh/SwingLow, XAverage and TLValue have no register row yet.",
+      "variants_kept_separate": [
+        "BreakoutClearsPriorExtremeByMargin"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "resistance-level set (which levels count as 'a resistance level' and how many must be cleared)"
+      ],
+      "depends_on_keys": [
+        "BreakoutClearsPriorExtremeByMargin"
+      ]
+    },
+    {
+      "key": "FailedRangeBreakoutReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Inside an established trading range, a strong spike beyond the range boundary fails to hold and price closes back inside within a few bars — the vacuum-effect fade back toward the other side of the range.",
+      "pseudocode": "isTradingRange[0] && (exists k in 1..maxReversalBars: high[k] > rangeHigh) && close[0] < rangeHigh && close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "maxReversalBars": 5
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs the trading-range classification and its tracked boundaries; the failure test itself is a short backward scan"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-07"
+      ],
+      "merge_notes": "Distinct from MarginalBreakoutThenReverse, which needs no range context and fires on a barely-cleared FIXED-window extreme; this one requires the market to be classified as in a range and uses that range's boundary. If the trading-range decision lands on a fixed-window definition (rangeHigh = Highest(High, N)[1] plus a width test), the two collapse into one rule with a margin input, so the authoring pass should re-check the pair after that decision. The trading-range classification is almost certainly owned by context_regime_trading_range; deferring to whatever it settles on.",
+      "variants_kept_separate": [
+        "MarginalBreakoutThenReverse"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "trading-range classification (when the market counts as in a range, and where its boundaries sit)"
+      ],
+      "depends_on_keys": [
+        "MarginalBreakoutThenReverse"
+      ]
+    },
+    {
+      "key": "PressIntoSpikeAddOn",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "While already positioned and a spike continues, add a further unit at the close of every strong with-trend bar (and immediately put back any unit just scalped out), restoring or growing the combined position.",
+      "pseudocode": "ctx.MarketPosition() > 0 && StrongTrendBar[0] -> add one more unit",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "independently tracked multi-unit positions with per-unit scale-in and scale-out; the engine models one position per direction"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R01-04",
+        "R31-09",
+        "R31-10"
+      ],
+      "merge_notes": "Three statements of pressing a winner during a spike: add as the spike continues (R01-04), add at the close of each spike bar (R31-10), and put back a unit just scalped out (R31-09). All three reduce to the same unsupported feature — pyramiding into an open position with per-unit bookkeeping — so they are one rule at D rather than three drops, to keep the citation. The bar test itself is StrongTrendBar; nothing new is needed there. Revisit only if the engine gains multi-unit positions.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "StrongTrendBar"
+      ]
+    },
+    {
+      "key": "CountertrendSpikeFailsIntoFlag",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A strong countertrend spike gets no follow-through, fails, and becomes a flag that resolves back in the trend's direction.",
+      "pseudocode": "// no bar-level test given; the mined pseudocode is a comment",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "the source gives no test at all — spike detection over a variable window plus an unspecified follow-through-failure window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T19-23"
+      ],
+      "merge_notes": "Kept as a D rather than dropped as a composition because it is the thesis sentence of the trends volume's 'Signs of Strength in a Trend' chapter and someone will look for it. On re-read there is nothing to author: the candidate's pseudocode field is a comment, and every mechanizable reading of it is already covered by StrongTrendBarCount on the opposite side (no follow-through) plus FirstOppositeTrendBarThenRecovery (the flag resolving with the trend).",
+      "variants_kept_separate": [
+        "FirstOppositeTrendBarThenRecovery",
+        "StrongTrendBarCount"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "RP1-06",
+      "reason": "composition of StrongTrendBar at lag 1 (negated, the per-placement toggle) + a breakout term; 'the breakout bar was not itself a strong trend bar' adds nothing beyond negating StrongTrendBar"
+    },
+    {
+      "id": "R02-19",
+      "reason": "composition of CloseWithinTicksOfHigh (mirrored to the low) + BodyAboveAverageBody + InsideBar (catalog)"
+    },
+    {
+      "id": "R02-36",
+      "reason": "composition of TimeWindow (catalog, final hour) + the always-in direction + HighestHighBreakout (catalog); the forced-liquidation motive contributes no bar-level test"
+    },
+    {
+      "id": "R03-01",
+      "reason": "an OR of StrongTrendBar negated (small body, doji, large tails, opposite colour) with InsideBar (catalog); every disjunct is an existing rule or its negation"
+    },
+    {
+      "id": "R17-08",
+      "reason": "composition of StrongTrendBarRun + the always-in trend context (context_regime_always_in), gating the leg_counting bucket's High 1/2 entries"
+    },
+    {
+      "id": "R28-01",
+      "reason": "composition of StrongTrendBar + StrongTrendBarRun; the 'limit at the prior bar's close' order type is not available under the standing convention (signal-bar close, next-bar open)"
+    },
+    {
+      "id": "R28-04",
+      "reason": "composition of StrongTrendBarRun + a lower-low test (LaggedHigherHigh flipped); the limit price at the prior bar's low is the same unavailable order type"
+    },
+    {
+      "id": "R28-09",
+      "reason": "composition of StrongTrendBarRun(2) + an opening-range session gate (time_session)"
+    },
+    {
+      "id": "V00-20",
+      "reason": "composition of HighestHighBreakout (catalog) + StrongTrendBar; 'breakout bar' is a naming of the pair, not a third behaviour"
+    },
+    {
+      "id": "V02-09",
+      "reason": "composition of BarLowHoldsPriorClose + BarOpensAbovePriorClose + CloseWithinTicksOfHigh, OR'd and counted over a window; the count form is the miner's invention, not Brooks's ('one or more')"
+    },
+    {
+      "id": "V09-08",
+      "reason": "composition of the always-in bull context + EMA proximity (ema_relations) + a single-bar percentage decline; the percentage threshold is explicitly a reading with no book number"
+    },
+    {
+      "id": "V19-12",
+      "reason": "reduces to Breakout / HighestHighBreakout (catalog) once the range boundaries are a fixed N-bar window; the 'two opposing failed micro-spikes set the boundaries' framing has no fixed-offset form"
+    },
+    {
+      "id": "T04-05",
+      "reason": "composition of StrongTrendBarCount + StrongTrendBar"
+    },
+    {
+      "id": "T04-15",
+      "reason": "composition of StrongTrendBarRun at lag 1 + StrongTrendBar negated (the per-placement toggle)"
+    },
+    {
+      "id": "T04-16",
+      "reason": "post-entry position-state classification with no action attached; the miner recorded it for high recall only"
+    },
+    {
+      "id": "T06-23",
+      "reason": "composition of ShavedBar (bar_anatomy_trend_doji) + StrongTrendBarRun"
+    },
+    {
+      "id": "T07-36",
+      "reason": "composition of OutsideBar (bar_anatomy_inside_outside) + CloseRangePosition (catalog) + CloseAbovePriorHigh (catalog) at lags 1 and 2"
+    },
+    {
+      "id": "T18-10",
+      "reason": "composition of StrongTrendBarRun + a lower-low test; same unavailable limit-at-prior-low order type as R28-04"
+    },
+    {
+      "id": "T21-07",
+      "reason": "a structure primitive (spike start/end/height bookkeeping) with no fireable condition; the spike-extent question is raised in design_decisions and gates ReversalSpikeLargerThanTrendSpike"
+    },
+    {
+      "id": "T21-09",
+      "reason": "composition of StrongTrendBarRun + a first-N-bars-of-session gate (time_session)"
+    },
+    {
+      "id": "T21-15",
+      "reason": "composition of the spike state (T21-07, dropped) + CloseAbovePriorHighestHigh (catalog); on a fixed window it IS the catalog rule"
+    },
+    {
+      "id": "T21-51",
+      "reason": "composition of OppositeLargeBarsInWindow + a recovery test against a bar found at a variable offset; Brooks says 'sometimes', and the miner graded confidence low"
+    },
+    {
+      "id": "T21-55",
+      "reason": "composition of StrongTrendBarCount + HighestHighBreakout (catalog) + a per-occurrence range comparison ('larger than the two earlier spikes') with no fixed-offset form"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "R07-03",
+      "belongs_in": "exits_targets",
+      "note": "an escalating measured-move profit-target ladder (Exit role), not a breakout-strength sign"
+    },
+    {
+      "id": "R18-10",
+      "belongs_in": "three_push_patterns",
+      "note": "gates the eager High 2 buy inside a wedge/three-push correction; 'push momentum' is that bucket's primitive"
+    },
+    {
+      "id": "R20-05",
+      "belongs_in": "swing_structure",
+      "note": "double-top / head-and-shoulders neckline failure; needs that bucket's pattern and neckline detection"
+    },
+    {
+      "id": "R21-08",
+      "belongs_in": "context_regime_trading_range",
+      "note": "a limit fade at the BOTTOM OF THE RANGE; the range boundary and 'near the extreme' test are that bucket's"
+    },
+    {
+      "id": "R22-17",
+      "belongs_in": "context_regime_trading_range",
+      "note": "barbwire (a tight trading range) marking the day's extreme; the barbwire classification lives there"
+    },
+    {
+      "id": "V19-09",
+      "belongs_in": "time_session",
+      "note": "opening-range size versus average daily range — a session-structure measurement"
+    },
+    {
+      "id": "V24-41",
+      "belongs_in": "exits_stops",
+      "note": "a protective-stop width multiplier and position-size directive, no entry condition"
+    },
+    {
+      "id": "TP4-06",
+      "belongs_in": "time_session",
+      "note": "same opening-range-versus-ADR measurement as V19-09"
+    },
+    {
+      "id": "T22-03",
+      "belongs_in": "breakouts_other",
+      "note": "already merged in breakouts_other as OpeningRangeBreakout"
+    },
+    {
+      "id": "T22-11",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "a per-session count of range-to-range breakouts used to classify the day as a strong trend day"
+    },
+    {
+      "id": "T23-19",
+      "belongs_in": "time_session",
+      "note": "the opening double-extreme pair inside the first few bars of the session"
+    },
+    {
+      "id": "T24-08",
+      "belongs_in": "time_session",
+      "note": "prior-session late-reversal bias carried across the session boundary"
+    },
+    {
+      "id": "VP1-19",
+      "belongs_in": "bar_anatomy_trend_doji",
+      "note": "same rule as bar_anatomy_trend_doji ShrinkingBodies with barCount = 3; folded there in reconciliation"
+    },
+    {
+      "id": "R01-06",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "same countIf-over-strong-trend-bars gauge as context_regime_trend_strength StrongTrendBarCount, the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "V15-09",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "same countIf-over-strong-trend-bars gauge as context_regime_trend_strength StrongTrendBarCount, the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "T04-04",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "same countIf-over-strong-trend-bars gauge as context_regime_trend_strength StrongTrendBarCount, the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "T18-05",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "same countIf-over-strong-trend-bars gauge as context_regime_trend_strength StrongTrendBarCount, the topic owner; folded there in reconciliation"
+    },
+    {
+      "id": "T21-54",
+      "belongs_in": "context_regime_trend_strength",
+      "note": "same countIf-over-strong-trend-bars gauge as context_regime_trend_strength StrongTrendBarCount, the topic owner; folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "spike extent (the start and end anchors of a spike, and hence its height)",
+      "options": [
+        "a spike is exactly consecutiveBars bars, so its extent is highest(high, n) - lowest(low, n) at a fixed offset",
+        "T21-07's state machine: remember the first bar's open-or-low and the last bar's close-or-high, fixed at the first pause bar, extending the same spike if it resumes within resumeBars",
+        "do not measure spike extent at all; keep only the boolean spike tests (StrongTrendBarRun, ConsecutiveBarsLittleOverlap)"
+      ],
+      "recommended": "the fixed-window form — highest/lowest over consecutiveBars — which needs no cross-bar state and makes ReversalSpikeLargerThanTrendSpike a priority-A rule; T21-07's state machine buys the measured-move anchors that exits_targets may want, so revisit if that bucket needs them",
+      "gates": [
+        "ReversalSpikeLargerThanTrendSpike"
+      ]
+    },
+    {
+      "topic": "signs-of-strength scoring (which signs enter the count, whether they are weighted, and the required minimum)",
+      "options": [
+        "unweighted count of the seven mechanizable signs in this bucket, threshold as an input (default 4 of 7)",
+        "unweighted count over all fifteen of Brooks's listed signs once the ema_relations / support_resistance_levels members exist",
+        "do not author the score; test the individual signs as separate ANDed panes and let the optimizer find the useful subset"
+      ],
+      "recommended": "the seven-sign unweighted count with the threshold as an input — Brooks explicitly says only 'the more, the more likely', so any weighting would be invented, and the pane system cannot express the OR-flavoured score any other way",
+      "gates": [
+        "BreakoutStrengthChecklist"
+      ]
+    },
+    {
+      "topic": "resistance-level set (which levels count as 'a resistance level' and how many must be cleared)",
+      "options": [
+        "a fixed triple: XAverage(20), Highest(High, N)[1], and the prior session's high",
+        "swing pivots of a given strength, collected into a level set",
+        "add trend-line and trend-channel-line projections (lines_channels)"
+      ],
+      "recommended": "the fixed triple — it needs no pivot bookkeeping, drops SpikeClearsMultipleResistanceLevels from C to B, and covers the three levels Brooks names most often; leave trend lines out until lines_channels settles TLValue",
+      "gates": [
+        "SpikeClearsMultipleResistanceLevels"
+      ]
+    },
+    {
+      "topic": "trading-range classification (when the market counts as in a range, and where its boundaries sit)",
+      "options": [
+        "a fixed N-bar window whose height is below a multiple of ATR, boundaries = Highest(High,N)[1] / Lowest(Low,N)[1]",
+        "bar-overlap based: the last N bars each overlap the previous by more than a fraction",
+        "no classification; use the fixed-window extremes unconditionally"
+      ],
+      "recommended": "defer to context_regime_trading_range, which owns this decision; if it lands on the fixed-window form, FailedRangeBreakoutReversal collapses into MarginalBreakoutThenReverse with a margin input and both should be re-checked as a pair",
+      "gates": [
+        "FailedRangeBreakoutReversal"
+      ]
+    }
+  ],
+  "bucket_summary": "96 candidates, almost all restatements of Brooks's 'signs of strength in a breakout/spike' checklists mined independently from all three volumes, collapse to 33 rules — 21 A, 3 B, 4 C, 5 D. The A-list is dominated by the trivial single-bar signs the parent expected (StrongTrendBar, CloseWithinTicksOfHigh, BarLowHoldsPriorClose, BarOpensAbovePriorClose, NonOppositeClose, HigherHighByTicks, ClosePositionInPriorBarRange, ShrinkingBodies) plus the window forms that the seven separate chapter definitions of 'spike' all reduce to (StrongTrendBarRun, StrongTrendBarCount, ConsecutiveBarsLittleOverlap) and five count/average filters (BodyAboveAverageBody, AvgBodyBelowRangeFraction, LargeTailedBarCount, FailedFollowThroughCount, LargeRangeBarInWindow). Three catalog duplicates were found (CloseAbovePriorHighestHigh from R02-17/V00-51, CloseAbovePriorHigh from TP3-18, NumBars from T21-74); 23 candidates were dropped as compositions of those atoms and 12 sent to other buckets, mostly the opening-range/session family to time_session. Four design decisions are raised, none of which blocks the A-list."
+}

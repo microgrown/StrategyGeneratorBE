@@ -1,0 +1,1814 @@
+{
+  "bucket": "breakouts_pullback_retest",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "BreakoutLevelRetest",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a breakout beyond the highest high of the prior N bars, price pulls back to within a tolerance of that broken level and holds above it -- the breakout test / breakout pullback that with-trend continuation entries buy.",
+      "pseudocode": "breakoutLevel = highest(high, lookback)[breakoutBar + 1]; close[breakoutBar] > breakoutLevel && barsSince(breakoutBar) <= maxWaitBars && low[0] <= breakoutLevel + toleranceTicks * tickSize && low[0] >= breakoutLevel - maxOvershootAtr * atr(atrLookback)",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 1,
+        "maxWaitBars": 3,
+        "toleranceTicks": 2,
+        "maxOvershootAtr": 0.2,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "at lookback=1 and maxWaitBars=1 this is RP1-19's pure fixed-offset three-bar test (close[1] > high[2] && low[0] <= high[2] + tol); larger lookback/wait needs the breakout level held as state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "the catalog rule is only the breakout leg (close above Highest(High,N)[1]); this rule is the later pullback TO that level, which the catalog has nothing for"
+      },
+      "sources": [
+        "RP1-04",
+        "RP1-19",
+        "R05-04",
+        "R10-07",
+        "V09-07",
+        "T17-05",
+        "T22-09",
+        "RP2-08"
+      ],
+      "merge_notes": "RP1-19 wins the definition: it fixes the level at the high of the bar before the breakout bar and the test at the very next bar, so no persisted state at all, and generalizes cleanly by raising lookback and maxWaitBars. RP1-04 and R10-07 are the same test with the level remembered indefinitely (R10-07 explicitly generalizes it to any earlier breakout point of a prior leg). V09-07 states the hold-above side (low[0] >= level - tol) and adds a bull bar; T22-09 uses an ATR band on both sides of the level and reads the hold as a strength filter; T17-05 adds a bull reversal signal bar plus maxWaitBars=10. R05-04 is the same level test with the entry trigger delegated to BreakoutPullbackEntry, and notes the test can come 20+ bars after the breakout, which is what maxWaitBars parameterizes. Tolerance values across sources: 1-2 ticks (RP1-19, R10-07, RP1-04), 0.1-0.2 ATR (T17-05, T22-09); both kept, ticks as the default with an ATR overshoot cap.",
+      "variants_kept_separate": [
+        "PullbackBeyondBreakoutPoint",
+        "EntryPriceRetest",
+        "GapLevelRetest",
+        "BreakoutPullbackEntry"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedBreakoutReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price closed beyond the extreme of the prior N bars (a breakout) and within a few bars closes back inside that range: the breakout failed, take the opposite side.",
+      "pseudocode": "rangeLow = lowest(low, rangeBars)[k + 1]; exists k in 1..failBars with close[k] < rangeLow && close[0] > rangeLow",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeBars": 20,
+        "failBars": 3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a window extreme plus a short backward scan holding the broken level; degenerates to fixed three-bar arithmetic at rangeBars=1, failBars=1"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "the catalog rule fires ON the breakout; this fires on its failure, and needs the broken level held across failBars bars"
+      },
+      "sources": [
+        "T03-03",
+        "T04-02",
+        "T21-79",
+        "V03-13",
+        "R05-05",
+        "T02-07",
+        "V18-03",
+        "R32-06",
+        "T07-17",
+        "T07-26"
+      ],
+      "merge_notes": "T21-79 gives the most mechanizable general form (window extreme + short backward scan) and T03-03 states it identically; T04-02 is the same rule at rangeBars=1, failBars=1 (low[1] < low[2] && close[0] > low[1]) and is trivial arithmetic, so it is the natural default parameterization. V03-13 keys the level to a prior swing high rather than an N-bar window and pairs it with an expected 10-bar/two-leg follow-through; R05-05 adds a strong reversal signal bar (failureWindowBars 5); T02-07 adds a close-in-the-upper-part-of-range term on the reversal bar (that term is the bar_anatomy signal-bar rule, not part of this one); V18-03 requires several bars of follow-through beyond the level before the reversal bar. R32-06 is the single-bar level version (the break of one strong prior trend bar reverses back through its high, trapping countertrend traders) -- same behaviour at rangeBars=1 with the level taken from the opposite side of the triggering bar. Windows across sources: 3 (T21-79), 5 (T03-03, V03-13, R05-05), 8 (T07-18); 3 kept as default.",
+      "variants_kept_separate": [
+        "SmallBreakoutTrapReversal",
+        "ThirdBarConfirmsFailedBreakout",
+        "FailedFailureResumption",
+        "FailedBreakoutOfPriorSessionExtreme"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SmallBreakoutTrapReversal",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price breaks below a recent swing low or N-bar low by no more than a small capped margin and then closes back above it -- a trapped-seller bear trap; mirrored, a capped break above resistance that closes back below is a bull trap.",
+      "pseudocode": "priorLow = lowest(low, lookback)[1]; low[0] < priorLow && low[0] >= priorLow - marginTicks * tickSize && close[0] > priorLow",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "marginTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a window lowest plus a capped-overshoot comparison, all on the current bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V16-05"
+      ],
+      "merge_notes": "Kept apart from FailedBreakoutReversal: the cap on how far price may overshoot the level is the whole point of the trap read (Brooks's 'just a one-tick breakout'), and it fires on the breakout bar itself rather than on a later close back inside. Different bars.",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThirdBarConfirmsFailedBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "When the breakout bar and the reversal bar that follows it are about equally strong, wait one more bar: buy when the third bar trades above the reversal bar's high and closes as a bull trend bar.",
+      "pseudocode": "close[2] < open[2] && close[1] > open[1] && abs((close[1] - open[1]) - (open[2] - close[2])) <= equalTol * (open[2] - close[2]) && high[0] > high[1] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "equalTol": 0.3,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "three fixed-offset bars, arithmetic only"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T15-43"
+      ],
+      "merge_notes": "A confirmation-timing variant of FailedBreakoutReversal, not the same rule: it fires a bar later and only when the two bars are comparably sized, so it deliberately skips the cases FailedBreakoutReversal takes at once.",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal",
+        "FailedFailureResumption"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedFailureResumption",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A breakout failed and the failure itself failed: after breakout bar, reversal bar, and a bar reversing back the original way, enter in the original breakout direction as a breakout pullback.",
+      "pseudocode": "close[3] > open[3] && close[3] > highest(high, breakoutLookback)[4] && close[2] < open[2] && close[1] > open[1] && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "breakoutLookback": 10
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "fixed offsets plus one highest-high window in T15-44's form; the general form needs three-stage state over a variable window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-38",
+        "T07-18",
+        "V18-04",
+        "T15-44",
+        "V00-23"
+      ],
+      "merge_notes": "All four are the same three-stage sequence (breakout -> failure -> failure of the failure -> resume). T15-44 wins because it pins the three stages to fixed bar offsets and needs only one Highest window, where R00-38 (breakoutFailedRecently within 5 bars, then close above the highest of the last 3), T07-18 (outside-bar level, maxBarsSince 8) and V18-04 (reversalMaxAge 2, strong trend bar in the original direction) all require remembering two separate events across a variable window. Keep the general form in mind for the authoring pass as a maxBarsSince parameter on top of T15-44's shape.",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal",
+        "ThirdBarConfirmsFailedBreakout",
+        "BreakoutPullbackEntry"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "EntryPriceRetest",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price comes back to within a few ticks of the open position's entry price -- a probe of the resting breakeven stops from that entry -- and holds: add to or re-enter the position there.",
+      "pseudocode": "ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() + toleranceTicks * tickSize && close[0] >= ctx.EntryPrice() - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads live position state (entry price); the level test itself is a plain comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "the catalog has no rule reading EntryPrice; FlatOrOpenLossExceeds is the only entry that reads position state at all"
+      },
+      "sources": [
+        "R00-37",
+        "V00-22",
+        "R28-31",
+        "V24-31",
+        "T18-16"
+      ],
+      "merge_notes": "One rule under five names. R00-37 and R28-31 phrase the level as 'the remembered breakout entry price' with unbounded lookback, which is exactly ctx.EntryPrice() while the position is open; V00-22, V24-31 and T18-16 say so directly. V24-31 and R28-31 add a bull signal bar, T18-16 adds nothing. Tolerances: 1-3 ticks across sources, 2 as default. Kept apart from BreakoutLevelRetest because the level is the trader's own fill, not a chart level, so the two fire on different bars whenever the entry was not exactly at the breakout point.",
+      "variants_kept_separate": [
+        "BreakoutLevelRetest",
+        "BreakevenRetestExit"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakevenRetestExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit the position with a limit order back at the entry price once the market retraces to retest the level the trade was entered from.",
+      "pseudocode": "ctx.MarketPosition() > 0 && low[0] <= ctx.EntryPrice() + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads the entry price; the book's version wants the FIRST of several scaled-in entries, which the engine's single-entry model reduces to ctx.EntryPrice()"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "EntryPrice",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "not TrailingStop or ProfitProtector -- those measure dollars from the peak, this is an absolute level"
+      },
+      "sources": [
+        "R04-06"
+      ],
+      "merge_notes": "Same level as EntryPriceRetest, opposite action (scratch the fade rather than add to the with-trend position), and an Exit rather than an Entry, so it cannot be the same rule -- exits are ORed and entries ANDed.",
+      "variants_kept_separate": [
+        "EntryPriceRetest"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SpikeWithoutPullback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Over the last N bars the market has risen and at most one bar closed down, with no two consecutive down closes -- a spike that ran without a pullback, a sign of strength.",
+      "pseudocode": "close[0] > close[spikeBars] && countif(i in 0..spikeBars-1, close[i] < open[i]) <= maxPullbackBars && !exists i in 0..spikeBars-2 with (close[i] < open[i] && close[i+1] < open[i+1])",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeBars": 5,
+        "maxPullbackBars": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a single window loop counting down-close bars, no persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "ConsecutiveUpBars",
+        "relation": "variant",
+        "note": "ConsecutiveUpBars requires EVERY one of the last N bars to close up; this tolerates up to one down bar as long as no two are adjacent, so the two fire on different bars"
+      },
+      "sources": [
+        "R02-05",
+        "V00-43",
+        "T00-27",
+        "V02-04"
+      ],
+      "merge_notes": "Four restatements of 'the spike ran N bars with no pullback longer than one bar'. V02-04 wins: a plain window scan of down closes, no persistent counter and no trend-bar body threshold. R02-05 and V00-43 phrase it as a persistent consecutive-trend-bar counter tolerating one-bar interruptions; T00-27 counts bars since the breakout with no two-consecutive-bar pullback. Defaults across sources: spikeBars 5 (R02-05, V00-43, V02-04) and 7 (T00-27); 5 kept, grid 5..10 per V02-04's note.",
+      "variants_kept_separate": [
+        "BreakoutRunsWithoutPullback"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "WeakFollowThroughBarRequiresPullback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Block the close-of-bar entry when the follow-through bar after a strong breakout bar is weak (a small body relative to its range) -- wait for a pullback entry instead.",
+      "pseudocode": "close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && abs(close[0] - open[0]) < weakBodyFraction * (high[0] - low[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.6,
+        "weakBodyFraction": 0.3
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a two-bar body-fraction test, arithmetic only"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "BodyBelowAtrFraction",
+        "relation": "variant",
+        "note": "the catalog rule measures the body against ATR and reads one bar; this measures it against the bar's own range and requires a strong bar immediately before it"
+      },
+      "sources": [
+        "V15-07"
+      ],
+      "merge_notes": "Stated as a gate on which entry style applies; mechanized as a filter that blocks the immediate entry. Its complement (strong follow-through, take the close) is a bar_anatomy rule, not mined here.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShallowPullbackLimitBelowPriorHigh",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "During a strong spike, buy on a limit a couple of ticks below the most recent completed bar's high, anticipating only a very shallow pullback on the next bar.",
+      "pseudocode": "limitPrice = high[1] - pullbackTicks * tickSize; low[0] <= limitPrice",
+      "sides": "mirrored",
+      "parameters": {
+        "pullbackTicks": 2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a fixed offset from the prior bar's high, tested on the current bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-02",
+        "T18-17"
+      ],
+      "merge_notes": "Kept apart from BreakoutPullbackLimitEntry: this fills a couple of ticks below the prior bar's HIGH, that one fills at or below the prior bar's LOW. On any bar with a body those are far apart and fire on different bars. The spike-context qualifier is dropped -- it is research-grade and the offset test stands on its own; per the standing convention the book's intrabar placement is mechanized on the completed bar.",
+      "variants_kept_separate": [
+        "BreakoutPullbackLimitEntry"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedScalpExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The with-trend entry never got more than N ticks past its trigger and the next bar has fallen back through the signal bar's low: a failed scalp, get out.",
+      "pseudocode": "ctx.BarsSinceEntry() <= 1 && (ctx.MaxPositionProfit() / tickSize) <= failureTicks && low[0] < low[ctx.BarsSinceEntry() + 1]",
+      "sides": "mirrored",
+      "parameters": {
+        "failureTicks": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads open-position peak profit plus the signal bar's low, which at BarsSinceEntry <= 1 is a fixed offset back"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MaxPositionProfit",
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "NumBarsIfLosing",
+        "relation": "variant",
+        "note": "the catalog rule is a bar count plus a profit sign; this caps the PEAK profit and adds a price level, so it fires on trades that never went anywhere rather than on trades currently losing"
+      },
+      "sources": [
+        "R00-41"
+      ],
+      "merge_notes": "The book's five-tick and four-tick-target figures are Emini-specific; failureTicks generalizes them.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutPullbackWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Context filter: the market is within a few bars of a breakout and is in a pullback of one to about five bars that has not yet resumed -- the setup is a breakout pullback, not a failed breakout.",
+      "pseudocode": "barsSince(breakoutBar) <= startWindow && pullbackBarCount >= 1 && pullbackBarCount <= maxPullbackBars",
+      "sides": "mirrored",
+      "parameters": {
+        "startWindow": 5,
+        "maxPullbackBars": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two persistent counters, bars since the breakout event and bars since the pullback began"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R00-36",
+        "V00-21"
+      ],
+      "merge_notes": "Identical statements from two books; R00-36 folds in a PullbackBar test where V00-21 counts pullback bars, which is the same thing once the counter exists. Both give 1..5 bars. This is the window gate; the level test that decides breakout-pullback vs failed-breakout is PullbackBeyondBreakoutPoint.",
+      "variants_kept_separate": [
+        "PullbackBeyondBreakoutPoint",
+        "BreakoutPullbackEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutPullbackEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a breakout above a flag or range within the last few bars, the market pulls back for one or more bars and then a bar closes above the highest high of that pullback: buy the resumption at the next open.",
+      "pseudocode": "close[k] > highest(high, breakoutLookback)[k + 1] for some k in 1..maxBarsSinceBreakout; pullbackBars = k - 1; pullbackBars >= minPullbackBars && pullbackBars <= maxPullbackBars && close[0] > highest(high, pullbackBars)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "breakoutLookback": 10,
+        "maxBarsSinceBreakout": 8,
+        "minPullbackBars": 1,
+        "maxPullbackBars": 10
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "multi-stage state -- breakout, pullback, resumption -- that must persist across a variable number of bars"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "variant",
+        "note": "the resumption leg alone is CloseAbovePriorHighestHigh over the pullback's length; the rule adds the preceding breakout and the pullback bound, so it fires far less often"
+      },
+      "sources": [
+        "T15-38",
+        "T18-04",
+        "V24-10",
+        "T21-12",
+        "T22-04",
+        "V02-14"
+      ],
+      "merge_notes": "Five statements of the same three-stage entry. T21-12 gives the cleanest mechanization (a bar counter since the pause bar plus close above the pullback's highest high) and V24-10 the cheapest (one pullback bar only, close[0] < close[1] then entry above it), so V24-10 is this rule at minPullbackBars = maxPullbackBars = 1. T15-38 allows the pullback to make a higher or a lower low, which is why the pullback bound is on bar count rather than depth. T18-04 keys the level to a flag high and requires the pullback not to erase it -- that hold-above term is BreakoutLevelRetest, so it is not duplicated here. T22-04 is the same shape with the opening range as the breakout level (intraday, toleranceAtr 0.1) and is worth carrying as a separate placement rather than a separate rule. Windows: 8 bars (T15-38), 10 (T22-04, T21-12 maxPullbackBars).",
+      "variants_kept_separate": [
+        "BreakoutLevelRetest",
+        "BreakoutPullbackLimitEntry",
+        "FailedFailureResumption",
+        "BreakoutPullbackWindow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutPullbackLimitEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "As soon as a trend bar closes beyond a flag or range, rest a buy limit at or just above that breakout bar's low rather than waiting for a pullback bar to form.",
+      "pseudocode": "close[1] > highest(high, flagLookback)[2] && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && low[0] <= low[1] + limitOffsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "flagLookback": 15,
+        "limitOffsetTicks": 1,
+        "bodyFraction": 0.6
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a breakout-bar test on the completed bar plus a level comparison on the next; no persisted state beyond one bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V24-30",
+        "R28-30",
+        "R28-13",
+        "T18-15"
+      ],
+      "merge_notes": "Same order in three books: the limit rests at the breakout bar's low, filled on the following bar. V24-30 states it as anticipating BreakoutPullbackEntry a bar early; R28-30 keys the breakout to a bull flag's high; R28-13 adds a one-bar-spike-width test (isBullSpikeBar[1] && !isBullSpikeBar[2]) and a tick of offset, which is this rule with flagLookback = 1. Offsets: 0 (V24-30, R28-30), 1-2 ticks (R28-13). Kept apart from BreakoutPullbackEntry because the fill happens without any confirming resumption bar, so the two take different trades on the same breakout.",
+      "variants_kept_separate": [
+        "BreakoutPullbackEntry",
+        "ShallowPullbackLimitBelowPriorHigh"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TwiceFailedBreakoutAttempt",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The market has attempted and failed to break a level in the same direction at least twice within a lookback window; the odds now favour the opposite direction (and the per-placement negate toggle gives the book's other reading, that the next same-side attempt is the one that goes).",
+      "pseudocode": "countFailedBreakouts(direction, level = highest(high, rangeBars), attemptLookback) >= minFailedAttempts",
+      "sides": "mirrored",
+      "parameters": {
+        "minFailedAttempts": 2,
+        "attemptLookback": 20,
+        "rangeBars": 20,
+        "failBars": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a persistent count of discrete failed-breakout attempts against one level, on top of the FailedBreakoutReversal primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP4-20",
+        "R22-06",
+        "V07-13",
+        "V18-05",
+        "T05-14"
+      ],
+      "merge_notes": "One counter, two opposite readings, which makes them one rule under the per-placement negate toggle: RP4-20, V07-13 and V18-05 say expect the OPPOSITE direction next, R22-06 says permit the SAME-direction breakout entry on the next attempt. T05-14 is the entry version (buy above the bar that reverses back into the range after the second failed attempt), which is FailedBreakoutReversal gated by this counter. R22-06 grades the counter research because 'failed breakout attempt' is undefined; FailedBreakoutReversal supplies that bar-level definition (close beyond the level, close back inside within failBars), so no design decision is raised. Windows: 20 bars (V07-13, RP4-20 at 30), or the session (V18-05, intraday).",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "FailedBreakoutReversal"
+      ]
+    },
+    {
+      "key": "PullbackBeyondBreakoutPoint",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The pullback after a breakout trades back beyond the breakout point (or all the way beyond where the spike began), flipping the read from breakout pullback to failed breakout.",
+      "pseudocode": "low[0] < breakoutPoint",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one comparison, but the breakout point must be carried forward from the breakout bar"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-30",
+        "V00-67",
+        "R02-16"
+      ],
+      "merge_notes": "V00-67 is explicitly the negation gate that separates a breakout pullback from a failed breakout, and R02-30 is the same test with the level taken at the START of the spike rather than at the breakout point -- a deeper level for the same read. Breakout point kept as the default because it is what the rest of the bucket remembers; the spike-start form is a lookback parameter over the spike's bars. This is the level complement of BreakoutLevelRetest (holds above) and the direct negation of BreakoutPullbackWindow's read.",
+      "variants_kept_separate": [
+        "BreakoutLevelRetest",
+        "BreakoutPullbackWindow"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutRunsWithoutPullback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Price has travelled at least X beyond the breakout level within the first few bars after the breakout with no pullback: read the move as new with-trend buying rather than a reversal setup.",
+      "pseudocode": "close[0] - breakoutLevel >= scalpDistance && barsSince(breakoutBar) <= confirmBars && lowest(low, confirmBars)[0] >= breakoutLevel",
+      "sides": "mirrored",
+      "parameters": {
+        "scalpDistance": 4,
+        "confirmBars": 3
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a fixed-distance, fixed-window comparison, but keyed to a recorded breakout level rather than to a rolling window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V03-11"
+      ],
+      "merge_notes": "Kept apart from SpikeWithoutPullback per the mining note: this measures distance from a specific breakout level within a fixed window after it, where SpikeWithoutPullback is a rolling window statistic with no level at all. scalpDistance is in points and instrument-specific; consider an ATR multiple at authoring time.",
+      "variants_kept_separate": [
+        "SpikeWithoutPullback"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FailedBreakoutOfPriorSessionExtreme",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Intraday: the bar's low breaks below the prior session's low but the bar closes back above it -- a failed breakout of the prior day's extreme.",
+      "pseudocode": "low[0] < prevSessionLow && close[0] > prevSessionLow && barsIntoSession <= maxBarsIntoSession",
+      "sides": "mirrored",
+      "parameters": {
+        "maxBarsIntoSession": 12
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the prior session's extreme tracked across a date change; the test itself is one bar"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "LowD",
+        "HighD"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T10-21"
+      ],
+      "merge_notes": "Kept apart from FailedBreakoutReversal: the level is a session boundary, not an N-bar window, so the two fire on different bars, and this one fires on the breakout bar itself rather than on a later close back inside.",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapLevelRetest",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "A price gap left behind by a breakout is a magnet: the market is drawn back to fill or retest the gap's near edge, which serves as a target for a position taken away from it.",
+      "pseudocode": "gapLevel = low[g] where low[g] > high[g + 1]; low[0] <= gapLevel + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the gap's boundary must persist from the bar where it formed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R10-09",
+        "V01-13",
+        "T22-08"
+      ],
+      "merge_notes": "Same level test in three books. R10-09 states the magnet tendency generally (a true bar gap or a moving-average gap bar); V01-13 states it as an intraday context filter on a tracked breakout/measuring gap, so the same rule in the Entry role; T22-08 uses it as the cover target for a fade, with the gap being the two or three trend bars that carried price between two trading ranges (a band rather than a single level, hence the tolerance). Recorded as an Exit because two of three sources use it as a target; the authoring pass can place the same condition as an Entry filter.",
+      "variants_kept_separate": [
+        "BreakoutLevelRetest",
+        "IslandReversalRetest"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "IslandReversalRetest",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A gap up is followed within a few bars by a gap down whose range does not overlap the first gap (an island top); enter or hold short on a retest of the island's bottom.",
+      "pseudocode": "gap1 at i: low[i] > high[i + 1]; gap2 at j (j < i, i - j <= maxIslandBars): high[j] < low[j + 1] && low[j + 1] > high[i]; islandBottom = high[j]; high[0] <= islandBottom + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "maxIslandBars": 12,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "two remembered gap events plus a non-overlap test between them, persisting across the island's width"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R06-13"
+      ],
+      "merge_notes": "Kept apart from GapLevelRetest: that needs one gap, this needs a matched pair with a non-overlap constraint, so it fires on a small subset of the same bars.",
+      "variants_kept_separate": [
+        "GapLevelRetest"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PostGapFadeBlockWindow",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "For a number of bars after a fresh breakout gap forms, block countertrend (fade) entries -- it is too early to know whether the gap is a breakaway or a measuring gap.",
+      "pseudocode": "barsSince(gapBar) > withinBars",
+      "sides": "same",
+      "parameters": {
+        "withinBars": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a bars-since-event counter on top of the gap primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R06-16"
+      ],
+      "merge_notes": "Written as a block, so recorded in the passing sense (the window has elapsed) with the negate toggle giving the blocking sense. The book notes the breakaway/measuring distinction is inherently retrospective; withinBars is the proxy for 'too early'. The gap primitive itself belongs to breakouts_volume_gap.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CounterSpikeIntoEmaSupportEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A sharp countertrend bear spike of several consecutive bear trend bars reaches the moving average from above and the current bar closes up: buy near its close.",
+      "pseudocode": "consecutiveBearTrendBars(bodyFraction) >= spikeBars && low[0] <= ema(close, emaLength)[0] + supportAtr * atr(atrLookback) && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "spikeBars": 3,
+        "bodyFraction": 0.6,
+        "emaLength": 20,
+        "supportAtr": 0.5,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs an EMA plus a consecutive-trend-bar run; the book's 'established bull trend' qualifier is dropped as research-grade"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "CloseAboveAverage",
+        "relation": "variant",
+        "note": "the catalog rule is a plain close-vs-average test; this is a spike run terminating at the average from the far side, so different bars"
+      },
+      "sources": [
+        "R05-10"
+      ],
+      "merge_notes": "The book's example is a news-driven overnight gap in an uptrend; the mechanical form keeps the spike-into-support structure and drops the news cause. The always-in qualifier is dropped rather than inherited, which is why this is B and not C -- the remaining terms all have bar-level definitions.",
+      "variants_kept_separate": [
+        "SpikeFadeAtRangeExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "QuietPeriodBreakoutNeedsPullback",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "After an extended quiet period, an unusually large trend bar breaking out of the tight range should not be entered directly -- require a confirming pullback first.",
+      "pseudocode": "countif(k in 1..lookback, (high[k] - low[k]) <= smallRangeFraction * atr(atrLookback)) >= minQuietBars && (high[0] - low[0]) >= breakoutBarMultiple * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "minQuietBars": 30,
+        "smallRangeFraction": 0.7,
+        "breakoutBarMultiple": 2.0,
+        "lookback": 60,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a rolling quiet-bar count plus a size-relative-to-ATR test on the current bar; no cross-bar state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "CountIF",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "BarRangeAboveStd",
+        "relation": "variant",
+        "note": "the catalog rule is only the outsized-bar half; this adds the preceding quiet run and reads as a block rather than a trigger"
+      },
+      "sources": [
+        "V25-03"
+      ],
+      "merge_notes": "The book says 30 to 60 minutes of quiet; minQuietBars is that in bars and needs the timeframe fixed at authoring. Written as a block on the immediate entry, so it pairs with BreakoutPullbackEntry as the permitted alternative.",
+      "variants_kept_separate": [
+        "WeakFollowThroughBarRequiresPullback"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LargeOpeningRangeBreakoutFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The opening range is already a large fraction of the recent average daily range, so a later breakout is unlikely to become a strong trend: down-weight or block breakout entries for the session.",
+      "pseudocode": "openingRangeSet && (openingRangeHigh - openingRangeLow) > weakBreakoutFraction * avgDailyRange(dayLookback)",
+      "sides": "same",
+      "parameters": {
+        "weakBreakoutFraction": 0.3,
+        "dayLookback": 20
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "needs the session's opening range and a multi-session average range, then one comparison"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest",
+        "HighD",
+        "LowD"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T24-02"
+      ],
+      "merge_notes": "The mirror of the small-opening-range breakout-mode filters mined into other buckets; recorded here because it gates breakout entries specifically.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SessionGapFirstBarReversalEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The session gapped beyond the prior session's extreme and the first bar of the session is a reversal bar: enter when the next bar closes back through that first bar's far side -- a failed breakout of the gap.",
+      "pseudocode": "barsIntoSession == 1 && open[1] < prevSessionLow && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "bodyFraction": 0.4
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "session-boundary state plus the prior session's extreme; the bar tests are fixed offsets"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "LowD",
+        "HighD"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T21-67"
+      ],
+      "merge_notes": "Kept apart from FailedBreakoutOfPriorSessionExtreme: that one fires on any bar of the session that pierces and recovers the level, this one only on the session's very first bar and requires a reversal bar plus a confirming close.",
+      "variants_kept_separate": [
+        "FailedBreakoutOfPriorSessionExtreme",
+        "GapPullbackFailureEntry"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "GapPullbackFailureEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "When the market gaps open beyond the prior day's range, do not chase the open: wait for an early pullback that retraces partway back into the gap, then enter once that pullback fails and price resumes away from the prior day's range.",
+      "pseudocode": "open[0] > prevSessionHigh && lowest(low, barsIntoSession) <= open[0] - gapFillFraction * (open[0] - prevSessionHigh) && close[0] > open[0] && close[0] > high[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "gapFillFraction": 0.5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the prior day's extreme, a gap detector, an intraday retracement measurement and a reversal-bar test chained together"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest",
+        "HighD",
+        "LowD"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V22-02"
+      ],
+      "merge_notes": "The book gates this on a daily buy/sell setup being in force; that higher-timeframe flag is dropped rather than inherited (the engine is single-timeframe), which keeps the rule at B. gapFillFraction is invented -- the book gives no depth for how far into the gap the pullback must travel.",
+      "variants_kept_separate": [
+        "SessionGapFirstBarReversalEntry",
+        "GapLevelRetest"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BothSidesShallowBreakoutFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The session has already broken beyond one side of the day's range by only a small amount and has now reversed to break beyond the other side by a small amount: fade the second break, expecting a quiet range rather than a trend.",
+      "pseudocode": "shallowBreakoutOccurred(sessionHigh, maxExtension) && low[0] < sessionLow && (sessionLow - low[0]) <= maxExtension * sessionRange && close[0] > open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "maxExtension": 0.15
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "tracks shallow breakouts on both sides within the session plus a size test on each extension"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T22-12"
+      ],
+      "merge_notes": "A two-sided cousin of TwiceFailedBreakoutAttempt (which counts repeated failures on ONE side); kept separate because the second break is on the opposite side, so they never fire on the same bar.",
+      "variants_kept_separate": [
+        "TwiceFailedBreakoutAttempt"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MultiSessionPauseBreakout",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "After a strong multi-session trend leg, price has stayed inside that leg's range without retracing past a fraction of it for up to K sessions; a breakout beyond the pause range in the leg's original direction is a high-conviction trend-resumption entry.",
+      "pseudocode": "priorLegDirection == 1 && sessionsSincePriorLeg <= maxPauseSessions && retracementSincePriorLeg <= maxRetraceFraction * priorLegHeight && close[0] > pauseRangeHigh",
+      "sides": "mirrored",
+      "parameters": {
+        "maxPauseSessions": 10,
+        "maxRetraceFraction": 0.5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "cross-session state remembering a leg's direction, height and the pause range it settled into, over many sessions"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Date",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T25-06"
+      ],
+      "merge_notes": "The pause need not be a single tight box the whole time, which is why the state is a retracement cap rather than a range detector -- that keeps it out of the trading-range design decision.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PullbackDepthMaturity",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Once pullbacks within a trend grow past a threshold -- an ATR multiple, or a multiple of the trend's own earlier pullbacks -- read the trend as maturing into a trading range and fade new breakouts rather than take them with-trend.",
+      "pseudocode": "recentPullbackDepth(lookback) >= pullbackAtrThreshold * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "pullbackAtrThreshold": 2.0,
+        "atrLookback": 14,
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'pullback depth' has no bar-level definition and neither source gives a threshold"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP1-18",
+        "V03-14",
+        "V02-27",
+        "T00-31",
+        "T24-06"
+      ],
+      "merge_notes": "Same claim in two books with two yardsticks: RP1-18 measures pullback depth against ATR (threshold 2.0, its own invention), V03-14 against the trend's own earlier average pullback (no number given at all). One rule once 'pullback depth' is defined; the yardstick is the parameter.",
+      "variants_kept_separate": [
+        "SidewaysAfterBreakout"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "pullback depth measure"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SidewaysAfterBreakout",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "After a breakout, price goes sideways in a tight overlapping range for several bars instead of extending or reversing hard: read it as profit-taking and expect a pullback buy rather than a reversal or a clean continuation.",
+      "pseudocode": "(highest(high, sidewaysBars) - lowest(low, sidewaysBars)) <= sidewaysRangeThreshold * atr(atrLookback)",
+      "sides": "same",
+      "parameters": {
+        "sidewaysBars": 5,
+        "sidewaysRangeThreshold": null,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "'goes sideways' has no Brooks-given numeric threshold; the range/ATR ratio has to be chosen"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V03-12",
+        "V02-29"
+      ],
+      "merge_notes": "Blocked on the same tight-range threshold that BarbwireBreakoutFade needs; if that decision picks an N-bar-width-over-ATR form, this becomes an A-grade rule with one parameter.",
+      "variants_kept_separate": [
+        "PullbackDepthMaturity",
+        "BarbwireBreakoutFade"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "tight trading range / barbwire definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TradingRangeBreakoutContextGate",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Whether to follow or fade a breakout depends on the regime: follow breakouts in the direction of an established trend (and when the trend has clearly resumed before the breakout), fade them while the market is in a trading range.",
+      "pseudocode": "inTradingRange(rangeLookback) ? blockBreakoutEntry : (largerTrendDirection == breakoutDirection ? allowBreakoutEntry : blockBreakoutEntry)",
+      "sides": "mirrored",
+      "parameters": {
+        "rangeLookback": 40
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs both a trading-range detector and an always-in direction, each its own design decision"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "AdxBelowThreshold",
+        "relation": "variant",
+        "note": "the catalog's low-trend regime filter is one candidate mechanization of the trading-range half; it is not what any of these sources says"
+      },
+      "sources": [
+        "R02-11",
+        "RP3-14",
+        "RP4-13",
+        "V09-11",
+        "T01-04",
+        "V04-16"
+      ],
+      "merge_notes": "Six statements of one gate, differing only in which half they emphasize. V09-11 and T01-04 give the range half (fade breakouts while ranging; T01-04 writes it as an explicit block on close-beyond-the-extreme entries); RP3-14 and RP4-13 give the trend half (weight with-trend breakouts, and only take the range's with-trend breakout once the trend has already resumed); R02-11 states trend resumption as a strength sign; V04-16 states the same gate for spikes (with-trend spikes need no retest, countertrend spikes do). Both halves reduce to the two standing design decisions, so they are one blocked rule rather than six. RP4-13's 'clearly started to resume' IS the always-in decision, in the book's own words.",
+      "variants_kept_separate": [
+        "BarbwireBreakoutFade",
+        "FadeMinorBreakoutInStrongTrend"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / prevailing trend direction",
+        "trading-range classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BarbwireBreakoutFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Fade the first single-trend-bar breakout out of a barbwire (tight, overlapping) trading range: it usually fails and the range pulls price back in.",
+      "pseudocode": "isBarbwire(barbwireLookback, overlapFraction)[1] && isBullTrendBar(0, bodyFraction) && !isBullTrendBar(1, bodyFraction) && low[0] > barbwireHigh[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "barbwireLookback": 10,
+        "overlapFraction": 0.5,
+        "bodyFraction": 0.7,
+        "maxBars": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the barbwire detector is research-grade; the single-bar-breakout test and the fade trigger on top of it are moderate"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R12-16",
+        "R22-09",
+        "T07-32"
+      ],
+      "merge_notes": "Three statements of the same fade. R22-09 gives the most specific trigger (exactly ONE trend bar breaks out -- two or more consecutive same-direction trend bars is a real breakout, not a fade) and is the definition kept; R12-16 states it as a filter on the first attempt out of barbwire; T07-32 waits for a later close back inside the range, which is FailedBreakoutReversal applied to the barbwire level rather than a distinct rule. All three inherit the barbwire detector, which is the single blocking decision.",
+      "variants_kept_separate": [
+        "FailedBreakoutReversal",
+        "SidewaysAfterBreakout",
+        "SpikeFadeAtRangeExtreme"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "tight trading range / barbwire definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SpikeFadeAtRangeExtreme",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Fade a spike that reaches the far extreme of a trading range: buy at the market or on a limit at the bear spike's low when it arrives at the range bottom.",
+      "pseudocode": "isBearSpike[1] && isAtBottomOfTradingRange[1] && low[0] <= low[1]",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "both 'bottom of a trading range' and the spike classification are research-grade context concepts"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-10"
+      ],
+      "merge_notes": "Once the trading-range decision lands, the range-location half becomes a comparison against the range extreme and this drops to B. The spike half can borrow SpikeWithoutPullback rather than needing its own classification.",
+      "variants_kept_separate": [
+        "BarbwireBreakoutFade",
+        "CounterSpikeIntoEmaSupportEntry",
+        "RangeBreakoutTestLimitEntry"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "trading-range classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "RangeBreakoutTestLimitEntry",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "On a trending trading range day, rest a limit order a fixed distance beyond the high of the previous sub-range, anticipating a test of that breakout level from the far side.",
+      "pseudocode": "isTrendingRangeDay[0] && limitPrice = lowerRangeHigh + breakoutTestDistance; high[0] >= limitPrice",
+      "sides": "mirrored",
+      "parameters": {
+        "breakoutTestDistance": 5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the trending-trading-range-day classification and tracking of each sub-range's boundary"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R28-36"
+      ],
+      "merge_notes": "The level test is BreakoutLevelRetest with the level taken from a sub-range boundary; what blocks it is identifying the sub-ranges, which is the trading-range decision applied twice within one session.",
+      "variants_kept_separate": [
+        "BreakoutLevelRetest",
+        "SpikeFadeAtRangeExtreme"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "trading-range classification"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FadeMinorBreakoutInStrongTrend",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a strong established trend or channel, fade every countertrend one-bar breakout directly: sell at or a few ticks above the prior bar's high in a bear trend, buy at or below the prior bar's low in a bull trend, without waiting for a labelled count.",
+      "pseudocode": "alwaysInShort && high[0] > high[1] + fadeOffsetTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "fadeOffsetTicks": 0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the price test is a single fixed-offset comparison; everything hard is in classifying 'strong trend or channel'"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "LaggedHigherHigh",
+        "relation": "variant",
+        "note": "the catalog rule is exactly the higher-high half at lag 0; this adds the always-in gate that decides which side to take, so it is that rule under a regime filter rather than a new price test"
+      },
+      "sources": [
+        "R17-10"
+      ],
+      "merge_notes": "The mined note is right that this is the same higher-high trigger as the H1/L1 counting rules, traded the other way because the trend context flips which side is favoured -- so the whole rule is the always-in gate. Blocked on that decision alone.",
+      "variants_kept_separate": [
+        "TradingRangeBreakoutContextGate",
+        "FadePullbackInternalLegBreakout"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / prevailing trend direction"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FadePullbackInternalLegBreakout",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "When a countertrend pullback inside a larger trend breaks beyond one of its own internal swings, expect that break to fail: fade it back toward the major trend.",
+      "pseudocode": "alwaysInLong && withinCountertrendPullback && low[1] < pullbackLegLow(legIndex) && close[0] > pullbackLegLow(legIndex)",
+      "sides": "mirrored",
+      "parameters": {
+        "legIndex": 1,
+        "pivotStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the outer trend direction plus swing pivots internal to an in-progress pullback"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP1-17",
+        "TP3-29"
+      ],
+      "merge_notes": "Same trade in two books: TP3-29 is the concrete case (a two-legged pullback whose second leg breaks the first leg's low, then closes back above it -- a failed breakout inside the pullback), RP1-17 is the general filter (do not buy the pullback's own internal breakout, expect it to fail). TP3-29 wins the definition because it names the level (the first leg's swing low) and the trigger (close back above it). Both need the outer always-in read and pullback-internal pivots.",
+      "variants_kept_separate": [
+        "FadeMinorBreakoutInStrongTrend",
+        "FailedBreakoutReversal"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / prevailing trend direction",
+        "leg definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FadeWeakReversalAgainstSpike",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a bull trend, a bear trend bar whose range is small relative to the bull spike that preceded it is likely to fail as a reversal: buy at its close or above its high.",
+      "pseudocode": "alwaysInLong && close[0] < open[0] && (high[0] - low[0]) <= weakFraction * (highest(high, spikeLookback)[1] - lowest(low, spikeLookback)[1])",
+      "sides": "mirrored",
+      "parameters": {
+        "weakFraction": 0.5,
+        "spikeLookback": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the size comparison is a plain window range ratio; the always-in gate is what blocks it"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP1-08"
+      ],
+      "merge_notes": "The price half is cheap enough to author now; it is C only because the direction of the fade comes entirely from the trend read. If the always-in decision lands on a two-strong-trend-bars flip, this becomes A.",
+      "variants_kept_separate": [
+        "WeakFollowThroughBarRequiresPullback"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / prevailing trend direction"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FadeHighNSetupAfterWeakSpike",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "When a High1/High2 buy setup (or the mirrored Low1/Low2) follows a weak spike, take the opposite side at the setup bar's extreme instead of the literal with-spike signal.",
+      "pseudocode": "isHighNSetup[0] && isWeakSpike[0] && low[0] < setupBarLow - tickSize",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "hard",
+        "reason": "depends on the High1/High2/Low1/Low2 counting primitives, which need pivot and leg detection, on top of a weak-spike classification"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R32-02"
+      ],
+      "merge_notes": "The chapter's central repeated pattern (Figure 32.1 bars 16-30): a countertrend or with-weak-spike setup is more tradeable faded than taken at face value. Blocked on the leg/High-N definition, which the leg_counting bucket owns.",
+      "variants_kept_separate": [
+        "FadePullbackInternalLegBreakout"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "leg definition"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CountertrendSpikeInPullbackWarning",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A pullback against an established trend that contains its own multi-bar spike (large countertrend bars with little overlap) warns that the pullback may become a full reversal rather than a normal correction: stop taking with-trend entries.",
+      "pseudocode": "alwaysInLong && for k in 0..counterSpikeBars-1: close[k] < open[k] && (open[k] - close[k]) >= sizeMultiple * avgBody(lookback) && overlapFraction(k) <= maxOverlap",
+      "sides": "mirrored",
+      "parameters": {
+        "counterSpikeBars": 2,
+        "maxOverlap": 0.3,
+        "sizeMultiple": 1.5,
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the prevailing trend read plus a spike test applied specifically to the pullback leg"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T24-05"
+      ],
+      "merge_notes": "The spike test itself is a fixed-window scan; what makes it C is needing to know the prevailing trend so 'countertrend' has a meaning. Its session-scoped consequence (lock trading to the new direction for the rest of the day) was mined separately as T24-07 and dropped as a bare gate.",
+      "variants_kept_separate": [
+        "SpikeWithoutPullback",
+        "FadeWeakReversalAgainstSpike"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "always-in / prevailing trend direction"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StairsPriorExtensionFade",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "In a detected stairs pattern, scale into the fade once price trades a fraction of the PRIOR leg's extension size beyond the most recent swing, anticipating the usual breakout-test pullback.",
+      "pseudocode": "stairsDetected && low[0] <= swingLow(pivotStrength)[1] - fadeFraction * priorLegExtension",
+      "sides": "mirrored",
+      "parameters": {
+        "fadeFraction": 0.7,
+        "pivotStrength": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "reads the stairs leg-extension history and projects a fraction of it as an offset from the last swing"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "T26-05"
+      ],
+      "merge_notes": "Kept apart from StairsBreakoutFade: that fires on a trend bar closing beyond the last stair, this fires at a measured price offset beyond it regardless of bar shape, so they take different fills on the same leg. The book restricts this one to experienced traders and sends beginners to the stop-entry form (T26-07).",
+      "variants_kept_separate": [
+        "StairsBreakoutFade"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "stairs pattern detection"
+      ],
+      "depends_on_keys": []
+    },
+    {
+      "key": "BreakoutPoint",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar closes above the highest high of the prior N bars -- the breakout point that the rest of this bucket remembers and tests.",
+      "pseudocode": "close[0] > highest(high, lookback)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a highest-high window over bars 1..N"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "CloseAbovePriorHighestHigh",
+        "relation": "duplicate",
+        "note": "the catalog rule is close above Highest(High, N)[1] / below Lowest(Low, N)[1], bars 1..N excluding the current bar -- the same bars, same sides, same input. At lookback=1 both degenerate to CloseAbovePriorHigh(1)."
+      },
+      "sources": [
+        "RP1-03"
+      ],
+      "merge_notes": "Mined as a shared primitive so later chapters could refer to it; already authored. Do not author again -- the authoring pass should point the level-remembering rules in this bucket at CloseAbovePriorHighestHigh.",
+      "variants_kept_separate": [
+        "StrictBreakoutDefinition"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "StrictBreakoutDefinition",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar's HIGH exceeds the highest high of a long lookback window -- the loosest breakout test, approximating 'a new high versus any prior bar'.",
+      "pseudocode": "high[0] > highest(high, allBarsLookback)[1]",
+      "sides": "mirrored",
+      "parameters": {
+        "allBarsLookback": 500
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a highest-high window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "HighestHighBreakout",
+        "relation": "duplicate",
+        "note": "the catalog rule is high at or above the highest high of the last N bars (current bar included), which is high[0] >= highest(high, N-1)[1] -- the same bars up to the >= / > boundary the catalog rule already documents as the '=' trap"
+      },
+      "sources": [
+        "R02-33"
+      ],
+      "merge_notes": "Kept apart from BreakoutPoint because it tests the HIGH, not the close, so the two fire on different bars; both are already in the corpus. The 500-bar lookback is the mining pass's stand-in for 'any prior bar' and is just the existing rule's input at a large value.",
+      "variants_kept_separate": [
+        "BreakoutPoint"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "R02-29",
+      "reason": "composition of PullbackBeyondBreakoutPoint + absence of a micro gap in the spike (breakouts_volume_gap); neither half is new here"
+    },
+    {
+      "id": "R21-07",
+      "reason": "composition of BreakoutLevelRetest/BreakoutPullbackEntry + a near-the-range-bottom location test (context_regime_trading_range)"
+    },
+    {
+      "id": "T01-08",
+      "reason": "composition of FailedBreakoutReversal + a time-of-day window (the catalog's TimeWindow); no new bar-level test"
+    },
+    {
+      "id": "T25-04",
+      "reason": "composition of FailedBreakoutReversal + T25-03's tight-midday-range state + a morning-trend-direction read"
+    },
+    {
+      "id": "V13-04",
+      "reason": "composition of a gap-up-session detector (breakouts_volume_gap) + a failed new-high test; its own failure term (close below the bar's own high) is degenerate"
+    },
+    {
+      "id": "VP1-24",
+      "reason": "composition of FailedBreakoutReversal + a trend-line break (lines_channels_trendlines); the relabelling as a new-direction pullback adds no bar-level condition"
+    },
+    {
+      "id": "T18-07",
+      "reason": "composition of an active-bull-spike state (context_regime) + a buy-climax block (climax_reversal) + a first-pullback H1 test (leg_counting)"
+    },
+    {
+      "id": "T24-07",
+      "reason": "a bare gate on T24-06's state (block original-trend entries for the session); no bar-level test of its own"
+    },
+    {
+      "id": "RP4-11",
+      "reason": "not mechanizable: the choice between the aggressive close-fade and the conservative stop-entry is trader experience, and for an automated system it collapses to this project's standing signal-bar-close-then-next-open convention"
+    },
+    {
+      "id": "R28-47",
+      "reason": "not mechanizable: 'additional qualifying context' is an open enumeration of the chapter's other setups, with no bar-level test"
+    },
+    {
+      "id": "R05-09",
+      "reason": "composition of a session-open time window (time_session) + a breakout fade; 'trend day' and 'a few bars' carry the whole claim and neither is defined here"
+    },
+    {
+      "id": "R15-02",
+      "reason": "composition of R15-01's 11:00-11:30 time window + a trend-strength read + a countertrend spike/climax detector"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "V16-12",
+      "belongs_in": "time_session",
+      "note": "a pure session-elapsed-fraction gate (middle third of the day), with no breakout term of its own; a portable variant of the catalog's TimeWindow"
+    },
+    {
+      "id": "TP1-07",
+      "belongs_in": "leg_counting",
+      "note": "a failed high-N: needs the leg/pivot state that produced the high-N entry, not a breakout level"
+    },
+    {
+      "id": "T01-05",
+      "belongs_in": "leg_counting",
+      "note": "the book's core high 1 / high 2 / low 1 / low 2 leg-counting primitive, introduced here and used throughout the trilogy"
+    },
+    {
+      "id": "V01-10",
+      "belongs_in": "leg_counting",
+      "note": "an ordinal counter over pullbacks since a breakout ('first pullback', 'third entry'), i.e. leg counting keyed to a breakout"
+    },
+    {
+      "id": "R14-06",
+      "belongs_in": "exits_targets",
+      "note": "a profit target at the trend's prior extreme plus a partial-profit instruction; the breakout only supplies the context"
+    },
+    {
+      "id": "R08-10",
+      "belongs_in": "exits_targets",
+      "note": "a measured-move target projected from the breakout bar's midpoint -- a target computation, not a breakout or retest test"
+    },
+    {
+      "id": "R28-43",
+      "belongs_in": "exits_stops",
+      "note": "protective-stop placement a few ticks beyond a trend line / channel line / range extreme; the failed-breakout allowance is only the sizing rationale"
+    },
+    {
+      "id": "VP1-03",
+      "belongs_in": "lines_channels_trendlines",
+      "note": "a test of the OLD trend's swing extreme gated on a trend-line break; the level and the gate are both trend-line concepts, not breakout points"
+    },
+    {
+      "id": "T26-02",
+      "belongs_in": "lines_channels_channels",
+      "note": "same stairs-breakout fade as lines_channels_channels StairsBreakoutFade, which owns the stairs family; folded there in reconciliation"
+    },
+    {
+      "id": "T26-07",
+      "belongs_in": "lines_channels_channels",
+      "note": "same stairs-breakout fade as lines_channels_channels StairsBreakoutFade, which owns the stairs family; folded there in reconciliation"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "always-in / prevailing trend direction",
+      "options": [
+        "two consecutive strong trend bars in the same direction flip the always-in state (V15-01 family)",
+        "majority of the last N closes on one side of the EMA",
+        "the direction of the most recent breakout beyond an N-bar range",
+        "the last swing structure (higher highs and higher lows) still intact"
+      ],
+      "recommended": "two consecutive strong trend bars flip the state -- it is the test Brooks states most often, it needs no pivots, and every rule blocked on it here only needs a direction, not a strength score",
+      "gates": [
+        "TradingRangeBreakoutContextGate",
+        "FadeMinorBreakoutInStrongTrend",
+        "FadePullbackInternalLegBreakout",
+        "FadeWeakReversalAgainstSpike",
+        "CountertrendSpikeInPullbackWarning"
+      ]
+    },
+    {
+      "topic": "trading-range classification",
+      "options": [
+        "N-bar width over ATR below a threshold (a width test)",
+        "average bar overlap over the last N bars above a fraction (an overlap test)",
+        "no close beyond the N-bar high or low for K bars (a containment test)",
+        "the catalog's AdxBelowThreshold as a proxy"
+      ],
+      "recommended": "N-bar width over ATR -- it is one comparison, it reuses WFSafe_AvgTrueRange which the corpus already has, and it also settles SidewaysAfterBreakout's missing threshold. The overlap test should be measured against it before either is adopted, since the two are assumed to coincide and nobody has checked",
+      "gates": [
+        "TradingRangeBreakoutContextGate",
+        "SpikeFadeAtRangeExtreme",
+        "RangeBreakoutTestLimitEntry"
+      ]
+    },
+    {
+      "topic": "tight trading range / barbwire definition",
+      "options": [
+        "N mostly-overlapping bars with at least one doji among them (Brooks's own description)",
+        "N-bar width below a fraction of ATR (the width form, shared with the trading-range decision)",
+        "average body over average range below a threshold across N bars"
+      ],
+      "recommended": "the N-bar-width-over-ATR form at a tighter threshold than the plain trading-range decision, so barbwire is a parameterization of that detector rather than a second detector",
+      "gates": [
+        "BarbwireBreakoutFade",
+        "SidewaysAfterBreakout"
+      ]
+    },
+    {
+      "topic": "pullback depth measure",
+      "options": [
+        "the largest drawdown from the running high since the trend began, in ATR",
+        "the depth of the last completed pullback measured pivot to pivot, in ATR",
+        "the ratio of the current pullback's depth to the average of the trend's earlier pullbacks (V03-14's form, needs a pullback history)"
+      ],
+      "recommended": "drawdown-from-running-high in ATR over a fixed lookback -- it needs no pivots and no per-trend history, and RP1-18 already states its threshold (2.0 ATR) in those terms",
+      "gates": [
+        "PullbackDepthMaturity"
+      ]
+    },
+    {
+      "topic": "leg definition",
+      "options": [
+        "the H1/H2 persistent counter (a bar trading above the prior bar's high starts/advances the count, a new low resets it)",
+        "swing pivots at a fixed strength, legs measured pivot to pivot",
+        "closes beyond the prior leg's extreme"
+      ],
+      "recommended": "the persistent H1/H2 counter -- it needs no pivot search and no lookahead, and the leg_counting bucket owns the primitive, so this bucket should consume whatever it settles on rather than define its own",
+      "gates": [
+        "FadeHighNSetupAfterWeakSpike",
+        "FadePullbackInternalLegBreakout"
+      ]
+    },
+    {
+      "topic": "stairs pattern detection",
+      "options": [
+        "three or more successive swings in one direction where each pullback overlaps the prior leg by more than a fraction",
+        "a broad channel: successive higher highs and higher lows with the pullbacks exceeding a fraction of the prior leg",
+        "treat stairs as a trending trading range and reuse whatever the trading-range decision produces"
+      ],
+      "recommended": "reuse the trading-range detector in its trending form rather than build a third pattern matcher; only if that fails to separate stairs from a plain channel is a dedicated overlap-based detector worth the machinery",
+      "gates": [
+        "StairsBreakoutFade",
+        "StairsPriorExtensionFade"
+      ]
+    }
+  ],
+  "bucket_summary": "110 candidates collapsed to 43 rules. The bucket is dominated by four ideas restated across all three volumes -- the breakout level and its retest, the breakout pullback entry, the failed breakout, and the failure of that failure -- and each collapsed hard: 7 candidates into BreakoutLevelRetest, 8 into FailedBreakoutReversal, 5 into EntryPriceRetest, 5 into TwiceFailedBreakoutAttempt, 4 each into SpikeWithoutPullback and FailedFailureResumption. Mechanizability picked the winners: RP1-19's fixed three-bar form for BreakoutLevelRetest, T04-02/T21-79's window-plus-short-scan for FailedBreakoutReversal, T15-44's fixed offsets for FailedFailureResumption, and V02-04's window scan for SpikeWithoutPullback, all of which avoid the persisted-level machinery their siblings assume. The A-list is 11 rules that need nothing beyond OHLC, one Highest/Lowest window, or ctx.EntryPrice(); the 13 C rules are almost all blocked on just two standing decisions, always-in direction and trading-range classification, and several (FadeWeakReversalAgainstSpike, SpikeFadeAtRangeExtreme, FadeMinorBreakoutInStrongTrend) become trivial the moment those land. Two candidates are already in the corpus (CloseAbovePriorHighestHigh, HighestHighBreakout) and are marked D."
+}

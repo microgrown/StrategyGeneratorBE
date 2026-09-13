@@ -1,0 +1,568 @@
+{
+  "bucket": "support_resistance_levels",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "RoundNumberProximity",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close is within a tick tolerance of a round price level -- a multiple of roundStep. Identical both sides. Brooks's most concrete magnet: price is drawn to the round number and usually overshoots it slightly before pulling back.",
+      "pseudocode": "nearestRound = round(close[0] / roundStep) * roundStep; absValue(close[0] - nearestRound) <= toleranceTicks * tickSize",
+      "sides": "same",
+      "parameters": {
+        "roundStep": 100,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "modular price arithmetic on the current bar; no window, no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AbsValue",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "Nothing in the catalog tests proximity to a constructed price level."
+      },
+      "sources": [
+        "R10-18",
+        "V22-03"
+      ],
+      "merge_notes": "R10-18's proximity test wins outright -- it is the only trivially mechanizable magnet in the bucket. V22-03 is the same level construction from the Reversals volume with a 5 to 10 percent overshoot target added; the overshoot half is not carried, because Brooks's own two examples sit at wildly different price scales (FCX at 93 heading for 100, AAPL stalling below 300) and picking the scale is a per-instrument judgement, not a computation. roundStep is likewise instrument-specific and must be set per symbol -- 100 suits a three-figure stock, 1000 the Dow, and a futures contract will want something else entirely. This rule sets the touch convention used across this file (see TouchOfRecentExtreme's notes): a level counts as tested only when price actually reaches it.",
+      "variants_kept_separate": [
+        "TouchOfRecentExtreme",
+        "FibonacciRetracementLevel",
+        "DailyPivotProximity"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TouchOfRecentExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar trades up to the highest high of the N bars ending one bar ago, within a tick tolerance (mirrored: down to the lowest low). A recent swing extreme is the magnet the market most often comes back to test -- and the level a double top or double bottom forms at.",
+      "pseudocode": "level = highest(high, lookback)[1]; high[0] >= level - toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one offset window extreme and a comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "HighestHighBreakout",
+        "relation": "variant",
+        "note": "At toleranceTicks 0 the two fire on nearly the same bars -- HighestHighBreakout's window includes the current bar, so it means 'this bar made the N-bar high', which is this rule's boundary case. The tolerance band is the difference and it is the whole point: Brooks wants the bars that REACH the level, including those that stop a tick short of taking it out. Also near CloseAbovePriorHighestHigh, which tests the close rather than the high."
+      },
+      "sources": [
+        "R10-06",
+        "V16-02",
+        "R09-03",
+        "TP2-03"
+      ],
+      "merge_notes": "R10-06's window form is taken over any pivot search, per the most-mechanizable rule -- its own miner already proposes highest/lowest as the proxy for a recent swing extreme. V16-02, sent here as a stray from ema_relations, is the general touch requirement ('traders do not feel confident about the test unless the market gets that extra tick and actually touches the magnet') and is absorbed as the convention this whole file follows: every level rule here uses a one-sided reach test against the level with a tick margin, never a two-sided band on the close. Its default marginTicks 0 is the strict reading; 1 is kept here as R10-06's. R09-03, a stray from bar_anatomy_reversal_signal, wants the highest of all FAILED reversal signal bars recorded across the prior leg as the target; that needs a persisted set of levels spanning a whole trend, and the highest high of a long window reaches the same price in practice, so the window form wins and R09-03 is a citation. Note the role split: R09-03 and R10-06 were both mined as Exits (a target), R10-06's text is an entry context. Authored as an Entry the rule can sit in either pane as a level test; if a price-level EXIT is wanted, the pattern is RangeMidpointTarget (context_regime_trading_range).",
+      "variants_kept_separate": [
+        "RoundNumberProximity",
+        "NearAnyLevel",
+        "ReversalShortOfPriorExtreme"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "FibonacciRetracementLevel",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar trades down to a Fibonacci retracement of the last N bars' range -- level = windowHigh - ratio * (windowHigh - windowLow) -- within a tick tolerance (mirrored for the short). Mirrored.",
+      "pseudocode": "swingHigh = highest(high, lookback)[1]; swingLow = lowest(low, lookback)[1]; level = swingHigh - fibRatio * (swingHigh - swingLow); low[0] <= level + toleranceTicks * tickSize",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 20,
+        "fibRatio": 0.618,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two offset window extremes, one multiply, one comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "TwoBarRangePosition and CloseRangePosition place the close inside a range as a ratio; this constructs a price from a ratio and tests whether the bar reached it."
+      },
+      "sources": [
+        "RP2-03",
+        "R10-17",
+        "TP1-11"
+      ],
+      "merge_notes": "Three statements, one rule with the ratio as a parameter: RP2-03 gives 0.618 off pivot-anchored swings, R10-17 gives 0.5 off highest/lowest windows, TP1-11 gives 0.62 off the first leg of a new trend. R10-17's window anchoring wins over RP2-03's and TP1-11's swing pivots on the most-mechanizable rule -- and the pivotStrength those two would need is itself an unmade decision. 0.618 is the default because two of the three sources land there and it is the ratio Brooks names first. Brooks is openly sceptical of these levels ('most are just approximations and most fail', TP1-11) and warns against resting a limit order at one; that is a caveat for the authoring pass, not a reason to drop a concrete bar-level test. Fibonacci EXTENSIONS (127%, 161.8%, named by R10-17) are the same arithmetic with the ratio above 1 -- reachable by moving fibRatio, so no second rule.",
+      "variants_kept_separate": [
+        "TouchOfRecentExtreme",
+        "RoundNumberProximity"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ReversalShortOfPriorExtreme",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Price turned back down without ever reaching the resistance above it: the highest high of the last few bars stayed at least X ticks below the prior window's high, and this bar closed down. Brooks reads the failure to even reach the level as strength in the sellers. Mirrored.",
+      "pseudocode": "level = highest(high, levelLookback)[recentLookback + 1]; highest(high, recentLookback)[0] < level - untouchedTicks * tickSize && close[0] < open[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "recentLookback": 5,
+        "levelLookback": 20,
+        "untouchedTicks": 2
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two window extremes, one offset, one bar-direction test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "R02-35"
+      ],
+      "merge_notes": "The exact opposite polarity of the touch convention this file otherwise uses: here the SIGNAL is that the level was NOT reached. The mined form leans on 'a remembered resistance level'; it is mechanized here off the same offset window extreme as TouchOfRecentExtreme, so the two share a level construction and can be compared directly. bar_anatomy_reversal_signal has already merged NearMissLevelReversal from V16-04, which is the same near-miss idea from the Reversals volume -- the roll-up should compare the two and probably keep one; kept here because R02-35 is this bucket's own id and dropping it would lose the Ranges-volume statement.",
+      "variants_kept_separate": [
+        "TouchOfRecentExtreme",
+        "NearMissLevelReversal"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DailyPivotProximity",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close is within a tick tolerance of the classic floor-trader daily pivot, (priorDayHigh + priorDayLow + priorDayClose) / 3. Identical both sides.",
+      "pseudocode": "pivot = (priorSessionHigh + priorSessionLow + priorSessionClose) / 3; absValue(close[0] - pivot) <= toleranceTicks * tickSize",
+      "sides": "same",
+      "parameters": {
+        "toleranceTicks": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "on an intraday series it needs the prior session's high, low and close carried across the session boundary; on a daily series it is (high[1] + low[1] + close[1]) / 3, which is trivial"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Time",
+        "Date",
+        "AbsValue",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "CloseWithinAtrOfVwap",
+        "relation": "variant",
+        "note": "Both test proximity to a session-derived reference. CloseWithinAtrOfVwap tracks the CURRENT session's volume-weighted price and scales its band by ATR; this reads three fixed values from the COMPLETED prior session and uses a tick band."
+      },
+      "sources": [
+        "RP2-02"
+      ],
+      "merge_notes": "A stray sent here from swing_structure, and it fits: it is another constructed level in a file of constructed levels. Brooks writes only 'daily pivots' and names no formula, so the classic (H + L + C) / 3 is chosen -- the one everyone means by the bare phrase, and the only one of the three families (classic / Woodie / Camarilla) that needs no extra weighting choice. R1/S1 and the wider bands are deliberately not carried; add them as a ratio input if the base level tests out. On a daily (M1440) series this collapses to a prior-bar expression and is priority A work; it is graded B for the intraday case, which needs the session boundary.",
+      "variants_kept_separate": [
+        "RoundNumberProximity",
+        "TouchOfRecentExtreme"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NearAnyLevel",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close is within K ATRs of ANY of the mechanized levels -- the N-bar extreme above or below, the nearest round number, or the EMA. Identical both sides. Brooks's meta-filter: a reversal signal at a level is worth more than the same signal in open space.",
+      "pseudocode": "tol = magnetToleranceAtr * atr(atrLookback)[0]; absValue(close[0] - highest(high, lookback)[1]) <= tol || absValue(close[0] - lowest(low, lookback)[1]) <= tol || absValue(close[0] - (round(close[0] / roundStep) * roundStep)) <= tol || absValue(close[0] - ema(close, emaLength)[0]) <= tol",
+      "sides": "same",
+      "parameters": {
+        "magnetToleranceAtr": 0.5,
+        "atrLookback": 14,
+        "lookback": 20,
+        "roundStep": 100,
+        "emaLength": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "an OR over four level constructions, one of which needs an EMA; each term is simple on its own"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange",
+        "XAverage",
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "DayOfWeekAnyOf",
+        "relation": "variant",
+        "note": "Not the same subject, but the same structural argument: DayOfWeekAnyOf exists precisely because entry panes AND, so an OR of alternatives cannot be composed from separate placements. This rule earns its keep for the same reason."
+      },
+      "sources": [
+        "R06-14",
+        "V19-11",
+        "R09-05"
+      ],
+      "merge_notes": "Deliberately carried as a composite despite 'atomic beats composite', because the pane system ANDs entries: RoundNumberProximity AND TouchOfRecentExtreme AND EmaTouch requires ALL of them to be true, which is not what Brooks means. He means any one of them. That OR is unreachable from the parts, so it is a rule. All three sources say the same thing at different levels of generality -- R06-14 ('the closer the market gets to any magnet, the more likely it reaches it'), V19-11 (a named list: EMA, trend lines, channel lines, swing highs and lows especially yesterday's, breakout areas, range boundaries, measured-move targets), R09-05 (only trust a reversal at a key technical level). The level SET is narrowed to the four that are mechanized in this corpus today; trend lines, channel lines and measured-move targets are named by V19-11 but each needs its own bucket's primitive first, and each can be added as another OR term later. Tolerance in ATRs, from R09-05, rather than in ticks -- an OR across heterogeneous levels needs one scale-free band.",
+      "variants_kept_separate": [
+        "RoundNumberProximity",
+        "TouchOfRecentExtreme",
+        "FibonacciRetracementLevel",
+        "EmaTouch"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "RoundNumberProximity",
+        "TouchOfRecentExtreme",
+        "EmaTouch"
+      ]
+    },
+    {
+      "key": "TradeTowardNearestLevelOnly",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "While an untouched level lies within reach ahead of price, permit only entries toward it and block entries away from it, until it is reached. Mirrored.",
+      "pseudocode": "// blocked: needs a level object with a 'reached' flag that persists until the level is touched\nnearestUnreachedLevelAbove - close[0] <= magnetRangeTicks * tickSize && !reached(nearestUnreachedLevelAbove) => allow long only",
+      "sides": "mirrored",
+      "parameters": {
+        "magnetRangeTicks": 40
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "needs a persistent level object -- which levels are tracked, when one is created, and when it counts as reached and retires"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP2-04"
+      ],
+      "merge_notes": "Cannot be reduced to NearAnyLevel: that rule asks whether price is AT a level now, this asks whether an as-yet-untouched level lies ahead in a given direction, which needs the level to be remembered and its reached-flag to persist across bars. Brooks immediately softens it himself ('there still can be reliable trades in both directions'), so it is a bias rather than the hard block the mined pseudocode implies -- worth recording before it is authored. Blocked on the level-object decision (see design_decisions).",
+      "variants_kept_separate": [
+        "NearAnyLevel"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "level object model: which levels are tracked, and when a level counts as reached"
+      ],
+      "depends_on_keys": [
+        "NearAnyLevel"
+      ]
+    },
+    {
+      "key": "SecondOvershootAtLevel",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price has overshot the same level and reversed twice; a strong reversal bar on the second overshoot is the entry against the move. Mirrored.",
+      "pseudocode": "// blocked: needs a level object carrying a count of prior overshoot-and-reverse events at that level\novershootCount(level, overshootTicks) >= 2 && StrongReversalBar[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "overshootTicks": 2,
+        "requiredOvershoots": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a remembered level plus a persistent per-level event counter, then a reversal-bar test"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP2-06",
+        "VP1-04",
+        "R09-04"
+      ],
+      "merge_notes": "A level-specific instance of Brooks's general 'second entries are more reliable' idea, which swing_structure has already merged as DoubleExtreme and MicroDoubleExtreme and which leg_counting carries as the H2/L2 counter -- if the level is taken to be a recent swing extreme, this rule and DoubleExtreme plus a reversal bar are very close, and the roll-up should check whether they coincide before either is authored. Kept as C because the counting is per-level, not per-window, and that needs the level object.",
+      "variants_kept_separate": [
+        "TouchOfRecentExtreme",
+        "DoubleExtreme"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "level object model: which levels are tracked, and when a level counts as reached"
+      ],
+      "depends_on_keys": [
+        "TouchOfRecentExtreme"
+      ]
+    },
+    {
+      "key": "LevelApproachFailureRetest",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Price came close to a level, failed to reach it, and pulled back; trade the pullback in the direction of the original move, expecting a second attempt at the level. Mirrored.",
+      "pseudocode": "// blocked: needs a level object and a record that the approach fell short before the pullback began",
+      "sides": "mirrored",
+      "parameters": {},
+      "complexity": {
+        "grade": "research",
+        "reason": "no bar-level test is given; the concept needs both a level model and a way to record that a prior approach fell short"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V09-09"
+      ],
+      "merge_notes": "Distinct from ReversalShortOfPriorExtreme, which fires ON the failure and trades AGAINST the move; this one waits for the pullback that follows and trades WITH the original move, expecting the level to be reached on the second attempt. Same observation, opposite trade, so both are kept. The mechanizable half is already available -- ReversalShortOfPriorExtreme detects the shortfall -- and what is missing is only the pullback-and-resume leg, so this may fall out cheaply once the level model exists. V09-09's magnet list (measured-move targets, prior swing extremes, trend lines, channel lines) reaches across three other buckets, which is the reason for the C.",
+      "variants_kept_separate": [
+        "ReversalShortOfPriorExtreme",
+        "NearAnyLevel"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "level object model: which levels are tracked, and when a level counts as reached"
+      ],
+      "depends_on_keys": [
+        "NearAnyLevel"
+      ]
+    },
+    {
+      "key": "HigherTimeframeLevelProximity",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close is near a level computed on a HIGHER time frame of the same instrument -- a daily, weekly or monthly swing extreme, bar extreme or moving average. Identical both sides.",
+      "pseudocode": "// blocked: needs a resampled higher-timeframe series\nhigherTfLevel = highest(high, lookback) on the higher-timeframe series; absValue(close[0] - higherTfLevel) <= toleranceTicks * tickSize",
+      "sides": "same",
+      "parameters": {
+        "toleranceTicks": 1,
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "research",
+        "reason": "depends on whether the engine can expose a second, resampled data series at all -- an engine capability question, not an arithmetic one"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "No catalog rule reads a second data series; every one of them works on the traded bars."
+      },
+      "sources": [
+        "R10-16"
+      ],
+      "merge_notes": "The only candidate in the bucket blocked on the engine rather than on a definition. Worth noting for the decision: on the M1440 daily series this repo backtests, R10-16's 'daily swing highs and lows' are simply this file's TouchOfRecentExtreme, already priority A -- only the weekly and monthly levels would need a second series. So the cheap version of this rule already exists, and what is deferred is the genuinely higher frame. R09-05, another source that reaches for a higher-timeframe moving average, is carried by NearAnyLevel using the traded frame's EMA instead.",
+      "variants_kept_separate": [
+        "TouchOfRecentExtreme",
+        "NearAnyLevel"
+      ],
+      "priority": "C",
+      "design_decisions_needed": [
+        "engine support for a resampled higher-timeframe data series"
+      ],
+      "depends_on_keys": [
+        "TouchOfRecentExtreme"
+      ]
+    },
+    {
+      "key": "NotableBarExtremeLevel",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The opposite extreme of a recent notable bar -- a large trend bar, or the signal/entry bar of an earlier setup -- is remembered as a support/resistance level, because the protective stops of the traders who entered there rest just beyond it. The level persists until it is tested: price either turns at it (limit test) or probes a few ticks past it and closes back on the trend side (a stop run).",
+      "pseudocode": "level = low[k] where bar k is the most recent LargeTrendBar or long signal bar within recentBars; testHolds = low[0] <= level + testTicks * tickSize && close[0] > level; stopRun = low[0] < level - runTicks * tickSize && close[0] > level",
+      "sides": "mirrored",
+      "parameters": {
+        "recentBars": 40,
+        "testTicks": 2,
+        "runTicks": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a persistent level recorded at a notable bar and held across bars until tested"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": "no catalog rule remembers a level from an earlier bar"
+      },
+      "sources": [
+        "R10-12",
+        "R10-13",
+        "R28-14"
+      ],
+      "merge_notes": "R10-12 states the level primitive; R10-13 is the stop-run-then-reverse trigger on it; R28-14 is the resting limit a tick or two above the original spike signal-bar high, the same level used as a test. Merged as one rule because the level is the machinery and both triggers are one comparison against it.",
+      "variants_kept_separate": [
+        "SecondOvershootAtLevel"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "LevelTouchCount",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Count how many of the last lookback bars touched the same support/resistance level within a tolerance. A low count means the level is still fresh; once the count reaches minTouches Brooks reads the level either as proven (repeated holds) or as worn out (each test consumes the orders defending it) -- the same measurement, used to favour a bounce or a breakout.",
+      "pseudocode": "touchCount = count over k in 1..lookback of (low[k] <= level + tolAtr * atr[k] && close[k] > level - breakTolAtr * atr[k]); touchCount >= minTouches",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 40,
+        "minTouches": 3,
+        "tolAtr": 0.15,
+        "breakTolAtr": 0.1
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs a level to count against; the count itself is a window scan"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "RP2-07",
+        "T25-08"
+      ],
+      "merge_notes": "RP2-07 (touches weaken the level, favour the breakout) and T25-08 (touches that hold strengthen it) are the same touch counter read with opposite sign, so one rule with a per-placement direction. RP2-07 gives touchesForWeakening, T25-08 gives minTouches; default 3 sits between them.",
+      "variants_kept_separate": [
+        "TrendLineTouchCount"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "RP2-05",
+      "reason": "composition of NearAnyLevel + AlwaysInDirection (context_regime_always_in) + a weak-bar body test (bar_anatomy_trend_doji) -- a weak move toward a magnet, counter to the larger trend, faded"
+    },
+    {
+      "id": "T19-22",
+      "reason": "composition of CloseBeyondEma (ema_relations) + TouchOfRecentExtreme + a trend-line break (lines_channels_trendlines), each by a minimum margin, with no stated count for 'several'"
+    },
+    {
+      "id": "R09-04",
+      "reason": "stray from swing_structure; composition of TouchOfRecentExtreme + a bear reversal bar (bar_anatomy_reversal_signal) -- a double top at the level R09-03 targets, and the double-top pattern itself is already merged in swing_structure as DoubleExtreme"
+    },
+    {
+      "id": "R28-14",
+      "reason": "stray from bar_anatomy_reversal_signal; composition of StrongTrendBarRun (breakouts_signal_strength) + a limit test of a remembered spike signal-bar high, which is TouchOfRecentExtreme at a long lookback; nothing is left that is not carried elsewhere"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "RP2-08",
+      "belongs_in": "breakouts_pullback_retest",
+      "note": "a broken support level becoming resistance and being retested from the other side is exactly the merged BreakoutLevelRetest there (RP1-04, RP1-19, R05-04, R10-07, V09-07, T17-05, T22-09); RP2-08 is the Ranges-volume statement of the same behaviour, generalized to any level type"
+    },
+    {
+      "id": "V16-03",
+      "belongs_in": "ema_relations",
+      "note": "the EMA instance of the touch requirement, already merged there as EmaTouch (T18-01, T15-20, T21-19, R11-14, V13-01, TP3-13, R11-28). Its distinctive claim -- that a fade at the EMA is only valid once the EMA has actually been touched -- is EmaTouch AND-ed as a separate pane, so nothing is lost. The level-agnostic form of the same requirement, V16-02, was sent here as a stray and IS absorbed, in TouchOfRecentExtreme"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "level (magnet) object model -- what counts as a level, and when it is 'reached'",
+      "options": [
+        "no object at all: mechanize each level family as its own stateless rule (round number, N-bar extreme, Fibonacci retracement, daily pivot, EMA) and OR the ones that are cheap, which is what this file does",
+        "a persistent list of level objects, each with a price, a role (support / resistance) and a reached flag, created on swing pivots and breakouts and retired when touched",
+        "a single 'nearest level' scalar recomputed each bar from the cheap families, with no memory of whether it has been touched"
+      ],
+      "recommended": "No object, for everything that can be authored now: five of this bucket's ten rules are stateless level constructions and one (NearAnyLevel) is their OR, and all six are A or B. The four C rules are exactly the ones that need memory -- 'until it is reached' (RP2-04), 'the second overshoot' (RP2-06), 'the approach that fell short' (V09-09) -- and they should wait until the stateless five have been measured, because if the plain level touches show no edge the object model buys nothing. If the object is later built, scope it to the two families that are already mechanized (window extremes and round numbers) rather than to Brooks's full list, and define 'reached' with V16-02's strict reading: the level is tested only when a bar's high or low actually trades to it, not when it comes within a tick.",
+      "gates": [
+        "TradeTowardNearestLevelOnly",
+        "SecondOvershootAtLevel",
+        "LevelApproachFailureRetest"
+      ]
+    },
+    {
+      "topic": "level touch tolerance -- ticks or ATRs",
+      "options": [
+        "a fixed tick margin, as R10-06, R10-17, R10-18, RP2-02 and V16-02 all state it",
+        "a fraction of ATR, as R09-05 states it",
+        "zero margin: the bar must trade through the level exactly (V16-02's strict reading)"
+      ],
+      "recommended": "Ticks for a single-level rule, ATRs for NearAnyLevel. A single family's tolerance is naturally in ticks -- it is a fill-quality question and every source states it that way -- and the strict zero-margin reading is reachable by setting the input to 0. NearAnyLevel is the exception: it ORs levels of very different character, so a scale-free ATR band keeps the round-number term from dominating the window-extreme term on a high-priced instrument.",
+      "gates": [
+        "RoundNumberProximity",
+        "TouchOfRecentExtreme",
+        "FibonacciRetracementLevel",
+        "DailyPivotProximity",
+        "NearAnyLevel"
+      ]
+    },
+    {
+      "topic": "higher-timeframe data",
+      "options": [
+        "no second series: read weekly and monthly levels only if the traded series is already daily",
+        "expose a resampled higher-timeframe series to rules"
+      ],
+      "recommended": "No second series for now. On the M1440 daily bars this repo backtests, R10-16's daily swing levels are already TouchOfRecentExtreme; only weekly and monthly would need new engine capability, and no other candidate in any bucket has asked for it yet.",
+      "gates": [
+        "HigherTimeframeLevelProximity"
+      ]
+    }
+  ],
+  "bucket_summary": "17 candidates and 6 strays, collapsing to 10 rules, 4 drops and 2 cross-bucket sends. The bucket splits cleanly in two: level CONSTRUCTIONS that are stateless arithmetic (round numbers, N-bar extremes, Fibonacci retracements, the daily pivot) and level BEHAVIOURS that need a remembered level with a history (trade only toward it until reached, the second overshoot, the failed approach). The constructions are A and B and can be authored now; the behaviours are the four C rules and all name one decision, the level object model, which is recommended to be deferred until the cheap constructions have been measured. NearAnyLevel is carried as a deliberate composite because entry panes AND and Brooks's meta-filter means any-of. The A-list is RoundNumberProximity, TouchOfRecentExtreme, FibonacciRetracementLevel and ReversalShortOfPriorExtreme. Two ids go elsewhere: RP2-08's role flip is breakouts_pullback_retest's already-merged BreakoutLevelRetest, and V16-03's EMA touch is ema_relations' already-merged EmaTouch."
+}

@@ -1,0 +1,1757 @@
+[
+  {
+    "id": "R00-19",
+    "name": "Barbwire",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "R00-20",
+      "R00-02"
+    ],
+    "depends_on": [
+      "R00-20",
+      "R00-02"
+    ],
+    "pages": [
+      11
+    ],
+    "quote": "barbwire: A trading range of three or more bars that largely overlap and one or more is a doji. It is a type of tight trading range with prominent tails and often relatively large bars.",
+    "description": "Over the last N (>=3) bars, the bars largely overlap (a trading range) and at least one is a doji: a choppy, low-edge context that should suppress fresh with-trend or breakout entries.",
+    "pseudocode": "TradingRangeOver(N) && exists i in [0..N): DojiBar[i]",
+    "sides": "same",
+    "parameters": {
+      "barbwireBars": 3
+    },
+    "book_order_type": "n/a (context filter suppressing entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "depends on a multi-bar trading-range test plus a doji scan"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-20",
+    "name": "TradingRangeBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      15
+    ],
+    "quote": "trading range: The minimum requirement is a single bar with a range that is largely overlapped by the bar before it. It is sideways movement and neither the bulls nor the bears are in control.",
+    "description": "Shared primitive: the current bar's range overlaps the prior bar's range by at least a fraction F of the prior bar's range.",
+    "pseudocode": "overlap = min(high[0], high[1]) - max(low[0], low[1]); overlap >= overlapFraction * (high[1] - low[1])",
+    "sides": "same",
+    "parameters": {
+      "overlapFraction": 0.5
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar range-overlap arithmetic"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is a proxy for the book's single-bar minimum trading-range test, not the full multi-bar regime concept (see R00-48 AlwaysInDirection for that)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-21",
+    "name": "TightTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      15
+    ],
+    "quote": "tight trading range: A trading range of two or more bars with lots of overlap in the bars and in which most reversals are too small to trade profitably with stop entries.",
+    "description": "Over the last N bars, consecutive bars overlap heavily (a stricter, longer-window version of TradingRangeBar): stand aside from with-trend stop entries.",
+    "pseudocode": "for i in 0..lookback-2: (min(high[i], high[i+1]) - max(low[i], low[i+1])) >= tightOverlapFraction * (high[i+1] - low[i+1])",
+    "sides": "same",
+    "parameters": {
+      "lookback": 4,
+      "tightOverlapFraction": 0.6
+    },
+    "book_order_type": "n/a (context filter suppressing entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop of two-bar comparisons"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R02-21",
+    "name": "PriorTradingRangeDays",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The market has been in a trading range for several days.",
+    "description": "Sign of weakness: recent daily bars have been range-bound rather than trending (mirrors R02-12).",
+    "pseudocode": "countRangeDays(dayLookback) >= minRangeDays",
+    "sides": "mirrored",
+    "parameters": {
+      "dayLookback": 10,
+      "minRangeDays": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "‘trading range day’ needs the same design decision as ‘trend day’"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R03-08",
+    "name": "Barbwire",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      48
+    ],
+    "quote": "Bar 5 is the third overlapping bar and at least one of the bars was a doji (all three were). This is barbwire, which is usually a continuation pattern",
+    "description": "Shared primitive: a short run of small, heavily overlapping bars including at least one doji — a tight, directionless micro-range Brooks calls barbwire.",
+    "pseudocode": "countIf(i in [0, barbwireBars - 1): (minList(high[i], high[i + 1]) - maxList(low[i], low[i + 1])) >= overlapThreshold * (high[i + 1] - low[i + 1]), barbwireBars - 1) >= barbwireBars - 1 && existsDoji(barbwireBars, dojiFraction)",
+    "sides": "same",
+    "parameters": {
+      "barbwireBars": 3,
+      "overlapThreshold": 0.6,
+      "dojiFraction": 0.2
+    },
+    "book_order_type": "n/a (bar-pattern classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a windowed overlap test combined with an existence scan for a doji, over a variable-length recent run"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/03_initial_breakout.json",
+    "chapter_title": "Initial Breakout"
+  },
+  {
+    "id": "R07-11",
+    "name": "TradingRangeExtremeFavorsReversionFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      72
+    ],
+    "quote": "when the market is at the bottom of a trading range, the probability favors a move up; and when it is at the top of the range, the probability favors a move down. This is because of market inertia... about 80 percent of attempts to break out of a trading range fail",
+    "description": "Filter: inside an identified trading range, favor long entries near the range's low and short entries near the range's high (fade the extremes) over betting on a breakout.",
+    "pseudocode": "isTradingRange && close[0] <= rangeLow + nearExtremeFraction * (rangeHigh - rangeLow) => favorLongFade; close[0] >= rangeHigh - nearExtremeFraction * (rangeHigh - rangeLow) => favorShortFade",
+    "sides": "mirrored",
+    "parameters": {
+      "nearExtremeFraction": 0.2
+    },
+    "book_order_type": "n/a (context filter favoring fade entries over breakout entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' identification is a design decision; the fade-the-extremes logic itself is simple once the range boundaries exist"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Restates the 'inertia' idea already used in R05-08/RP2-07; this instance emphasizes the specific 80% breakout-failure figure Brooks gives for trading ranges."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07_measured_moves_based_on_the_size_of_the_first.json",
+    "chapter_title": "Measured Moves Based on the Size of the First Leg (the Spike)"
+  },
+  {
+    "id": "R08-13",
+    "name": "TradingRangeHeightTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-06"
+    ],
+    "pages": [
+      76
+    ],
+    "quote": "Most traders use the height of the prior trading range for measuring, which is fine because the exact distance is only approximate no matter how you do it",
+    "description": "After a breakout above an N-bar range, target = rangeHigh + (rangeHigh - rangeLow); exit long when the high reaches it.",
+    "pseudocode": "rangeHigh = highest(high, rangeLookback)[b]; rangeLow = lowest(low, rangeLookback)[b]; target = rangeHigh + (rangeHigh - rangeLow); high[0] >= target - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "profit-taking limit at the projection",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "target frozen at the breakout bar; windows otherwise"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Could be made stateless: exit when high[0] >= 2 * highest(high, N)[k] - lowest(low, N)[k] for the bar k when the breakout happened."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R10-10",
+    "name": "PriorTradingRangeExtremesAndMidpointMagnet",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      81
+    ],
+    "quote": "Trading ranges from earlier in the day or prior days, including tight trading ranges and barbwire: the extremes and the middle often get tested. The approximate middle of the range on a trading range day, especially if there is an intraday trading range in that area (a fat area).",
+    "description": "The top, bottom, and approximate middle of an earlier trading range (today's or a prior day's, including tight ranges/barbwire) are frequently retested; a secondary intraday range inside the middle (a 'fat area') is watched especially closely.",
+    "pseudocode": "rangeHigh = highest(high, rangeLookback); rangeLow = lowest(low, rangeLookback); rangeMid = (rangeHigh + rangeLow) / 2; abs(close[0] - rangeMid) <= toleranceTicks * tickSize  (or close[0] near rangeHigh / rangeLow)",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 40,
+      "toleranceTicks": 1
+    },
+    "book_order_type": "n/a (level construction)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "identifying 'a trading range' at all (vs. a trend) needs a design decision, as does distinguishing barbwire from an ordinary range"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/10_other_magnets.json",
+    "chapter_title": "Other Magnets"
+  },
+  {
+    "id": "R11-22",
+    "name": "TradingRangeEquilibriumBullBearBalance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90,
+      91
+    ],
+    "quote": "The market enters a trading range, and the bull and bear bars are about equally prominent.",
+    "description": "Final stage marker: price is in a trading range and the counts/sizes of bull and bear bars over the range are roughly balanced -- the hallmark that the trend has stalled into two-sided trading.",
+    "pseudocode": "inTradingRange(rangeLookback) && abs(countBullBars(rangeLookback) - countBearBars(rangeLookback)) <= balanceTolerance",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 30,
+      "balanceTolerance": 2
+    },
+    "book_order_type": "n/a (context signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on a trading-range detector, itself a design decision as in the MINING brief's own example"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R11-26",
+    "name": "TradingRangeEntryNearRangeExtremeOnly",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      91
+    ],
+    "quote": "In a bull trend, you can buy if there is a setup near the low of the range, but be careful buying a breakout of the high of the trading range, because bears might be willing to sell a new high and bulls might be beginning to take profits at the high. ... if there is a short setup near the top of the flag, your risk is small and the trade is worth taking.",
+    "description": "Filter: inside a trading range/flag that formed after a run of winning with-trend trades, permit a with-trend entry only near the range's far (trend-origin) extreme, not on a breakout of its near (trend-direction) extreme.",
+    "pseudocode": "inTradingRange(rangeLookback) && close[0] <= rangeLow + nearExtremeAtr * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "nearExtremeAtr": 0.3,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (context filter on where within the range to enter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on a trading-range/flag detector"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R12-15",
+    "name": "BarbwireFailedLow2ScalpBuy",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      99
+    ],
+    "quote": "Bear barbwire often has a failed low 2, and traders can buy below the low 2 signal bar in anticipation of the downside breakout failing. This is a scalp.",
+    "description": "Inside barbwire (a tight, overlapping-bar trading range), buy a stop below a low-2 (two-legged) short-setup signal bar, anticipating that its downside breakout will fail.",
+    "pseudocode": "inBarbwire(barbwireLookback, overlapFraction) && lowTwoSignalBar[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "barbwireLookback": 10,
+      "overlapFraction": 0.5
+    },
+    "book_order_type": "buy stop below the low 2 signal bar's low",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a barbwire detector (developed fully in Chapter 22) plus the low-2 setup"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/12_double_top_bear_flags_and_double_bottom_bull.json",
+    "chapter_title": "Double Top Bear Flags and Double Bottom Bull Flags"
+  },
+  {
+    "id": "R15-04",
+    "name": "TradingRangeDayLateBoundaryTrap",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "R15-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      104,
+      105
+    ],
+    "quote": "This type of trap is common on trading range days as well, where the market has been hovering near one extreme for a couple of hours in what appears to be an incipient breakout, only to make a sharp move to take out the other extreme, and this opposite breakout often fails around 11:30 a.m. PST.",
+    "description": "On a trading-range day, a breakout through the opposite extreme of the day's range near the 11:30 window that fails traps traders on both sides; favor a fade back into the range afterward.",
+    "pseudocode": "isTradingRangeDay() && R15-01 (11:30 window) && breaksOppositeExtremeOfDayRange() && failsToHold() -> fade back into the range",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "stop entry back into the range once the opposite-extreme breakout fails",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range day' has no agreed mechanical definition (per the complexity grade guidance); the rest of the test is otherwise concrete"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/15_key_inflection_times_of_the_day_that_set_up.json",
+    "chapter_title": "Key Inflection Times of the Day That Set Up Breakouts and Reversals"
+  },
+  {
+    "id": "R17-11",
+    "name": "TradingRangeBoundaryCountFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "R17-04"
+    ],
+    "depends_on": [
+      "R17-04"
+    ],
+    "pages": [
+      108
+    ],
+    "quote": "when you are buying a high 2 in a trading range, you are usually looking to buy a reversal where the setup is below the moving average and near the bottom of the range ... it is risky to buy a high 2 above the moving average and near the high of the trading range ... you should instead consider shorting using a limit order at or above the high of the high 2 signal bar.",
+    "description": "In a trading-range context, a High 2 setup that forms above the EMA and near the top of the range is more likely to fail; fade it instead with a limit short at/above the signal bar's high (mirrored: a Low 2 near the bottom of the range in a trading range is a buy fade).",
+    "pseudocode": "isTradingRange() && R17-04[0] && close[0] > ema(emaLength) && close[0] >= (rangeHigh - nearTopFraction * (rangeHigh - rangeLow)) -> sell limit at signal bar high instead of buying it",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "nearTopFraction": 0.25
+    },
+    "book_order_type": "sell limit at/above the high 2 signal bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' has no agreed mechanical definition; the EMA-side and near-boundary tests are otherwise concrete"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/17_bar_counting_high_and_low_1_2_3_and_4_patterns.json",
+    "chapter_title": "Bar Counting: High and Low 1, 2, 3, and 4 Patterns and ABC Corrections"
+  },
+  {
+    "id": "RP4-01",
+    "name": "TradingRangeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      133
+    ],
+    "quote": "The broadest and most useful definition of a trading range is that it is simply an area of two-sided trading. It can be as small as a single bar (a doji bar) or larger than all of the bars on your screen.",
+    "description": "The market is in a trading range: an area of two-sided (both-directions) trading, as opposed to trending. Shared primitive that most of this chapter's candidates depend on; the exact operational test is a design decision (bar overlap, swing-count, MA flatness, absence of sustained new highs/lows are all offered as clues in this chapter).",
+    "pseudocode": "// research: 'two-sided trading' is a design decision, not a stated formula; candidate clues from the text\noverlapScore = fractionOfLastNBarsOverlapping(overlapLookback, minOverlapFraction);\nswingCount = countDirectionChanges(swingLookback);\nmaSlopeFlat = abs(maSlope(maLookback)) <= flatSlopeThreshold;\nisTradingRange = combineClues(overlapScore, swingCount, maSlopeFlat); // exact combination left to the authoring pass",
+    "sides": "same",
+    "parameters": {
+      "overlapLookback": 20,
+      "minOverlapFraction": 0.5,
+      "swingLookback": 20,
+      "maLookback": 20,
+      "flatSlopeThreshold": null
+    },
+    "book_order_type": "n/a (regime classification underlying most range-specific entries)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"the market is in a trading range\" is the MINING.md canonical research example: the concept is real but a design decision is needed before it can be coded at all"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Chapter-wide shared primitive; nearly every other candidate in this file depends on it, directly or as background context.",
+      "Brooks also gives an explicit boundary case: R21-... see RP4-02, a range that slopes too much is instead a trend channel."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "RP4-08",
+    "name": "TradingRangeSetupLocationFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "RP4-01"
+    ],
+    "depends_on": [
+      "RP4-01"
+    ],
+    "pages": [
+      133,
+      137
+    ],
+    "quote": "When there is a bull trend, traders will buy a high 2 near the top of a leg, but when there is a trading range, they will buy a high 2 only if it is at the bottom of the range. Similarly, bears will short a low 2 at the bottom of a bear trend but they will short a low 2 in a trading range only when it is at the top of the range.",
+    "description": "Inside a trading range, a High1/High2 buy setup is only valid near the BOTTOM of the range (not the top), and a Low1/Low2 short setup is only valid near the TOP of the range (not the bottom) -- the opposite of how those setups are traded in a trend. Setups at the 'wrong' extreme (High1/High2 near the top, Low1/Low2 near the bottom) usually fail and can be faded instead.",
+    "pseudocode": "// depends on High1/High2/Low1/Low2 signal primitives assumed defined elsewhere in the corpus\ndistanceFromRangeBottom = close[0] - rangeLow;\nisNearRangeBottom = distanceFromRangeBottom <= (rangeHigh - rangeLow) * nearExtremeFraction;\nvalidHigh2Buy = isTradingRange[0] && isHigh2Signal[0] && isNearRangeBottom;\ndistanceFromRangeTop = rangeHigh - close[0];\nisNearRangeTop = distanceFromRangeTop <= (rangeHigh - rangeLow) * nearExtremeFraction;\nfadeableHigh2AtTop = isTradingRange[0] && isHigh2Signal[0] && isNearRangeTop; // candidate short-fade, mirrored logic for Low1/Low2",
+    "sides": "mirrored",
+    "parameters": {
+      "nearExtremeFraction": 0.3
+    },
+    "book_order_type": "buy/sell stop per the underlying High1/High2/Low1/Low2 signal, gated by range location; the fade side uses a limit or stop-fade order at the opposite extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "composes the trading-range context and tracked range boundaries with existing pullback-count signal primitives (High1/High2/Low1/Low2), which this chapter assumes but does not itself define"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Restated multiple times in the chapter (pages 133, 137, 140-141) in different words -- this is one of the chapter's most repeated and distinctive ideas."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "RP4-21",
+    "name": "EndOfDayRangeReversalFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      137
+    ],
+    "quote": "the market often tries to reverse the final trading range in the last hour or so, so if the day is a bear trending trading range day, look for a buy setup at the low of the day going into the final hour or two of the day.",
+    "description": "In a trending trading range day, the market often attempts to reverse the day's final trading range in the last one to two hours of the session; look for a counter-to-the-day's-trend setup at the day's extreme heading into the close.",
+    "pseudocode": "isFinalHoursOfSession = time[0] >= (sessionEndTime - finalReversalWindowMinutes);\nlookForReversalAtDayExtreme = isFinalHoursOfSession && close[0] <= dayLow + dayExtremeTolerance;",
+    "sides": "mirrored",
+    "parameters": {
+      "finalReversalWindowMinutes": 120,
+      "dayExtremeTolerance": 3
+    },
+    "book_order_type": "buy stop one tick above the reversal signal bar's high",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a time-window test plus proximity to the day's running extreme; the underlying 'trending trading range day' classification is itself a design decision"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R21-02",
+    "name": "ExtendedRangeMoveFavorsFadeFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R00-20"
+    ],
+    "pages": [
+      147
+    ],
+    "quote": "If the market has been going up for five to 10 bars in a trading range, it is usually far better to look only for shorts and to take profits on longs. If it has been going down for a while, look to buy or to take profits on shorts.",
+    "description": "Inside a trading range, once price has made an extended net move in one direction over the last several bars without reversing, treat further with-move entries as low-quality and favor entries (or profit-taking) in the opposite direction instead.",
+    "pseudocode": "inTradingRange(rangeLookback);\nextendedUpMove = inTradingRange && (close[0] - close[extendedMoveBars]) > 0;\n// long side: entries allowed only when NOT extendedUpMove; short side (mirror) allowed only when NOT extendedDownMove\nallowLongEntry = !extendedUpMove;",
+    "sides": "mirrored",
+    "parameters": {
+      "extendedMoveBars": 7
+    },
+    "book_order_type": "n/a (entry-direction gate)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar net-move measurement composed with the research-grade trading-range regime detector"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "Momentum",
+    "confidence": "medium",
+    "notes": [
+      "Brooks gives a range (5 to 10 bars); default picks the midpoint, treat as an optimizable input.",
+      "The net-move test itself is structurally identical to the catalog's Momentum rule, gated by the trading-range regime."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R21-14",
+    "name": "ReversalCountInFirstHourPredictsTradingRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      148
+    ],
+    "quote": "Whenever the market has four or five reversals in the first hour, the odds of a trading range day increase.",
+    "description": "Count directional reversals (swing-direction changes) within the first hour of the session; a high count raises the probability that the day will be a trading-range day, favoring range-style (fade/scalp) entries over breakout entries for the rest of the session.",
+    "pseudocode": "// research: 'reversal' needs a precise bar-level definition, e.g. a swing-pivot direction change or a reversal-bar pattern hit\nreversalCount = countReversals(barsSinceSessionOpen, firstHourBars);\ndayLikelyTradingRange = barsSinceSessionOpen <= firstHourBars && reversalCount >= reversalCountThreshold;",
+    "sides": "same",
+    "parameters": {
+      "firstHourBars": 12,
+      "reversalCountThreshold": 4
+    },
+    "book_order_type": "n/a (day-context classification)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"reversal\" has no single stated bar-level test here; needs swing-pivot detection or a reversal-bar definition before this can be coded, plus a session-bar-count convention that depends on the chart's bar size"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "firstHourBars=12 assumes 5-minute bars; the parameter must be resized for the chart's actual bar interval."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21_example_of_how_to_trade_a_trading_range.json",
+    "chapter_title": "Example of How to Trade a Trading Range"
+  },
+  {
+    "id": "R22-01",
+    "name": "TightTradingRangeWidthTest",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      151
+    ],
+    "quote": "If the average daily range in the Emini has been about 10 to 15 points, then any trading range that is three points tall or smaller is probably a tight trading range.",
+    "description": "A tight trading range is a horizontal range whose height (highest high to lowest low over the last N bars) is small relative to the recent average daily range -- a size-based proxy that is more directly mechanizable than pure bar-overlap counting.",
+    "pseudocode": "rangeHeight = highest(high, rangeLookback) - lowest(low, rangeLookback);\naverageDailyRange = average(dailyHigh - dailyLow, adrLookbackDays); // daily bars, prior sessions\nisTightTradingRange = rangeHeight <= tightRangeFraction * averageDailyRange;",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 10,
+      "tightRangeFraction": 0.24,
+      "adrLookbackDays": 20
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window loop for the highest/lowest of the range plus an average of daily ranges; no pivot detection needed"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "TightTradingRange",
+    "confidence": "medium",
+    "notes": [
+      "This is the explicit ATR/ADR-sized proxy the task asked for, as an alternative mechanization to R00-21 (TightTradingRange, front matter), which instead counts bar-overlap. tightRangeFraction = 0.24 is a reading of the book's '3 of 10-15 points' example; expect the dedup pass to reconcile with R00-21.",
+      "Brooks also allows a taller range (4-5 points) to still count as tight 'if the bars are large' -- not modeled here; see notes on R22-14 for the bar-size angle."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R22-03",
+    "name": "BarbwirePattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      151,
+      153
+    ],
+    "quote": "If you see three or more bars that largely overlap and one or more of them has a tiny body (doji), this is barbwire. As a guide for how much overlap is enough, look at the second of the three bars... If more than half of its height is within the range of the bars before and after it, you should view the three bars as barbwire.",
+    "description": "Shared primitive for this chapter: barbwire is three or more consecutive largely-overlapping bars where at least one is a doji and the middle bar's range is more than half contained within the range spanned by its two neighbors.",
+    "pseudocode": "middleOverlap = min(high[1], max(high[0], high[2])) - max(low[1], min(low[0], low[2]));\nmiddleContained = middleOverlap >= barbwireOverlapFraction * (high[1] - low[1]);\nhasDoji = isDoji(open[0], high[0], low[0], close[0], dojiBodyFraction) || isDoji(open[1], high[1], low[1], close[1], dojiBodyFraction) || isDoji(open[2], high[2], low[2], close[2], dojiBodyFraction);\nisBarbwire = middleContained && hasDoji;",
+    "sides": "same",
+    "parameters": {
+      "barbwireOverlapFraction": 0.5,
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (pattern classification)",
+    "timeframe": "any",
+    "confidence": "high",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed three-bar overlap-containment test plus a doji test on each of the three bars"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "InsideBar",
+    "notes": [
+      "A special case of a tight trading range (R22-01/R00-21) named by Brooks; often forms next to the moving average.",
+      "Doji primitive presumably already defined in trends chapter 2 (Trend Bars, Doji Bars, and Climaxes); reused here rather than redefined."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R22-04",
+    "name": "TightTradingRangeBlocksAllEntriesSwitch",
+    "role": "Switch",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-01"
+    ],
+    "pages": [
+      152
+    ],
+    "quote": "A tight trading range trumps everything, and that especially means all of the great reasons for taking any trade. It does not matter what else you see on the chart... Once you see that the market is in a tight trading range, don't trade.",
+    "description": "While the market is in a tight trading range, block all new entries regardless of any other signal that would otherwise fire -- the single global override this chapter argues for most strongly.",
+    "pseudocode": "blockAllEntries = isTightTradingRange[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (global entry block)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a direct pass-through of the tight-trading-range regime flag into a global block, once that flag exists"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This is the chapter's central, most distinctive and most literally-stated rule -- explicitly phrased as overriding every other setup -- and maps directly onto the engine's Switch role.",
+      "Depends on whichever tight-trading-range detector the dedup pass keeps (R22-01, R22-03 BarbwirePattern, or R00-21)."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R22-10",
+    "name": "BarbwireFadeFailureReversalEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-09"
+    ],
+    "pages": [
+      154
+    ],
+    "quote": "Sometimes this short entry will fail, so once short and once the entry bar closes, place an order to reverse to long at one tick above the high of the short entry bar, which would become a breakout pullback buy entry. It is unusual for the second entry to fail.",
+    "description": "If the barbwire breakout fade (R22-09) is entered and its own entry bar closes against the fade (i.e., the fade is failing), reverse to a breakout-pullback entry one tick beyond the fade entry bar's far side, in the original breakout direction.",
+    "pseudocode": "fadeEntryBarFailed = ctx.MarketPosition() < 0 && close[0] > open[0]; // short fade entry bar closed back up\nenterLongNextBarOpen = fadeEntryBarFailed; // buy stop one tick above high[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop one tick above the high of the (failed) fade entry bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads position state and the immediately preceding fade entry's outcome; the arithmetic itself is a simple next-bar stop"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Reads position state deliberately, like the catalog's FlatOrOpenLossExceeds -- it decides whether a fresh signal should reverse the open fade trade."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R22-14",
+    "name": "BarbwireBarSizeAboveAverageFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-03"
+    ],
+    "pages": [
+      151,
+      157
+    ],
+    "quote": "A range of four and sometimes five points can sometimes behave like a tight trading range as well if the bars are large... it is more effective if the bars are at least as large as the average bars of the day. If the bars are too small and the range is too tight, then the odds of a successful scalp are less.",
+    "description": "Only take barbwire/tight-range scalp entries when the individual bars are at least as large as the day's average bar range so far; skip setups where both the range and the bars themselves are too small.",
+    "pseudocode": "sessionAvgBarRange = average(high - low, barsSinceSessionOpen);\nallowScalpEntry = (high[0] - low[0]) >= sessionAvgBarRange;",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (setup-quality gate)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-relative running average of bar range, same as R21-13"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Same session-average-bar-range measure as R21-13 (SessionAverageBarRangeMoneyStop, chapter 21); likely mergeable into one shared primitive."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "R26-13",
+    "name": "TightTradingRangeEntryGate",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      189
+    ],
+    "quote": "In a tight trading range like this, you should never enter in either direction until after either one of the following events: a large trend bar breaks out of the pattern by at least three ticks and you have waited for that bar to fail, or there is a small bar that you can fade near the top or bottom of the trading range.",
+    "description": "In a tight trading range, block all entries until either (a) a large trend bar breaks out of the range by at least breakoutTicks and then fails (closes back inside), or (b) a small bar forms near the range's extreme that can be faded.",
+    "pseudocode": "// research: 'tight trading range' needs a range-tightness definition\nlargeBarBreakoutFailed = wasLargeTrendBarBreakout(ticksBeyondRange = breakoutTicks, atBar = k) && closedBackInsideRangeWithinBars(k, failFollowThroughBars);\nsmallBarAtExtreme = isSmallBar[0] && isNearRangeExtreme[0];\nallowEntry = !isTightTradingRange[0] || largeBarBreakoutFailed || smallBarAtExtreme;",
+    "sides": "same",
+    "parameters": {
+      "breakoutTicks": 3,
+      "failFollowThroughBars": 3
+    },
+    "book_order_type": "n/a (gates whether any other entry candidate may be taken)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'tight trading range' is a design-decision concept (bar overlap / range-tightness measure) not defined in this chapter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R32-04",
+    "name": "AvoidSignalNearTradingRangeMidpoint",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      221
+    ],
+    "quote": "Bar 30 was a large doji bear reversal bar and a high 2 buy setup, but it was in the middle of a trading range and the large signal bar forced traders to buy near the top, which is never good.",
+    "description": "A reversal/breakout setup located in the middle of an established trading range (not near either edge) is weaker and forces an unfavorable entry price relative to the range; fade or avoid such a setup rather than taking it at face value.",
+    "pseudocode": "// research: 'in the middle of a trading range' needs the range's high/low boundaries identified, which this chapter assumes rather than defines\nsignalPositionInRange = (setupBarPrice - rangeLow) / (rangeHigh - rangeLow); isNearMidpoint = abs(signalPositionInRange - 0.5) <= midpointTolerance; avoidSetup = isNearMidpoint;",
+    "sides": "same",
+    "parameters": {
+      "midpointTolerance": 0.15
+    },
+    "book_order_type": "n/a (filters out a setup located near the middle of the established range)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires identifying the current trading range's high/low boundaries, a design decision this chapter assumes rather than defines mechanically"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/32_getting_trapped_in_or_out_of_a_trade.json",
+    "chapter_title": "Getting Trapped In or Out of a Trade"
+  },
+  {
+    "id": "VP1-26",
+    "name": "BothSidesValidMeansTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      98
+    ],
+    "quote": "Both the bull and bear cases were valid, which usually means that the market is in a trading range, which it was.",
+    "description": "Concept: when comparably strong bull and bear arguments coexist, the market is probably in a trading range rather than trending - useful as a context switch between trend-following and range-scalping rule sets, but not yet a bar-level test.",
+    "pseudocode": "n/a - classification concept, needs a trading-range definition",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"the market is in a trading range\" is one of MINING.md's own examples of a concept needing a design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V02-36",
+    "name": "TradingRangeAllowsBothDirections",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      110
+    ],
+    "quote": "In a trading range market, however, traders can trade reversals in both directions.",
+    "description": "Filter: the market is in a trading range (e.g. N-bar range small relative to ATR, or EMA flat), so reversal entries need no prior trend line break.",
+    "pseudocode": "(highest(high, lookback, 0) - lowest(low, lookback, 0)) <= rangeAtrMultiple * atr(atrLen)",
+    "sides": "same",
+    "parameters": {
+      "lookback": 20,
+      "rangeAtrMultiple": 4.0,
+      "atrLen": 14
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'the market is in a trading range' needs a design decision; the ATR-range proxy is one option"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "low",
+    "notes": [
+      "ADX-below-threshold is an existing proxy for the same regime."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V07-07",
+    "name": "TradingRangeMidpointMagnetPullback",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      219,
+      220
+    ],
+    "quote": "the result is that there is a magnetic effect in the middle of these trading ranges, and most breakout attempts do not go far before the market is pulled back into the trading range.",
+    "description": "Inside a trading range or flag with pronounced two-sided trading, breakout attempts beyond either edge tend to fail and be pulled back toward the range's own midpoint; fade breakouts toward that midpoint rather than expecting them to run.",
+    "pseudocode": "// research: 'is in a trading range' is itself a research-grade concept per MINING.md\nrangeMidpoint = (rangeHigh + rangeLow) / 2;\nfadeBreakoutTowardMidpoint = marketIsInTradingRange && (high[0] > rangeHigh || low[0] < rangeLow);\nexitOrTargetAtMidpoint = rangeMidpoint",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context filter / target used by breakout-fade entries and exits)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on classifying 'the market is in a trading range', a design decision MINING.md itself calls out as research-grade"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Likely duplicates a trading-range-magnet primitive already mined from the Ranges book (Part II, 'Magnets, Support and Resistance', Chapters 7-10)."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/07_final_flags.json",
+    "chapter_title": "Final Flags"
+  },
+  {
+    "id": "V11-02",
+    "name": "MidDayLowProbabilityWindowFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      292,
+      293
+    ],
+    "quote": "The middle of the day, beginning around 8:30 to 9:30 a.m. PST and ending around 11:00 to 11:30 and sometimes as late as 12:30, is more prone to two-sided trading... Beginning traders tend to lose money in the middle third of the day... they should consider not trading in the middle third unless signals are especially strong.",
+    "description": "Block or restrict ordinary stop-entries during the mid-session window (roughly 8:30/9:30-11:00/12:30 PST), which tends to be two-sided, range-bound, and lower win rate.",
+    "pseudocode": "!(ctx.Time() >= middayStart && ctx.Time() <= middayEnd)",
+    "sides": "same",
+    "parameters": {
+      "middayStart": 830,
+      "middayEnd": 1130
+    },
+    "book_order_type": "n/a (blocking filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a fixed clock-time window test, applied negated ahead of other entries"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "medium",
+    "notes": [
+      "Brooks's carve-out ('unless signals are especially strong') is left as a design decision for the authoring pass - not mechanized here."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/11_key_times_of_the_day.json",
+    "chapter_title": "Key Times of the Day"
+  },
+  {
+    "id": "V16-09",
+    "name": "BarbwireFadeAtExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      357
+    ],
+    "quote": "the market was starting to form overlapping small bars with tails (which is barbwire behavior), and breakout entries would have been more likely to fail. It is usually better to buy breakouts near the bottom of barbwire and short breakouts near the top.",
+    "description": "Inside a 'barbwire' region (a run of small, heavily overlapping bars with tails), fade the range: buy a breakout near the bottom of the barbwire rather than a breakout near its top.",
+    "pseudocode": "// research: 'barbwire' classification (small overlapping bars with tails) needs a design decision\nisBarbwire[0] && low[0] <= lowest(low, lookback, 0) + marginTicks * tick && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "marginTicks": 4
+    },
+    "book_order_type": "buy on a stop just above the low-side breakout bar of the barbwire range",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'barbwire' is a pattern-recognition judgment over variable-length overlapping small bars; no bar-level definition is given"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "MinMove",
+      "PriceScale"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Likely overlaps the Ranges book's tight-trading-range chapter (ranges/22_tight_trading_ranges.json); recorded here since this chapter states the fade-the-extremes guideline explicitly."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "VP3-12",
+    "name": "HolidayWeekRangeDayBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      372
+    ],
+    "quote": "When trading around holidays like Christmas week and the week of the Fourth of July, the first hour is often very important because often that is the only time when the market behaves like a normal day. It then frequently enters a tight trading range for the rest of the day.",
+    "description": "Context filter: during specific holiday weeks (Christmas week, the week of July 4th), expect normal price action only in the first hour and a tight trading range for the rest of the session.",
+    "pseudocode": "(ctx.Month(0) == 12 && ctx.DayOfMonth(0) >= 20 && ctx.DayOfMonth(0) <= 31) || (ctx.Month(0) == 7 && ctx.DayOfMonth(0) <= 7)",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (day-context bias filter)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a calendar-date test, computable on any bar interval including daily, though the described behavior (quiet after the first hour) is an intraday effect"
+    },
+    "el_words_needed": [
+      "Month",
+      "DayOfMonth"
+    ],
+    "likely_existing_rule": "SeasonalHalfYear",
+    "confidence": "low",
+    "notes": [
+      "Date ranges are a reading of 'Christmas week' and 'the week of the Fourth of July'; not given precisely by Brooks."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "V23-03",
+    "name": "FadeWeakLow2AtTradingRangeBottom",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      460,
+      472
+    ],
+    "quote": "A low 2 short signal at the bottom of a trading range usually fails and leads to a reversal up, as do most attempts to break out of a trading range.",
+    "description": "A low-2 short setup that forms at the bottom of an established trading range usually fails; treat it as a reversal-up (fade) buying opportunity instead of taking the short. Mirror: a high-2 long setup at the top of a trading range usually fails and is a fade-short opportunity.",
+    "pseudocode": "isTradingRange && low2ShortSetupTrue(0) && (close[0] - rangeLow) / (rangeHigh - rangeLow) <= nearRangeFraction -> fade long instead of the short",
+    "sides": "mirrored",
+    "parameters": {
+      "nearRangeFraction": 0.2
+    },
+    "book_order_type": "n/a (a fade entry gated by range position and an opposing counting setup)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "depends on a trading-range classification (research-grade), the low2/high2 pullback-attempt counting primitive, and a range-position test"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Mirrors this chapter's own bullet list (page 460): 'Buying calls below a weak low 1 or low 2 at the bottom of a trading range' / 'Buying puts above a weak high 1 or high 2 at the top of a trading range'.",
+      "Relates to reference/brooks/mined/reversals/21_detailed_day_trading_examples.json's V21-04 and 25_trading_guidelines.json's V25-02 (both exit-on-opposing-setup ideas for an open position); this candidate is instead a fresh ENTRY that fades the opposing counting setup itself in a trading-range context -- the dedup pass should compare all three."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/23_options.json",
+    "chapter_title": "Options"
+  },
+  {
+    "id": "V24-17",
+    "name": "TradingRangeBoundaryFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      487,
+      500
+    ],
+    "quote": "Shorting at the top of a trading range, especially if it is a second entry. Buying at the bottom of a trading range, especially if it is a second entry.",
+    "description": "Fade a touch of the top (bottom) of an established N-bar trading range: sell (buy) on a reversal signal bar there.",
+    "pseudocode": "rangeHigh = highest(high,rangeLookback); rangeLow = lowest(low,rangeLookback); atTop = high[0] >= rangeHigh - tolTicks*tickSize; fade = atTop && TrendBarBody(bear)",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 40,
+      "tolTicks": 3
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a highest/lowest window comparison plus a signal-bar test"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "TradingRangeFade",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-44",
+    "name": "AvoidStopEntryInTightTradingRange",
+    "role": "Switch",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      486,
+      519
+    ],
+    "quote": "If the market enters a tight trading range, wait for the breakout, because tight trading ranges trump everything... Using stop entries in a tight trading range is a losing strategy.",
+    "description": "Block all stop entries while the recent N-bar range is unusually tight (small relative to the recent average range), regardless of any pattern that would otherwise trigger.",
+    "pseudocode": "(highest(high,rangeLookback)-lowest(low,rangeLookback)) <= tightRangeMultiple*averageRange(atrLookback) => blockAllStopEntries",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 15,
+      "tightRangeMultiple": 1.2,
+      "atrLookback": 20
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window range compared against an average-range baseline"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "TightTradingRangeFilter",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-47",
+    "name": "ExtendedOneSidedRangeMoveFavorsFade",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      552
+    ],
+    "quote": "In general, when the market is in a trading range and it is up for five to 10 bars, traders should only look for shorts.",
+    "description": "While price is judged to be inside a trading range, if the current leg has moved in one direction for at least N consecutive bars without a real pullback, only allow fade entries against that leg (blocking with-leg entries).",
+    "pseudocode": "isTradingRange(rangeLookback) && consecutiveBarsInDirection(direction) >= minLegBars => allowOnly(fadeDirection = opposite(direction))",
+    "sides": "mirrored",
+    "parameters": {
+      "minLegBars": 5,
+      "rangeLookback": 40
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on a 'the market is in a trading range' read, which is itself a design decision, plus a consecutive-bar-in-direction counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V24-49",
+    "name": "TradingRangeVsTrendEntryBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      485,
+      501
+    ],
+    "quote": "When the market is clearly bullish, buying near the high and exiting higher is an effective strategy... When it is in a trading range, buying near the high is usually a mistake, and traders should instead try to buy near the low.",
+    "description": "Switches entry bias by market regime: in a trend, buy strength (near recent highs) and sell weakness (near recent lows); in a trading range, buy near the range low and sell near the range high (invert the bias).",
+    "pseudocode": "isTrending() ? (buyNearRecentHigh() ; sellNearRecentLow()) : (buyNearRangeLow() ; sellNearRangeHigh())",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires a trend-vs-trading-range classifier, one of the qualitative design decisions Brooks leaves undefined"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "V25-01",
+    "name": "TradingRangeDayAvoidBuyingNearTopSellingNearBottom",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      557
+    ],
+    "quote": "if it is a trading range day, don't look to buy after a strong bull trend bar or a high 1 near the top of the range, and don't look to short after a strong bear trend bar or low 1 near the bottom of the range.",
+    "description": "On a trading-range day, block long entries (even a strong-looking bull trend bar or high-1 setup) when price is near the top of the day's range, and block short entries near the bottom of the range -- range logic favors selling high and buying low, not chasing toward the extremes.",
+    "pseudocode": "!(isTradingRangeDay && (close[0] - dayLow) / (dayHigh - dayLow) >= 1 - nearRangeFraction)",
+    "sides": "mirrored",
+    "parameters": {
+      "nearRangeFraction": 0.2
+    },
+    "book_order_type": "n/a (an entry-blocking context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "hard",
+      "reason": "depends on a trading-range-day classification (a research-grade concept elsewhere in this corpus) plus the day's high/low; the range-position ratio itself is trivial once those exist"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This chapter is a list of 78 mostly psychological/discipline/money-management guidelines; only those with an actual bar-level test are recorded as candidates here. The rest are grouped in `rejected` below rather than itemized 78 times."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/25_trading_guidelines.json",
+    "chapter_title": "Trading Guidelines"
+  },
+  {
+    "id": "V25-05",
+    "name": "TradingRangeFadeAfterMultiBarMove",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      562
+    ],
+    "quote": "it is better to only look to short if you are uncertain and the market is up for five to 10 bars, and only look for longs when it is down for five to 10 bars.",
+    "description": "In an uncertain (trading-range) market, only permit fade-style short entries after price has moved up for roughly 5 to 10 consecutive bars, and only permit fade-style long entries after it has moved down for roughly 5 to 10 consecutive bars.",
+    "pseudocode": "isTradingRange && consecutiveBarsMovingUp(0, lookback) >= minBarsMoved -> permit short-side fade entries",
+    "sides": "mirrored",
+    "parameters": {
+      "minBarsMoved": 5
+    },
+    "book_order_type": "n/a (an entry-permission gate for countertrend fade setups)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a trading-range classification (research-grade) plus a persistence counter for directional bar movement"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/25_trading_guidelines.json",
+    "chapter_title": "Trading Guidelines"
+  },
+  {
+    "id": "T00-08",
+    "name": "BarbwirePattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      13
+    ],
+    "quote": "barbwire A trading range of three or more bars that largely overlap and one or more is a doji.",
+    "description": "Context filter/primitive: classify the last N bars as barbwire -- heavily overlapping ranges containing at least one doji -- used to block breakout entries. T07-32 references barbwire without formally defining it; this is the formal source.",
+    "pseudocode": "for k in 0..barbwireBars-2: (min(high[k],high[k+1]) - max(low[k],low[k+1])) >= overlapFraction * range(k); && exists k in 0..barbwireBars-1: abs(body(k)) <= dojiBodyFraction * range(k)",
+    "sides": "same",
+    "parameters": {
+      "barbwireBars": 3,
+      "overlapFraction": 0.5,
+      "dojiBodyFraction": 0.1
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'largely overlap' needs a design decision, matching T07-07 TradingRangeContext's note"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T01-02",
+    "name": "MarketInTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      85
+    ],
+    "quote": "the market is moving sideways and not covering many points... an extreme trading range where every one- or two-tick up move is followed by a one- or two-tick down move and vice versa.",
+    "description": "Primitive: approximate 'the market is in a trading range' as the last rangeBars bars largely overlapping (each pair's overlap at least a fraction of its range), i.e. little net progress.",
+    "pseudocode": "for k in 0..rangeBars-1: (min(high[k],high[k+1]) - max(low[k],low[k+1])) >= overlapFraction * range(k) -> inTradingRange",
+    "sides": "same",
+    "parameters": {
+      "rangeBars": 5,
+      "overlapFraction": 0.5
+    },
+    "book_order_type": "n/a (context classification)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' is a design decision; bar-overlap is one workable proxy"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "medium",
+    "notes": [
+      "Same primitive family as TradingRangeContext defined in other chapters of this book; expected to merge in dedup."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/01_the_spectrum_of_price_action_extreme_trends_to.json",
+    "chapter_title": "The Spectrum of Price Action: Extreme Trends to Extreme Trading Ranges"
+  },
+  {
+    "id": "T03-01",
+    "name": "TradingRangeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      108
+    ],
+    "quote": "there is usually more overlap of the bars, more small pullbacks, more bars with tails, and some bear trend bars.",
+    "description": "Primitive context filter: the market is in a trading range, approximated as the last N bars each largely overlapping the prior bar. Used to block breakout entries and to permit the fade/test setups this chapter describes.",
+    "pseudocode": "for k in 0..rangeBars-1: (min(high[k],high[k+1]) - max(low[k],low[k+1])) >= overlapFraction * min(range(k),range(k+1)) -> inTradingRange; filter passes when !inTradingRange",
+    "sides": "same",
+    "parameters": {
+      "rangeBars": 5,
+      "overlapFraction": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' is a design decision (Brooks's own definition also involves slope and reversal count); overlap is one workable proxy"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "medium",
+    "notes": [
+      "Redefines the same primitive chapter 7 (T07-07) defines; the dedup pass should merge them."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/03_breakouts_trading_ranges_tests_and_reversals.json",
+    "chapter_title": "Breakouts, Trading Ranges, Tests, and Reversals"
+  },
+  {
+    "id": "T05-12",
+    "name": "TrendingTradingRangeDayReversalContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      123
+    ],
+    "quote": "Most reversal bars on the daily chart come from trending trading range days ... Whenever traders see a trending trading range day, they should be aware that it might have a strong reversal later in the day.",
+    "description": "Context filter: on a trending trading range day, favor reversal-bar entries later in the session (a permissive rather than blocking filter). Day-type classification itself is deferred to Chapter 22.",
+    "pseudocode": "tradingRangeDay -> allowReversalEntries",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (day-type context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trending trading range day' classification is a design decision, not yet defined"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/05_signal_bars_reversal_bars.json",
+    "chapter_title": "Signal Bars: Reversal Bars"
+  },
+  {
+    "id": "T07-07",
+    "name": "TradingRangeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      185,
+      186,
+      194
+    ],
+    "quote": "every outside bar is a part of a trading range, which is two or more bars that largely overlap.",
+    "description": "Primitive context filter: the market is in a trading range, approximated as the last N bars each overlapping the prior bar by at least a fraction of their range (largely overlapping bars). Used to block breakout entries.",
+    "pseudocode": "for k in 0..rangeBars-1: (min(high[k],high[k+1]) - max(low[k],low[k+1])) >= overlapFraction * range(k) -> inTradingRange; filter passes when !inTradingRange",
+    "sides": "same",
+    "parameters": {
+      "rangeBars": 5,
+      "overlapFraction": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' is a design decision; the overlap count is one workable proxy but Brooks's notion also involves multiple reversals and a flat EMA"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AdxBelowThreshold",
+    "confidence": "medium",
+    "notes": [
+      "ADX below a threshold is the corpus's nearest existing low-trend proxy."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-31",
+    "name": "LongLegOnTradingRangeDayFade",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T07-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      194
+    ],
+    "quote": "this was a trading range day and any time a leg lasts more than five bars, traders will be looking for a reversal",
+    "description": "On a trading range day, when the current leg has lasted more than N bars (e.g., N consecutive bars without a lower low being taken out), allow countertrend (fade) entries only.",
+    "pseudocode": "tradingRangeDay && legLengthBars(up) > legBars -> allow short / block long",
+    "sides": "mirrored",
+    "parameters": {
+      "legBars": 5
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range day' classification and leg length both need design decisions"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T07-33",
+    "name": "EarlyReversalsMarkTradingRangeDay",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      195
+    ],
+    "quote": "Multiple reversals, big tails, and uncertainty are all characteristics of trading range days",
+    "description": "If the first N bars of the session contain at least K reversals (alternating trend bars) and mostly tailed bars, classify the day as a trading range day: scalp, fade extremes, do not swing.",
+    "pseudocode": "sessionBar <= N && countDirectionChanges(sessionBars) >= K && avgTailFraction(sessionBars) >= tailMin -> tradingRangeDay",
+    "sides": "same",
+    "parameters": {
+      "N": 6,
+      "K": 3,
+      "tailMin": 0.4
+    },
+    "book_order_type": "n/a (day-type filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "day-type classification carried across the session is a design decision"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "T13-13",
+    "name": "LargeOverlapSignalsTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      237
+    ],
+    "quote": "the second, third, and fourth bars were large and almost entirely overlapping, and this is a sign of uncertainty, one of the hallmarks of a trading range.",
+    "description": "When consecutive large bars overlap heavily (their ranges mostly coincide), treat the market as two-sided/trading-range rather than trending, and discount trend-line breakout signals formed by such bars.",
+    "pseudocode": "(min(high[0], high[1]) - max(low[0], low[1])) >= overlapFraction * min(high[0] - low[0], high[1] - low[1]) && (high[0] - low[0]) >= largeBarAtrMultiple * atr(atrLength)",
+    "sides": "same",
+    "parameters": {
+      "overlapFraction": 0.8,
+      "largeBarAtrMultiple": 1.0,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a two-bar overlap ratio plus an ATR size test"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Opposite reading of the LittleOverlap primitive used elsewhere for spike bars (large overlap here signals a range, not a spike)."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13_trend_lines.json",
+    "chapter_title": "Trend Lines"
+  },
+  {
+    "id": "T17-04",
+    "name": "TradingRangeDayContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      299
+    ],
+    "quote": "Most days are trading range days or have a lot of trading range activity. On these days you will find that horizontal lines across swing highs and lows often serve as barriers that result in failed breakouts and then reversals.",
+    "description": "Gate T17-02/T17-03 on the day being a trading-range day rather than a trend day; on trend days horizontal lines should instead be used only for with-trend pullback entries (T17-05).",
+    "pseudocode": "!isTrendDay",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range day' vs. 'trend day' is a discretionary daily-scale judgment with no single bar-level test given; a proxy (e.g., TrendingSwings false, or a Donchian-band-hug test) is a design decision"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/17_horizontal_lines_swing_points_and_other_key.json",
+    "chapter_title": "Horizontal Lines: Swing Points and Other Key Price Levels"
+  },
+  {
+    "id": "TP3-35",
+    "name": "LargePullbacksMeanTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP3-02"
+    ],
+    "pages": [
+      313,
+      314
+    ],
+    "quote": "Once a strong bull begins to have pullbacks that are relatively large, the pullbacks... behave more like trading ranges than bull flags... A new high is now a breakout attempt above a trading range, and the odds are that it will fail.",
+    "description": "Filter: the depth of the most recent pullback (last swing high minus the subsequent lowest low) relative to the preceding leg's height is below maxPullbackFraction; otherwise breakout buys above the old high are blocked (expected to fail).",
+    "pseudocode": "(lastSwingHigh - lowest(low, barsSinceLastSwingHigh)[0]) / (lastSwingHigh - priorSwingLow) < maxPullbackFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "maxPullbackFraction": 0.5,
+      "pivotStrength": 2
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "leg height needs swing pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Page 314: 'Every trading range is within either a bull trend or a bear trend'; while in the range the trend 'is no longer strong'."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T21-14",
+    "name": "PullbackOverTenBarsIsTradingRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T21-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      357
+    ],
+    "quote": "The second possibility occurs if the pullback extends for more than 10 bars. It will then have grown into a trading range, which can break out in either direction.",
+    "description": "Filter: after a spike, if the pullback has lasted more than N bars without a new extreme, the spike-and-channel expectation is off and the pullback is treated as a trading range (entries in either direction; with-trend breakout slightly favored).",
+    "pseudocode": "spikeEnded && (barIndex - spikeEndBar) > rangeBars && highest(high, barIndex - spikeEndBar) <= spikeEndHigh",
+    "sides": "same",
+    "parameters": {
+      "rangeBars": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "counter against the spike state machine"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  }
+]

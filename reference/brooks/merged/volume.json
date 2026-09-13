@@ -1,0 +1,179 @@
+{
+  "bucket": "volume",
+  "merged": "2026-09-12",
+  "rules": [
+    {
+      "key": "MinimumAbsoluteVolume",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's volume is at or above an absolute floor — a share or contract count, not a ratio. Brooks's liquidity / eligibility gate. Identical both sides.",
+      "pseudocode": "volume[0] >= minVolume",
+      "sides": "same",
+      "parameters": {
+        "minVolume": 3000000
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one comparison against a constant"
+      },
+      "timeframe": "daily-ok",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "VolumeBelowAverage",
+        "relation": "variant",
+        "note": "both catalog volume rules measure volume against its own N-bar average; this is an absolute floor with no window at all"
+      },
+      "sources": [
+        "R24-06",
+        "V22-06",
+        "V10-02",
+        "RP1-12"
+      ],
+      "merge_notes": "One threshold test at four scales: 3M and 5M shares for daily stock selection, 25,000 and 100,000 Emini contracts intraday. Default 3,000,000; the input is instrument-specific either way. Register: the engine's `volume` is UP-TICKS, so an absolute count must read `ticks`.",
+      "variants_kept_separate": [
+        "VolumeAboveAverageMultiple",
+        "VolumeBelowAverageFraction"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "VolumeAboveAverageMultiple",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's volume is at least K times its own N-bar average volume — Brooks's reversal-bar confirmation. Identical both sides.",
+      "pseudocode": "volume[0] >= volumeMultiple * average(volume, volLookback)",
+      "sides": "same",
+      "parameters": {
+        "volumeMultiple": 5,
+        "volLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one rolling average-volume window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "VolumeAboveAverageMultiple",
+        "relation": "duplicate",
+        "note": "the catalog rule is exactly this test and already reads total ctx.Ticks (up + down) rather than the up-tick `volume` alias, which is what Brooks means"
+      },
+      "sources": [
+        "RP1-11",
+        "R00-57",
+        "R02-02",
+        "V00-42",
+        "T00-25",
+        "T00-23",
+        "V07-14"
+      ],
+      "merge_notes": "RP1-11 (stray from bar_anatomy_reversal_signal) is the catalog rule verbatim: reversal-bar volume at 5 to 10 times the 20-bar average. Do not author again. The same test recurs six more times in the breakouts_volume_gap bucket, merged there under the same key. Folded the breakouts_volume_gap copy (R00-57, R02-02, V00-42, T00-25, T00-23, V07-14): the same volume-vs-average-volume test. Book multiples differ by use - RP1-11 wants ~5x for reversal-bar confirmation, the breakout/climax sources quote up to 10x - so volumeMultiple carries both; default 5.",
+      "variants_kept_separate": [
+        "MinimumAbsoluteVolume",
+        "VolumeBelowAverageFraction"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "VolumeBelowAverageFraction",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's volume is at or below a fraction of its own N-bar average volume — Brooks's 'quiet, low-volume market' gate. Identical both sides.",
+      "pseudocode": "volume[0] <= volumeFraction * average(volume, volLookback)",
+      "sides": "same",
+      "parameters": {
+        "volumeFraction": 0.8,
+        "volLookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "one rolling average-volume window"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average"
+      ],
+      "catalog_match": {
+        "rule": "VolumeBelowAverage",
+        "relation": "variant",
+        "note": "VolumeBelowAverage is this rule at volumeFraction = 1.0 with a strict <; the cheapest fix is to add a fraction input to the existing rule rather than author a second file"
+      },
+      "sources": [
+        "T06-24"
+      ],
+      "merge_notes": "Only the volume half of T06-24 is carried; its shaved-bar cluster count belongs to bar_anatomy. Brooks says only that 'the volume is low' — the 0.8 fraction is the miner's reading, not a book number. Register: `volume` is up-ticks, so this is an up-tick ratio.",
+      "variants_kept_separate": [
+        "VolumeAboveAverageMultiple",
+        "MinimumAbsoluteVolume"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "VolumeDivergenceAfterClimax",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "After a recent volume peak, the bar makes a lower low than the previous bar on volume well below that peak — Brooks's volume divergence, a pullback-long signal in a bear trend; mirrored for shorts.",
+      "pseudocode": "peakVolume = highest(volume, lookback)[1]; low[0] < low[1] && volume[0] < divergenceFraction * peakVolume",
+      "sides": "mirrored",
+      "parameters": {
+        "divergenceFraction": 0.5,
+        "lookback": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a bounded Highest over the volume series stands in for remembering the climax bar; no persistent state"
+      },
+      "timeframe": "intraday-only",
+      "el_words_needed": [
+        "Highest"
+      ],
+      "catalog_match": {
+        "rule": "",
+        "relation": "none",
+        "note": ""
+      },
+      "sources": [
+        "V10-03"
+      ],
+      "merge_notes": "Stray from swing_structure. Brooks's 'remember the huge-volume bar' is mechanized as highest(volume, lookback)[1], which needs no state; 'one or two lower lows on less volume' becomes a single lower-low bar. divergenceFraction 0.5 and lookback 5 are the miner's readings.",
+      "variants_kept_separate": [
+        "MinimumAbsoluteVolume"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "V10-01",
+      "reason": "composition of VolumeAboveAverageMultiple + a strong bull trend-bar body test (bar_anatomy) + an assumed prior-bear-trend context that the candidate never defines"
+    }
+  ],
+  "cross_bucket": [],
+  "design_decisions": [
+    {
+      "topic": "which volume series Brooks's volume rules read",
+      "options": [
+        "the engine's `volume` alias, which EL_FEATURES records as UP-TICKS only (VERIFIED against 18,203 @KW bars)",
+        "`ticks`, up + down, as the catalog's VolumeAboveAverageMultiple already uses"
+      ],
+      "recommended": "`ticks` — Brooks always means total contracts or shares traded, and the catalog rule already reads ctx.Ticks; reading `volume` would silently roughly halve every absolute threshold and shift every ratio",
+      "gates": [
+        "MinimumAbsoluteVolume",
+        "VolumeAboveAverageMultiple",
+        "VolumeBelowAverageFraction",
+        "VolumeDivergenceAfterClimax"
+      ]
+    }
+  ],
+  "bucket_summary": "Five candidates plus three strays, collapsed to four rules. Four of the eight are one absolute-volume floor stated at four instrument scales (3M/5M shares daily, 25k/100k Emini contracts intraday), now MinimumAbsoluteVolume. RP1-11 is a straight duplicate of the catalog's VolumeAboveAverageMultiple and is marked D. V10-01 dropped as a composite. The A-list is MinimumAbsoluteVolume and VolumeBelowAverageFraction (the latter really wants a fraction input added to the existing VolumeBelowAverage rather than a new file); VolumeDivergenceAfterClimax is B. Every rule here is gated on the one design decision: the engine's `volume` is up-ticks, not total volume."
+}

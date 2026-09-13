@@ -16,7 +16,7 @@ hand-off into pass 2. Passes 3 and 4 have their own skills.
 | Pass | What | Who | Output |
 |---|---|---|---|
 | 1 Mine | source → per-chapter candidate JSON | Sonnet miners, 5 at a time | `reference/<source>/mined/**.json` |
-| 2 Merge | dedup across chapters, rank, group by primitive; triage `el_words_needed` against `rules/EL_FEATURES.md` | one strong-model agent, then probes | `reference/<source>/CANDIDATES.md` (planned) |
+| 2 Merge | feature triage, topic buckets, dedup per bucket, reconcile, roll-up | scripts + Opus merge agents, 3 at a time | `reference/<source>/CANDIDATES.md` |
 | 3 Author | survivors → `rules/*.json` via `author-rule`, disjoint slices | strong-model agents | rules + CATALOG rows |
 | 4 Template | grids via `design-grid` | separate sessions | `templates/*.json` |
 
@@ -182,27 +182,93 @@ the cross-cutting notes miners flagged for pass 2 (which primitives recur, which
 research-grade concepts gate many candidates, which engine primitives were requested
 and do not exist). Then stop, unless told to continue into pass 2.
 
-## 6. Hand-off to pass 2 (merge and feature triage)
+## 6. Pass 2: merge and feature triage
 
-Not yet run for Brooks; update this section when it is. What is already known:
+Run for Brooks on 2026-09-12: 1635 candidates → 548 merged rules (A 228, B 212, C 75,
+D 33), 245 dropped, coverage clean under `rollup.py --strict`. Result:
+`reference/brooks/CANDIDATES.md`.
 
-- Expect roughly 40 percent of candidates to be near-duplicates of primitives defined
-  in other chapters (trend bar, doji, inside bar, swing pivot, measured move, always-in,
-  H1/H2 counter). Merge those first; the survivor keeps every source citation.
-- A few research-grade concepts gate hundreds of candidates and need one design
-  decision each before authoring: always-in direction, trading-range vs trend
-  classification, "tight channel". Decide once, centrally.
-- Prefer the most mechanizable definition when merging: for the H1/H2 leg counter that
-  is Ranges ch17 `R17-01` (no swing pivots needed), not the research-graded versions.
-- Collect `el_words_needed` across survivors and check each against
-  `rules/EL_FEATURES.md`; unregistered words get one probe each, per `author-rule` §4,
-  before any authoring agent is launched. Otherwise every authoring agent stops on the
-  same word and writes a duplicate probe.
-- Engine primitives requested repeatedly and absent: a fixed initial-stop price
-  accessor, and a minimum-position-profit tracker (mirror of `MaxPositionProfit`).
-- Authoring agents in pass 3 get disjoint slices, write only `rules/*.json` and their
-  TS twins, and return CATALOG / EL_FEATURES rows as text for the orchestrator to
-  append, so they never collide on shared files.
+The mined corpus is too big for one agent (Brooks: 2.4 MB, ~600k tokens), so pass 2
+is mechanical splitting, then one strong-model merge agent per topic, then a
+mechanical roll-up. Scripts live in `reference/brooks/` and take the source dir as
+their base; copy or point them at the new source.
+
+1. **Feature triage first, it is cheap and it reshapes the plan.**
+   `python reference/brooks/featureTriage.py` (default input `mined/**/*.json`,
+   `--input <glob>` for later stages) normalizes every `el_words_needed` entry to a
+   register token, looks it up in `rules/EL_FEATURES.md` via `lintElFeatures`, and
+   writes `merge/EL_WORDS.md`. For Brooks: SwingHigh/SwingLow (528 candidates),
+   XAverage (134), TLValue (41) had no register row, and 530 candidates depended on
+   at least one missing word. Those probes get written once, before any authoring
+   agent is launched. Plain `AvgTrueRange` maps to the registered `WFSafe_` variant
+   (author-rule §4), it is a synonym, not a probe.
+2. **Bucket by topic, not by book or alphabet.** `python reference/brooks/bucketize.py`
+   assigns each candidate one primary bucket by keyword rules over name, description
+   and pseudocode, sub-splits any bucket over ~45k tokens by finer keywords, and writes
+   `merge/buckets/<bucket>.json` with full candidate objects plus `index.tsv`,
+   `secondary.tsv` (other buckets that also matched) and `buckets/SUMMARY.md`. Iterate
+   the keyword lists until `misc` is under 5 percent (Brooks: 23 buckets, misc 2.5
+   percent). Candidates about one concept must share a file or the dedup cannot see
+   them together.
+3. **Brief:** `reference/brooks/MERGE.md`. Merge on behaviour not wording; prefer the
+   most mechanizable definition; keep behaviourally distinct variants apart and
+   cross-link them; atomic beats composite except for named book setups; check every
+   merged rule against `rules/CATALOG.md`; priority A (author now) / B (hard but
+   defined) / C (blocked on a design decision) / D (drop). Coverage rule: every
+   candidate id lands in exactly one of a rule's `sources`, `dropped`, or
+   `cross_bucket`.
+4. **Merge agents: Opus for judgment-heavy buckets, Sonnet for mechanical ones, three concurrent, one bucket each** (combine buckets under
+   ~20k tokens into one agent that writes one file per bucket). Prompt: read MERGE.md,
+   read CATALOG.md once, read the bucket in full, write `merged/<bucket>.json`, report
+   under 25 lines. Same "do not spawn subagents" line as miners, plus: **parallel
+   subagents share one scratchpad directory**, so tell each to prefix scratch files
+   with its bucket name; a Brooks merge agent had its working dump overwritten by a
+   sibling mid-read. Have them read the bucket JSON directly and write the output
+   with the Write tool: a 70 KB merged file exceeds the shell heredoc argument limit,
+   and one agent died on exactly that. Four Opus merge agents at once hit the session
+   limit in about twenty minutes (each costs ~180k tokens); three is the ceiling.
+   **A subagent reported as failed may still have finished its file**: four of the
+   five rate-limited Brooks merge agents had already written complete, coverage-clean
+   output. Run the roll-up and trust its per-bucket coverage, not the task status,
+   before relaunching anything. **Cap single-response output**: a Sonnet merge agent
+   died emitting a 79-candidate merged file in one Write (over the 64k output-token
+   limit). Tell merge agents to keep merge_notes under 60 words, and to write the file
+   in two steps (Write the first half, Edit in the second) when a bucket has more than
+   about 40 rules.
+   **Order the buckets so decisions flow downstream.** Run the buckets that own a
+   shared primitive or design decision first (swing pivots, leg counting, always-in,
+   trading-range classification, spike definition, trend-line construction) and paste
+   each settled decision into every later prompt as "decisions already taken". In
+   Brooks this turned dozens of research-graded candidates into B rules because the
+   later agents could build on a defined primitive instead of re-deferring.
+5. **Stray reconciliation, after the last merge:** agents send misfiled candidates to
+   other buckets via `cross_bucket`, but a target agent that had already finished
+   never sees them. The roll-up lists the ones that fell through; one small agent
+   absorbs them into the right merged files at the end.
+6. **Roll-up:** `python reference/brooks/rollup.py [--strict]` checks coverage per
+   bucket, reconciles `cross_bucket` strays, flags key collisions with `rules/*.json`,
+   and writes `CANDIDATES.md` (tables per priority, design decisions unioned by
+   topic, EL words over A and B rules, dropped appendix) plus `merge/RULES.tsv`.
+
+Known from the mining reports, to expect when merging: about 40 percent of
+candidates restate primitives defined in other chapters (trend bar, doji, inside
+bar, swing pivot, measured move, always-in, H1/H2 counter). A few research-grade
+concepts gate hundreds of candidates and need one central decision each: always-in
+direction, trading-range vs trend classification, "tight channel". The H1/H2 leg
+counter from Ranges ch17 `R17-01` is the most mechanizable definition. Two engine
+primitives were requested repeatedly and do not exist: a fixed initial-stop price
+accessor and a minimum-position-profit tracker.
+
+**Feature triage after merging, not only before.** Re-run `featureTriage.py --input
+"reference/<source>/merged/*.json"` (it reads `rules[]`, skipping priority D). For
+Brooks the blocking words over the 515 authorable rules were SwingHigh/SwingLow
+(92 rules), MinMove/PriceScale (49, tick size), TLValue (32), XAverage (30), plus
+MinPositionProfit (an engine primitive, not an EL word). Four probes unblock almost
+everything that is not A already.
+
+Pass 3 authoring agents get disjoint slices of the A list, write only `rules/*.json`
+and their TS twins, and return CATALOG / EL_FEATURES rows as text for the
+orchestrator to append, so they never collide on shared files.
 
 ---
 
@@ -213,5 +279,11 @@ Not yet run for Brooks; update this section when it is. What is already known:
   session limit after writing 9 files; reran as 25 Sonnet assignments at 5 concurrent,
   about two hours wall clock. Result: 1635 candidates (1399 Entry, 232 Exit, 4
   Switch), 367 rejected; complexity trivial 217 / simple 224 / moderate 495 / hard 457
-  / research 242; 180 intraday-only. Per-miner cost 110k–245k tokens. Pass 2 not
-  started.
+  / research 242; 180 intraday-only. Per-miner cost 110k–245k tokens.
+- **2026-09-12, Brooks merge.** 23 topic buckets in 18 assignments plus one
+  reconciliation agent; Opus merge agents cost 130k–205k tokens each, Sonnet ones
+  about the same count. Four Opus at once hit the session limit (four of five files
+  still landed complete); a Sonnet agent died on the 64k output cap. 1635 → 548 rules
+  (A 228, B 212, C 75, D 33). Five design decisions settled by bucket owners and
+  recorded in CANDIDATES.md for Brian to ratify: always-in, leg counter, trading range,
+  tight channel, trend-line construction. Pass 3 not started.

@@ -1,0 +1,970 @@
+[
+  {
+    "id": "R00-55",
+    "name": "NoPullbackStreakTrendStrength",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R00-14"
+    ],
+    "pages": [
+      26
+    ],
+    "quote": "There are small, infrequent, and mostly sideways pullbacks. For example, if the Emini's average range is 12 points, the pullbacks will all likely be less than three or four points, and the market will often go for five or more bars without a pullback.",
+    "description": "Filter: no PullbackBar has occurred in the last N bars -- a strong-trend confirmation used to favor with-trend entries and disfavor countertrend attempts.",
+    "pseudocode": "for i in 0..noPullbackBars-1: !PullbackBar[i]",
+    "sides": "mirrored",
+    "parameters": {
+      "noPullbackBars": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "fixed-length loop over the pullback-bar primitive"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R00-60",
+    "name": "PullbackLegCounter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      29
+    ],
+    "quote": "In a sideways or downward move in a bull trend or a trading range, the first bar whose high is above the high of the prior bar is a high 1, and this ends the first leg... If the market does not turn into a bull swing and instead continues sideways or down, label the next occurrence... as a high 2.",
+    "description": "Shared primitive: while a pullback (sideways/down move in a bull trend) is in progress, count each bar whose high exceeds the prior bar's high as ending one leg of the pullback; the running count is the current leg number (high-1, high-2, ...). Resets when the pullback ends (a swing back to a new trend extreme) or the trend context changes. Mirror: low-N counts bars whose low is below the prior bar's low during a bear-trend/range pullback.",
+    "pseudocode": "legCount = 0; for each bar since pullback start: if high[bar] > high[bar+1]: legCount += 1 (only the first such bar per leg counts, i.e. the counter does not increment again until the pullback resumes making lower highs)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (state primitive underlying R00-61)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a persistent cross-bar counter with reset logic tied to identifying when a pullback starts and ends"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the core of Brooks's H1/H2/H3/H4 and L1/L2/L3/L4 bar-counting system, arguably the single most load-bearing primitive in the whole trilogy."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "R02-12",
+    "name": "RecentStrongTrendDays",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39
+    ],
+    "quote": "The market has had several strong bull trend days recently.",
+    "description": "Sign of strength: several of the recent daily bars qualify as strong trend days.",
+    "pseudocode": "countStrongTrendDays(dayLookback) >= minTrendDays",
+    "sides": "mirrored",
+    "parameters": {
+      "dayLookback": 10,
+      "minTrendDays": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "research",
+      "reason": "‘trend day’ needs a design decision, as in R08-24"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TrendDayWithTrendOnly",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/02_signs_of_strength_in_a_breakout.json",
+    "chapter_title": "Signs of Strength in a Breakout"
+  },
+  {
+    "id": "R04-01",
+    "name": "TrendStrengthGaugeAtNewExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      50
+    ],
+    "quote": "If the market moves far enough up for the breakout buyers to make at least a scalper's profit, then the breakout found more buyers than sellers ... if the market raced to a new swing high but then reversed down within a bar or two, then the breakout found more sellers than buyers.",
+    "description": "Ongoing trend-strength gauge, re-evaluated at each new extreme: the trend is still strong only if recent breakouts beyond a prior extreme travel far enough, soon enough, for a scalper's profit; if a new extreme reverses quickly instead, treat the trend as weakening toward a trading range.",
+    "pseudocode": "swingHigh = highest(high, swingLookback)[1]; highest(high, confirmBars) - swingHigh >= scalpTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "swingLookback": 20,
+      "confirmBars": 3,
+      "scalpTicks": 4
+    },
+    "book_order_type": "n/a (regime-strength filter re-applied at each new extreme)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the same scalp-distance test as R02-06/R02-28, but applied repeatedly as a rolling trend-strength gauge rather than a one-time breakout check"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/04_breakout_entries_in_existing_strong_trends.json",
+    "chapter_title": "Breakout Entries in Existing Strong Trends"
+  },
+  {
+    "id": "R05-07",
+    "name": "StrongTrendCharacteristicsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      53
+    ],
+    "quote": "important features of a strong bull trend are several consecutive bull trend bars with very little overlap of the bodies, small tails, and bull strength earlier in the day",
+    "description": "Context filter: trust a with-trend breakout's follow-through more when recent bars show several consecutive trend bars with small overlap and small tails.",
+    "pseudocode": "consecutiveTrendBars(bodyFraction) >= minConsecutive && avgBarOverlap(overlapWindow) <= maxOverlapFraction && avgTailFraction(overlapWindow) <= maxTailFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "bodyFraction": 0.6,
+      "minConsecutive": 3,
+      "overlapWindow": 5,
+      "maxOverlapFraction": 0.3,
+      "maxTailFraction": 0.25
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "compound window statistics over bar overlap and tail size, plus a consecutive-bar count"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks gives no numeric thresholds here; full definition is in the companion Trends volume."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/05_failed_breakouts_breakout_pullbacks_and.json",
+    "chapter_title": "Failed Breakouts, Breakout Pullbacks, and Breakout Tests"
+  },
+  {
+    "id": "RP3-13",
+    "name": "StrongTrendPrefersMarketEntryOverPullbackWait",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      86,
+      87
+    ],
+    "quote": "This is important for traders who are waiting to enter on pullbacks. When the trend is strong, it is often better to enter at the market than to wait for a pullback.",
+    "description": "Filter: once a trend has shown N consecutive same-direction closes with minimal overlap, favor entering at the market (or on minimal one/two-tick dips) each bar over waiting for a conventional pullback, since a pullback may not come until the trend is much further extended.",
+    "pseudocode": "consecutiveTrendBars(bodyFraction) >= strongTrendBars",
+    "sides": "mirrored",
+    "parameters": {
+      "strongTrendBars": 7,
+      "bodyFraction": 0.6
+    },
+    "book_order_type": "market order or a shallow limit a tick or two below the market",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length consecutive-bar count, once trend-bar classification exists"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveUpBars",
+    "confidence": "medium",
+    "notes": [
+      "The AAPL walkthrough (p86-87) is an expected-value illustration of the trader's equation, not an independent mechanical test."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11-part_iii_pullbacks_trends_converting_to_trading_ranges.json",
+    "chapter_title": "Part III: Pullbacks: Trends Converting to Trading Ranges"
+  },
+  {
+    "id": "R11-05",
+    "name": "OppositeColorBar",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90
+    ],
+    "quote": "A bar has a bear body.",
+    "description": "Stage 5: the current bar closes against the prevailing trend's color (a bear body in a bull trend).",
+    "pseudocode": "close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R26-04",
+    "name": "StrongTrendSingleReasonPullbackEntry",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      187
+    ],
+    "quote": "anytime there is a strong trend, you must enter on every pullback that does not follow a climax or final flag reversal, even if the pullback is just a high 1 in a strong bull spike or a low 1 in a strong bear spike.",
+    "description": "Exception to R26-01: in a strong trend, a single reason (any pullback, even a bare high1/low1) is sufficient to enter, as long as the pullback does not follow a climax or a final-flag reversal.",
+    "pseudocode": "// research: 'strong trend', 'climax', and 'final flag reversal' are research-grade concepts defined/assumed elsewhere\nsingleReasonExceptionApplies = isStrongTrend[0] && isPullbackInTrend[0] && !followsClimax[0] && !followsFinalFlagReversal[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (overrides R26-01's two-reason requirement)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "depends on the undefined-in-this-chapter concepts of strong trend, climax, and final-flag reversal"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/26_need_two_reasons_to_take_a_trade.json",
+    "chapter_title": "Need Two Reasons to Take a Trade"
+  },
+  {
+    "id": "R31-03",
+    "name": "AvoidScalingInAgainstStrongTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      213,
+      216
+    ],
+    "quote": "Finally, it is risky to scale in against any strong trend... When a channel is strong, you should never scale in against the trend.",
+    "description": "Block any countertrend scale-in (adding to, or newly entering against, a position) whenever the prevailing trend is judged strong.",
+    "pseudocode": "// research: 'strong trend' classification is not reduced to a bar-level test in this chapter\nblockCountertrendScaleIn = strongTrendContext[0] && isCountertrendEntry[0];",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (blocks a countertrend scale-in/entry signal from being taken)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"strong trend\" has no stated bar-level test in this chapter; needs the same always-in/trend-strength design decision flagged elsewhere in this corpus"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Same underlying idea as R30-03 (avoid countertrend scalps in a strong trend), applied here specifically to scaling in."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/31_scaling_into_and_out_of_a_trade.json",
+    "chapter_title": "Scaling Into and Out of a Trade"
+  },
+  {
+    "id": "V00-37",
+    "name": "MinimalBodyOverlapConsecutive",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      54
+    ],
+    "quote": "There is very little overlap of the bodies of consecutive bars.",
+    "description": "In a strong trend, the current bar's low sits at or just a tick or two below the prior bar's close (bull), showing little body overlap between consecutive bars.",
+    "pseudocode": "low[0] >= close[1] - overlapTicks*tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "overlapTicks": 1
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a single comparison against a tick-based tolerance"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V00-40",
+    "name": "PullbackSizeThreshold",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      55
+    ],
+    "quote": "There are small, infrequent, and mostly sideways pullbacks.",
+    "description": "In a strong trend, pullbacks stay below a fixed size (points or a multiple of the recent range) - a context filter for trend strength.",
+    "pseudocode": "pullbackRange <= maxPullbackPoints",
+    "sides": "same",
+    "parameters": {
+      "maxPullbackPoints": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a running definition of 'the current pullback's range', which is cross-bar state, not a fixed window"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Brooks's example numbers (Emini average range ~12 points, pullbacks under 3-4 points) are instrument- and volatility-specific; an ATR-relative version may be more portable."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "V02-39",
+    "name": "ReversalStrengthScore",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "V02-01",
+      "V02-02",
+      "V02-03",
+      "V02-04",
+      "V02-09",
+      "V02-12",
+      "V02-17",
+      "V02-22",
+      "V02-24",
+      "V02-25",
+      "V02-26",
+      "V02-33"
+    ],
+    "depends_on": [],
+    "pages": [
+      110
+    ],
+    "quote": "There are many characteristics of strong reversals, and the more that are present, the more likely a countertrend trade will be profitable",
+    "description": "Composite score: the number of mechanizable signs of strength present on this bar is at least K.",
+    "pseudocode": "score = sum of booleans of the composed candidates evaluated at bar 0; score >= minSigns",
+    "sides": "mirrored",
+    "parameters": {
+      "minSigns": 4
+    },
+    "book_order_type": "enter at market or on a small pullback once enough signs are present",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "sum of simple tests; the EMA member makes it moderate"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Average",
+      "XAverage",
+      "CountIF"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Only the trivial/simple/moderate signs are composed; the hard ones can be added once authored."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/02_signs_of_strength_in_a_reversal.json",
+    "chapter_title": "Signs of Strength in a Reversal"
+  },
+  {
+    "id": "V08-04",
+    "name": "WeakSecondExtremeInStrongTrendNegatesReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V08-01",
+      "V08-03"
+    ],
+    "pages": [
+      249
+    ],
+    "quote": "bar 3 was 5 cents above the bar 2 low in a very strong bear trend. This slightly higher low usually negates the pattern and makes a two-legged bear rally much more likely than a new bull trend.",
+    "description": "When the underlying trend is very strong, a second extreme that fails to reach the first (V08-03) does not just downgrade the trade to a scalp - it more often negates the reversal setup entirely, since a strong trend is more likely to produce only a two-legged with-trend correction than a genuine reversal.",
+    "pseudocode": "// research: 'very strong trend' has no bar-level definition here\nsetupLikelyInvalid = secondExtremeDidNotReachFirst && trendStrengthScore[0] >= strongTrendThreshold;\nskipReversalEntry = setupLikelyInvalid",
+    "sides": "mirrored",
+    "parameters": {
+      "strongTrendThreshold": null
+    },
+    "book_order_type": "n/a (context filter that can suppress V08-02's entry entirely)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'very strong trend' has no stated bar-level test; needs a design decision (e.g. consecutive trend-bar count or EMA-gap measure) before coding"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Also restates the chapter's related caveat: 'bottom picking in a strong bear trend without a prior strong trend line break is not a good approach' (p.249), the same trend-line-break precondition as V01-01/VP1-01."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/08_double_top_and_bottom_pullbacks.json",
+    "chapter_title": "Double Top and Bottom Pullbacks"
+  },
+  {
+    "id": "V09-02",
+    "name": "FailureToMakeNewExtremeStrongTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      253
+    ],
+    "quote": "Failure to fall below the low of the prior bar in a strong bull trend or to rally above the high of the prior bar in a strong bear trend. This indicates urgency and a strong trend.",
+    "description": "The current bar fails to trade below the low of the prior bar (bull case) - a sign of urgency and trend strength, used as a with-trend filter gating other bull entries.",
+    "pseudocode": "low[0] > low[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter, not itself an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single fixed-offset comparison of low[0] to low[1]"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Meant to be ANDed with a separate strong-bull-trend context primitive defined elsewhere; not useful alone."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/09_failures.json",
+    "chapter_title": "Failures"
+  },
+  {
+    "id": "V16-07",
+    "name": "CloseAbovePriorClosesRun",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      349
+    ],
+    "quote": "Bar 11 closed above the closes of the past six bars (a sign of strength), and it was essentially an outside up bar at the start of a possible new bull trend.",
+    "description": "The close is above the closes of each of the last N bars - a run-based sign of strength.",
+    "pseudocode": "close[0] > highest(close, barsBack, 1)",
+    "sides": "mirrored",
+    "parameters": {
+      "barsBack": 6
+    },
+    "book_order_type": "n/a (strength assessment)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "highest over an N-bar window of closes"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "Breakout",
+    "confidence": "high",
+    "notes": [
+      "Breakout uses '>=' against the highest close of the last N bars; this candidate is the strict '>' reading of the same test at N=6."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "V16-10",
+    "name": "BuyNewHighOfDayOnlyInStrongTrend",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V16-01"
+    ],
+    "pages": [
+      356
+    ],
+    "quote": "Buying the high of the day is a good strategy only in strong bull trends, and that was not the current price action.",
+    "description": "Filter: only allow buying a fresh high of the day when the recent bars show a genuinely strong bull trend (a run of strong bull trend bars), not merely a two-legged trading-range rally.",
+    "pseudocode": "// research: 'strong bull trend' proxy - at least minStrongBars strong bull trend bars within the last contextLookback bars\nhigh[0] >= highest(high, sessionBarsSoFar, 1) && countif(i in 0..contextLookback-1, StrongTrendBarPrimitive[i] (bull)) >= minStrongBars",
+    "sides": "mirrored",
+    "parameters": {
+      "contextLookback": 10,
+      "minStrongBars": 3
+    },
+    "book_order_type": "n/a (context filter on buying a new session extreme)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "'strong bull trend' is a design-level judgment; the strong-trend-bar-count proxy is one workable reading, not Brooks's definition"
+    },
+    "el_words_needed": [
+      "Highest",
+      "CountIF"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "sessionBarsSoFar needs a session-open bar-count helper analogous to barsSinceSessionOpen()."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "V24-32",
+    "name": "FixedTickPullbackEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      489
+    ],
+    "quote": "Buying a pullback in a strong bull trend at a fixed number of ticks down equal to or slightly less than the average prior pullbacks.",
+    "description": "In a strong trend, rest a limit order a fixed number of ticks away from the market (set to the average size of the trend's prior pullbacks so far) rather than waiting for a specific pattern.",
+    "pseudocode": "avgPullback = average(pullbackDepths(direction,tradeCountToday)); limitPrice = high[highestSince(1)] - avgPullback*avgPullbackFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "avgPullbackFraction": 0.9
+    },
+    "book_order_type": "resting limit order at a fixed tick offset from the current swing extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires tracking and averaging the depth of prior pullbacks during the current trend"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/24_the_best_trades_putting_it_all_together.json",
+    "chapter_title": "The Best Trades: Putting It All Together"
+  },
+  {
+    "id": "T00-47",
+    "name": "StrongBullTrendDaysRecentContext",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      59
+    ],
+    "quote": "The market has had several strong bull trend days recently.",
+    "description": "At least K of the last N daily bars closed as strong bull trend days (large bull body closing near the high): a higher-time-frame confirmation for intraday with-trend entries.",
+    "pseudocode": "count over d in 0..dayLookback-1 of (dailyClose[d] > dailyOpen[d] && (dailyClose[d]-dailyOpen[d]) >= strongBodyFraction*(dailyHigh[d]-dailyLow[d])) >= minStrongDays",
+    "sides": "mirrored",
+    "parameters": {
+      "dayLookback": 5,
+      "minStrongDays": 2,
+      "strongBodyFraction": 0.6
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "daily-ok",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a secondary daily-bar data series, not just the current time frame"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "T07-08",
+    "name": "StrongTrendContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "T07-06"
+    ],
+    "depends_on": [],
+    "pages": [
+      189,
+      196
+    ],
+    "quote": "bar 1 was an outside up bar in a strong bear trend, so traders would be looking to enter only on a downside breakout.",
+    "description": "Primitive context filter: the market is in a strong bull trend, approximated as every one of the last N bars closing above the EMA and close above the close N bars ago.",
+    "pseudocode": "for k in 0..trendBars-1: close[k] > ema[k]; && close[0] > close[trendBars]",
+    "sides": "mirrored",
+    "parameters": {
+      "trendBars": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'strong trend' / 'always in' needs a design decision; EMA-side streak plus momentum is one proxy"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "MomentumConsecutiveBars",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/07_outside_bars.json",
+    "chapter_title": "Outside Bars"
+  },
+  {
+    "id": "TP3-38",
+    "name": "TrendDayIdentifiedInFirstHour",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      316
+    ],
+    "quote": "Although a trend can begin with any bar during the day, the majority of trend days begin within the first hour or so.",
+    "description": "Intraday filter: after the first firstHourBars of the session, if the close is beyond the opening range by at least breakMultiple times the opening-range height, treat the day as a trend day and take only with-trend entries for the rest of the session.",
+    "pseudocode": "barsSinceSessionOpen >= firstHourBars && close[0] > openingRangeHigh + breakMultiple * (openingRangeHigh - openingRangeLow)",
+    "sides": "mirrored",
+    "parameters": {
+      "firstHourBars": 12,
+      "breakMultiple": 0.5
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "session-open detection and an opening-range state"
+    },
+    "el_words_needed": [
+      "Date",
+      "Time",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Brooks's own trend-day test is pattern recognition (Chapters 21 to 26); the opening-range break is a proxy."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/18-part_iii_trends.json",
+    "chapter_title": "Part III: Trends (introduction)"
+  },
+  {
+    "id": "T19-04",
+    "name": "LittleBodyOverlapBetweenBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      337,
+      338
+    ],
+    "quote": "There is very little overlap of the bodies of consecutive bars. For example, in a bull spike, many bars have lows that are at or just one tick below the closes of the prior bar.",
+    "description": "This bar's low sits at or only a small number of ticks below the prior bar's close (bull trend) -- almost no give-back into the prior bar's body, a sign traders are buying aggressively.",
+    "pseudocode": "low[0] <= close[1] && (close[1] - low[0]) <= overlapTicks",
+    "sides": "mirrored",
+    "parameters": {
+      "overlapTicks": 1
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison on fixed offsets"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "overlapTicks is expressed in price points/ticks; instrument-specific."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "T19-24",
+    "name": "StrongTrendComposite",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T19-01",
+      "T19-03",
+      "T19-04",
+      "T19-08",
+      "T19-09",
+      "T19-10",
+      "T19-11",
+      "T19-13"
+    ],
+    "depends_on": [],
+    "pages": [
+      337
+    ],
+    "quote": "The more of these signs that are present, the more you should focus on with-trend entries. ... once you realize that the market is in a strong trend, you don't need a setup to enter. You can enter anytime all day long at the market if you wish with a relatively small stop.",
+    "description": "When a majority of the mechanizable signs-of-strength conditions above hold concurrently, classify the market as in a strong trend; in that state, permit setup-free with-trend entries at the market rather than requiring a specific pattern.",
+    "pseudocode": "// count how many of the composed conditions are true and compare to a majority threshold; the 'enter at market once strong' policy is a separate design decision from the classification itself",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market order once trend is classified strong, per Brooks; n/a for the classification itself",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires a design decision on how many/which signs and thresholds constitute 'strong enough', plus a policy decision on setup-free market entries"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "This is the chapter's unifying idea; kept as an Entry filter (not Switch) because it gates whether other with-trend entries can bypass their normal setup requirement rather than forcing flat."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/19_signs_of_strength_in_a_trend.json",
+    "chapter_title": "Signs of Strength in a Trend"
+  },
+  {
+    "id": "TP4-16",
+    "name": "SwingPartOfPositionOnTrendDay",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP4-07"
+    ],
+    "pages": [
+      354
+    ],
+    "quote": "make sure to take every with-trend trade and swing part of your position",
+    "description": "Exit management: on a recognized trend day, scalp out part of a with-trend position at the scalp target and hold the remainder to the session close (or until an opposite signal). If the engine trades one unit, the single-unit reading is 'hold with-trend positions to the close, no scalp exit'.",
+    "pseudocode": "ctx.MarketPosition() > 0 && dayTrendUpAtEntry && (partialTaken == false && profitTicks >= scalpTicks -> exit scalpFraction of size; else hold until Time >= sessionCloseTime)",
+    "sides": "same",
+    "parameters": {
+      "scalpTicks": 4,
+      "scalpFraction": 0.5,
+      "sessionCloseTime": 1300
+    },
+    "book_order_type": "limit at scalp target for the scalp part; remainder held with a trailing stop",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "partial-exit state; may need pyramiding/partial-exit support the pane system lacks"
+    },
+    "el_words_needed": [
+      "EntryPrice",
+      "MarketPosition",
+      "Time"
+    ],
+    "likely_existing_rule": "TimeOfDayExit",
+    "confidence": "low",
+    "notes": [
+      "Recorded because Brooks states it as a rule; whether partial exits are expressible is an authoring-pass decision."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "T23-06",
+    "name": "PullbackSizeSinceTrendStart",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T23-03"
+    ],
+    "depends_on": [],
+    "pages": [
+      414,
+      415
+    ],
+    "quote": "Look at the size of the pullbacks since the trend began. For example, in a small pullback bull trend, if the largest pullback in the past couple of hours has been only eight ticks, buy with a limit order at five to seven ticks below the high of the day.",
+    "description": "Primitive with state: since the trend-from-open flag was set, track the largest pullback so far (the running high minus the lowest low reached before a new high, in a bull trend) as pullbackMax.",
+    "pseudocode": "if (trendFromOpen == 1) { runningHigh = max(runningHigh, high[0]); if (high[0] < runningHigh) pullbackDepth = runningHigh - low[0]; pullbackMax = max(pullbackMax, pullbackDepth) }",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (state primitive)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a running extreme and a depth-from-extreme tracker, reset each session"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T23-07",
+    "name": "SmallPullbackTrendDayFlag",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T23-01",
+      "T23-06"
+    ],
+    "depends_on": [
+      "T23-03"
+    ],
+    "pages": [
+      414,
+      416
+    ],
+    "quote": "This type of trend can be so strong that... the pullbacks in the Emini might be just 10 to 12 ticks (10 to 30 percent of the average daily range).",
+    "description": "Filter: the day is a trend-from-open day and the largest pullback so far stays below a fraction of the average daily range -- the small pullback trend day variant, the strongest kind of trend day. Enables the weak-signal-bar allowance (T23-10) and the later-pullback expectation (T23-08).",
+    "pseudocode": "trendFromOpen != 0 && pullbackMax <= smallPullbackFraction * avgDailyRange",
+    "sides": "mirrored",
+    "parameters": {
+      "smallPullbackFraction": 0.2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "arithmetic once its component primitives are tracked"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T23-08",
+    "name": "ExpectLargerPullbackAfterElevenAM",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "T23-07"
+    ],
+    "depends_on": [],
+    "pages": [
+      414,
+      422
+    ],
+    "quote": "About two-thirds of these days have a larger pullback after 11:00 a.m. PST. That pullback is often about twice the size of the biggest pullback since the trend began in the first hour.",
+    "description": "Filter/context: on a confirmed small pullback trend day, once the session clock passes a cutoff time, a pullback of roughly 1.5-2x the day's largest prior pullback is expected and should not by itself be read as a trend reversal.",
+    "pseudocode": "smallPullbackTrendDay && Time >= lateCutoffTime && currentPullbackDepth >= growthMultiple * pullbackMax",
+    "sides": "mirrored",
+    "parameters": {
+      "lateCutoffTime": 1100,
+      "growthMultiple": 1.5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a time gate plus the pullback-size ratio from T23-06/T23-07"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  },
+  {
+    "id": "T24-11",
+    "name": "NoPullbackAfterFirstLegSignOfStrength",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      450,
+      451
+    ],
+    "quote": "Since the bears could not generate much of a downside breakout in the channel...no clear two-legged move ever developed. This absence of any clear pullback after a first leg up was a sign of strength by the bulls.",
+    "description": "Filter: after a first leg of a new move completes, if no bar closes back through a minimum retracement fraction of that leg before a new extreme is made, treat the lack of a qualifying pullback itself as a sign of strength and favor with-trend entries over waiting for a 'proper' pullback.",
+    "pseudocode": "firstLegHigh reached; noQualifyingPullback = true; for each bar since: if (close[0] <= firstLegHigh - minRetraceFraction * firstLegHeight) noQualifyingPullback = false; if (high[0] > firstLegHigh && noQualifyingPullback) signOfStrength = true",
+    "sides": "mirrored",
+    "parameters": {
+      "minRetraceFraction": 0.2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a running retracement check against a remembered leg high, once the leg is identified"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/24_reversal_day.json",
+    "chapter_title": "Reversal Day"
+  }
+]

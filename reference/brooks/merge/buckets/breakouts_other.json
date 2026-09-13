@@ -1,0 +1,1088 @@
+[
+  {
+    "id": "R00-40",
+    "name": "ShrinkingStairsMomentumWaning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R00-35"
+    ],
+    "pages": [
+      14
+    ],
+    "quote": "shrinking stairs: A stairs pattern where the most recent breakout is smaller than the previous one... a series of three or more trending highs... where each breakout to a new extreme is by fewer ticks than the prior breakout, indicating waning momentum.",
+    "description": "Filter: over the last N breakouts to a new trend extreme, each breakout's size (new extreme minus prior extreme) is smaller than the one before it -- momentum is waning, so treat with-trend continuation entries with more caution / favor countertrend.",
+    "pseudocode": "for k in 0..stairsRequired-2: breakoutSize(k) < breakoutSize(k+1)",
+    "sides": "mirrored",
+    "parameters": {
+      "stairsRequired": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a persisted history of breakout sizes, itself derived from swing/extreme tracking"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "RP1-05",
+    "name": "NestedRangeBreakoutFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "RP1-03"
+    ],
+    "pages": [
+      30,
+      31
+    ],
+    "quote": "if you see that the current breakout is still below the high from 20 or 30 bars earlier, the market might still be in a trading range ... it is usually better to look to buy pullbacks instead.",
+    "description": "Filter: only trust an upside breakout as the start of a new trend (buy the close / use a wide stop) once it also clears a much longer lookback high; a breakout that only clears a short lookback but sits below the wider-lookback high is more likely a breakout of a small range nested inside a larger one.",
+    "pseudocode": "close[0] > highest(high, wideLookback)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "wideLookback": 100
+    },
+    "book_order_type": "n/a (context filter distinguishing trend breakouts from range breakouts)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a second, longer highest-high window compared with the breakout point"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "medium",
+    "notes": [
+      "A large enough wideLookback also approximates Brooks's ‘no bars overhead on the left side of the screen’ clear-path case (p30), which he treats as a green light to buy closes with a wide stop."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/01-part_i_breakouts_transitioning_into_a_new_trend.json",
+    "chapter_title": "Part I: Breakouts: Transitioning into a New Trend"
+  },
+  {
+    "id": "R05-08",
+    "name": "TightRangeOneBarBreakoutUnreliable",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      53
+    ],
+    "quote": "A one-bar breakout of a tight trading range is as likely to fail and reverse back into the range as it is to continue into a trend.",
+    "description": "Filter: treat a breakout from a narrow (tight) recent range as low-confidence; require confirmation before trusting it as a trend start.",
+    "pseudocode": "rangeHeight = highest(high, rangeLookback) - lowest(low, rangeLookback); rangeHeight <= tightAtrMultiple * atr(atrLookback)",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 10,
+      "tightAtrMultiple": 1.5,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (reliability filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'tight trading range' is a design decision (boundary detection); the ATR-band proxy is one reading of it"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Chapter 22 (Tight Trading Ranges) should be checked for a more authoritative mechanical definition."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/05_failed_breakouts_breakout_pullbacks_and.json",
+    "chapter_title": "Failed Breakouts, Breakout Pullbacks, and Breakout Tests"
+  },
+  {
+    "id": "RP2-07",
+    "name": "SupportWeakensAfterRepeatedTestsFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      67
+    ],
+    "quote": "In general, if the market tests an area of support four or five times, the likelihood of breaking through that support increases and, at some point, the breakout becomes more likely than not.",
+    "description": "Filter: count touches of a support/resistance level within toleranceTicks over lookback bars; once the touch count reaches touchesForWeakening, reduce confidence that the level will keep holding (favor a breakout trade over another bounce trade).",
+    "pseudocode": "touchCount = countBarsWithin(level, toleranceTicks, lookback); touchCount >= touchesForWeakening => favorBreakoutOverBounce",
+    "sides": "same",
+    "parameters": {
+      "toleranceTicks": 2,
+      "lookback": 60,
+      "touchesForWeakening": 4
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window loop counting proximity touches of a remembered level"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Illustrated in the chapter with a flat moving average that stops attracting buyers after repeated failed touches."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/07-part_ii_magnets_support_and_resistance.json",
+    "chapter_title": "Part II: Magnets: Support and Resistance"
+  },
+  {
+    "id": "R08-17",
+    "name": "CountertrendTargetAtBreakoutPoint",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R08-06"
+    ],
+    "pages": [
+      76
+    ],
+    "quote": "The countertrend move will often test all the way back to the breakout point.",
+    "description": "For a countertrend short taken at a measured-move target (long side: a countertrend long taken at a downside target), the profit target is the earlier breakout point.",
+    "pseudocode": "low[0] <= breakoutPoint + toleranceTicks * tickSize  (long side of the mirror: high[0] >= breakoutPoint - toleranceTicks * tickSize)",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1,
+      "lookback": 20
+    },
+    "book_order_type": "profit-taking limit at the breakout point",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the remembered breakout point of the prior leg"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/08_measured_moves_based_on_gaps_and_trading_ranges.json",
+    "chapter_title": "Measured Moves Based on Gaps and Trading Ranges"
+  },
+  {
+    "id": "R11-23",
+    "name": "FailedRangeBreakoutFormsLargerRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "R11-22"
+    ],
+    "pages": [
+      90,
+      91
+    ],
+    "quote": "The market breaks above the trading range and comes back into the trading range, forming a larger trading range.",
+    "description": "The final weakening stage: a breakout above the trading range fails and price re-enters the range, expanding it -- the clearest sign the trend has converted into a trading range.",
+    "pseudocode": "close[b] > rangeHigh (breakout bar b) && close[0] < rangeHigh && (0 - b) <= reentryWindow",
+    "sides": "mirrored",
+    "parameters": {
+      "reentryWindow": 10
+    },
+    "book_order_type": "n/a (context signal)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the persisted range boundary and breakout bar plus a re-entry window"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/11_first_pullback_sequence_bar_minor_trend_line.json",
+    "chapter_title": "First Pullback Sequence: Bar, Minor Trend Line, Moving Average, Moving Average Gap, Major Trend Line"
+  },
+  {
+    "id": "R12-08",
+    "name": "BullFlagBreakoutEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      95
+    ],
+    "quote": "A with-trend bull flag sets up a long entry on a buy stop order at one tick above the high of the previous bar, and the initial protective stop is one tick below the low of that signal bar.",
+    "description": "Shared primitive: generic with-trend flag breakout -- buy a stop one tick above the prior (signal) bar's high, protective stop one tick below its low.",
+    "pseudocode": "close[0] > high[1] + entryOffsetTicks * tickSize  (mechanized: enter at bar 0's close trigger, filled next bar's open); initialStop = low[1] - stopOffsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "entryOffsetTicks": 1,
+      "stopOffsetTicks": 1
+    },
+    "book_order_type": "buy stop one tick above the signal bar's high",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a single-bar breakout with a fixed tick offset"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "CloseAbovePriorHigh",
+    "confidence": "high",
+    "notes": [
+      "Generic entry mechanics behind every flag pattern in this chapter; recorded once here from its own explicit statement."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/12_double_top_bear_flags_and_double_bottom_bull.json",
+    "chapter_title": "Double Top Bear Flags and Double Bottom Bull Flags"
+  },
+  {
+    "id": "R12-17",
+    "name": "DoubleTrappedTradersImplyStrongerBreakout",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      96
+    ],
+    "quote": "There were trapped bears on the failed downside breakout and then trapped bulls on the failed upside breakout, and when there are trapped bulls and bears, the next breakout usually results in a decent swing.",
+    "description": "Filter: within a small trading range, once BOTH a failed downside breakout (trapping bears) and a failed upside breakout (trapping bulls) have occurred, expect the next genuine breakout in either direction to travel further than usual -- weight it as a swing rather than a scalp.",
+    "pseudocode": "failedBreakoutBelow(rangeLookback) && failedBreakoutAbove(rangeLookback) -> increase target/size on the next confirmed breakout",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 15
+    },
+    "book_order_type": "n/a (context filter on target sizing)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs both failed-breakout events to persist within the same range window"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/12_double_top_bear_flags_and_double_bottom_bull.json",
+    "chapter_title": "Double Top Bear Flags and Double Bottom Bull Flags"
+  },
+  {
+    "id": "R15-01",
+    "name": "KeyInflectionTimeWindow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      104
+    ],
+    "quote": "The market often breaks out or reverses within a bar before or after 7:00 a.m. and 7:30 a.m. PST on economic reports, at 11:30 a.m. PST, and less often around 11 a.m. and noon PST.",
+    "description": "Shared primitive: flag bars within one bar of a short list of specific clock times (7:00, 7:30, 11:00, 11:30, 12:00 PST) as elevated-probability breakout/reversal times, for other entries to gate on.",
+    "pseudocode": "isKeyTime = false; for each t in keyTimes: isKeyTime = isKeyTime || (abs(ctx.Time() - t) <= windowBars * barMinutes)",
+    "sides": "same",
+    "parameters": {
+      "keyTimes": [
+        700,
+        730,
+        1100,
+        1130,
+        1200
+      ],
+      "windowBars": 1
+    },
+    "book_order_type": "n/a (context flag)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed set of Time comparisons, no window loop over price"
+    },
+    "el_words_needed": [
+      "Time"
+    ],
+    "likely_existing_rule": "TimeWindow",
+    "confidence": "high",
+    "notes": [
+      "Distinct from the existing TimeWindow rule: that tests an inclusive continuous range; this tests proximity to a small set of discrete instants."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/15_key_inflection_times_of_the_day_that_set_up.json",
+    "chapter_title": "Key Inflection Times of the Day That Set Up Breakouts and Reversals"
+  },
+  {
+    "id": "RP4-14",
+    "name": "TightRangeStopEntryAvoidance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      138
+    ],
+    "quote": "If the trading range is only three or sometimes even four points tall, entering on stops is usually a losing strategy. The trading range is then a relatively tight trading range... Most of the trades require limit order entries.",
+    "description": "When the trading range's height is at or below a small threshold (the book's Emini example: 3-4 points), avoid stop-entry breakout/reversal trades; prefer limit-order entries instead.",
+    "pseudocode": "rangeHeight = rangeHigh - rangeLow;\navoidStopEntries = rangeHeight <= tightRangeHeightThreshold;",
+    "sides": "same",
+    "parameters": {
+      "tightRangeHeightThreshold": 4
+    },
+    "book_order_type": "n/a (gates stop-entry vs limit-entry style)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs tracked range boundaries; the threshold is instrument-specific (points, not ticks or ATR-normalized) as printed"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The book's threshold is in raw price points for the Emini specifically; an ATR- or tick-normalized version would generalize better across instruments."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/21-part_iv_trading_ranges.json",
+    "chapter_title": "Part IV: Trading Ranges"
+  },
+  {
+    "id": "R22-07",
+    "name": "PreferWithTrendBreakoutAfterTightRangeFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "R22-01",
+      "R00-48"
+    ],
+    "pages": [
+      151,
+      152
+    ],
+    "quote": "if a tight trading range forms after a trend leg, the probability that the breakout will be in the direction of the trend can be as high as 55 percent if the trend was strong... the odds still ultimately favor a with-trend breakout.",
+    "description": "When a tight trading range forms after a trend leg (and was not preceded by a climactic reversal), only take breakout entries in the direction of the prior always-in trend; treat countertrend breakouts as low-probability.",
+    "pseudocode": "allowBreakoutEntry = isTightTradingRange[0] && (breakoutDirection == alwaysInDirection[0]);",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (entry-direction gate)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the existing AlwaysInDirection primitive as the trend reference; the 'preceded by a climactic reversal' exception is not modeled"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "AlwaysInDirection",
+    "confidence": "medium",
+    "notes": [
+      "The exception -- 'if it forms after a climactic reversal, even a small one, the market has an equal probability of breaking out in either direction' -- would need a climax detector to model and is left out here; a candidate for a future climax-detection chapter."
+    ],
+    "book_key": "ranges",
+    "source_file": "reference/brooks/mined/ranges/22_tight_trading_ranges.json",
+    "chapter_title": "Tight Trading Ranges"
+  },
+  {
+    "id": "V00-19",
+    "name": "BreakoutBeyondPriorExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "V00-10"
+    ],
+    "pages": [
+      16
+    ],
+    "quote": "The high or low of the current bar extends beyond some prior price of significance such as a swing high or low, the high or low of any prior bar, a trend line, or a trend channel.",
+    "description": "General breakout definition, simplified to the bar-of-significance case: the current bar's high/low exceeds a prior swing high/low or a fixed-lookback highest/lowest. The trend-line/channel forms of 'prior price of significance' are recorded separately (V00-33/34) since they need pivot and line projection.",
+    "pseudocode": "high[0] >= highest(high, lookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 15
+    },
+    "book_order_type": "stop entry one tick beyond the breakout bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "'prior price of significance' is Brooks's umbrella term for swing highs, any prior bar, or a trend line; a faithful version needs swing-pivot detection"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "HighestHighBreakout",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/00_front_matter.json",
+    "chapter_title": "Front Matter: List of Terms and Introduction"
+  },
+  {
+    "id": "VP1-27",
+    "name": "TradingRangeBreakoutWithTrendBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      69,
+      82,
+      83
+    ],
+    "quote": "you should expect the breakout from the trading range to be in the direction of the trend because that is what happens in about 80 percent of cases... All head and shoulders tops and bottoms are really head and shoulders continuation patterns (flags).",
+    "description": "Treat an apparent reversal-shaped trading range (double top/bottom, head and shoulders, triangle, wedge) as more likely (Brooks estimates ~80%) to break out WITH the larger trend than against it; needs pattern-shape recognition and a trading-range definition, a design decision.",
+    "pseudocode": "n/a - classification/bias concept over a detected trading range and its shape",
+    "sides": "mirrored",
+    "parameters": {
+      "withTrendBreakoutProbability": 0.8
+    },
+    "book_order_type": "n/a",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires a trading-range detector plus shape classification before any bar-level test is possible"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/01-part_i_trend_reversals_a_trend_becoming_an_opposite.json",
+    "chapter_title": "Part I: Trend Reversals: A Trend Becoming an Opposite Trend"
+  },
+  {
+    "id": "V15-10",
+    "name": "TightRangeDurationBreakoutMode",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      335
+    ],
+    "quote": "At this point, the market had been in a tiny range for over 30 minutes, and when that happens, especially when there is a large gap opening, the market is in breakout mode. Traders would have placed buy stops at one tick above the high of the range and would go short on a stop at one tick below the low of the range.",
+    "description": "When the range of the last N bars has stayed within a tight tolerance for at least that many bars, the market is in breakout mode: enter on a stop one tick beyond either side of that tight range.",
+    "pseudocode": "isTightRange = (highest(high, durationBars, 1) - lowest(low, durationBars, 1)) <= rangeTicks * tick; close[0] > highest(high, durationBars, 1) && isTightRange",
+    "sides": "mirrored",
+    "parameters": {
+      "durationBars": 6,
+      "rangeTicks": 8
+    },
+    "book_order_type": "buy stop one tick above the tight range's high (short: sell stop one tick below its low)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window highest/lowest range test plus a breakout comparison"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "MinMove",
+      "PriceScale"
+    ],
+    "likely_existing_rule": "HighestHighBreakout",
+    "confidence": "medium",
+    "notes": [
+      "'30 minutes' is bar-count-dependent on the chart's timeframe; durationBars is the generalized parameter.",
+      "This chapter's tight-range breakout-mode test likely overlaps with the dedicated tight-trading-range chapter in the Ranges book."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/15_always_in.json",
+    "chapter_title": "Always In"
+  },
+  {
+    "id": "V16-11",
+    "name": "AvoidBreakoutAboveOverlappingBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      356
+    ],
+    "quote": "it is bad to buy above three large bars that mostly overlap. The three bars create a trading range, and it is risky to buy at the top of a trading range since most breakouts fail.",
+    "description": "Filter: block a breakout-style entry above (or below) a short run of large bars whose ranges mostly overlap each other, since that run is itself a small trading range where breakouts tend to fail.",
+    "pseudocode": "avgOverlap = average over i in 0..overlapBars-2 of overlap(i); isLarge = avgRange(overlapBars) >= sizeMultiple * avgRange(longerLookback); avgOverlap >= minOverlap && isLarge",
+    "sides": "same",
+    "parameters": {
+      "overlapBars": 3,
+      "minOverlap": 0.5,
+      "sizeMultiple": 1.2,
+      "longerLookback": 20
+    },
+    "book_order_type": "n/a (blocks breakout entries above/below the overlapping-bar cluster)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window loop computing adjacent-bar overlap plus a bar-size comparison against a longer average"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Same overlap() helper and shape as V02-29 PullbackOverlappingBars, applied here as an entry-blocking filter rather than a pullback-quality assessment."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/16_extreme_scalping.json",
+    "chapter_title": "Extreme Scalping"
+  },
+  {
+    "id": "VP3-06",
+    "name": "SecondBarBreakoutOfFirstBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      365,
+      366
+    ],
+    "quote": "Traders often enter on the second bar of the day as it breaks beyond the high or low of the first bar.",
+    "description": "The second bar of the session closes beyond the high (long) / low (short) of the first bar of the session: enter in that direction.",
+    "pseudocode": "(ctx.SessionDate(1) != ctx.SessionDate(2)) && close[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "stop one tick above the first bar's high (long) / below its low (short)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "session-boundary primitive plus a single fixed-offset comparison"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks explicitly flags this as usually a losing trader's equation for a scalp but a reasonable swing setup on the rare high-probability day (e.g. large gap plus a strong first bar); recorded as the bare entry condition, sizing/management left to the authoring pass."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "VP3-11",
+    "name": "ThirdBarBreakoutSignificance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      372
+    ],
+    "quote": "The first 15 minute bar closes at the close of the third 5 minute bar... trading the breakout of the third bar of the day often leads to a big move.",
+    "description": "Context filter: on a 5-minute chart, a breakout of the third bar of the session carries extra weight because it coincides with the close of the first 15-minute bar; treat a breakout of that bar's high/low as higher-confidence than an ordinary bar breakout.",
+    "pseudocode": "(ctx.SessionDate(2) != ctx.SessionDate(3)) && (close[0] > high[2] || close[0] < low[2])",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (confidence-weighting filter on an otherwise ordinary breakout entry)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "requires a 'third bar of session' offset test on top of a fixed-offset breakout comparison; specific to charts built from 5-minute bars"
+    },
+    "el_words_needed": [
+      "Date"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Only meaningful when the strategy's own bar interval is 5 minutes (so that 3 bars align with a 15-minute close); on other intervals this candidate does not apply as stated."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/17-part_iii_the_first_hour_the_opening_range.json",
+    "chapter_title": "Part III: The First Hour (The Opening Range) (introduction)"
+  },
+  {
+    "id": "V18-02",
+    "name": "OpeningRangeBreakoutTrendDay",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      397,
+      398
+    ],
+    "quote": "When the first 5 to 10 bars form a sideways range, many institutions enter on the breakout of the range, and this breakout often leads to a trend day.",
+    "description": "The classic opening-range breakout: track the high/low of the first N bars of the session; once that window closes, enter long (short) on a break above (below) that range.",
+    "pseudocode": "ctx.BarsIntoSession(0) > openingRangeBars && close[0] > highest(high, openingRangeBars, ctx.SessionStartBar(0))",
+    "sides": "mirrored",
+    "parameters": {
+      "openingRangeBars": 8
+    },
+    "book_order_type": "stop one tick above (long) / below (short) the opening range extreme",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a session-start marker to fix the opening-range window, then a highest/lowest over a bounded window; no pivot detection required"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives a range of 5 to 10 bars; 8 used as a midpoint default."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/18_patterns_related_to_yesterday_breakouts.json",
+    "chapter_title": "Patterns Related to Yesterday: Breakouts, Breakout Pullbacks, and Failed Breakouts"
+  },
+  {
+    "id": "V19-08",
+    "name": "SmallOpeningRangeBreakoutBias",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      405
+    ],
+    "quote": "If the range is only about 25 percent of the size of the range of recent days, traders will enter on a breakout of the range in either direction.",
+    "description": "When the opening range (first N bars of the session) is small relative to the recent average daily range, bias toward taking breakout entries of that range in either direction (elevated trend-from-open odds).",
+    "pseudocode": "(openingRangeHigh(openingRangeBars) - openingRangeLow(openingRangeBars)) <= smallRangeFraction * averageDailyRange(rangeLookback)",
+    "sides": "same",
+    "parameters": {
+      "openingRangeBars": 8,
+      "smallRangeFraction": 0.25,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (context filter; the actual breakout order is OpeningRangeBreakoutTrendDay-style)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a fixed opening-range window compared against a rolling average range; no pivot detection"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Pairs with the opening-range-breakout entry mined in chapter 18 (V18-02); this candidate supplies the 'is the range small enough to expect a clean breakout' precondition."
+    ],
+    "book_key": "reversals",
+    "source_file": "reference/brooks/mined/reversals/19_opening_patterns_and_reversals.json",
+    "chapter_title": "Opening Patterns and Reversals"
+  },
+  {
+    "id": "T00-38",
+    "name": "BreakoutReversesManyClosesFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      59
+    ],
+    "quote": "The breakout reverses many recent closes and highs. For example... this breakout bar has a high and close that are above the highs and closes of five or even 20 or more bars.",
+    "description": "The breakout bar's close exceeds the highest close and highest high of the last N bars; the more bars reversed, the stronger the signal.",
+    "pseudocode": "close[1] > highest(close, reversedBars)[2] && close[1] > highest(high, reversedBars)[2]",
+    "sides": "mirrored",
+    "parameters": {
+      "reversedBars": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "highest over a window"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "CloseAbovePriorHighestHigh",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/00_front_matter.json",
+    "chapter_title": "Front Matter and Introduction"
+  },
+  {
+    "id": "TP2-05",
+    "name": "OpeningRangeBreakoutBothSides",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      223
+    ],
+    "quote": "Traders would buy on a stop at one tick above the high and go short at one tick below the low of the opening range.",
+    "description": "Intraday: after the first orBars bars of the session (the opening range), buy on a close above its high / sell on a close below its low, entering at the next open.",
+    "pseudocode": "orHigh = highest(high, orBars) over the session's first orBars bars; close[0] > orHigh",
+    "sides": "mirrored",
+    "parameters": {
+      "orBars": 7
+    },
+    "book_order_type": "buy stop above the opening range high / sell stop below its low (mechanized: next bar open)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a session-anchored highest/lowest window plus a breakout test"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "Date",
+      "Time"
+    ],
+    "likely_existing_rule": "Breakout, HighestHighBreakout",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/13-part_ii_trend_lines_and_channels.json",
+    "chapter_title": "Part II: Trend Lines and Channels (introduction)"
+  },
+  {
+    "id": "T17-02",
+    "name": "FailedSwingExtremeBreakoutReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T17-01"
+    ],
+    "pages": [
+      299
+    ],
+    "quote": "Expect swing high breakouts to fail and form higher high reversal setups, and swing low breakouts to fail and form lower low reversal setups.",
+    "description": "Long form (mirror of the book's short): the bar's low breaks below the most recent confirmed swing low but the bar closes back above that swing low; buy at the next open.",
+    "pseudocode": "low[0] < swingLow(1) && close[0] > swingLow(1)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "buy stop above the reversal bar (mechanized: next bar open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a confirmed swing-low pivot at variable distance"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same family as Chapter 10's FailedTestOfPriorSwingExtreme and Chapter 15's FailedChannelBreakoutReentry, applied here to a plain horizontal swing level rather than a projected trend/channel line."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/17_horizontal_lines_swing_points_and_other_key.json",
+    "chapter_title": "Horizontal Lines: Swing Points and Other Key Price Levels"
+  },
+  {
+    "id": "T17-03",
+    "name": "SecondMoreExtremeReversalIsStronger",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "T17-02"
+    ],
+    "pages": [
+      299,
+      300
+    ],
+    "quote": "Sometimes the failure fails, which is a breakout pullback setup, and the market makes a second more extreme higher high or lower low. A fade of a second higher high or lower low setup is even more likely to be successful, because they are second attempts to reverse the market.",
+    "description": "Prefer T17-02 on the second occurrence of a failed swing-extreme breakout within lookback bars over the first.",
+    "pseudocode": "countTrue(FailedSwingExtremeBreakoutReversal(i) for i in 1..lookback) >= 1 && FailedSwingExtremeBreakoutReversal(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window count of a derived per-bar event"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/17_horizontal_lines_swing_points_and_other_key.json",
+    "chapter_title": "Horizontal Lines: Swing Points and Other Key Price Levels"
+  },
+  {
+    "id": "TP4-03",
+    "name": "SmallOpeningRangeBreakoutMode",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "TP4-01",
+      "TP4-02"
+    ],
+    "pages": [
+      354
+    ],
+    "quote": "In general, if the opening range is small, it will be followed by a breakout.",
+    "description": "Filter: the session's opening range is smaller than a fraction of the average daily range, so the day is in breakout mode and breakout entries in either direction are permitted.",
+    "pseudocode": "orHeight < smallFraction * adr",
+    "sides": "same",
+    "parameters": {
+      "smallFraction": 0.3,
+      "openingBars": 12,
+      "dailyLookback": 5
+    },
+    "book_order_type": "n/a (context filter gating breakout entries)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "composes two per-session state primitives"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Brooks gives 'under 30 percent' explicitly on page 385 of chapter 21; 'small' here is read as the same threshold."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21-part_iv_common_trend_patterns.json",
+    "chapter_title": "Part IV: Common Trend Patterns (introduction)"
+  },
+  {
+    "id": "T21-63",
+    "name": "OpeningRangeUnderThirtyPercentBreakoutMode",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      385
+    ],
+    "quote": "Whenever the opening range (the first five to 10 bars or so) is under 30 percent of an average daily range, the day is in breakout mode and traders will buy a breakout above and short a breakout below.",
+    "description": "Filter: opening range (first N bars of the session) height is under a fraction of the average daily range; breakout entries in either direction are enabled.",
+    "pseudocode": "barsIntoSession >= openingBars && (orHigh - orLow) < fraction * adr",
+    "sides": "same",
+    "parameters": {
+      "openingBars": 8,
+      "fraction": 0.3,
+      "dailyLookback": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session opening range and daily-range state"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Same primitive as TP4-01/02/03; dedup should merge."
+    ],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T21-64",
+    "name": "OpeningRangeBreakoutEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T21-63"
+    ],
+    "depends_on": [],
+    "pages": [
+      385,
+      386
+    ],
+    "quote": "still others waited to buy until there was a breakout above the opening range, above bar 2",
+    "description": "Entry: after the opening range is set (and is small), buy when a bar closes above the opening-range high.",
+    "pseudocode": "barsIntoSession >= openingBars && close[0] > orHigh && close[1] <= orHigh",
+    "sides": "mirrored",
+    "parameters": {
+      "openingBars": 8
+    },
+    "book_order_type": "buy stop one tick above the opening range high",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "per-session opening range state"
+    },
+    "el_words_needed": [
+      "Date",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/21_spike_and_channel_trend.json",
+    "chapter_title": "Spike and Channel Trend"
+  },
+  {
+    "id": "T22-10",
+    "name": "HigherSwingsWithinRangePredictsBreakout",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      392,
+      393,
+      486
+    ],
+    "quote": "If you see a trading range day forming, but each swing high is a little higher than the prior one and each swing low is higher than the prior one, the market may already be trending even though it is still in a trading range.",
+    "description": "Filter: while price is still confined to a trading range, the last K swing highs are each higher than the one before and the last K swing lows are each higher than the one before; this predicts an eventual upside breakout (mirrored: falling swings predict a downside breakout).",
+    "pseudocode": "for k in 1..swingCount-1: swingHigh[k] > swingHigh[k+1] && swingLow[k] > swingLow[k+1]; all true",
+    "sides": "mirrored",
+    "parameters": {
+      "swingCount": 3,
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and a run test across several pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T22-16",
+    "name": "PersistentSmallRangePredictsLateBreakout",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      393,
+      394,
+      411
+    ],
+    "quote": "Every day has a range of five points at some point...Most trending trading range days with an initial range of only five points have a breakout within the first two or three hours, but several times a year the day will stay small until the final hour or two...in 90 percent of the cases the range will increase before the close.",
+    "description": "Research filter: if the session's range so far, deep into the day, is still unusually small versus its own recent-day history (e.g. in the bottom couple of percentiles of the last year's daily ranges), a late-session range-expanding breakout is likely.",
+    "pseudocode": "barsIntoSession >= lateCheckBar && (sessionHigh - sessionLow) <= percentileValue(dailyRangeHistory, smallPercentile)",
+    "sides": "same",
+    "parameters": {
+      "lateCheckBar": 300,
+      "smallPercentile": 0.05
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "research",
+      "reason": "needs a long rolling history of completed daily ranges and a percentile computation over it, plus a design decision on what counts as 'unusually small'"
+    },
+    "el_words_needed": [
+      "Percentile"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/22_trending_trading_range_days.json",
+    "chapter_title": "Trending Trading Range Days"
+  },
+  {
+    "id": "T23-14",
+    "name": "ReverseAfterFirstBarStopOut",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "T23-13"
+    ],
+    "depends_on": [],
+    "pages": [
+      419
+    ],
+    "quote": "If you enter and your protective stop is hit on the next bar, consider reversing for a swing trade because the market will usually move more than the number of ticks that you lost on the first entry.",
+    "description": "Entry: after the first-bar breakout trade (T23-13) is stopped out by the very next bar trading back through the first bar's opposite extreme, reverse into a position in the new direction.",
+    "pseudocode": "firstBarBreakoutLongStopped == true /* the bar after entry closed below firstBarLow */ ? enterShortNextOpen : none",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market/stop order reversing the position",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads the immediately-prior trade's outcome, which the engine already tracks via position state"
+    },
+    "el_words_needed": [
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "FlatOrOpenLossExceeds",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "trends",
+    "source_file": "reference/brooks/mined/trends/23_trend_from_the_open_and_small_pullback_trends.json",
+    "chapter_title": "Trend from the Open and Small Pullback Trends"
+  }
+]
