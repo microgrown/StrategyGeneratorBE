@@ -119,6 +119,57 @@ class TestPureSplice(unittest.TestCase):
         with self.assertRaises(GenerationError):
             rs.spliceCsvRows(HEADER, oldRows, HEADER[:-1], newRows, {"ETH"}, ("symbol",))
 
+    def test_narrowedSpecTimeframes(self):
+        spec = {"name": "fam_v1", "symbols": ["AD", "ETH"], "timeframes": [30, 60, 240]}
+        out = rs.narrowedSpec(spec, {"ETH"}, {60, 240})
+        self.assertEqual((out["symbols"], out["timeframes"]), (["ETH"], [60, 240]))
+        self.assertIsNone(rs.narrowedSpec(spec, {"ETH"}, {5}))
+        # no timeframes argument: untouched, as before
+        self.assertEqual(rs.narrowedSpec(spec, {"ETH"})["timeframes"], [30, 60, 240])
+
+    def test_unitTargets(self):
+        targets = {("ETH", 60), "AD"}
+        self.assertTrue(rs._isTarget({"symbol": "ETH", "timeframe_minutes": 60}, targets))
+        self.assertFalse(rs._isTarget({"symbol": "ETH", "timeframe_minutes": 240}, targets))
+        self.assertTrue(rs._isTarget({"symbol": "AD", "timeframe_minutes": 240}, targets))
+        self.assertTrue(rs._isTarget({"symbol": "ETH", "timeframe_minutes": "60"}, targets))
+        self.assertTrue(rs._unitDirTarget("ETH_M60", targets))
+        self.assertFalse(rs._unitDirTarget("ETH_M240", targets))
+        self.assertTrue(rs._unitDirTarget("AD_M240", targets))
+        self.assertFalse(rs._unitDirTarget("run.log", targets))
+        self.assertEqual(rs.unitsOf(targets), {("ETH", 60)})
+        self.assertEqual(rs.symbolsOf(targets), {"ETH", "AD"})
+        self.assertEqual(rs.reportTradeableUnits(report([], [trad("ETH", 60), trad("ETH", 60, "504-126"),
+                                                             trad("KC", 30)])),
+                         {("ETH", 60), ("KC", 30)})
+
+    def test_spliceByUnitLeavesOtherTimeframesAlone(self):
+        old = report([cand("ETH", 60, True), cand("ETH", 240), cand("AD", 60)],
+                     [trad("ETH", 60)])
+        new = report([cand("ETH", 60, False, tag="new"), cand("ETH", 240, True, tag="new")],
+                     [trad("ETH", 240, tag="new")])
+        out = rs.spliceReport(old, new, {("ETH", 60)})
+        self.assertEqual([(c["symbol"], c["timeframe_minutes"], c["metrics"]["tag"]) for c in out["candidates"]],
+                         [("ETH", 60, "new"), ("ETH", 240, "old"), ("AD", 60, "old")])
+        # the ETH M60 tradeable is gone and the extra ETH M240 result is NOT adopted
+        self.assertEqual(out["tradeable"], [])
+        ledger = {"format": "x", "units": {"ETH_M60": {"symbol": "ETH"}, "ETH_M240": {"symbol": "ETH"}}}
+        self.assertEqual(sorted(rs.spliceLedger(ledger, {("ETH", 60)})["units"]), ["ETH_M240"])
+
+    def test_alreadyDoneByUnit(self):
+        d = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(d, rs.RERUN_MARKER), "w") as f:
+                json.dump({"symbols": ["ETH"], "units": [["ETH", 60]]}, f)
+            self.assertTrue(rs.alreadyDone(d, {("ETH", 60)}))
+            self.assertFalse(rs.alreadyDone(d, {("ETH", 240)}))
+            self.assertFalse(rs.alreadyDone(d, {"ETH"}))
+            with open(os.path.join(d, rs.RERUN_MARKER), "w") as f:
+                json.dump({"symbols": ["ETH"]}, f)  # a whole-symbol splice covers its units
+            self.assertTrue(rs.alreadyDone(d, {("ETH", 240)}))
+        finally:
+            shutil.rmtree(d)
+
     def test_spliceLedger(self):
         ledger = {"format": "pruneRuns-ledger-1", "units": {
             "AD_M60": {"symbol": "AD"}, "ETH_M60": {"symbol": "ETH"}, "BTC_M5": {"symbol": "BTC"}}}
@@ -282,6 +333,38 @@ class TestRerunFamily(unittest.TestCase):
         out = rs.rerunFamily("fam", {"MET"}, self.cfg, runner=self.fakeRunner, echo=lambda *a: None)
         self.assertEqual(self.calls, [])
         self.assertEqual(out["deltas"], {})
+
+    def test_tradeableModeTargetsEachVersionsOwnUnits(self):
+        # widen the family spec: the narrowed spec must drop the timeframes no
+        # tradeable unit uses, and a version with no tradeable unit must not run
+        for v in (1, 2):
+            path = os.path.join(self.specDir, f"fam_v{v}.json")
+            spec = json.load(open(path))
+            spec["timeframes"] = [30, 60, 240]
+            json.dump(spec, open(path, "w"))
+        with open(os.path.join(self.runs, "fam_v2", rs.REPORT_JSON), "w") as f:
+            json.dump(report([cand("AD", 60), cand("ETH", 60)], []), f)
+        seen = []
+        runner = self.fakeRunner
+
+        def spy(cmd, cwd=None, **kw):
+            seen.append(json.load(open(cmd[cmd.index("--spec") + 1])))
+            return runner(cmd, cwd=cwd, **kw)
+
+        out = rs.rerunFamily("fam", set(), self.cfg, tradeable=True, runner=spy, echo=lambda *a: None)
+        self.assertEqual(out["reran"], [1])
+        self.assertEqual([(s["symbols"], s["timeframes"]) for s in seen], [(["ETH"], [60])])
+        self.assertEqual(out["deltas"][1], ([("ETH", 60, "252-126")], [("ETH", 60, "252-126")]))
+        marker = json.load(open(os.path.join(self.runs, "fam_v1", rs.RERUN_MARKER)))
+        self.assertEqual(marker["units"], [["ETH", 60]])
+        # AD M60 of v1 (tradeable as a candidate but on no schedule) is untouched
+        rep = json.load(open(os.path.join(self.runs, "fam_v1", rs.REPORT_JSON)))
+        self.assertEqual([(c["symbol"], c["metrics"]["tag"]) for c in rep["candidates"]],
+                         [("AD", "old"), ("ETH", "new")])
+        # second invocation: v1 already spliced, v2 still has nothing to do
+        seen.clear()
+        out = rs.rerunFamily("fam", set(), self.cfg, tradeable=True, runner=spy, echo=lambda *a: None)
+        self.assertEqual((out["reran"], out["skipped"], seen), ([], [1], []))
 
 
 if __name__ == "__main__":

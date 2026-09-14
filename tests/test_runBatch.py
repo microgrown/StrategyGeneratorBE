@@ -204,6 +204,25 @@ class TestRunSpecs(BatchCase):
         self.assertEqual(len(runner.calls), 2)
         self.assertFalse(any(o.skipped for o in outcomes))
 
+    def test_rerunBeforeRedoesOnlyOlderReports(self):
+        """A resumable --force: a report created before the cutoff is redone,
+        one created after it (or by an earlier pass of the same batch) is
+        kept, and one with no created_utc cannot prove itself current."""
+        specs = [(n, writeSpec(self.specDir, self.STEM, n)) for n in (1, 2, 3)]
+        report = {"format_version": 1, "candidates": [], "tradeable": []}
+        writeSelection(self.runDirFor(1), report=dict(report, created_utc="2026-09-01 10:00:00"))
+        writeSelection(self.runDirFor(2), report=dict(report, created_utc="2026-09-14 01:00:00"))
+        writeSelection(self.runDirFor(3), report=report)
+        self.assertTrue(rb.isStale(self.runDirFor(1), "2026-09-14 00:30:00"))
+        self.assertFalse(rb.isStale(self.runDirFor(2), "2026-09-14 00:30:00"))
+        self.assertTrue(rb.isStale(self.runDirFor(3), "2026-09-14 00:30:00"))
+        self.assertFalse(rb.isStale(self.runDirFor(1), None))
+        runner = FakeRunner()
+        outcomes = rb.runSpecs(specs, self.STEM, self.cfg, 0, False, runner, quiet,
+                               rerunBefore="2026-09-14 00:30:00")
+        self.assertEqual([o.skipped for o in outcomes], [False, True, False])
+        self.assertEqual(len(runner.calls), 2)
+
     def test_runDirWithoutSelectionStillRuns(self):
         specs = [(1, writeSpec(self.specDir, self.STEM, 1))]
         os.makedirs(self.runDirFor(1))  # engine ran before, but no selection block

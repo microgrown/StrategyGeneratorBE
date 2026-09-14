@@ -27,8 +27,17 @@ Per version it:
 then rebuilds the family aggregate runs/<stem>/ and, with --prune, unit-prunes
 each spliced version exactly as runBatch --prune does.
 
+`--tradeable` (added 2026-09-13, after the zero-AvgDD criterion fix and the
+fresh KC/VX bytes) drops the symbol list: each version is re-run only on the
+(symbol, timeframe) units its own report currently calls tradeable, the spec
+narrowed on both symbols and timeframes, and only those units are spliced
+back -- a rejected unit is neither re-simulated nor touched. The engine runs
+the symbols x timeframes cross, so a version tradeable on KC M30 and VX M1440
+also simulates KC M1440 and VX M30; those results are discarded.
+
 Options:
-    --symbols SYM,SYM       required; engine symbol names
+    --symbols SYM,SYM       engine symbol names (required unless --tradeable)
+    --tradeable             per-version targets = its currently tradeable units
     --versions 7,19         only these versions (default: every version with a run dir)
     --threads N             engine threads (default 0 = all cores)
     --prune                 prune each spliced version's rejects afterwards
@@ -63,20 +72,45 @@ CANDIDATE_METRICS_CSV = "candidate_metrics.csv"
 
 # --- pure pieces -------------------------------------------------------------
 
-def narrowedSpec(spec, symbols):
-    """The family spec with `symbols` cut down to the list, named for the
-    scratch run. None when the spec touches none of them."""
+def narrowedSpec(spec, symbols, timeframes=None):
+    """The family spec with `symbols` (and, when given, `timeframes`) cut down
+    to the lists, named for the scratch run. None when the spec touches none
+    of them."""
     keep = [s for s in spec.get("symbols", []) if s in symbols]
     if not keep:
         return None
     out = dict(spec)
     out["name"] = spec["name"] + RERUN_SUFFIX
     out["symbols"] = keep
+    if timeframes is not None:
+        keepTf = [t for t in spec.get("timeframes", []) if int(t) in timeframes]
+        if not keepTf:
+            return None
+        out["timeframes"] = keepTf
     return out
 
 
-def _isTarget(entry, symbols):
-    return entry.get("symbol") in symbols
+def unitsOf(targets):
+    """The (symbol, timeframe) pairs in a target set, whose members are either
+    symbol names (every timeframe of that symbol) or (symbol, timeframe) units."""
+    return {t for t in targets if isinstance(t, tuple)}
+
+
+def symbolsOf(targets):
+    return {t[0] if isinstance(t, tuple) else t for t in targets}
+
+
+def _isTarget(entry, targets):
+    """A report/CSV entry is targeted when its symbol is named outright or its
+    (symbol, timeframe) unit is."""
+    sym = entry.get("symbol")
+    if sym in targets:
+        return True
+    try:
+        tf = int(entry.get("timeframe_minutes", 0))
+    except (TypeError, ValueError):
+        return False
+    return (sym, tf) in targets
 
 
 def _spliceList(old, new, symbols, key):
@@ -202,29 +236,42 @@ def _writeCsv(path, header, rows):
     os.replace(path + ".tmp", path)
 
 
-def spliceLedger(ledger, symbols):
+def _unitDirTarget(name, targets):
+    """Is the <SYM>_M<tf> directory (or ledger key) `name` a target?"""
+    if "_M" not in name:
+        return False
+    sym, tf = name.rsplit("_M", 1)
+    if not tf.isdigit():
+        return False
+    return _isTarget({"symbol": sym, "timeframe_minutes": int(tf)}, targets)
+
+
+def spliceLedger(ledger, targets):
     units = {name: entry for name, entry in ledger.get("units", {}).items()
-             if entry.get("symbol") not in symbols}
+             if not _unitDirTarget(name, targets)}
     out = dict(ledger)
     out["units"] = units
     return out
 
 
-def unitDirsFor(runDir, symbols):
-    """<SYM>_M<tf> directories of the target symbols present under runDir."""
+def unitDirsFor(runDir, targets):
+    """<SYM>_M<tf> directories of the targets present under runDir."""
     out = []
     for entry in sorted(os.listdir(runDir)):
         path = os.path.join(runDir, entry)
-        if not os.path.isdir(path) or "_M" not in entry:
-            continue
-        sym = entry.rsplit("_M", 1)[0]
-        if sym in symbols:
+        if os.path.isdir(path) and _unitDirTarget(entry, targets):
             out.append(entry)
     return out
 
 
-def tradeableUnits(report, symbols):
-    return sorted({_tradeableKey(e) for e in report.get("tradeable", []) if _isTarget(e, symbols)})
+def tradeableUnits(report, targets):
+    return sorted({_tradeableKey(e) for e in report.get("tradeable", []) if _isTarget(e, targets)})
+
+
+def reportTradeableUnits(report):
+    """Every (symbol, timeframe) the report calls tradeable on any schedule."""
+    return {(e.get("symbol"), int(e.get("timeframe_minutes", 0)))
+            for e in report.get("tradeable", [])}
 
 
 # --- per-version work --------------------------------------------------------
@@ -290,7 +337,8 @@ def spliceVersion(runDir, narrowDir, symbols, echo=print):
             os.remove(ledgerPath)
 
     after = tradeableUnits(spliced, symbols)
-    marker = {"format": "rerunSymbols-1", "symbols": sorted(symbols),
+    marker = {"format": "rerunSymbols-2", "symbols": sorted(symbolsOf(symbols)),
+              "units": sorted([list(u) for u in unitsOf(symbols)]),
               "spliced_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
               "units_moved": moved,
               "tradeable_before": [list(k) for k in before],
@@ -300,7 +348,9 @@ def spliceVersion(runDir, narrowDir, symbols, echo=print):
     return before, after
 
 
-def alreadyDone(runDir, symbols):
+def alreadyDone(runDir, targets):
+    """Has a previous invocation already spliced every target? A whole-symbol
+    marker covers that symbol's units; a unit marker covers only its units."""
     path = os.path.join(runDir, RERUN_MARKER)
     if not os.path.isfile(path):
         return False
@@ -308,13 +358,24 @@ def alreadyDone(runDir, symbols):
         marker = _loadJson(path)
     except ValueError:
         return False
-    return set(marker.get("symbols", [])) >= set(symbols)
+    doneSymbols = set(marker.get("symbols", [])) if not marker.get("units") else set()
+    doneUnits = {tuple(u) for u in marker.get("units", [])}
+    for t in targets:
+        if isinstance(t, tuple):
+            if t[0] not in doneSymbols and (t[0], int(t[1])) not in doneUnits:
+                return False
+        elif t not in doneSymbols:
+            return False
+    return True
 
 
-def rerunVersion(stem, version, symbols, cfg, threads=0, runner=subprocess.run, echo=print):
-    """Run the narrowed spec for one version and splice it in. Returns
+def rerunVersion(stem, version, targets, cfg, threads=0, runner=subprocess.run, echo=print):
+    """Run the narrowed spec for one version and splice it in. `targets` is a
+    set of symbol names (every timeframe) and/or (symbol, timeframe) units;
+    with units the spec is narrowed on timeframes too, so the engine may run a
+    few extra (symbol, timeframe) crosses, which the splice ignores. Returns
     (before, after) tradeable unit lists, or None when the spec has none of
-    the symbols."""
+    the targets."""
     engineDir = runBatch._engineDir(cfg)
     runName = f"{stem}_v{version}"
     runDir = os.path.join(runsDir(cfg), runName)
@@ -324,7 +385,13 @@ def rerunVersion(stem, version, symbols, cfg, threads=0, runner=subprocess.run, 
     if not os.path.isfile(os.path.join(runDir, REPORT_JSON)):
         raise GenerationError(f"{runName} has no {REPORT_JSON}; nothing to splice into")
     spec = _loadJson(specPath)
-    narrowed = narrowedSpec(spec, symbols)
+    symbols = symbolsOf(targets)
+    units = unitsOf(targets)
+    timeframes = None
+    if units and not (symbols - {u[0] for u in units}):
+        # every target is a unit: narrow the timeframes as well
+        timeframes = {u[1] for u in units}
+    narrowed = narrowedSpec(spec, symbols, timeframes)
     if narrowed is None:
         return None
 
@@ -345,7 +412,7 @@ def rerunVersion(stem, version, symbols, cfg, threads=0, runner=subprocess.run, 
                 f"see {os.path.join(narrowDir, RUN_LOG)}")
         if not os.path.isfile(os.path.join(narrowDir, REPORT_JSON)):
             raise GenerationError(f"{narrowed['name']} produced no {REPORT_JSON}")
-        result = spliceVersion(runDir, narrowDir, symbols, echo=echo)
+        result = spliceVersion(runDir, narrowDir, targets, echo=echo)
     finally:
         try:
             os.remove(narrowSpecPath)
@@ -368,7 +435,11 @@ def familyVersions(stem, cfg):
 
 
 def rerunFamily(stem, symbols, cfg, versions=None, threads=0, prune=False, force=False,
-                dryRun=False, runner=subprocess.run, echo=print):
+                dryRun=False, runner=subprocess.run, echo=print, tradeable=False):
+    """Re-run every finished version on `symbols` (a set of names) and splice
+    the results in. With tradeable=True the per-version targets are instead
+    the (symbol, timeframe) units its own report currently calls tradeable --
+    versions with none are left alone -- and `symbols` is ignored."""
     allVersions = familyVersions(stem, cfg)
     if not allVersions:
         raise GenerationError(f"no finished versions of '{stem}' under {runsDir(cfg)}")
@@ -377,21 +448,32 @@ def rerunFamily(stem, symbols, cfg, versions=None, threads=0, prune=False, force
         missing = sorted(set(versions) - {v for v, _ in todo})
         if missing:
             raise GenerationError(f"no finished run for version(s) {missing}")
-    skipped = [(v, d) for v, d in todo if not force and alreadyDone(d, symbols)]
+    targetsOf = {}
+    for v, d in todo:
+        if tradeable:
+            targetsOf[v] = reportTradeableUnits(_loadJson(os.path.join(d, REPORT_JSON)))
+        else:
+            targetsOf[v] = set(symbols)
+    idle = [(v, d) for v, d in todo if not targetsOf[v]]
+    todo = [(v, d) for v, d in todo if targetsOf[v]]
+    skipped = [(v, d) for v, d in todo if not force and alreadyDone(d, targetsOf[v])]
     todo = [(v, d) for v, d in todo if (v, d) not in skipped]
 
-    echo(f"{stem}: {len(allVersions)} finished version(s); re-running {len(todo)} on "
-         f"{','.join(sorted(symbols))}" + (f"; {len(skipped)} already spliced" if skipped else ""))
+    what = ("their tradeable units" if tradeable else ",".join(sorted(symbols)))
+    echo(f"{stem}: {len(allVersions)} finished version(s); re-running {len(todo)} on {what}"
+         + (f"; {len(skipped)} already spliced" if skipped else "")
+         + (f"; {len(idle)} with no tradeable unit" if tradeable and idle else ""))
     if dryRun:
         for v, d in todo:
-            echo(f"  v{v}: {d}")
+            units = sorted(unitsOf(targetsOf[v]))
+            echo(f"  v{v}: {d}" + (f"  {['%s M%d' % u for u in units]}" if units else ""))
         return {"reran": [], "skipped": [v for v, _ in skipped], "deltas": {}}
 
     deltas = {}
     registry = pruneRuns.requireEpochs(cfg) if prune else None
     for i, (v, d) in enumerate(todo, 1):
         echo(f"[{i}/{len(todo)}] {stem}_v{v}")
-        result = rerunVersion(stem, v, symbols, cfg, threads=threads, runner=runner, echo=echo)
+        result = rerunVersion(stem, v, targetsOf[v], cfg, threads=threads, runner=runner, echo=echo)
         if result is None:
             echo("    spec has none of the symbols; nothing to do")
             continue
@@ -412,7 +494,7 @@ def rerunFamily(stem, symbols, cfg, versions=None, threads=0, prune=False, force
     gained = sum(len(set(a) - set(b)) for b, a in deltas.values())
     lost = sum(len(set(b) - set(a)) for b, a in deltas.values())
     kept = sum(len(set(a) & set(b)) for b, a in deltas.values())
-    echo(f"tradeable on {','.join(sorted(symbols))}: kept {kept}, gained {gained}, lost {lost}")
+    echo(f"tradeable on {what}: kept {kept}, gained {gained}, lost {lost}")
     for v in sorted(deltas):
         b, a = deltas[v]
         for k in sorted(set(a) - set(b)):
@@ -426,7 +508,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("stem")
-    parser.add_argument("--symbols", required=True)
+    parser.add_argument("--symbols", default="",
+                        help="comma-separated engine symbol names (required unless --tradeable)")
+    parser.add_argument("--tradeable", action="store_true",
+                        help="re-run each version only on the (symbol, timeframe) units its "
+                             "report currently calls tradeable; versions with none are skipped")
     parser.add_argument("--versions", default="")
     parser.add_argument("--threads", type=int, default=0)
     parser.add_argument("--prune", action="store_true")
@@ -438,10 +524,13 @@ def main(argv=None):
     if args.engineDir:
         cfg["engineDir"] = args.engineDir
     symbols = {s.strip() for s in args.symbols.split(",") if s.strip()}
+    if not symbols and not args.tradeable:
+        parser.error("--symbols is required unless --tradeable is given")
     versions = {int(v) for v in args.versions.split(",") if v.strip()} or None
     try:
         rerunFamily(runBatch.resolveStem(args.stem), symbols, cfg, versions=versions,
-                    threads=args.threads, prune=args.prune, force=args.force, dryRun=args.dryRun)
+                    threads=args.threads, prune=args.prune, force=args.force, dryRun=args.dryRun,
+                    tradeable=args.tradeable)
         return 0
     except (GenerationError, OSError, ValueError) as exc:
         print(f"rerunSymbols: {exc}", file=sys.stderr)

@@ -148,12 +148,36 @@ def hasSelectionOutput(runDir):
     return os.path.isfile(os.path.join(runDir, REPORT_JSON))
 
 
+def reportCreatedUtc(runDir):
+    """The selection report's created_utc ('YYYY-MM-DD HH:MM:SS'), or None when
+    there is no readable report."""
+    try:
+        with open(os.path.join(runDir, REPORT_JSON), encoding="utf-8-sig") as f:
+            return json.load(f).get("created_utc")
+    except (OSError, ValueError):
+        return None
+
+
+def isStale(runDir, rerunBefore):
+    """Does the version's selection output predate the cutoff? A version with
+    no readable created_utc is stale too: it cannot prove it is current. The
+    comparison is on the report's own 'YYYY-MM-DD HH:MM:SS' UTC text."""
+    if not rerunBefore:
+        return False
+    created = reportCreatedUtc(runDir)
+    return created is None or created < rerunBefore
+
+
 # --- engine invocation -------------------------------------------------------
 
 def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo,
-             verbose=False, onOutcome=None, jobs=1):
+             verbose=False, onOutcome=None, jobs=1, rerunBefore=None):
     """Run bt_walkforward for every version without selection output (all of
-    them under --force). Sequential by default — the engine parallelizes
+    them under --force; also those whose selection report was created before
+    `rerunBefore`, a UTC 'YYYY-MM-DD HH:MM:SS' -- a resumable --force, added
+    2026-09-13 for the full re-run under the zero-AvgDD criterion rule: a
+    version finished after the cutoff is skipped when the batch is re-invoked,
+    one finished before it is run again). Sequential by default — the engine parallelizes
     internally; jobs > 1 runs that many versions at once for specs whose grids
     are too small to fill the machine on their own. Failures don't stop the
     batch; each outcome records its exit code. onOutcome, when given, is
@@ -172,7 +196,7 @@ def runSpecs(specs, stem, cfg, threads, force, runner=subprocess.run, echo=_echo
     plans = []
     for version, specPath in specs:
         runDir = os.path.join(baseDir, f"{stem}_v{version}")
-        skip = not force and hasSelectionOutput(runDir)
+        skip = not force and hasSelectionOutput(runDir) and not isStale(runDir, rerunBefore)
         plans.append((version, specPath, runDir, skip))
 
     # Resolve (and validate) the binary only if something actually runs, so a
@@ -518,7 +542,7 @@ def writeAggregate(stem, outcomes, cfg, warnings, cache=None):
 # --- orchestration -----------------------------------------------------------
 
 def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, echo=_echo,
-             verbose=False, prune=False, jobs=1):
+             verbose=False, prune=False, jobs=1, rerunBefore=None):
     stem = resolveStem(nameOrStem)
     specs = discoverSpecs(stem, cfg)
     if not specs:
@@ -572,7 +596,8 @@ def runBatch(nameOrStem, cfg, threads=0, force=False, runner=subprocess.run, ech
             warnings.append(f"--prune ({runName}) failed: {exc}")
 
     outcomes = runSpecs(specs, stem, cfg, threads, force, runner, echo, verbose,
-                        onOutcome=afterVersion if prune else None, jobs=jobs)
+                        onOutcome=afterVersion if prune else None, jobs=jobs,
+                        rerunBefore=rerunBefore)
     aggregateDir, aggregated, reports = writeAggregate(stem, outcomes, cfg, warnings,
                                                        cache=loadedSelections)
 
@@ -635,6 +660,11 @@ def main(argv=None):
     parser.add_argument("--force", action="store_true",
                         help="re-run the engine even for versions that already "
                              "have selection results (recomputes their verdicts)")
+    parser.add_argument("--rerun-before", dest="rerunBefore", default=None,
+                        help="UTC 'YYYY-MM-DD HH:MM:SS': also re-run versions whose "
+                             "selection report was created before this moment -- a "
+                             "resumable --force (a batch killed midway skips what it "
+                             "already redid when re-invoked with the same cutoff)")
     parser.add_argument("--verbose", action="store_true",
                         help="let the engine print its progress and warnings "
                              "instead of errors only (run.log has them either way)")
@@ -651,7 +681,7 @@ def main(argv=None):
         result = runBatch(args.strategy, config.load(),
                           threads=args.threads, force=args.force,
                           verbose=args.verbose, prune=args.prune,
-                          jobs=max(1, args.jobs))
+                          jobs=max(1, args.jobs), rerunBefore=args.rerunBefore)
     except GenerationError as exc:
         print(exc, file=sys.stderr)
         return 2
