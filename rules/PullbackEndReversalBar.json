@@ -1,0 +1,30 @@
+{
+    "name": "PullbackEndReversalBar",
+    "type": "Entry",
+    "inputVariables": {
+        "pullbackLookback": "10",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullShape": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearShape": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR THAT ENDS A PULLBACK INSIDE AN EXISTING BULL LEG. Three things at\n// once, at three different lags, which is why the composite is carried whole:\n//\n//   1. The PRIOR bar closed DOWN -- the pullback exists (close[1] < open[1]).\n//   2. THIS bar makes a higher high than it -- the pullback is over.\n//   3. THIS bar is itself a strong bull reversal bar.\n//\n// plus the CONTEXT term close[0] > close[pullbackLookback], which is the\n// catalog's Momentum(pullbackLookback) carried inside the rule. It is kept\n// rather than left to a pane because without it the rule fires on every\n// pullback in a downtrend as well; a placement that wants the leg read\n// differently can still AND its own trend filter on top.\n//\n// This is the source's high-1 proxy WITHOUT the leg counter -- the\n// mechanizable reading -- so it does not belong to the leg-counting family and\n// does not inline HighLowBarCount's counter.\n//\n// REVERSAL BAR SHAPE is the corpus's strong-trend-bar shape (StrongTrendBar,\n// TrendDurationBars): a strict body direction, a body of at least bodyFraction\n// of the bar's own range, and BOTH tails no more than tailFraction of it.\n//\n// Both sides are computed in the hook so the shape test is written once, and\n// the locals are class members reassigned every bar rather than accumulated.\n//\n// pullbackLookback is a double input used as a subscript; the narrowing is\n// deliberate, as README \"Input variables\" spells out.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: pullbackLookback.\nrng = high[0] - low[0];\nbullShape = el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * rng) && el_le(high[0] - close[0], tailFraction * rng) && el_le(open[0] - low[0], tailFraction * rng);\nbearShape = el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * rng) && el_le(close[0] - low[0], tailFraction * rng) && el_le(high[0] - open[0], tailFraction * rng);",
+    "longCondition": "el_lt(close[1], open[1]) && el_gt(high[0], high[1]) && bullShape && el_gt(close[0], close[pullbackLookback])",
+    "shortCondition": "el_gt(close[1], open[1]) && el_lt(low[0], low[1]) && bearShape && el_lt(close[0], close[pullbackLookback])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

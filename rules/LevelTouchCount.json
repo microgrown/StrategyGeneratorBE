@@ -1,0 +1,90 @@
+{
+    "name": "LevelTouchCount",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "40",
+        "minTouches": "3",
+        "tolAtr": "0.15",
+        "breakTolAtr": "0.1",
+        "strength": "2",
+        "pivotLookback": "20",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "pok": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "touchLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "touchHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HOW MANY OF THE LAST lookback BARS TOUCHED THE SAME LEVEL AND IT HELD. Two\n// sources read the same counter with opposite sign -- touches WEAKEN the level\n// and favour the eventual breakout, or touches PROVE it and favour the bounce --\n// so it is one rule and the placement's direction and negate toggles pick the\n// reading. Defaults sit between the two sources' thresholds.\n//\n// THE LEVEL IS THE MOST RECENT CONFIRMED SWING PIVOT: the swing pivot low for the long\n// (support) side, the swing pivot high for the short (resistance) side. The merged\n// pseudocode says only \"the level\" and names no source for it; the pivot is the\n// corpus's mechanized horizontal level, the one BreakoutLevelRetest,\n// SwingPointTestHolds and SwingPivotTarget all use, so it is the one used here.\n// Not TrendLineTouchCount, which counts touches of a PROJECTED SLOPING line and\n// also enforces a maximum distance over the window.\n//\n// A TOUCH THAT HELD, on the support side, is a bar whose low came to within\n// tolAtr ATRs of the level while its closing price stayed above the level less\n// breakTolAtr ATRs -- the bar reached the level and did not close through it.\n// Mirrored on resistance. The count runs over bars 1..lookback, EXCLUDING bar 0,\n// so this bar's own test is not counted into the history that is meant to\n// qualify it.\n//\n// ONE ATR READ, THE CURRENT ONE, for every counted bar, exactly as\n// ConsecutiveClimaxBarCount and TrendLineTouchCount do. The pseudocode's\n// per-bar atr[k] would be a lagged read of a WFSafe series function, which is\n// not a behaviour the register covers; a single current band is the corpus's\n// settled substitute and is stated here rather than assumed.\n//\n// Tolerances are in ATRs, not ticks -- MinMove/PriceScale are VERIFIED but the\n// engine exposes no tick size to strategies.\n//\n// THE PIVOT SCAN IS INLINED from SwingHigh per the B-list decision, at\n// Occurrence 1. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60\n// min): the pivot test is MIXED -- at-or-beyond the strength OLDER bars,\n// STRICTLY beyond the strength NEWER bars, and bars-ago indexing makes the\n// SMALLER index the NEWER bar, so the strict half is the pk < pj loop; the\n// confirmation lag is exactly strength bars, never 0 or 1, so no lookahead, and\n// during the lag the PREVIOUS pivot is reported; pivotLookback is EL's Length,\n// offsets 0..pivotLookback-1 inclusive, with the neighbourhood test reaching\n// strength bars PAST the window; an empty window returns the -1 SENTINEL,\n// guarded because -1 as a PRICE sits under every real price; the comparisons\n// carry the 2.22e-12 relational tolerance. The low side's tie sense is the\n// mirror of the measured high-side rule. No WFSafe_SwingLow exists, so plain EL\n// governs.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator: AtrProfitTarget's\n// block verbatim, including the TWO separate accumulator statements, since\n// EasyLanguage evaluates Summation[1] + Price - Price[Length] left to right.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(lookback, pivotLookback - 1 + strength, atrLength + 1).\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\nlvlLo = -1.0;\nfor (pj = (int)strength; pj <= (int)pivotLookback - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lvlLo = low[pj]; break; }\n}\nlvlHi = -1.0;\nfor (pj = (int)strength; pj <= (int)pivotLookback - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lvlHi = high[pj]; break; }\n}\ntouchLo = 0;\ntouchHi = 0;\nfor (kk = 1; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], lvlLo + tolAtr * atrValue) && el_gt(close[kk], lvlLo - breakTolAtr * atrValue)) {\n        touchLo = touchLo + 1;\n    }\n    if (el_ge(high[kk], lvlHi - tolAtr * atrValue) && el_lt(close[kk], lvlHi + breakTolAtr * atrValue)) {\n        touchHi = touchHi + 1;\n    }\n}",
+    "longCondition": "el_ne(lvlLo, -1.0) && el_ge((double)touchLo, minTouches)",
+    "shortCondition": "el_ne(lvlHi, -1.0) && el_ge((double)touchHi, minTouches)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

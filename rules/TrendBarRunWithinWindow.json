@@ -1,0 +1,42 @@
+{
+    "name": "TrendBarRunWithinWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "runBars": "2",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "runUpHere": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runDnHere": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SOMEWHERE IN THE LAST lookback BARS THERE WAS A RUN OF AT LEAST runBars\n// CONSECUTIVE BULL TREND BARS -- earlier strength, not necessarily still in\n// progress. Short is the mirror. Negate the placement for Brooks's \"the rally\n// never produced two consecutive strong bull trend bars\".\n//\n// ONE RULE COVERS TWO SOURCES: \"a strong bull trend bar occurred within the\n// last K bars\" is this at runBars = 1, and \"the rally did not contain two\n// consecutive strong bull trend bars\" is this at runBars = 2, negated.\n//\n// NOT StrongTrendBarRun, which requires the run to END at the current bar:\n// \"strength ten bars ago\" and \"strength right now\" fire on different bars. At\n// lookback = runBars the two coincide; at the defaults they do not.\n//\n// NOT LargeTrendBarCountInWindow or TrendBarCountDominanceInWindow, which count\n// qualifying bars anywhere in the window without requiring them to be adjacent.\n//\n// DROPPED, deliberately: one source also asked that the run's bars have a range\n// at least the average range. ANDing BarRangeAboveAtrMultiple in a pane is NOT\n// equivalent -- that tests the CURRENT bar, while the source's term is inside\n// the scan -- so the stricter reading is noted here rather than coded.\n//\n// The bar shape is StrongTrendBarRun's settled definition: a strict body\n// direction and a body of at least bodyFraction of the bar's own range. The\n// inner all-of-N loops start true and let any failing bar clear the flag, and\n// the outer scan runs to completion rather than breaking, so both loops run\n// unconditionally and EasyLanguage's lack of short-circuiting cannot matter.\n//\n// When runBars > lookback the outer loop's upper bound is negative and the scan\n// never runs, so the rule is simply false -- no guard needed.\n//\n// The flags are class members and persist across bars, so they are reset at the\n// top of the hook and at the top of each scan step.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: lookback - 1.\nfoundUp = false;\nfoundDn = false;\nfor (ii = 0; ii <= (int)lookback - (int)runBars; ++ii) {\n    runUpHere = true;\n    runDnHere = true;\n    for (jj = 0; jj <= (int)runBars - 1; ++jj) {\n        if (el_le(close[ii + jj], open[ii + jj])) runUpHere = false;\n        if (el_lt(close[ii + jj] - open[ii + jj], bodyFraction * (high[ii + jj] - low[ii + jj]))) runUpHere = false;\n        if (el_ge(close[ii + jj], open[ii + jj])) runDnHere = false;\n        if (el_lt(open[ii + jj] - close[ii + jj], bodyFraction * (high[ii + jj] - low[ii + jj]))) runDnHere = false;\n    }\n    if (runUpHere) foundUp = true;\n    if (runDnHere) foundDn = true;\n}",
+    "longCondition": "foundUp",
+    "shortCondition": "foundDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

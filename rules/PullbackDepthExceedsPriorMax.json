@@ -1,0 +1,75 @@
+{
+    "name": "PullbackDepthExceedsPriorMax",
+    "type": "Entry",
+    "inputVariables": {
+        "growthMultiple": "1.5",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "runHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curPbUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorPbUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curPbDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorPbDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "growUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "growDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PULLBACK NOW UNDERWAY IS AT LEAST growthMultiple TIMES AS DEEP AS THE\n// LARGEST PULLBACK SEEN EARLIER IN THIS TREND. On a small-pullback trend day\n// Brooks expects exactly this later in the session and warns against reading\n// it as a reversal, so the rule is most useful NEGATED, as \"this pullback is\n// still within the trend's normal size\". Brooks gives \"about twice the size\";\n// growthMultiple defaults to 1.5 as the conservative reading, with 2.0 the\n// book's own number. His 11:00 a.m. gate is the catalog's TimeWindow in a\n// separate pane, not part of this rule.\n//\n// KEPT APART FROM MaxPullbackDepthBelowThreshold: that rule caps the\n// HISTORICAL MAXIMUM against an external threshold, this one compares the\n// LIVE pullback against that maximum, and the two fire on different bars.\n// What is new here is holding the two apart -- the running depth of the\n// pullback in progress and the largest COMPLETED one before it.\n//\n// A PULLBACK COMPLETES WHEN A NEW EXTREME IS MADE. On a bar that takes out\n// the running high the pullback just ended is folded into priorPbUp and the\n// live depth is cleared; on every other bar the live depth is extended. That\n// is the whole segmentation, and it needs no pivot search.\n//\n// THE LEG RESET IS THE ALWAYS-IN FLIP, the standing corpus decision, inlined\n// here as TrendDurationBars inlines it and with the same inputs so every\n// consumer reads the same state: the direction FLIPS on consecutiveBars\n// consecutive STRONG TREND BARS -- body at least bodyFraction of the bar's\n// own range and BOTH tails no more than tailFraction of it -- holds until the\n// opposite flip, and is UNDEFINED (aiDir = 0) until the first flip ever. The\n// flip bar seeds the extremes and is skipped by the tracker, so its own range\n// is never counted as the leg's first pullback.\n//\n// priorPbUp > 0 is load-bearing: with no completed pullback yet the test\n// would be depth >= 0, true on every bar. Compared, never divided.\n//\n// Mirrored: the long side reads the bull leg's give-back below its running\n// high, the short side the bear leg's give-back above its running low.\n//\n// Deepest bar touched: consecutiveBars - 1.\nallBull = true;\nallBear = true;\nfor (kk = 0; kk < (int)consecutiveBars; ++kk) {\n    rng = high[kk] - low[kk];\n    if (el_le(close[kk], open[kk])) allBull = false;\n    if (el_lt(close[kk] - open[kk], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[kk] - close[kk], tailFraction * rng)) allBull = false;\n    if (el_gt(open[kk] - low[kk], tailFraction * rng)) allBull = false;\n    if (el_ge(close[kk], open[kk])) allBear = false;\n    if (el_lt(open[kk] - close[kk], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[kk] - low[kk], tailFraction * rng)) allBear = false;\n    if (el_gt(high[kk] - open[kk], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    flipped = true;\n}\nif (flipped) {\n    runHigh = high[0];\n    runLow = low[0];\n    curPbUp = 0.0;\n    priorPbUp = 0.0;\n    curPbDn = 0.0;\n    priorPbDn = 0.0;\n}\nif (flipped == false) {\n    if (el_gt(high[0], runHigh)) {\n        if (el_gt(curPbUp, priorPbUp)) priorPbUp = curPbUp;\n        curPbUp = 0.0;\n        runHigh = high[0];\n    } else {\n        if (el_gt(runHigh - low[0], curPbUp)) curPbUp = runHigh - low[0];\n    }\n    if (el_lt(low[0], runLow)) {\n        if (el_gt(curPbDn, priorPbDn)) priorPbDn = curPbDn;\n        curPbDn = 0.0;\n        runLow = low[0];\n    } else {\n        if (el_gt(high[0] - runLow, curPbDn)) curPbDn = high[0] - runLow;\n    }\n}\ngrowUp = (aiDir == 1) && el_gt(priorPbUp, 0.0) && el_ge(curPbUp, growthMultiple * priorPbUp);\ngrowDn = (aiDir == -1) && el_gt(priorPbDn, 0.0) && el_ge(curPbDn, growthMultiple * priorPbDn);",
+    "longCondition": "growUp",
+    "shortCondition": "growDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

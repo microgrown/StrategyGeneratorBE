@@ -1,0 +1,91 @@
+{
+    "name": "TrendLineBrokenRecently",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "withinBars": "20",
+        "minBreaks": "1"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBreaks": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnBreaks": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND LINE, one construction shared by the whole lines/channels family\n// (decided in slice B01, carried here unchanged): the BULL trend line runs\n// through the two most recent CONFIRMED swing LOWS, the BEAR trend line through\n// the two most recent confirmed swing HIGHS; the two lines are deliberately NOT\n// parallel. The pivot scan is INLINED rather than reaching into SwingHigh.json\n// -- rules in this corpus never reference each other -- and mirrors the EL\n// twin's SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and\n// 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the swingStrength OLDER bars, STRICTLY ABOVE the\n// swingStrength NEWER bars -- so a flat top yields exactly one pivot, the later\n// of the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar,\n// so the strict half is the k < j loop. The confirmation lag is exactly\n// swingStrength bars, never 0 or 1, which is what makes the scan lookahead-safe;\n// pivotLookback is EL's Length (candidate offsets 0..pivotLookback-1 from the\n// current bar inclusive) and the neighbourhood test reaches swingStrength bars\n// PAST the window, so the deepest index the scan touches is\n// pivotLookback - 1 + swingStrength; a window with no pivot returns the -1\n// SENTINEL, guarded below because -1 as a price sits under every real price;\n// Occurrence 3+ is UNMEASURED and is never asked for; the comparisons carry the\n// 2.22e-12 relational tolerance, hence el_gt / el_ge. The low side's tie sense\n// is the mirror of the measured high-side rule. No WFSafe_SwingHigh exists, so\n// plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue is the pure two-point line\n// Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * Slope, anchored\n// at the FIRST pair and extrapolating freely past both anchors -- which is what\n// lets the line be read at an OLDER bar inside the loop below. Bars-ago is the\n// convention here, so the OLDER pivot (the LARGER bars-ago) is P1/B1, the\n// zero-drift spelling. Bar1 = Bar2 silently returns 0.0, so B1 != B2 is\n// guarded. The slope is hoisted out of the per-target arithmetic where the EL\n// twin recomputes it inside each TLValue call; identical doubles, same line.\n//\n// THIS RULE: Brooks's single most repeated rule, the standing permission for a\n// countertrend entry -- never trade against a trend until its trend line has\n// broken. At least minBreaks bars in the last withinBars CLOSED through the\n// line. Distinct from a break rule that fires only on the break bar: this stays\n// true for a window afterwards, which is what all thirteen sources want.\n//\n// A LONG needs the BEAR trend line (across the swing HIGHS) to have been closed\n// through from below; a SHORT needs the BULL trend line (across the swing LOWS)\n// to have been closed through from above. That is the opposite pairing from\n// TrendLineTouch, which is a WITH-trend pullback and reads the line on its own\n// side.\n//\n// THE PIVOTS ARE THE CURRENT ONES, not the pivots as they stood at bar kk.\n// Re-deriving the pivot set per bar of the window is not expressible in EL, so\n// the line is re-read at each bar of the window through TLValue's free\n// extrapolation, exactly as ChannelLineBreakoutFailure does -- the same\n// simplification made the same way in both twins.\n//\n// Counted with an explicit loop rather than CountIF: CountIF's argument is a\n// price SERIES and the counted predicate compares against a line whose value is\n// different on every bar of the window.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\nupBreaks = 0;\ndnBreaks = 0;\nfor (int kk = 0; kk <= (int)withinBars - 1; ++kk) {\n    if (haveHiLine && el_gt(close[kk], hiP1 + ((double)kk - hiB1) * hiSlope)) ++upBreaks;\n    if (haveLoLine && el_lt(close[kk], loP1 + ((double)kk - loB1) * loSlope)) ++dnBreaks;\n}",
+    "longCondition": "haveHiLine && el_ge((double)upBreaks, minBreaks)",
+    "shortCondition": "haveLoLine && el_ge((double)dnBreaks, minBreaks)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

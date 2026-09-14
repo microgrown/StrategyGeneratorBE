@@ -1,0 +1,191 @@
+{
+ "slice": "B13_final.json",
+ "rules": [
+  {
+   "key": "CounterSignalReversalPermission",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "While holding a countertrend position, if a second with-trend counting-setup signal (e.g. a High2 while short in a bull trend) fires against it, permit exiting the countertrend position or reversing to the with-trend direction.",
+   "pseudocode": "isSecondAdverseWithTrendSignal = isHigh2Setup[0] && isBullTrend[0]; allowExitOrReverseToLong = ctx.MarketPosition() == -1 && isSecondAdverseWithTrendSignal",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reuses the H2/L2 counting-setup primitive and a position-state read; the MA-proximity emphasis in the book is a strengthening condition, not a hard requirement"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "FlatOrOpenLossExceeds",
+    "relation": "variant",
+    "note": "Same family as catalog's FlatOrOpenLossExceeds -- an Entry that reads position state to permit a reversal -- but gated on a with-trend counting setup instead of an open-loss threshold."
+   },
+   "sources": [
+    "R28-45"
+   ],
+   "merge_notes": "Reads as a scale-in caveat in the book ('exit or reverse on the second move against a countertrend scale-in') but the rule itself is a single-position permission-to-exit-or-reverse; does not require holding multiple units. Depends on the H2/L2 counting-setup primitive, expected key High2Setup per T10-23/T00-19.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [
+    "High2Setup"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "trade_management",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "VolumeDivergenceAfterClimax",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After a recent volume peak, the bar makes a lower low than the previous bar on volume well below that peak — Brooks's volume divergence, a pullback-long signal in a bear trend; mirrored for shorts.",
+   "pseudocode": "peakVolume = highest(volume, lookback)[1]; low[0] < low[1] && volume[0] < divergenceFraction * peakVolume",
+   "sides": "mirrored",
+   "parameters": {
+    "divergenceFraction": 0.5,
+    "lookback": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a bounded Highest over the volume series stands in for remembering the climax bar; no persistent state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V10-03"
+   ],
+   "merge_notes": "Stray from swing_structure. Brooks's 'remember the huge-volume bar' is mechanized as highest(volume, lookback)[1], which needs no state; 'one or two lower lows on less volume' becomes a single lower-low bar. divergenceFraction 0.5 and lookback 5 are the miner's readings.",
+   "variants_kept_separate": [
+    "MinimumAbsoluteVolume"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "volume",
+   "el_words": [
+    "highest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StairsPattern",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least three consecutive swing legs each making a higher swing low AND a higher swing high, where each breakout retraces back past its own breakout point before the next leg -- Brooks's stairs, a broad channel trend.",
+   "pseudocode": "for k in 1..minStairs-1: swingLow(k).price > swingLow(k+1).price && swingHigh(k).price > swingHigh(k+1).price && swingLow(k).price < swingHigh(k+1).price (the overlap)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "minStairs": 3,
+    "maxLegs": 6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "swing-pivot detection, a run test over several pivots, and an overlap test between consecutive legs"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T26-01"
+   ],
+   "merge_notes": "The only source in the trilogy that defines stairs precisely enough to code, and the chapter named for it. The overlap requirement is what separates stairs from a plain trend of higher highs and higher lows, and from an accelerating spike-and-channel; it is carried. Gates StairsBreakoutFade, StairsPullbackLimitEntry and ShrinkingStairs.",
+   "variants_kept_separate": [
+    "ChannelConfirmedByTwoLegs",
+    "ThreePushesInChannel"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "lines_channels_channels"
+  },
+  {
+   "key": "ShrinkingStairs",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each successive new extreme in a stairs trend extends less than the one before it -- shrinking stairs, a waning-momentum filter against the next with-trend breakout.",
+   "pseudocode": "(swingHigh(1).price - swingHigh(2).price) < (swingHigh(2).price - swingHigh(3).price) && (swingHigh(2).price - swingHigh(3).price) < (swingHigh(3).price - swingHigh(4).price)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "shrinkLegs": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "four swing pivots and a monotonic-decrease test over the gaps between them"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T00-17",
+    "T26-04"
+   ],
+   "merge_notes": "T00-17 is the glossary entry over four pivots, T26-04 (stray, absorbed) the chapter statement over two legs; one rule with shrinkLegs as the parameter, default 3 comparisons (four pivots) from T00-17. Kept apart from StairsPattern: a stairs trend can have growing, equal or shrinking steps, and only the shrinking case carries the warning.",
+   "variants_kept_separate": [
+    "StairsPattern",
+    "ThreePushesInChannel"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "StairsPattern"
+   ],
+   "bucket": "lines_channels_channels"
+  },
+  {
+   "key": "TrendLineSlopeFlattening",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The trend line drawn through the two most recent swing pivots is flatter than the one drawn through the pivot pair before it -- successive trend lines losing slope, which Brooks reads as a maturing, weakening trend.",
+   "pseudocode": "p1b = swingLowBar(swingStrength, 3); p2b = swingLowBar(swingStrength, 2); p3b = swingLowBar(swingStrength, 1); newSlope = (low[p3b] - low[p2b]) / (p2b - p3b); oldSlope = (low[p2b] - low[p1b]) / (p1b - p2b); oldSlope > 0 && newSlope < flattenFraction * oldSlope",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 2,
+    "flattenFraction": 0.8
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "three confirmed swing pivots and two slopes; no persistent redraw history is needed once 'the current line is the newest pivot pair' is the construction rule"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingLow",
+    "SwingHigh",
+    "SwingLowBar",
+    "SwingHighBar"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T13-09"
+   ],
+   "merge_notes": "The mined candidate was graded research because it assumed a persisted history of redrawn lines and a rule for when a 'redraw' happens. The construction decision removes that: the current line is always the newest confirmed pivot pair, so the prior line is the pair one pivot back and the comparison is three pivots wide. Downgraded from research to hard on that basis.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "TrendLineBreak"
+   ],
+   "bucket": "lines_channels_trendlines"
+  }
+ ]
+}

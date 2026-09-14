@@ -1,0 +1,54 @@
+{
+    "name": "SpikeReversedBySpike",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "2",
+        "gapBars": "1",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "ee": {
+            "type": "int",
+            "init": "0"
+        },
+        "bb": {
+            "type": "int",
+            "init": "0"
+        },
+        "downNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upBefore": {
+            "type": "bool",
+            "init": "false"
+        },
+        "downBefore": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CLIMACTIC REVERSAL of the chapter's own title: a spike in one direction\n// immediately followed by a spike in the opposite direction. A spike is the\n// corpus's settled primitive -- StrongTrendBarRun's test, spikeBars consecutive\n// with-trend bars whose body is at least bodyFraction of the bar's own range.\n//\n// THE LONG SIDE IS THE MERGED PSEUDOCODE'S OWN SPELLING: the run ending on THIS\n// bar is the DOWN spike, and the older run is the UP spike -- an up move\n// reversed down. The short side mirrors it. Brooks's expectation after the pair\n// is a transition into a trading range whose eventual breakout runs about the\n// height of the FIRST spike; that is a target, not a condition, and is left to\n// the exits/targets pass, so the rule is the shape only and a placement's\n// direction toggle decides which way it is traded.\n//\n// THE OLDER SPIKE IS LOCATED RELATIVE TO THE NEWER ONE, not at a fixed lag: its\n// newest bar sits at offset spikeBars + ee for ee in 0..gapBars, so ee = 0 is\n// the two runs touching and gapBars is how many bars may separate them. A\n// pattern over a VARIABLE offset, which no AND of fixed-lag panes reaches --\n// the same argument that keeps ConsecutiveClimaxBars whole.\n//\n// Both runs are all-of-N in the StrongTrendBarRun shape: start true, let a\n// failing bar clear the flag, loop unconditionally so EasyLanguage's lack of\n// short-circuiting cannot matter. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement; the flags persist across bars and are all reset before use.\n//\n// Deepest bar touched: 2 * spikeBars + gapBars - 1.\ndownNow = true;\nupNow = true;\nfor (ii = 0; ii < (int)spikeBars; ++ii) {\n    if (el_ge(close[ii], open[ii])) downNow = false;\n    if (el_lt(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))) downNow = false;\n    if (el_le(close[ii], open[ii])) upNow = false;\n    if (el_lt(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))) upNow = false;\n}\nupBefore = false;\ndownBefore = false;\nfor (ee = 0; ee <= (int)gapBars; ++ee) {\n    allUp = true;\n    allDn = true;\n    for (ii = 0; ii < (int)spikeBars; ++ii) {\n        bb = (int)spikeBars + ee + ii;\n        if (el_le(close[bb], open[bb])) allUp = false;\n        if (el_lt(close[bb] - open[bb], bodyFraction * (high[bb] - low[bb]))) allUp = false;\n        if (el_ge(close[bb], open[bb])) allDn = false;\n        if (el_lt(open[bb] - close[bb], bodyFraction * (high[bb] - low[bb]))) allDn = false;\n    }\n    if (allUp) upBefore = true;\n    if (allDn) downBefore = true;\n}",
+    "longCondition": "downNow && upBefore",
+    "shortCondition": "upNow && downBefore",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

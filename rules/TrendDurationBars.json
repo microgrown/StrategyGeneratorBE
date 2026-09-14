@@ -1,0 +1,47 @@
+{
+    "name": "TrendDurationBars",
+    "type": "Entry",
+    "inputVariables": {
+        "minTrendBars": "30",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "aiBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "trendMature": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HOW LONG HAS THE ALWAYS-IN DIRECTION HELD? This is the 'late in the trend' /\n// 'the trend has gone on for dozens of bars' gate that the final-flag and\n// triangle rules AND with. R23-10 gives 30 bars for a triangle late in a trend\n// and V07-09 50 for a trend whose reversal becomes a large flag; one counter,\n// two thresholds, 30 the default. What both sources say about what to EXPECT\n// after the pattern is not a condition and is not encoded.\n//\n// ALWAYS-IN DIRECTION, the standing corpus decision, inlined here because no\n// rule file carries it: the direction FLIPS on consecutiveBars consecutive\n// STRONG TREND BARS -- body at least bodyFraction of the bar's own range, and\n// BOTH tails no more than tailFraction of it -- holds until the opposite flip,\n// and is UNDEFINED (aiDir = 0) until the first flip ever. aiBars is 0 on the\n// flip bar and counts up from there, so the rule cannot fire until a direction\n// exists, which the aiDir != 0 guard makes explicit. The bar-shape test is the\n// one ExitOnOppositeStrongTrendBar uses: a strict body direction, the body\n// fraction, and both tails.\n//\n// The flip is written as two guarded blocks and a flipped flag rather than an\n// else-if chain, so the twin is statement for statement and the increment\n// happens on exactly the bars neither branch took. A bar cannot satisfy both\n// branches, so the flag only prevents a double count.\n//\n// The all-of-N loop starts true and lets any failing bar clear the flag --\n// StrongTrendBarRun's arrangement -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. The flags are class\n// members and persist across bars, so both are reset at the top.\n//\n// SAME on both sides, deliberately: this measures the AGE of the direction,\n// not the direction itself. A pane that wants the direction as well ANDs the\n// always-in rule; this one only says the trend is old.\n//\n// Deepest bar touched: consecutiveBars - 1.\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    aiBars = 0;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    aiBars = 0;\n    flipped = true;\n}\nif (flipped == false) aiBars = aiBars + 1;\ntrendMature = (aiDir != 0) && ((double)aiBars >= minTrendBars);",
+    "longCondition": "trendMature",
+    "shortCondition": "trendMature",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

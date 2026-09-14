@@ -1,0 +1,65 @@
+{
+    "name": "CountRestartAfterHighTwo",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "minPriorCount": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "advHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "advLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "prevCycleHigh": {
+            "type": "int",
+            "init": "0"
+        },
+        "prevCycleLow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A fresh high 1 that follows a completed high 1 / high 2 sequence\n// without an intervening deeper pullback. Brooks: 'after a series of winning\n// trades, be suspicious of renewed strength without first seeing a larger\n// pullback -- it might be a trap setting up.' Used NEGATED with the\n// per-placement toggle it is the filter he actually states ('it is wise to\n// wait'), so one rule gives both readings.\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01), inlined here as\n// everywhere -- see HighLowBarCount for the full commentary. This rule was\n// mined as research grade because it looked to need a memory of prior setup\n// TYPES; under the settled counter it does not. The sequence high 1 (,high 1),\n// high 2, and a further high 1 IS the counter reaching at least 2, resetting on\n// a fresh N-bar high, and re-advancing to 1, so ONE latched integer covers it.\n//\n// THE LATCH: prevCycleHigh is written at the reset, and only when the count\n// it is replacing was non-zero. A run of consecutive fresh N-bar highs would\n// otherwise overwrite the memory with 0 on its second bar and lose it. Since\n// the count only ever rises within a cycle, its value at the reset IS that\n// cycle's maximum.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nadvHigh = false;\nadvLow = false;\nif (el_gt(close[0], priorHigh)) {\n    if (highCount > 0) prevCycleHigh = highCount;\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        advHigh = true;\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    if (lowCount > 0) prevCycleLow = lowCount;\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        advLow = true;\n    }\n}",
+    "longCondition": "advHigh && el_eq((double)highCount, 1.0) && el_ge((double)prevCycleHigh, minPriorCount)",
+    "shortCondition": "advLow && el_eq((double)lowCount, 1.0) && el_ge((double)prevCycleLow, minPriorCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

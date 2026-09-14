@@ -1,0 +1,33 @@
+{
+    "name": "SessionBarBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "offsetBars": "1",
+        "windowBars": "1"
+    },
+    "localVariables": {
+        "sessStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brkUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brkDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sessOffset": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// An early bar of the session closes beyond the high (long) or low (short) of\n// the session's FIRST bar. offsetBars = 1 is the second bar of the day\n// breaking the first bar's high; offsetBars = 2 is the third bar doing it.\n//\n// The gate is what makes it a once-a-day test rather than an every-bar one:\n// the bar offsetBars back must itself be the session's first bar, i.e. its\n// wall-clock close date differs from the bar before it -- the same date\n// slicing CloseWithinAtrOfVwap uses, read at an offset\n// (EL Date[offsetBars] > Date[offsetBars + 1], ordinary series history of the\n// Date data word). So the rule can only fire on the bar exactly\n// offsetBars + 1 into the session.\n//\n// Not CloseAbovePriorHigh, which is the price half at every bar of the chart.\n// Intraday bars only -- on a daily series every bar starts its own session\n// and the rule degenerates to CloseAbovePriorHigh at that lookback.//\n// windowBars WIDENS THE GATE INTO A WINDOW (added in the final review, in place\n// of a separate SessionFirstBarBreakout rule): the scan accepts the session's\n// first bar at any offset from offsetBars to offsetBars + windowBars - 1, so\n// the current bar may be any of the first windowBars bars after it and still\n// break that first bar's extreme. At windowBars = 1 only offsetBars is scanned\n// and the rule is exactly what it was. At most one offset in the window can be\n// a session start, so the loop finds at most one level.\n// Deepest bar touched: offsetBars + windowBars.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\nsessOffset = (int)offsetBars;\nsessStart = false;\nbrkUp = false;\nbrkDn = false;\nfor (int k = sessOffset; k <= sessOffset + (int)windowBars - 1; ++k) {\n    if (day_of(ctx.Time(k)) > day_of(ctx.Time(k + 1))) {\n        sessStart = true;\n        if (el_gt(close[0], high[k])) brkUp = true;\n        if (el_lt(close[0], low[k])) brkDn = true;\n    }\n}",
+    "longCondition": "brkUp",
+    "shortCondition": "brkDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

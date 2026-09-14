@@ -1,0 +1,41 @@
+{
+    "name": "BreakevenStopAfterEmaHoldingRun",
+    "type": "Exit",
+    "inputVariables": {
+        "emaLength": "20",
+        "barsAboveEma": "4"
+    },
+    "localVariables": {
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barsAboveCnt": {
+            "type": "int",
+            "init": "0"
+        },
+        "barsBelowCnt": {
+            "type": "int",
+            "init": "0"
+        },
+        "armedLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "armedShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// ARM THE BREAKEVEN STOP STRUCTURALLY, NOT ON A DOLLAR AMOUNT. The stop to\n// breakeven is armed only after the trade has held on its own side of the\n// exponential average for barsAboveEma CONSECUTIVE bars SINCE ENTRY; once armed,\n// a close back at the entry price takes the trade off.\n//\n// Kept apart from BreakevenStop, whose trigger is peak profit reaching a dollar\n// figure: a four-bar rally holding above the average and a $100 peak arm on\n// completely different bars, and neither is a parameter setting of the other.\n//\n// THE COUNTER AND THE ARMED FLAG ARE PER POSITION and are reset on\n// BarsSinceEntry() == 0 -- VERIFIED as 0 on the fill bar and as restarting\n// through a reversal, so the count really is \"since entry\" even when the\n// position was opened by a reversal, which a MarketPosition() == 0 reset would\n// miss. While flat the reset simply repeats. The counter advances on the fill\n// bar too, so a fill bar closing above the average is the first of the run.\n//\n// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls. MEASURED\n// (EL_XAverage_Probe.txt, @OJ 240min) bit-identical to the plain XAverage\n// built-in AT A FIXED LENGTH -- (wf - xa) exactly 0 on all 17,785 bars. SEED is\n// the PRICE on the study's first calculated bar (ctx.CurrentBar() == 1), not a\n// length-term simple average; the recurrence is ONE statement in EL's own form,\n// x + sf*(p - x), never sf*p + (1-sf)*x, which separates on 67% of bars past\n// 100. NO WARM-UP HOLE: do not add a CurrentBar() < n guard returning 0. An EMA\n// never forgets its seed, so the seed bar is part of the specification and moves\n// with Max Bars Back and the chart start. The walkforward LENGTH CHANGE is\n// UNMEASURED, so emaLength MUST BE PINNED in the grid. Only the current value is\n// read; the lagged read is unmeasured and not needed here.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\nif (ctx.BarsSinceEntry() == 0) {\n    barsAboveCnt = 0;\n    barsBelowCnt = 0;\n    armedLong = false;\n    armedShort = false;\n}\nif (el_gt(close[0], emaVal)) {\n    barsAboveCnt = barsAboveCnt + 1;\n} else {\n    barsAboveCnt = 0;\n}\nif (el_lt(close[0], emaVal)) {\n    barsBelowCnt = barsBelowCnt + 1;\n} else {\n    barsBelowCnt = 0;\n}\nif (el_ge((double)barsAboveCnt, barsAboveEma)) armedLong = true;\nif (el_ge((double)barsBelowCnt, barsAboveEma)) armedShort = true;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && armedLong && el_le(close[0], ctx.EntryPrice())",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && armedShort && el_ge(close[0], ctx.EntryPrice())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

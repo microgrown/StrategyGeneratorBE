@@ -11,6 +11,14 @@ freshly authored rules without touching ``rules/``, ``templates/``,
     python reference/brooks/compileCheck.py --since <git-ref>
     python reference/brooks/compileCheck.py --rules RuleA,RuleB
     python reference/brooks/compileCheck.py --batch-size 25 --keep
+    python reference/brooks/compileCheck.py --double            # each rule placed twice per class
+
+``--double`` catches a narrower bug than the single-placement pass above: a
+rule placed TWICE in one real strategy (e.g. two differently-parameterized
+copies) has its hooks emitted twice into that ONE generated class, so any
+C++ DECLARATION at hook scope (e.g. a `const int` or `double` declared
+inline in preConditionHook instead of via ``localVariables``) becomes a
+redefinition error on the second copy -- invisible when checked only once.
 
 WHAT IT DOES
 
@@ -152,12 +160,21 @@ def chunk(seq, size):
     return [seq[i:i + size] for i in range(0, len(seq), size)]
 
 
-def buildTemplate(strategyName, ruleType, ruleNames, maxBarsBack):
+def buildTemplate(strategyName, ruleType, ruleNames, maxBarsBack, double=False):
+    """``double`` places each rule TWICE within its own group (no delimiter
+    between the two copies), so both occurrences land in the SAME version's
+    entries/exits/switches list -- and therefore the same generated class --
+    instead of the one-occurrence-per-class layout used otherwise. This is
+    what surfaces hook-scope redeclarations (e.g. a `const int` declared
+    inline in preConditionHook instead of via localVariables): harmless with
+    one occurrence per class, a redefinition error with two."""
     items = []
     for i, name in enumerate(ruleNames):
         if i:
             items.append(DELIM)
         items.append({"name": name, "flipped": False, "negated": False, "params": {}})
+        if double:
+            items.append({"name": name, "flipped": False, "negated": False, "params": {}})
     return {
         "strategyName": strategyName,
         "maxBarsBack": str(maxBarsBack or ""),
@@ -168,10 +185,11 @@ def buildTemplate(strategyName, ruleType, ruleNames, maxBarsBack):
 # --- step 3: generate ---------------------------------------------------------
 
 class Batch:
-    def __init__(self, strategyName, ruleType, ruleNames):
+    def __init__(self, strategyName, ruleType, ruleNames, double=False):
         self.strategyName = strategyName
         self.ruleType = ruleType
         self.ruleNames = ruleNames  # version 1..N order, index -> rule
+        self.double = double
         self.generated = False
         self.headerPath = None
         self.specPaths = []
@@ -181,7 +199,8 @@ class Batch:
 def generateBatch(batch, engineDir, tmpDir):
     cfg = config.load()
     templatePath = os.path.join(tmpDir, strategyWriter.sanitizeIdentifier(batch.strategyName) + ".json")
-    data = buildTemplate(batch.strategyName, batch.ruleType, batch.ruleNames, cfg.get("maxBarsBack"))
+    data = buildTemplate(batch.strategyName, batch.ruleType, batch.ruleNames, cfg.get("maxBarsBack"),
+                          double=batch.double)
     with open(templatePath, "w") as f:
         json.dump(data, f, indent=4)
 
@@ -225,6 +244,19 @@ def runEngineBuild(engineDir, timeoutSec):
         return 1, (exc.stdout or ""), True
 
 
+def _dedupeRuleLabel(label):
+    """Under --double each version's summary comment lists the same rule name
+    twice (e.g. "entries RuleName, RuleName") since both occurrences share one
+    class -- collapse consecutive duplicates so per-rule attribution keys stay
+    exactly the rule name, unaffected by how many times it was placed."""
+    parts = [p.strip() for p in label.split(",")]
+    seen = []
+    for p in parts:
+        if p not in seen:
+            seen.append(p)
+    return ", ".join(seen)
+
+
 def _headerClassRanges(headerPath):
     """[(startLine, ruleName)] in ascending line order, 1-based."""
     ranges = []
@@ -237,7 +269,7 @@ def _headerClassRanges(headerPath):
     for i, line in enumerate(lines, 1):
         m = COMMENT_RE.match(line.strip())
         if m:
-            pendingComment = m.group(1).strip()
+            pendingComment = _dedupeRuleLabel(m.group(1).strip())
             continue
         if CLASS_RE.match(line.strip()):
             ranges.append((i, pendingComment or "?"))
@@ -335,6 +367,11 @@ def main(argv=None):
                         help="seconds to allow the engine build (default: %(default)s)")
     parser.add_argument("--keep", action="store_true",
                         help="keep the generated strategies/headers instead of removing them")
+    parser.add_argument("--double", action="store_true",
+                        help="place each rule TWICE in its version so both occurrences' hooks "
+                             "land in one generated class, surfacing hook-scope redeclarations "
+                             "(e.g. an inline `const int` in a hook) that are invisible with a "
+                             "single occurrence")
     args = parser.parse_args(argv)
 
     cfg = config.load()
@@ -362,7 +399,7 @@ def main(argv=None):
     for ruleType, ruleNames in sorted(byType.items()):
         for i, part in enumerate(chunk(sorted(ruleNames), args.batch_size), 1):
             strategyName = f"{PREFIX}{ruleType}_{i}"
-            batches.append(Batch(strategyName, ruleType, part))
+            batches.append(Batch(strategyName, ruleType, part, double=args.double))
 
     print(f"Compile-checking {totalRules} rule(s) across {len(batches)} batch(es): "
           + ", ".join(f"{b.strategyName} ({len(b.ruleNames)} {b.ruleType})" for b in batches))
@@ -427,6 +464,10 @@ def main(argv=None):
     print("=== compileCheck summary ===")
     print(f"Rules checked: {totalRules}  Batches: {len(batches)}  "
           f"Build: {'not run' if buildReturnCode is None else ('TIMED OUT' if timedOut else ('OK' if buildReturnCode == 0 else f'FAILED (exit {buildReturnCode})'))}")
+    _bo = buildOutput if buildOutput else ''
+    _ls = _bo.splitlines()
+    print(f"Raw build output: {len(_ls)} lines; {sum(1 for l in _ls if ' error C' in l)} compiler-error lines; "
+          f"{sum(1 for l in _ls if 'LNK1104' in l)} LNK1104 lines; {sum(1 for l in _ls if 'registry.cpp' in l)} registry.cpp lines")
     if skipped:
         print(f"Skipped (could not load): {', '.join(n for n, _ in skipped)}")
     if not allRuleErrors and not allBatchLevel:

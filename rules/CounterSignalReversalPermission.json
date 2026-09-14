@@ -1,0 +1,57 @@
+{
+    "name": "CounterSignalReversalPermission",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "countTarget": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "advHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "advLow": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// PERMISSION TO REVERSE OUT OF A COUNTERTREND POSITION. Brooks, R28-45: a\n// countertrend trade that is met by a SECOND with-trend counting setup should\n// be exited or reversed -- a short held into a high 2 in a bull trend, a long\n// held into a low 2 in a bear trend. This is an ENTRY that reads position\n// state deliberately, the same shape as FlatOrOpenLossExceeds and\n// EntryBarClosedAgainstPosition: it decides whether a fresh with-trend signal\n// may reverse the open trade, and the engine's own reversal behaviour turns\n// the entry into the exit.\n//\n// LONG fires while SHORT: the high count has just advanced to countTarget, so\n// the with-trend bull signal has arrived against the countertrend short.\n// SHORT is the mirror: long held, low count just advanced.\n//\n// THE 'BULL TREND' HALF OF THE MERGED PSEUDOCODE IS NOT CARRIED. The entry\n// pane ANDs its rules, so trend context belongs to a separate rule placed\n// beside this one; folding it in would make this rule unparameterizable and\n// is exactly the compound the authoring skill splits. The MA-proximity\n// emphasis in the book is a strengthening condition, not a requirement, and\n// is likewise left to a placed EMA rule.\n//\n// NOT OpposingCountExit. That rule is an EXIT reading the opposite counter as\n// a standing level; this is an ENTRY, and it carries the ADVANCE FLAG, so it\n// fires only on the signal bar itself -- the bar whose close is the corpus's\n// signal-bar-close / next-bar-open trigger. Slice B06 ruled on the pair\n// explicitly when it authored the counter.\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01), inlined here as\n// everywhere -- see HighLowBarCount for the full commentary. A bar whose high\n// exceeds the prior bar's high advances the count, but only once a new low\n// has formed since the last counted bar; the count resets on a fresh\n// resetLookback-bar high of the close and saturates at 4. The reset window is\n// Highest(high, resetLookback)[1], the N bars ENDING ONE BAR AGO, so the\n// current bar's own high cannot defeat its own reset test. Highest/Lowest\n// bottom out in EL's Extremes(), which is EasyLanguage SOURCE and so carries\n// the relational tolerance -- hence el_gt / el_lt and not raw > and <.\n//\n// ctx.MarketPosition() is the measured accessor (+1 / 0 / -1), read in the\n// condition exactly as EasyLanguage's MarketPosition is.\n//\n// WARM-UP: minLowSince and signalLow start at 0 like every EL variable, so on\n// positive prices the first advance can only come through the highCount == 0\n// branch. The EL twin's variables start at the same 0.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nadvHigh = false;\nadvLow = false;\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        advHigh = true;\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        advLow = true;\n    }\n}",
+    "longCondition": "el_lt((double)ctx.MarketPosition(), 0.0) && advHigh && el_eq((double)highCount, countTarget)",
+    "shortCondition": "el_gt((double)ctx.MarketPosition(), 0.0) && advLow && el_eq((double)lowCount, countTarget)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

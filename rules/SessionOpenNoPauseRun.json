@@ -1,0 +1,28 @@
+{
+    "name": "SessionOpenNoPauseRun",
+    "type": "Entry",
+    "inputVariables": {
+        "noPauseBars": "4"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "noPauseUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "noPauseDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// NO PAUSE SINCE THE SESSION OPENED: each of the last noPauseBars bars made a\n// higher high than the bar before it (mirror: a lower low), and enough bars\n// have printed this session that the whole run lies INSIDE the session.\n//\n// Brooks reads the run as raising the odds of a reversal by the third or\n// fourth bar, so the natural placement is NEGATED as a with-trend filter, or\n// as written as a countertrend permission. Only the odds statement is\n// discretionary; the bar test is not.\n//\n// SESSION MODEL, per the standing decision: a session starts when the\n// wall-clock close date changes -- day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// the EasyLanguage twin's date > date[1]. barsIn is 1 on the session's FIRST\n// bar, SessionOpeningRange's convention. THE GUARD IS barsIn >= noPauseBars,\n// exactly as the merged pseudocode writes it: that is what keeps the run's\n// oldest compared bar, high[noPauseBars], from reaching into the previous\n// session, and it is NOT a restriction to the session's first bars -- the rule\n// can fire on any later bar whose run is wholly inside the session.\n//\n// The all-of-N loops start from the barsIn guard and let any failing bar clear\n// the flag -- StrongTrendBarRun's arrangement -- so the loops run\n// unconditionally and EasyLanguage's lack of short-circuiting cannot matter.\n// The flags are class members and persist across bars, so both are set at the\n// top rather than relied on to start true.\n//\n// The date comparison is on integer day serials, not prices, so it is exact\n// and does not go through el_gt; the bar-count comparison is cast to double\n// for the EL relational because noPauseBars is an input.\n//\n// WARM-UP: barsIn starts at 0 like every EL variable, so a first calculated\n// bar falling mid-session under-counts until the first date change. That is\n// EL's behaviour, mirrored rather than corrected. Intraday bars only.\n//\n// Deepest bar touched: noPauseBars.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n} else {\n    barsIn = barsIn + 1;\n}\nnoPauseUp = el_ge((double)barsIn, noPauseBars);\nnoPauseDn = el_ge((double)barsIn, noPauseBars);\nfor (int k = 0; k < (int)noPauseBars; ++k) {\n    if (el_le(high[k], high[k + 1])) noPauseUp = false;\n    if (el_ge(low[k], low[k + 1])) noPauseDn = false;\n}",
+    "longCondition": "noPauseUp",
+    "shortCondition": "noPauseDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

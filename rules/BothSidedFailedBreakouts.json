@@ -1,0 +1,29 @@
+{
+    "name": "BothSidedFailedBreakouts",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeLookback": "15",
+        "reentryWindow": "10"
+    },
+    "localVariables": {
+        "brokeDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bothFailed": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Within the same window a failed breakout has occurred on BOTH sides of the\n// range -- bears trapped below and bulls trapped above -- so the next genuine\n// breakout in either direction is expected to travel further than usual.\n//\n// The single-sided test is FailedBreakoutReversal, already in the corpus, and\n// this rule INLINES that rule's loop verbatim rather than inventing a second\n// spelling of the same thing (the corpus's rule for composites that are named\n// setups: keep the dependency in the row text, inline the parts in code). For\n// each candidate breakout bar k the level is the extreme of bars\n// k+1 .. k+rangeLookback, open-coded because Lowest(l, rangeLookback)[k + 1]\n// is a history reference on a function call at a VARIABLE offset; Extremes(),\n// which Highest and Lowest call, is EL source and is exactly this loop --\n// seed at the first bar of the window and scan the rest with a strict,\n// tolerance-carrying comparison, hence el_gt / el_lt and not raw > and <.\n//\n// NOT a composition of two placements. The pane system ANDs entry rules, but\n// each placement carries ONE side, so \"the long-side failure AND the\n// short-side failure, both true on this bar\" cannot be built by stacking two\n// placements of FailedBreakoutReversal. Direction-agnostic by construction,\n// so both sides carry the same text.\n//\n// Both directions are accumulated on every candidate, matching EL's\n// non-short-circuiting evaluation; the loop runs unconditionally.\nbrokeDown = false;\nbrokeUp = false;\nfor (int k = 1; k <= (int)reentryWindow; ++k) {\n    double lvlLow = low[k + 1];\n    double lvlHigh = high[k + 1];\n    for (int j = k + 2; j <= k + (int)rangeLookback; ++j) {\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n    }\n    if (el_lt(close[k], lvlLow) && el_gt(close[0], lvlLow)) brokeDown = true;\n    if (el_gt(close[k], lvlHigh) && el_lt(close[0], lvlHigh)) brokeUp = true;\n}\nbothFailed = brokeDown && brokeUp;",
+    "longCondition": "bothFailed",
+    "shortCondition": "bothFailed",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

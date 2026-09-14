@@ -1,0 +1,53 @@
+{
+    "name": "HigherSwingLow",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "pok": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "lo2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hi2": {
+            "type": "double",
+            "init": "-1.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MINIMUM PRECONDITION FOR A WITH-TREND TRADE: the most recently CONFIRMED\n// swing low is above the one before it -- a higher low. Brooks: \"a trader\n// usually should not be looking to buy unless the market is at least forming a\n// higher low\". Mirrored: the short side wants the most recent swing pivot high below\n// the one before it, a lower high.\n//\n// Not LaggedHigherHigh, which compares two ADJACENT BARS at a fixed lag on the\n// opposite series, and not HigherLowCount, which counts adjacent-bar pairs. This\n// reads the STRUCTURE -- two confirmed pivots, however many bars apart -- which\n// no fixed-lag bar comparison reaches. The cheap window proxy the merge recorded\n// (lowest(low, n) now against lowest(low, n) n bars ago) is a different test and\n// is not used.\n//\n// THE PIVOT SCAN IS INLINED from SwingHigh per the B-list decision -- rules in\n// this corpus never reference each other -- and mirrors the twin's SwingLow /\n// SwingHigh at Occurrence 1 and 2. Scanning newest-first and taking the first\n// two hits is what reproduces those two occurrences. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min):\n//   * the pivot test is MIXED: at-or-beyond the strength OLDER bars, STRICTLY\n//     beyond the strength NEWER bars. Bars-ago indexing makes the SMALLER index\n//     the NEWER bar, so the strict half is the pk < pj loop;\n//   * the confirmation lag is exactly strength bars, never 0 or 1, so the scan\n//     is lookahead-safe, and during the lag it reports the PREVIOUS pivot;\n//   * maxBarsBack is EL's Length: candidate offsets 0..maxBarsBack-1 from the\n//     current bar INCLUSIVE, and the neighbourhood test reaches strength bars\n//     PAST the window, so the deepest bar touched is maxBarsBack - 1 + strength;\n//   * fewer than two pivots in the window is the -1 SENTINEL case, guarded on\n//     BOTH occurrences because -1 as a PRICE sits under every real price and\n//     would otherwise read as a higher low;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_lt /\n//     el_le / el_gt / el_ge inside the scan rather than raw operators.\n// The low side's tie sense is the mirror of the measured high-side rule, not an\n// observation. Occurrence 3+ is unmeasured and is not asked for. No\n// WFSafe_SwingLow exists, so plain EL governs.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\nlo1 = -1.0;\nlo2 = -1.0;\nfoundLo = 0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) {\n        ++foundLo;\n        if (foundLo == 1) { lo1 = low[pj]; }\n        else { lo2 = low[pj]; break; }\n    }\n}\nhi1 = -1.0;\nhi2 = -1.0;\nfoundHi = 0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) {\n        ++foundHi;\n        if (foundHi == 1) { hi1 = high[pj]; }\n        else { hi2 = high[pj]; break; }\n    }\n}",
+    "longCondition": "el_ne(lo1, -1.0) && el_ne(lo2, -1.0) && el_gt(lo1, lo2)",
+    "shortCondition": "el_ne(hi1, -1.0) && el_ne(hi2, -1.0) && el_lt(hi1, hi2)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

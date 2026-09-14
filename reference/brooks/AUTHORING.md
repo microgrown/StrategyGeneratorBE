@@ -150,3 +150,9 @@ the row):**
 
 **Reaches back** must include the pivot lag (`lookback - 1 + strength`), the
 trend-line anchors, and any counter's reset lookback.
+
+**Double placement (added 2026-09-13).** A rule can be placed twice in one
+strategy, so its hooks are emitted twice into one class. Never declare C++
+scratch at hook scope (`const int x = ...;`, `double y = ...;` inside a hook);
+every scratch value is a `localVariables` entry. `AdxBelowThreshold` was fixed
+for exactly this; `reference/brooks/compileCheck.py --double` checks it.

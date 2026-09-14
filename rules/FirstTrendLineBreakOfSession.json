@@ -1,0 +1,113 @@
+{
+    "name": "FirstTrendLineBreakOfSession",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brokeUpToday": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeDnToday": {
+            "type": "bool",
+            "init": "false"
+        },
+        "breakUpNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "breakDnNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND LINE, one construction shared by the whole lines/channels family\n// (decided in slice B01, carried here unchanged): the BULL trend line runs\n// through the two most recent CONFIRMED swing LOWS, the BEAR trend line through\n// the two most recent confirmed swing HIGHS, deliberately NOT parallel. The\n// pivot scan is INLINED rather than reaching into SwingHigh.json -- rules in\n// this corpus never reference each other -- and mirrors the EL twin's SwingLow\n// / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the swingStrength OLDER bars, STRICTLY ABOVE the\n// swingStrength NEWER bars -- so a flat top yields exactly one pivot, the later\n// of the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar,\n// so the strict half is the k < j loop. The confirmation lag is exactly\n// swingStrength bars, never 0 or 1. pivotLookback is EL's Length (offsets\n// 0..pivotLookback-1 inclusive) and the neighbourhood test reaches\n// swingStrength bars PAST the window, so the deepest index the scan touches is\n// pivotLookback - 1 + swingStrength. A window with no pivot returns the -1\n// SENTINEL, guarded below. Occurrence 3+ is UNMEASURED and never asked for. The\n// comparisons carry the 2.22e-12 relational tolerance, hence el_gt / el_ge. The\n// low side's tie sense is the mirror of the measured high-side rule. No\n// WFSafe_SwingHigh exists, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue is the two-point line anchored at the\n// FIRST pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) *\n// Slope. Bars-ago convention, so the OLDER pivot (LARGER bars-ago) is P1/B1,\n// the zero-drift spelling. Bar1 = Bar2 silently returns 0.0, so B1 != B2 is\n// guarded. The slope is hoisted out of the per-target arithmetic where the EL\n// twin recomputes it inside the TLValue call; identical doubles, same line.\n//\n// THIS RULE: Brooks's 'first pullback to break a trend line' (T23-15), which he\n// rates as one of the best entries because a second leg usually follows. A LONG\n// is the first closing price this session through the BEAR trend line (across the two\n// most recent swing HIGHS); the short side is the mirror through the bull line.\n// Kept apart from a plain trend-line break because the once-per-session latch\n// changes WHICH bars fire, not merely how many.\n//\n// INTRADAY-ONLY, tagged rather than dropped. On a daily series every bar is its\n// own session and the latch never suppresses anything. THE SESSION BOUNDARY is\n// the corpus's standard one: date <> date[1] in EL, day_of(ctx.Time(0)) !=\n// day_of(ctx.Time(1)) here -- MEASURED (EL_Date_Probe.txt) as the bar's\n// wall-clock CLOSING date and not its session date, the same slicing HighD / LowD\n// use, so on a 24-hour instrument the evening bars belong to the calendar day\n// they close in. A 1440-minute bar is still an intraday bar per the register.\n//\n// THE LATCH is a local, so it persists across bars like the EL variable it\n// mirrors, and is reset on the date change. It is READ BEFORE IT IS SET, so the\n// break bar itself fires and every later break in the same session is\n// suppressed. Two latches, one per side, because a session can break both\n// lines.\n//\n// Brooks warns (p409) that tiny pullbacks not breaking a meaningful line do not\n// count as the first pullback; swingStrength is the knob for that.\nif (day_of(ctx.Time(0)) != day_of(ctx.Time(1))) {\n    brokeUpToday = false;\n    brokeDnToday = false;\n}\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n}\nif (haveHiLine) {\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n}\nbreakUpNow = haveHiLine && el_gt(close[0], hiNow);\nbreakDnNow = haveLoLine && el_lt(close[0], loNow);\nfirstUp = breakUpNow && !brokeUpToday;\nfirstDn = breakDnNow && !brokeDnToday;\nif (breakUpNow) brokeUpToday = true;\nif (breakDnNow) brokeDnToday = true;",
+    "longCondition": "firstUp",
+    "shortCondition": "firstDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

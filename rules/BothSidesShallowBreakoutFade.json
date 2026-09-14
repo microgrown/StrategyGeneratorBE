@@ -1,0 +1,64 @@
+{
+    "name": "BothSidesShallowBreakoutFade",
+    "type": "Entry",
+    "inputVariables": {
+        "maxExtension": "0.15"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "runHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shallowUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shallowDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fadeLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fadeShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The session has already poked beyond one side of the day's range by only a\n// SMALL amount, and has now reversed and poked beyond the other side by a\n// small amount too: fade the second poke, expecting a quiet two-sided day\n// rather than a trend. Long is a shallow break of the session low after a\n// shallow break of the session high, confirmed by a bull bar.\n//\n// A two-sided cousin of the one-sided repeated-failure family; the second\n// break is on the OPPOSITE side, so they never fire on the same bar.\n//\n// SESSION MODEL, per the standing decision: the session starts when the\n// wall-clock close date changes -- day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// the slicing CloseWithinAtrOfVwap uses -- and the running session high and\n// low plus a bars-into-session counter live in locals reset on that change.\n//\n// \"Shallow\" is measured against the session's own range SO FAR, taken as of\n// the PREVIOUS bar: prevHigh, prevLow and prevRange are read before the\n// current bar is folded in, so the extension is compared with the range it\n// actually broke and the current bar cannot enlarge its own benchmark. The\n// comparison is a MULTIPLICATION, not a ratio -- EL raises a runtime\n// divide-by-zero on a zero denominator and a one-bar session would supply\n// one.\n//\n// WARM-UP: every local starts at 0 as the EasyLanguage variables do. Before\n// the first date change runLow stays 0.0 (no positive low is below it), so\n// dnNow and shallowDn stay false and neither side can fire -- the rule is\n// silent until it has seen one complete session boundary without needing a\n// guard for it. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    runHigh = high[0];\n    runLow = low[0];\n    shallowUp = false;\n    shallowDn = false;\n    upNow = false;\n    dnNow = false;\n    fadeLong = false;\n    fadeShort = false;\n} else {\n    barsIn = barsIn + 1;\n    prevHigh = runHigh;\n    prevLow = runLow;\n    prevRange = prevHigh - prevLow;\n    upNow = barsIn >= 2 && el_gt(high[0], prevHigh)\n        && el_le(high[0] - prevHigh, maxExtension * prevRange);\n    dnNow = barsIn >= 2 && el_lt(low[0], prevLow)\n        && el_le(prevLow - low[0], maxExtension * prevRange);\n    fadeLong = dnNow && shallowUp && el_gt(close[0], open[0]);\n    fadeShort = upNow && shallowDn && el_lt(close[0], open[0]);\n    if (upNow) shallowUp = true;\n    if (dnNow) shallowDn = true;\n    if (el_gt(high[0], runHigh)) runHigh = high[0];\n    if (el_lt(low[0], runLow)) runLow = low[0];\n}",
+    "longCondition": "fadeLong",
+    "shortCondition": "fadeShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

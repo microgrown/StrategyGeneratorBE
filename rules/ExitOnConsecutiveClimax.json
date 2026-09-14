@@ -1,0 +1,98 @@
+{
+    "name": "ExitOnConsecutiveClimax",
+    "type": "Exit",
+    "inputVariables": {
+        "minClimaxes": "2",
+        "windowBars": "15",
+        "exitOnClimaxClose": "0",
+        "maxGapBars": "5",
+        "climaxMultiple": "2",
+        "atrLength": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearCount": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "isBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "isBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sepBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sepBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TAKE PROFITS INTO THE SECOND CLIMAX. Once minClimaxes separated same-\n// direction climax bars have printed inside the last windowBars, Brooks says to\n// be out: either sell into the climax bar's own close, or wait for the first\n// bar that closes against the position. exitOnClimaxClose picks between them --\n// 1 exits on the climax bar itself, 0 (the default) waits for the first\n// opposite-body bar. Both readings are in the quote, and neither is worth its\n// own rule.\n//\n// THIS CANNOT BE COMPOSED FROM ConsecutiveClimaxBarCount. That rule is an Entry,\n// exits are ORed rather than ANDed, and an Entry cannot sit in the exit pane --\n// the same reason ConsecutiveCloseExit exists alongside MomentumConsecutiveBars\n// and ConsecutiveTrendBarsClimaxExit alongside StrongTrendBarRun. Not\n// ConsecutiveTrendBarsClimaxExit either: that wants a RUN of consecutive trend\n// bars and a profit gate, where this wants SEPARATED climaxes and no profit\n// gate, so the two leave on different bars.\n//\n// THE COUNT IS ConsecutiveClimaxBarCount's, unchanged: ClimaxBar's test\n// evaluated at each bar of the window against the CURRENT ATR -- one ATR read,\n// not one per counted bar, which keeps the rule off the ATR variable's own\n// history -- and a climax counts only when it is SEPARATED from the run before\n// it, i.e. at least one of the maxGapBars bars immediately older than it is not\n// itself a climax of the same direction. windowBars is 15 here rather than that\n// rule's 30, which is the source's own window.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. The block is AtrProfitTarget's and ClimaxBar's verbatim, including\n// the TWO separate accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently and lands on the other side of a threshold.\n// It stays in the hook, which the generator emits unconditionally: EasyLanguage\n// does not short-circuit, so a stateful call inside a condition would advance\n// every bar in EL and only on some bars here.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(windowBars + maxGapBars - 1, atrLength + 1).\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\nbullCount = 0.0;\nbearCount = 0.0;\nfor (ii = 0; ii < (int)windowBars; ++ii) {\n    isBull = el_gt(close[ii], open[ii])\n        && el_ge(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], climaxMultiple * atrValue);\n    isBear = el_lt(close[ii], open[ii])\n        && el_ge(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], climaxMultiple * atrValue);\n    sepBull = false;\n    sepBear = false;\n    for (jj = ii + 1; jj <= ii + (int)maxGapBars; ++jj) {\n        gapBull = el_gt(close[jj], open[jj])\n            && el_ge(close[jj] - open[jj], bodyFraction * (high[jj] - low[jj]))\n            && el_ge(high[jj] - low[jj], climaxMultiple * atrValue);\n        gapBear = el_lt(close[jj], open[jj])\n            && el_ge(open[jj] - close[jj], bodyFraction * (high[jj] - low[jj]))\n            && el_ge(high[jj] - low[jj], climaxMultiple * atrValue);\n        if (!gapBull) sepBull = true;\n        if (!gapBear) sepBear = true;\n    }\n    if (isBull && sepBull) bullCount += 1;\n    if (isBear && sepBear) bearCount += 1;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(bullCount, minClimaxes) && (el_ge(exitOnClimaxClose, 0.5) || el_lt(close[0], open[0]))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(bearCount, minClimaxes) && (el_ge(exitOnClimaxClose, 0.5) || el_gt(close[0], open[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

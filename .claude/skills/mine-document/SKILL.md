@@ -327,6 +327,18 @@ everything that is not A already.
    decision as an instruction (always-in state machine, H1/H2 counter, trading-range
    width, session model), so B agents build on primitives instead of re-deferring.
    Brooks: 212 B → 154 ready, 47 tick-unit, 3 lagged-EMA, 3 blocked; 12 slices.
+   **Verify double placement.** A rule can be placed twice in one strategy, so hook-scope
+   C++ declarations (`const int x = ...;` in a hook) are redefinition errors the single-
+   placement build never shows. `compileCheck.py --double` places every rule twice; in
+   Brooks 31 of the first 92 B rules failed it, all from a few shared code patterns
+   (pivot scans, three-push locals). Put the rule in the brief before the first slice,
+   not after.
+   **Subagents must never stop processes.** A harness agent killed Brian's running
+   walkforward to free a build lock. Every prompt that builds now says: a locked
+   executable is environmental, judge by compiler diagnostics, never kill anything.
+   **Authoring agents should not build.** Several B agents ran the engine build
+   themselves and contended on the engine repo; validateRule and the lint are their
+   gate, the orchestrator runs compileCheck once per wave.
 8. **Per-slice cost:** 12–14 rules, both twins, validated and linted, ran 145k–180k
    Opus tokens and 10–15 minutes each. Rows files append cleanly with
    `reference/brooks/appendRows.py`, which skips keys already in the catalog.
@@ -356,6 +368,13 @@ everything that is not A already.
   removed 3 more and corrected 24 catalog rows; the corpus went 92 → 240 rules, lint
   and 319 tests clean, engine Release build clean via compileCheck.py. 52 A rules and
   all B rules wait on the probes; the tick-size ones also need a ctx accessor.
+- **2026-09-13, Brooks pass 3b (B list).** After the probes: 154 ready B rules in 13 Opus
+  slices at 3 concurrent (180k–260k tokens, 16–26 min each), ~135 written before the
+  review, the rest dropped as duplicates or compositions, 2 blocked on an initial-risk
+  accessor. Decisions passed downstream as instructions (channel construction from B01,
+  H1/H2 counter from B06, inlined third-pivot scan) kept later slices from re-deferring.
+  Still waiting: 47 B + 32 A tick-unit rules (engine ctx accessor), 12 lagged-EMA rules
+  (probe not yet run), the XAverage length-change question, the WFSafe_ library list.
 - **2026-09-13, Brooks probe results.** Brian ran 5 charts (MSFT skipped); four analysis
   agents (2 Opus, 2 Sonnet, 75k–130k tokens each) settled nine register rows in one
   pass. Findings that overturned assumptions: EL swing pivots are at-or-above the older

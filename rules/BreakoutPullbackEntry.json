@@ -1,0 +1,59 @@
+{
+    "name": "BreakoutPullbackEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "breakoutLookback": "10",
+        "maxBarsSinceBreakout": "8",
+        "minPullbackBars": "1",
+        "maxPullbackBars": "10"
+    },
+    "localVariables": {
+        "brkUpBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "brkDnBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "pbUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "pbDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "okUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pbHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "entryUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "entryDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's three-stage breakout pullback: a bar within the last few bars\n// closed beyond a flag or range, the market then pulled back for one or more\n// bars, and this bar closes above the highest high of that pullback -- buy\n// the resumption at the next open. Short is the mirror on lows.\n//\n// Stage 1, the breakout bar. A bounded backward scan finds the MOST RECENT\n// bar k in 1..maxBarsSinceBreakout whose close is beyond the extreme of the\n// breakoutLookback bars ENDING ONE BAR BEFORE IT. The level is open-coded\n// because Highest(High, breakoutLookback)[k + 1] is a history reference on a\n// function call at a VARIABLE offset; Extremes(), which Highest and Lowest\n// call, is EL source and is exactly this loop -- seed at the first bar of the\n// window and scan the rest with a strict, tolerance-carrying comparison,\n// hence el_gt / el_lt. \"Most recent\" is the brkUpBar == -1 guard rather than\n// a loop break, because EasyLanguage has no break and the twins must run the\n// same number of iterations.\n//\n// Stage 2, the pullback: its length is k - 1 bars, and it must lie between\n// minPullbackBars and maxPullbackBars. The bound is on bar COUNT, not depth\n// -- one source lets the pullback make a higher low and another a lower low,\n// so depth cannot be the gate. At minPullbackBars = maxPullbackBars = 1 this\n// is the cheapest mechanization in the sources.\n//\n// Stage 3, the resumption: close above the highest high of those pullback\n// bars. That leg alone is CloseAbovePriorHighestHigh, but over a window whose\n// LENGTH is data-dependent, so it cannot be split out as its own placement --\n// which is why this is one rule and not two.\n//\n// The deepest bar touched is maxBarsSinceBreakout + breakoutLookback.\nbrkUpBar = -1;\nbrkDnBar = -1;\nfor (int k = 1; k <= (int)maxBarsSinceBreakout; ++k) {\n    double lvlHigh = high[k + 1];\n    double lvlLow = low[k + 1];\n    for (int j = k + 2; j <= k + (int)breakoutLookback; ++j) {\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n    }\n    if (brkUpBar == -1 && el_gt(close[k], lvlHigh)) brkUpBar = k;\n    if (brkDnBar == -1 && el_lt(close[k], lvlLow)) brkDnBar = k;\n}\npbUp = brkUpBar - 1;\npbDn = brkDnBar - 1;\nokUp = brkUpBar != -1 && el_ge((double)pbUp, minPullbackBars) && el_le((double)pbUp, maxPullbackBars);\nokDn = brkDnBar != -1 && el_ge((double)pbDn, minPullbackBars) && el_le((double)pbDn, maxPullbackBars);\npbHigh = high[1];\npbLow = low[1];\nif (okUp) {\n    for (int m = 2; m <= pbUp; ++m) {\n        if (el_gt(high[m], pbHigh)) pbHigh = high[m];\n    }\n}\nif (okDn) {\n    for (int m = 2; m <= pbDn; ++m) {\n        if (el_lt(low[m], pbLow)) pbLow = low[m];\n    }\n}\nentryUp = okUp && el_gt(close[0], pbHigh);\nentryDn = okDn && el_lt(close[0], pbLow);",
+    "longCondition": "entryUp",
+    "shortCondition": "entryDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

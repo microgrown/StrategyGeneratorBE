@@ -1,0 +1,49 @@
+{
+    "name": "LegCountAtLeast",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "minLegs": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HighLowBarCount's counter read as a STANDING THRESHOLD instead of an\n// equality: 'a pullback, like all trends, will commonly have at least two\n// legs', so a with-trend entry is favoured only once the count has reached\n// two. HighLowBarCount fires on ONE bar (the signal bar, count == countTarget\n// with the advance flag); this stays true for the rest of the pullback, so as\n// a context filter ANDed into a pane the two select different bars.\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01) and is INLINED here\n// rather than referenced -- rules in this corpus never reference each other.\n// See HighLowBarCount for the full commentary; in short, a higher-high bar\n// advances the count only after a new low has formed since the last counted\n// bar, the count resets on a fresh resetLookback-bar high measured one bar\n// ago, and it saturates at 4. The advance flag is not needed here, so it is\n// not carried. The reset window is EL's Highest(high, resetLookback)[1] --\n// the N bars ENDING ONE BAR AGO -- and Extremes() is EasyLanguage source, so\n// the scan carries the relational tolerance through el_gt / el_lt.\n//\n// MIRRORED, not identical: the merged slice recorded sides = same, but the\n// counter is inherently directional -- the long side counts the higher-high\n// bars of a bull-flag pullback and the short side the lower-low bars of a\n// bear-flag pullback -- so an identical short condition would have a short\n// placement reading the bull flag's legs.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n    }\n}",
+    "longCondition": "el_ge((double)highCount, minLegs)",
+    "shortCondition": "el_ge((double)lowCount, minLegs)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

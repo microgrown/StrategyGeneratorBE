@@ -1,0 +1,54 @@
+{
+    "name": "PullbackSizedProfitTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40",
+        "profitFraction": "0.8"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "pbHiPx": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pbHiBar": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pbLoPx": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pbLoBar": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "havePb": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pbTgtUp": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pbTgtDn": {
+            "type": "double",
+            "init": "-1.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TARGET A FRACTION OF THE MARKET'S OWN LAST PULLBACK. Brooks: if the last\n// pullback ran about fifteen ticks, look to exit ten to fifteen ticks up from\n// the low. The distance measure is the market's own most recent swing-high to\n// swing-low span, and the target is that span times profitFraction measured up\n// from the swing low the trade came off.\n//\n// FROZEN AT ENTRY. The span and the level are captured once, on the fill bar\n// (BarsSinceEntry() == 0, VERIFIED as 0 on the fill bar, 0 while flat and\n// restarting through a reversal), which holds the target still while the\n// position is open; a level recomputed from the rolling pivots would walk away\n// from the trade as new pivots confirm. Both scans run UNCONDITIONALLY on every\n// bar -- only the freeze is conditional -- so Max Bars Back must cover the scan\n// regardless, matching the twin's unconditional series calls.\n//\n// THE -1 SENTINEL is the hazard, as in SwingPivotTarget: a window with no pivot\n// leaves the level at -1, which as a price sits below every real price, so an\n// unguarded long target would be reached on the entry bar. havePb is that guard,\n// and it also requires the swing high to sit above the swing low.\n//\n// PIVOT SCAN inlined rather than referencing SwingHigh.json -- rules here never\n// reference each other. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt,\n// @ES 60 min): the pivot bar is AT OR ABOVE the swingStrength older bars and\n// STRICTLY ABOVE the swingStrength newer bars -- bars-ago indexing, so the newer\n// bars are the smaller k and take el_gt / el_lt, the older el_ge / el_le. The\n// confirmation lag is exactly swingStrength bars, candidate offsets are\n// swingStrength..lookbackBars-1, and the neighbourhood reaches swingStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength. Scanning newest-first with a break\n// reproduces \"occurrence 1 is the most recent confirmed pivot\". The comparisons\n// carry the 2.22e-12 relational tolerance. The low side's tie sense is the\n// mirror of the measured high-side rule. No WFSafe_SwingHigh exists, so plain EL\n// governs.\n//\n// Not SwingPivotTarget, which exits AT the pivot and re-reads it every bar; not\n// PatternHeightMeasuredMoveTarget, which spans a fixed refBars window where this\n// spans two confirmed pivots. At profitFraction = 1 the level coincides with\n// SwingPivotTarget's pivotIndex 1 on trades entered before a new pivot confirms,\n// which is why the default is 0.8.\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\npbHiBar = -1.0;\npbHiPx = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pbHiBar = (double)j; pbHiPx = high[j]; break; }\n}\npbLoBar = -1.0;\npbLoPx = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pbLoBar = (double)j; pbLoPx = low[j]; break; }\n}\nif (ctx.BarsSinceEntry() == 0) {\n    havePb = (pbHiBar != -1.0) && (pbLoBar != -1.0) && el_gt(pbHiPx, pbLoPx);\n    pbTgtUp = pbLoPx + profitFraction * (pbHiPx - pbLoPx);\n    pbTgtDn = pbHiPx - profitFraction * (pbHiPx - pbLoPx);\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && havePb && el_ge(high[0], pbTgtUp)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && havePb && el_le(low[0], pbTgtDn)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

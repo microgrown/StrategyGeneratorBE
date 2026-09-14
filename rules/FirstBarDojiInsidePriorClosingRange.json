@@ -1,0 +1,43 @@
+{
+    "name": "FirstBarDojiInsidePriorClosingRange",
+    "type": "Entry",
+    "inputVariables": {
+        "dojiFraction": "0.25",
+        "dojiRangeFraction": "1.0",
+        "atrLookback": "14",
+        "closingRangeBars": "5"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "newSess": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SESSION'S FIRST BAR IS A SMALL DOJI SITTING INSIDE YESTERDAY'S CLOSING\n// RANGE -- a stronger trading-range-day bias than a doji open alone, because\n// the market has opened with no information at all.\n//\n// Four terms: the session boundary, the doji body test, a SIZE test (the bar's\n// range is no larger than dojiRangeFraction of the ATR, which is what \"small\"\n// adds to \"doji\"), and containment inside the high-low block of the previous\n// session's last closingRangeBars bars.\n//\n// IT DOES NOT LATCH. The merge pass recorded both readings as defensible and\n// asked the authoring pass to pick one: this rule is the ONE-BAR filter and\n// FirstBarOfSessionDoji is the latched twin, so the pair covers both without\n// either being ambiguous. A placement that wants the latched form ANDs\n// FirstBarOfSessionDoji instead.\n//\n// SESSION MODEL, per the standing decision: day_of(ctx.Time(0)) >\n// day_of(ctx.Time(1)), the EasyLanguage twin's date > date[1] (EL_Date_Probe\n// measured Date as the bar's wall-clock closing date on 169/169 bars). The\n// comparison is on integer day serials, not prices, so it is exact and does\n// not go through el_gt; the boolean lands in a local because a rule CONDITION\n// may not carry a raw relational operator.\n//\n// THE CONTAINMENT BLOCK is Highest(high, closingRangeBars)[1] and\n// Lowest(low, closingRangeBars)[1] -- the N bars ENDING ONE BAR AGO, so the\n// first bar of the session is not in its own benchmark. On the session's first\n// bar those N bars are the previous session's last N, which is exactly what\n// the rule means by yesterday's closing range. Highest/Lowest bottom out in\n// EL's Extremes(), EL SOURCE: seeded at the window's first bar, scanning the\n// rest with a strict tolerance-carrying comparison, which is why the scan uses\n// el_gt / el_lt and not raw > and <.\n//\n// closingRangeBars = 5 is a guess: Brooks gives no count.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. The update is TWO separate statements, as AtrProfitTarget writes it.\n//\n// Direction-agnostic -- it is a day-type bias, not a direction -- so both sides\n// are identical text. Intraday bars only.\n//\n// Deepest bar touched: max(atrLookback + 1, closingRangeBars).\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)closingRangeBars; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nnewSess = day_of(ctx.Time(0)) > day_of(ctx.Time(1));",
+    "longCondition": "newSess && el_le(std::fabs(close[0] - open[0]), dojiFraction * (high[0] - low[0])) && el_le(high[0] - low[0], dojiRangeFraction * atrValue) && el_ge(low[0], priorLow) && el_le(high[0], priorHigh)",
+    "shortCondition": "newSess && el_le(std::fabs(close[0] - open[0]), dojiFraction * (high[0] - low[0])) && el_le(high[0] - low[0], dojiRangeFraction * atrValue) && el_ge(low[0], priorLow) && el_le(high[0], priorHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

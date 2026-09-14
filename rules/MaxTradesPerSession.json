@@ -1,0 +1,28 @@
+{
+    "name": "MaxTradesPerSession",
+    "type": "Switch",
+    "inputVariables": {
+        "maxTradesPerDay": "5"
+    },
+    "localVariables": {
+        "tradesToday": {
+            "type": "int",
+            "init": "0"
+        },
+        "mp": {
+            "type": "int",
+            "init": "0"
+        },
+        "prevMp": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's discipline rule: \"look for only three to five reasonable trades a\n// day\". Once the session's trade count reaches the cap, no further entries\n// are taken until the next session. Book value three to five; default 5.\n//\n// COUNTING. A trade is counted when the position CHANGES to a non-flat state:\n// mp != 0 and mp != prevMp. That counts flat->long, flat->short AND a\n// REVERSAL, which opens a new position without ever passing through flat --\n// the same hazard MaxPositionProfit exists for. Counting closed trades with\n// TotalTrades would have been cheaper but ticks on the EXIT's fill bar, which\n// is not when a trade is \"taken\".\n//\n// prevMp mirrors the twin's mp[1]: the EL variable's own one-bar history,\n// zero before the strategy's first evaluated bar, which is exactly what the\n// zero-initialized local gives. It is advanced in endOfFileHook so the value\n// read here is always the previous bar's, as in MonthlyProfitTarget.\n//\n// ENTRIES ONLY, NOT FLAT. A Switch ANDs NOT(condition) into the entries AND\n// ORs the condition into the exits. Brooks means only the first -- reaching\n// the cap should not liquidate the trade you are in. The MarketPosition == 0\n// term buys that: while a position is open the condition is false, so nothing\n// is ORed into the exits, and when flat the generated exit is already guarded\n// on MarketPosition at signal time and can never fire. So this Switch blocks\n// entries and never forces flat, unlike MonthlyProfitTarget.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)). Direction-agnostic,\n// so both sides are identical text. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    tradesToday = 0;\n}\nmp = ctx.MarketPosition();\nif (mp != 0 && mp != prevMp) {\n    tradesToday = tradesToday + 1;\n}",
+    "longCondition": "el_ge((double)tradesToday, maxTradesPerDay) && el_eq(ctx.MarketPosition(), 0)",
+    "shortCondition": "el_ge((double)tradesToday, maxTradesPerDay) && el_eq(ctx.MarketPosition(), 0)",
+    "postConditionHook": "",
+    "endOfFileHook": "prevMp = mp;"
+}

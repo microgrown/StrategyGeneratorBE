@@ -1,0 +1,20 @@
+{
+    "name": "FirstBarSessionTrendBarFailureReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyFraction": "0.7"
+    },
+    "localVariables": {
+        "firstBarWasOne": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SESSION'S FIRST-BAR TREND BAR FAILED. The bar before this one was the\n// session's FIRST bar and closed as a strong trend bar; this, the session's\n// SECOND bar, is a strong trend bar in the OPPOSITE direction that closes\n// beyond the first bar's OPENING price. The first-bar scalp has failed and Brooks takes\n// the reversal.\n//\n// DIRECTION, stated carefully because the merged pseudocode is written from the\n// SHORT trade's point of view: the LONG side here needs the first bar to have\n// been a BEAR trend bar and this bar to be a BULL trend bar closing ABOVE it,\n// and the short side is its mirror. The rule's own name describes the short\n// case.\n//\n// NOT COMPOSABLE IN ANY DIRECTION: the trade is short while the anchor bar is\n// bull, so a placement's flip toggle reverses both halves at once; and the\n// anchor is at lag 1 while the trigger is at lag 0.\n//\n// SESSION MODEL, per the standing decision: day_of(ctx.Time(1)) >\n// day_of(ctx.Time(2)) -- the EasyLanguage twin's date[1] > date[2] -- says the\n// bar BEFORE this one opened the session, so this is its second bar. The\n// comparison is on integer day serials, not prices, so it is exact and does\n// not go through el_gt; the boolean lands in a local because a rule CONDITION\n// may not carry a raw relational operator.\n//\n// BROOKS GIVES NO NUMERIC FAILURE THRESHOLD. \"The second bar closes beyond the\n// first bar's open\" is the mining agent's reading and is the tunable part of\n// the rule; bodyFraction 0.7 carries the \"strong\" in both bar tests.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: 2.\nfirstBarWasOne = day_of(ctx.Time(1)) > day_of(ctx.Time(2));",
+    "longCondition": "firstBarWasOne && el_lt(close[1], open[1]) && el_ge(open[1] - close[1], bodyFraction * (high[1] - low[1])) && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])) && el_gt(close[0], open[1])",
+    "shortCondition": "firstBarWasOne && el_gt(close[1], open[1]) && el_ge(close[1] - open[1], bodyFraction * (high[1] - low[1])) && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])) && el_lt(close[0], open[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

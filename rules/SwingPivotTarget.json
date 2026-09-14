@@ -1,0 +1,92 @@
+{
+    "name": "SwingPivotTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotIndex": "1",
+        "lookbackBars": "40",
+        "toleranceAtr": "0",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "needP": {
+            "type": "int",
+            "init": "0"
+        },
+        "targetHi": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "targetLo": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveTargetHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveTargetLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TAKE PROFIT AT A PRIOR SWING PIVOT -- a STRUCTURAL target, where the rest of\n// the catalog's targets are dollar or ATR distances. A long is closed when the\n// bar's high reaches the pivotIndex-th most recent confirmed swing high; a\n// short when the bar's low reaches the pivotIndex-th most recent swing low.\n//\n// One rule at two book indices, not two rules: R05-21 targets the top of the\n// wedge's SECOND push (pivotIndex 2, and its further target, the bottom of the\n// wedge, is the same rule at a deeper index) and V06-02 the expanding\n// triangle's most recent opposing pivot (pivotIndex 1, the default).\n// Measured-move targets are a different mechanism and live in exits_targets.\n//\n// THE -1 SENTINEL is the whole hazard here. A window with no pivot leaves the\n// level at -1, which sits BELOW every real price, so an unguarded long target\n// would be reached on the entry bar and the position closed at once.\n// haveTargetHi / haveTargetLo are that guard, and the level is trusted only\n// once the scan has actually found pivotIndex pivots.\n//\n// Pivot scan as in ThreePushPattern, inlined; the register lists Occurrence 3+\n// as unmeasured, so the deeper indices are found by hand rather than by a\n// third-occurrence call. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt,\n// @ES 60 min): the pivot bar is AT OR ABOVE the swingStrength OLDER bars and\n// STRICTLY ABOVE the swingStrength NEWER bars -- bars-ago indexing, so the\n// newer bars are the smaller k and take el_gt / el_lt, the older el_ge /\n// el_le; confirmation lag exactly swingStrength bars; candidate offsets\n// swingStrength .. lookbackBars - 1, the neighbourhood reaching swingStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength. pivotIndex is clamped to the three pivots\n// the scan keeps. No early break, matching the twin.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nneedP = (int)pivotIndex;\nif (needP < 1) needP = 1;\nif (needP > 3) needP = 3;\ntargetHi = hiPx3;\ntargetLo = loPx3;\nif (needP == 1) { targetHi = hiPx1; targetLo = loPx1; }\nif (needP == 2) { targetHi = hiPx2; targetLo = loPx2; }\nhaveTargetHi = (nHiPiv >= needP);\nhaveTargetLo = (nLoPiv >= needP);\n// toleranceAtr LETS THE TARGET BE TAKEN JUST SHORT OF THE PIVOT (added in the\n// final review in place of a separate PriorSwingExtremeTarget rule, and the\n// same spelling ChannelLineTargetExit uses): the long target becomes\n// targetHi - toleranceAtr * ATR and the short target targetLo + toleranceAtr *\n// ATR. At the default 0 the test is exactly \"reaches the pivot\" and the rule is\n// unchanged, so no existing placement moves.\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently.\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveTargetHi && el_ge(high[0], targetHi - toleranceAtr * atrVal)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveTargetLo && el_le(low[0], targetLo + toleranceAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

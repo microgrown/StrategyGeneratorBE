@@ -1,0 +1,25 @@
+{
+    "name": "BuyOppositeColorBarAfterTrendBarRun",
+    "type": "Entry",
+    "inputVariables": {
+        "runBars": "2",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "runUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BUY THE FIRST BEAR-CLOSING BAR INSIDE A BULL SPIKE. After runBars consecutive bull\n// trend bars (bars 1..runBars), the current bar closes DOWN: Brooks buys it at\n// the next open, expecting the countertrend bar to fail immediately. Short is\n// the mirror -- a bear run followed by an up close.\n//\n// NOT COMPOSABLE: the long side needs a BEAR bar at lag 0 and BULL bars at lags\n// 1..runBars, and a placement's flip toggle reverses both halves at once. Nor\n// can a pane supply the run at lag 1, since the run must END one bar before the\n// signal bar.\n//\n// Distinct from SpikePullbackLimitFade, which takes the same run and enters on\n// a bar that POKES below the prior bar's low with no requirement that it close\n// down; the two fire on different bars.\n//\n// The run's bar shape is StrongTrendBarRun's settled definition read at lag 1:\n// a strict body direction and a body of at least bodyFraction of the bar's own\n// range. The tails are deliberately NOT tested -- this is the trend-bar run,\n// not the strong-trend-bar run of ConsecutiveStrongTrendBars.\n//\n// The all-of-N loops start true and let any failing bar clear the flag, so the\n// loops run unconditionally and EasyLanguage's lack of short-circuiting cannot\n// matter. The flags are class members and persist across bars, so both are\n// reset at the top.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: runBars.\nrunUp = true;\nrunDn = true;\nfor (int k = 1; k <= (int)runBars; ++k) {\n    if (el_le(close[k], open[k])) runUp = false;\n    if (el_lt(close[k] - open[k], bodyFraction * (high[k] - low[k]))) runUp = false;\n    if (el_ge(close[k], open[k])) runDn = false;\n    if (el_lt(open[k] - close[k], bodyFraction * (high[k] - low[k]))) runDn = false;\n}",
+    "longCondition": "runUp && el_lt(close[0], open[0])",
+    "shortCondition": "runDn && el_gt(close[0], open[0])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

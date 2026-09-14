@@ -1,0 +1,42 @@
+{
+    "name": "BreakoutPullbackWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "startWindow": "5",
+        "maxPullbackBars": "5",
+        "breakoutLookback": "10"
+    },
+    "localVariables": {
+        "brkUpBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "brkDnBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "pbUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "pbDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "inWindowUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inWindowDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CONTEXT FILTER, not a signal: the market is within a few bars of a breakout\n// and is in a pullback of one to about five bars. It says the setup on the\n// table is a breakout PULLBACK rather than a failed breakout, and it is meant\n// to be ANDed with whatever entry rule shares the pane.\n//\n// The breakout bar is found by the same bounded backward scan\n// BreakoutPullbackEntry uses -- the most recent bar k in 1..startWindow whose\n// close is beyond the extreme of the breakoutLookback bars ending one bar\n// before it, the level open-coded because a function-history reference at a\n// VARIABLE offset is not available (Extremes() is EL source and is exactly\n// this loop), and \"most recent\" carried by the brkUpBar == -1 guard rather\n// than a loop break, because EasyLanguage has none. Bars since the breakout\n// is k, and the pullback so far is k - 1 bars, so both merged terms are read\n// off k.\n//\n// It is NOT BreakoutPullbackEntry with a term dropped in the sense that\n// matters: this fires on EVERY bar of the pullback, that one only on the bar\n// the pullback ends. breakoutLookback is promoted to an input at\n// BreakoutPullbackEntry's default -- the sources say \"a breakout\" and leave\n// the level implicit -- so the two can be tuned together.\n//\n// The deepest bar touched is startWindow + breakoutLookback.\nbrkUpBar = -1;\nbrkDnBar = -1;\nfor (int k = 1; k <= (int)startWindow; ++k) {\n    double lvlHigh = high[k + 1];\n    double lvlLow = low[k + 1];\n    for (int j = k + 2; j <= k + (int)breakoutLookback; ++j) {\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n    }\n    if (brkUpBar == -1 && el_gt(close[k], lvlHigh)) brkUpBar = k;\n    if (brkDnBar == -1 && el_lt(close[k], lvlLow)) brkDnBar = k;\n}\npbUp = brkUpBar - 1;\npbDn = brkDnBar - 1;\ninWindowUp = brkUpBar != -1 && pbUp >= 1 && el_le((double)pbUp, maxPullbackBars);\ninWindowDn = brkDnBar != -1 && pbDn >= 1 && el_le((double)pbDn, maxPullbackBars);",
+    "longCondition": "inWindowUp",
+    "shortCondition": "inWindowDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

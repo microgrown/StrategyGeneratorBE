@@ -1,0 +1,46 @@
+{
+    "name": "FailedNewExtremeBlock",
+    "type": "Entry",
+    "inputVariables": {
+        "breakoutLookback": "20",
+        "failBars": "3",
+        "blockBars": "10"
+    },
+    "localVariables": {
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "mm": {
+            "type": "int",
+            "init": "0"
+        },
+        "lvlHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "failedHighRecently": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failedLowRecently": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Block new longs for blockBars bars after a failed new extreme. Price closed\n// above the highest high of the breakoutLookback bars ending one bar before\n// it, and within failBars bars afterwards a BEAR trend bar closed back below\n// that same level. Brooks: assume the market trades down for at least a couple\n// of legs and at least 10 bars, so do not buy into it.\n//\n// Written POSITIVELY as 'no such failure in the window', so the rule passes\n// in the ordinary case and ANDs into a pane as a filter; the per-placement\n// negate toggle gives the other reading (trade the failure).\n//\n// The scan is fully bounded: jj is the candidate failure bar inside the block\n// window, kk the breakout bar it failed, and mm the breakout level's own\n// window measured ONE BAR BEFORE the breakout bar -- EL's\n// Highest(high, breakoutLookback)[1] evaluated at bar kk. Deepest bar reached\n// is blockBars - 1 + failBars + breakoutLookback. Extremes() is EasyLanguage\n// source, so the running-extreme scan uses el_gt / el_lt.\n//\n// The fresh-N-bar-extreme window replaces the swing high the source states,\n// the same substitution the rest of this bucket makes; that is what drops the\n// rule off SwingHigh and out of research grade.\n//\n// Not FailedBreakoutReversal, which requires the CURRENT bar to be the one\n// closing back through the level and is an entry on the reversal. This asks\n// whether such a failure happened anywhere in the last blockBars bars, adds\n// the bear-trend-bar requirement on the failing bar, and is a standing block\n// rather than a trigger.\nfailedHighRecently = false;\nfailedLowRecently = false;\nfor (jj = 0; jj <= (int)blockBars - 1; ++jj) {\n    for (kk = jj + 1; kk <= jj + (int)failBars; ++kk) {\n        lvlHigh = high[kk + 1];\n        lvlLow = low[kk + 1];\n        for (mm = kk + 2; mm <= kk + (int)breakoutLookback; ++mm) {\n            if (el_gt(high[mm], lvlHigh)) lvlHigh = high[mm];\n            if (el_lt(low[mm], lvlLow)) lvlLow = low[mm];\n        }\n        if (el_gt(close[kk], lvlHigh) && el_lt(close[jj], open[jj]) && el_lt(close[jj], lvlHigh))\n            failedHighRecently = true;\n        if (el_lt(close[kk], lvlLow) && el_gt(close[jj], open[jj]) && el_gt(close[jj], lvlLow))\n            failedLowRecently = true;\n    }\n}",
+    "longCondition": "!failedHighRecently",
+    "shortCondition": "!failedLowRecently",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

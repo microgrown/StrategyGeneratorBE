@@ -1,0 +1,33 @@
+{
+    "name": "PullbackDurationBars",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "maxPullbackBars": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barsSinceHigh": {
+            "type": "int",
+            "init": "0"
+        },
+        "barsSinceLow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The pullback in progress has lasted no more than maxPullbackBars bars. A\n// brief pullback is Brooks's sign of strength; NEGATED with the per-placement\n// toggle it is his sign of weakness ('the pullback extends for several\n// bars'), which is how the fourth source states the same test at four bars.\n//\n// THE ANCHOR IS THE SETTLED LEG COUNTER'S RESET (Ranges ch17, R17-01): the\n// pullback starts at the last bar whose close made a fresh resetLookback-bar\n// high, measured against EL's Highest(high, resetLookback)[1] -- the N bars\n// ENDING ONE BAR AGO -- so the bar's own high cannot defeat its own test.\n// That is the design decision which lets this rule leave research grade: the\n// sources say 'the pullback' without saying when it started, and the\n// fresh-N-bar-high reset supplies a concrete start with no pivot search.\n// Extremes() is EasyLanguage source, so the scan carries the relational\n// tolerance through el_gt / el_lt rather than raw > and <.\n//\n// The counter is a plain bars-since with no window indexing, so nothing here\n// reaches deeper than resetLookback however long the pullback runs. On the\n// anchor bar itself the count is 0 and the rule passes. Before the first\n// anchor of the run the count simply grows from its initial 0, in both twins\n// alike, so the rule does not pass spuriously during warm-up.\n//\n// MIRRORED, not identical: the merged slice recorded sides = same, but the\n// anchor is directional -- a bull pullback is measured from a fresh N-bar\n// high and a bear pullback from a fresh N-bar low.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    barsSinceHigh = 0;\n} else {\n    barsSinceHigh = barsSinceHigh + 1;\n}\nif (el_lt(close[0], priorLow)) {\n    barsSinceLow = 0;\n} else {\n    barsSinceLow = barsSinceLow + 1;\n}",
+    "longCondition": "el_le((double)barsSinceHigh, maxPullbackBars)",
+    "shortCondition": "el_le((double)barsSinceLow, maxPullbackBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

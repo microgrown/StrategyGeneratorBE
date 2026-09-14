@@ -1,0 +1,104 @@
+{
+    "name": "ClimaxBarAtChannelLine",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "bodyFraction": "0.6",
+        "largeBarAtrMultiple": "1.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CHANNEL, built from four confirmed swing pivots and two trend lines.\n// One construction is used by every rule in this family so they all draw the\n// same channel:\n//   * the BULL channel's trend line runs through the two most recent confirmed\n//     swing LOWS and its channel line through the two most recent confirmed\n//     swing HIGHS;\n//   * the BEAR channel is the mirror -- trend line across the HIGHS, channel\n//     line across the LOWS.\n// The two lines are NOT parallel by construction, which is what lets the\n// channel converge (a wedge) or diverge; Brooks draws both forms.\n//\n// The pivot scan is INLINED here rather than reaching into SwingHigh.json --\n// rules in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the pivotStrength older bars,\n//     STRICTLY ABOVE the pivotStrength newer bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly pivotStrength bars, never 0 or 1, which\n//     is what makes the scan lookahead-safe;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     pivotStrength bars PAST the window, so the deepest index touched is\n//     pivotLookback - 1 + pivotStrength;\n//   * a window with no pivot returns the -1 SENTINEL. Scanning newest-first\n//     and taking the first two hits reproduces Occurrence 1 and 2; finding\n//     fewer than two is the sentinel case, guarded below. Occurrence 3+ is\n//     UNMEASURED and is never asked for;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule. There\n// is no WFSafe_SwingHigh, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue(P1, B1, P2, B2, target) is the pure\n// two-point line Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) *\n// Slope, anchored at the FIRST pair and extrapolating freely past both\n// anchors. The bar-number convention is the CALLER's; bars-ago is used here,\n// so the OLDER pivot (the LARGER bars-ago) is passed as P1/B1 -- the corpus's\n// older-anchor-first spelling, measured at zero drift. Bar1 = Bar2 does NOT\n// halt, it silently returns 0.0, so the twins guard B1 != B2 instead of\n// relying on that. The slope is hoisted out of the per-target arithmetic here\n// where the EL twin recomputes it inside each TLValue call: the inputs are\n// identical doubles, so the two are bit-for-bit the same line.\n//\n// THIS RULE: the vacuum test. A LARGE with-trend trend bar reaches the\n// projected channel line, and Brooks fades it -- the eager traders who created\n// it are the last ones. So THE SIDES READ BACKWARDS FROM THE BAR'S OWN COLOUR,\n// deliberately: the LONG side wants a large BEAR trend bar whose low reaches\n// the lower channel line, the SHORT side a large bull trend bar whose high\n// reaches the upper one. The rule is the trade, not the bar.\n//\n// Deliberately NOT merged into ChannelLineOvershootReversal, which also fades\n// at the line: that bar closes back INSIDE the channel against the trend, this\n// one closes with the trend and near its extreme. Opposite bar shapes, and\n// they never fire on the same bar.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n}\nif (haveHiLine) {\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently.\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "haveLoLine && el_le(low[0], loNow) && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])) && el_ge(high[0] - low[0], largeBarAtrMultiple * atrVal)",
+    "shortCondition": "haveHiLine && el_ge(high[0], hiNow) && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])) && el_ge(high[0] - low[0], largeBarAtrMultiple * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

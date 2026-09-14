@@ -1,0 +1,48 @@
+{
+    "name": "NearMeasuredMoveTargetFilter",
+    "type": "Entry",
+    "inputVariables": {
+        "refBars": "20",
+        "refOffset": "10",
+        "multiple": "1",
+        "nearTargetAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "mmHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mmLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mmTgtUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mmTgtDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// IS PRICE AT A MEASURED-MOVE TARGET? A gate, ANDed with whatever entry rule\n// supplies the second reason -- Brooks's p78 caveat is that being at a measured\n// move is not by itself a reason to trade. R08-14 allows countertrend entries\n// only in the measured-move area; T03-17 uses the level as a two-sided band;\n// T22-06 is the same test used to BLOCK with-trend entries near the target,\n// which is this filter negated by the per-placement toggle, not a second rule.\n//\n// THE PROJECTION. The pattern is the refBars bars ENDING refOffset BARS AGO and\n// the target is its far extreme plus multiple x its own height. refOffset is why\n// the rule can ever fire and is not in the merged parameter list: with the\n// window ending one bar ago its own extreme tracks the market, and price could\n// only be a measured move beyond it after a single bar spanning the whole\n// pattern height. Ending the window refOffset bars back leaves room to travel\n// the measured distance while the level stands still. Optimizer input; 10 is\n// half the default pattern.\n//\n// THE TOLERANCE is an ATR fraction, R08-14's own form, rather than T03-17's tick\n// count -- the engine exposes no tick size to strategies.\n//\n// SIDES ARE MIRRORED: each side reads the measured-move target in its OWN\n// direction. Plain on a with-trend long it is \"take the breakout only into the\n// target\"; negated it is T22-06's block. A countertrend fade AT the bull target\n// is a short taken on the long side's level, which one side alone cannot say.\n//\n// The Extremes loops are seeded on the window's first bar (index refOffset) and\n// scan the rest with the tolerance-carrying strict comparison, mirroring EL's\n// Extremes source.\nmmHi = high[(int)refOffset];\nmmLo = low[(int)refOffset];\nfor (int i = (int)refOffset + 1; i <= (int)refOffset + (int)refBars - 1; ++i) {\n    if (el_gt(high[i], mmHi)) mmHi = high[i];\n    if (el_lt(low[i], mmLo)) mmLo = low[i];\n}\nmmTgtUp = mmHi + multiple * (mmHi - mmLo);\nmmTgtDn = mmLo - multiple * (mmHi - mmLo);\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget and ChannelLineTargetExit. Seeded with a full sum on the first\n// calculated bar or when the length changes, and updated thereafter as TWO statements --\n// EL evaluates S[1] + in - out left to right, and folding it to S += in - out\n// rounds differently. atrLen is the local length counter; atrLookback the input.\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hiI = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double loI = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hiI - loI;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int outBar = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[outBar] > close[outBar + 1] ? high[outBar] : close[outBar + 1];\n    double loOut = low[outBar] < close[outBar + 1] ? low[outBar] : close[outBar + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLookback;",
+    "longCondition": "el_le(std::fabs(high[0] - mmTgtUp), nearTargetAtr * atrVal)",
+    "shortCondition": "el_le(std::fabs(low[0] - mmTgtDn), nearTargetAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

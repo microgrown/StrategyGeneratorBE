@@ -1,0 +1,82 @@
+{
+    "name": "FailedCountReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "countTarget": "4",
+        "maxBarsSince": "15"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "advHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "advLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "tgtSignalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tgtSignalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveHighTgt": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLowTgt": {
+            "type": "bool",
+            "init": "false"
+        },
+        "barsSinceHighTgt": {
+            "type": "int",
+            "init": "0"
+        },
+        "barsSinceLowTgt": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A triggered high-N long (low-N short) FAILS: after the count reached\n// countTarget, price closes back beyond that signal bar's opposite extreme.\n// Brooks reads a failed high 4 / low 4 as the side losing control and takes\n// the trade in the OTHER direction -- so a failed high-N is this rule's SHORT\n// and a failed low-N is its LONG.\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01), inlined here as\n// everywhere -- see HighLowBarCount for the full commentary. The failure test\n// is nearly free on top of it: the signal bar's low is already retained at\n// each advance, and this rule adds only a latch of that value at the\n// countTarget advance plus a bars-since counter, which is what maxBarsSince\n// bounds. The latch is guarded by a boolean rather than by its initial 0,\n// because a back-adjusted continuous contract can print negative prices.\n//\n// The bars-since counters are incremented BEFORE the latch, so the latching\n// bar itself reads 0 -- and on that bar the failure test cannot be true\n// anyway, since the close cannot be below the same bar's own low.\n//\n// countTarget 4 is the case Brooks names most; the same input covers his\n// failed low 1 (fading it in a bottoming bear trend) and failed low 2 / 3\n// (the failed bear flag). Two sources add a conjunct that is NOT carried and\n// is ANDed by the pane instead -- a trend-line break before the other side\n// counts as having regained control, and the resulting breakout in the new\n// direction.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nadvHigh = false;\nadvLow = false;\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        advHigh = true;\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        advLow = true;\n    }\n}\nif (haveHighTgt) barsSinceHighTgt = barsSinceHighTgt + 1;\nif (haveLowTgt) barsSinceLowTgt = barsSinceLowTgt + 1;\nif (advHigh && el_eq((double)highCount, countTarget)) {\n    tgtSignalLow = low[0];\n    haveHighTgt = true;\n    barsSinceHighTgt = 0;\n}\nif (advLow && el_eq((double)lowCount, countTarget)) {\n    tgtSignalHigh = high[0];\n    haveLowTgt = true;\n    barsSinceLowTgt = 0;\n}",
+    "longCondition": "haveLowTgt && el_le((double)barsSinceLowTgt, maxBarsSince) && el_gt(close[0], tgtSignalHigh)",
+    "shortCondition": "haveHighTgt && el_le((double)barsSinceHighTgt, maxBarsSince) && el_lt(close[0], tgtSignalLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

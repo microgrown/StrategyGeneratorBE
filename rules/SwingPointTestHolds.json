@@ -1,0 +1,75 @@
+{
+    "name": "SwingPointTestHolds",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "toleranceAtr": "0.25",
+        "atrLength": "14",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "pok": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "-1.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A TEST OF SUPPORT THAT HOLDS. The bar's low comes within toleranceAtr ATRs of\n// the most recently CONFIRMED swing low WITHOUT trading below it; mirrored, the\n// bar's high tests the last swing pivot from below without exceeding it. Brooks's\n// \"test\": the market returns to a prior swing level and fails to break it.\n//\n// THE ONE-SIDED FORM WINS over the symmetric band the other source states,\n// because a band that extends THROUGH the level double-counts the swing-break\n// rules (FailedSwingBreakoutReversal already covers the break and the recovery).\n// Not BreakoutLevelRetest, which needs a prior closing breakout beyond the level\n// within a wait window and allows a measured overshoot through it; here nothing\n// has to have broken out and nothing may trade through. Not PriorSessionLevelTest,\n// which tests a session level rather than a pivot.\n//\n// THE TOLERANCE IS IN ATRs, not ticks: MinMove/PriceScale are VERIFIED but the\n// engine exposes no tick size to strategies, so every level tolerance in this\n// corpus is scale-free. 0.25 is the source's own value.\n//\n// THE PIVOT SCAN IS INLINED from SwingHigh per the B-list decision, at\n// Occurrence 1. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60\n// min): the pivot test is MIXED -- at-or-beyond the strength OLDER bars,\n// STRICTLY beyond the strength NEWER bars, and bars-ago indexing makes the\n// SMALLER index the NEWER bar, so the strict half is the pk < pj loop; the\n// confirmation lag is exactly strength bars, never 0 or 1, so the level is\n// knowable without lookahead and during the lag the PREVIOUS pivot is reported;\n// maxBarsBack is EL's Length, offsets 0..maxBarsBack-1 inclusive, and the\n// neighbourhood test reaches strength bars PAST the window, so the deepest bar\n// touched is maxBarsBack - 1 + strength; an empty window returns the -1\n// SENTINEL, guarded because -1 as a PRICE sits under every real price; the\n// comparisons carry the 2.22e-12 relational tolerance, hence el_lt / el_le /\n// el_gt / el_ge. The low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingLow exists, so plain EL governs.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: AtrProfitTarget's and ClimaxBar's block verbatim, including the TWO\n// separate accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently. It stays in the hook, which the generator\n// emits unconditionally, because EasyLanguage does not short-circuit and a\n// stateful call inside a condition would advance on different bars in the two\n// twins.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\nlo1 = -1.0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lo1 = low[pj]; break; }\n}\nhi1 = -1.0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { hi1 = high[pj]; break; }\n}",
+    "longCondition": "el_ne(lo1, -1.0) && el_ge(low[0], lo1) && el_le(low[0], lo1 + toleranceAtr * atrValue)",
+    "shortCondition": "el_ne(hi1, -1.0) && el_le(high[0], hi1) && el_ge(high[0], hi1 - toleranceAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

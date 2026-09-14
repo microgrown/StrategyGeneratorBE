@@ -1,0 +1,63 @@
+{
+    "name": "TwiceFailedBreakoutAttempt",
+    "type": "Entry",
+    "inputVariables": {
+        "minFailedAttempts": "2",
+        "attemptLookback": "20",
+        "rangeBars": "20",
+        "failBars": "3"
+    },
+    "localVariables": {
+        "brokeDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "prevBrokeDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "prevBrokeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "freshDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "freshUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cntDown": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cntUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "downHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "upHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "histCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The market has attempted and failed to break the same side of the range at\n// least minFailedAttempts times inside attemptLookback bars. Four sources\n// read that as 'now expect the OPPOSITE direction', one as 'now permit the\n// SAME-side breakout, this attempt is the one that goes'. Those are one\n// counter under the per-placement NEGATE and side toggles, not two rules.\n//\n// 'Failed breakout attempt' is undefined in the sources, so the bar-level\n// definition is taken from FailedBreakoutReversal and INLINED verbatim: for\n// each candidate bar k in 1..failBars the level is the extreme of the\n// rangeBars bars ending one bar before it -- Lowest(l, rangeBars)[k + 1],\n// open-coded because that is a function-history reference at a VARIABLE\n// offset, and Extremes() is EL source and is exactly this loop, so the\n// comparisons carry the EL relational tolerance -- and the event is a close\n// beyond that level followed by this bar's close back inside. The long side\n// counts failed DOWNSIDE breakouts, as that rule's long side does.\n//\n// ONE FAILURE IS ONE COUNT, not one per bar: brokeDown stays true for several\n// consecutive bars while the same failure sits inside the failBars window, so\n// the counted event is the FRESH one -- true now, false last bar. That is the\n// MomentumChange crossing idiom, which the corpus keeps whole for exactly\n// this reason. prevBrokeDown / prevBrokeUp mirror the EL variables' [1]\n// history and are therefore updated at the END of the hook, after the fresh\n// test has read them; they start false exactly as the EL variables do.\n//\n// CountIF over a VARIABLE, not over a price expression: the counted argument\n// is the plain variable freshDown, whose own history is what CountIF reads,\n// so there is no shifting-offset subtlety and no function-history reference.\n// The window is bars 0..attemptLookback-1, current bar INCLUDED (CountIF's\n// measured convention), and warm-up counts over the variable's ZERO-FILLED\n// history. The mirror is BarRangeAboveStd's ring buffer, which starts zeroed\n// and re-seeds when the length changes, for the same reason: recomputing the\n// count from price would use bars EasyLanguage never saw.\n//\n// Kept apart from SecondFailedSwingBreakoutReversal, whose level is a\n// CONFIRMED SWING PIVOT and whose count is fixed at two by an age counter;\n// this one counts to any threshold against a Donchian level. Deepest bar\n// touched is rangeBars + failBars of price, plus attemptLookback - 1 bars of\n// variable history.\nbrokeDown = false;\nbrokeUp = false;\nfor (int k = 1; k <= (int)failBars; ++k) {\n    double lvlLow = low[k + 1];\n    double lvlHigh = high[k + 1];\n    for (int j = k + 2; j <= k + (int)rangeBars; ++j) {\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n    }\n    if (el_lt(close[k], lvlLow) && el_gt(close[0], lvlLow)) brokeDown = true;\n    if (el_gt(close[k], lvlHigh) && el_lt(close[0], lvlHigh)) brokeUp = true;\n}\nfreshDown = brokeDown && !prevBrokeDown;\nfreshUp = brokeUp && !prevBrokeUp;\nif (downHistory.size() != (std::size_t)(int)attemptLookback) {\n    downHistory.assign((std::size_t)(int)attemptLookback, 0.0);\n    upHistory.assign((std::size_t)(int)attemptLookback, 0.0);\n    histCursor = 0;\n}\ndownHistory[histCursor] = freshDown ? 1.0 : 0.0;\nupHistory[histCursor] = freshUp ? 1.0 : 0.0;\nhistCursor = (histCursor + 1) % downHistory.size();\ncntDown = 0.0;\nfor (double v : downHistory) {\n    cntDown += v;\n}\ncntUp = 0.0;\nfor (double v : upHistory) {\n    cntUp += v;\n}\nprevBrokeDown = brokeDown;\nprevBrokeUp = brokeUp;",
+    "longCondition": "freshDown && el_ge(cntDown, minFailedAttempts)",
+    "shortCondition": "freshUp && el_ge(cntUp, minFailedAttempts)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

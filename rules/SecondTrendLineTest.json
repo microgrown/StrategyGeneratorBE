@@ -1,0 +1,128 @@
+{
+    "name": "SecondTrendLineTest",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "maxBarsBetween": "10",
+        "touchTolAtr": "0.15",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "lineLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lineHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "priorHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nowLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nowHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND LINE, one construction shared by the whole lines/channels family\n// (decided in slice B01, carried here unchanged): the BULL trend line runs\n// through the two most recent CONFIRMED swing LOWS, the BEAR trend line through\n// the two most recent confirmed swing HIGHS, deliberately NOT parallel. The\n// pivot scan is INLINED rather than reaching into SwingHigh.json -- rules in\n// this corpus never reference each other -- and mirrors the EL twin's SwingLow\n// / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the swingStrength OLDER bars, STRICTLY ABOVE the\n// swingStrength NEWER bars -- so a flat top yields exactly one pivot, the later\n// of the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar,\n// so the strict half is the k < j loop. The confirmation lag is exactly\n// swingStrength bars, never 0 or 1. pivotLookback is EL's Length (offsets\n// 0..pivotLookback-1 inclusive) and the neighbourhood test reaches\n// swingStrength bars PAST the window, so the deepest index the scan touches is\n// pivotLookback - 1 + swingStrength. A window with no pivot returns the -1\n// SENTINEL, guarded below. Occurrence 3+ is UNMEASURED and never asked for. The\n// comparisons carry the 2.22e-12 relational tolerance, hence el_gt / el_ge. The\n// low side's tie sense is the mirror of the measured high-side rule. No\n// WFSafe_SwingHigh exists, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue is the two-point line anchored at the\n// FIRST pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) *\n// Slope, extrapolating freely past both anchors -- which is what lets it be\n// read at an OLDER bar inside the loop below. Bars-ago convention, so the OLDER\n// pivot (LARGER bars-ago) is P1/B1, the zero-drift spelling. Bar1 = Bar2\n// silently returns 0.0, so B1 != B2 is guarded. The slope is hoisted out of the\n// per-target arithmetic where the EL twin recomputes it inside each TLValue\n// call; identical doubles, same line bit for bit.\n//\n// THIS RULE: the second-entry principle applied to a LINE TEST rather than to a\n// bar pattern. An earlier bar in the window already came to the line and\n// reversed off it, and this bar comes to the line and reverses again. A test is\n// 'the bar's near extreme lands within touchTolAtr x ATR of the line AND the\n// bar closes back on the trend's side of it' -- TrendLineTouch's per-bar\n// predicate, evaluated at two different bars.\n//\n// It cannot be built out of TrendLineTouch in the panes: the two touches are at\n// DIFFERENT bars and the pane system ANDs conditions at the SAME bar. Distinct\n// from TrendLineTouchCount, which counts bars NEAR the line whether or not each\n// one reversed and adds a containment term.\n//\n// The window starts at bar 2, not bar 1: the prior test must be a separate\n// event, and an adjacent bar is the same test.\n//\n// THE PIVOTS ARE THE CURRENT ONES, not the pivots as they stood at bar kk;\n// re-deriving them per bar is not expressible in EL, so the line is re-read at\n// each bar of the window through TLValue's free extrapolation.\n//\n// ATR is read once at bar 0 and held fixed across the window: MultiWalk's\n// accumulator advances per CALL SITE, so a per-bar re-read is a different\n// number.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n}\nif (haveHiLine) {\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget. Seeded with a full sum on the first calculated bar or when\n// the length changes, and updated thereafter as TWO statements -- EL evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently. The local counter is atrLen; atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\nnowLo = haveLoLine && el_le(std::fabs(low[0] - loNow), touchTolAtr * atrVal) && el_gt(close[0], loNow);\nnowHi = haveHiLine && el_le(std::fabs(high[0] - hiNow), touchTolAtr * atrVal) && el_lt(close[0], hiNow);\npriorLo = false;\npriorHi = false;\nfor (int kk = 2; kk <= (int)maxBarsBetween; ++kk) {\n    if (haveLoLine) {\n        lineLo = loP1 + ((double)kk - loB1) * loSlope;\n        if (el_le(std::fabs(low[kk] - lineLo), touchTolAtr * atrVal) && el_gt(close[kk], lineLo)) priorLo = true;\n    }\n    if (haveHiLine) {\n        lineHi = hiP1 + ((double)kk - hiB1) * hiSlope;\n        if (el_le(std::fabs(high[kk] - lineHi), touchTolAtr * atrVal) && el_lt(close[kk], lineHi)) priorHi = true;\n    }\n}",
+    "longCondition": "nowLo && priorLo",
+    "shortCondition": "nowHi && priorHi",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

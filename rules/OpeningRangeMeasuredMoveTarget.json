@@ -1,0 +1,38 @@
+{
+    "name": "OpeningRangeMeasuredMoveTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "openingBars": "12",
+        "multiple": "1",
+        "tolerancePoints": "0.25"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "orHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orTgtUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orTgtDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE OPENING RANGE MEASURED MOVE -- Brooks's \"approximate doubling of the day's\n// range\" after a breakout of the first bars of the session. A long is closed at\n// the opening range's high plus multiple x the range's height, a short at the\n// low minus it.\n//\n// Kept apart from PatternHeightMeasuredMoveTarget, whose reference window is the\n// refBars bars before the breakout and moves with it: this window is\n// SESSION-ANCHORED and fixed for the whole day once the first openingBars bars\n// have printed, so the two project off different bars. Intraday only.\n//\n// SESSION MODEL, per the standing decision and identical to OpeningRangeBreakout\n// and SessionOpeningRange, which are inlined here rather than referenced: a\n// session starts when the wall-clock close date changes -- EL's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)) -- and the running\n// extremes plus a bars-into-session counter live in locals reset there. barsIn\n// is 1 on the session's first bar.\n//\n// The target is trusted only once the range is SET (barsIn >= openingBars), the\n// same gate OpeningRangeBreakout uses. tolerancePoints takes profit just short\n// of the projected level, as the other targets in the bucket do; it is PRICE\n// POINTS, not ticks, because MinMove/PriceScale have no engine counterpart --\n// 0.25 is one Emini tick and is instrument-specific.\n//\n// WARM-UP mirrors EL exactly: barsIn, orHigh and orLow hold their initial 0 if\n// the first calculated bar falls mid-session, so orLow stays 0.0 until the first\n// date change and the short target is unreachable up to that point. Mirrored, not\n// corrected.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    orHigh = high[0];\n    orLow = low[0];\n} else {\n    barsIn = barsIn + 1;\n    if (barsIn <= (int)openingBars) {\n        if (el_gt(high[0], orHigh)) orHigh = high[0];\n        if (el_lt(low[0], orLow)) orLow = low[0];\n    }\n}\norTgtUp = orHigh + multiple * (orHigh - orLow);\norTgtDn = orLow - multiple * (orHigh - orLow);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge((double)barsIn, openingBars) && el_ge(high[0], orTgtUp - tolerancePoints)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge((double)barsIn, openingBars) && el_le(low[0], orTgtDn + tolerancePoints)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

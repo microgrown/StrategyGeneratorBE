@@ -1,0 +1,46 @@
+{
+    "name": "MorningLegDirection",
+    "type": "Entry",
+    "inputVariables": {
+        "firstHourBars": "12",
+        "minLegAtr": "1",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legHeight": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrv": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "mld": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MORNING LEG. At exactly firstHourBars bars into the session, measure\n// the net move from the session's opening price. If it is at least minLegAtr ATRs the\n// day had a strong first-hour trend leg and its direction is LATCHED for the\n// rest of the session; otherwise the flag stays 0. Brooks's precondition for\n// a trend-resumption day.\n//\n// LATCHING at a fixed bar count, rather than re-evaluating every bar, is what\n// makes this a day-type flag instead of a momentum test. Momentum compares\n// the close with the close N BARS ago on every bar; this compares it with the\n// session open once and holds the answer.\n//\n// Kept apart from TrendFromOpenFlag (which only asks whether the FIRST BAR's\n// extreme was taken out) and OpeningRangeVsAvgDailyRange (which only measures\n// the opening range's WIDTH).\n//\n// A dead-flat leg gives legHeight 0, which fails the threshold at any\n// minLegAtr > 0, so the branch below never has to invent a sign for zero.\n//\n// The ATR accumulator is advanced UNCONDITIONALLY, before the latch: it is a\n// rolling accumulator and must step exactly once per bar, so it can never sit\n// inside the if. Ported from AtrProfitTarget -- seeded with a full sum on the\n// first calculated bar or when the length changes, thereafter TWO statements,\n// because EL evaluates S[1] + in - out left to right.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)); barsIn is 1 on the\n// session's first bar, the corpus convention. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    sessOpen = open[0];\n    mld = 0;\n} else {\n    barsIn = barsIn + 1;\n}\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrv = atrSum / (int)atrLookback;\nif (el_eq((double)barsIn, firstHourBars)) {\n    legHeight = std::fabs(close[0] - sessOpen);\n    if (el_ge(legHeight, minLegAtr * atrv)) {\n        if (el_gt(close[0], sessOpen)) {\n            mld = 1;\n        } else {\n            mld = -1;\n        }\n    } else {\n        mld = 0;\n    }\n}",
+    "longCondition": "el_eq((double)mld, 1.0)",
+    "shortCondition": "el_eq((double)mld, -1.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

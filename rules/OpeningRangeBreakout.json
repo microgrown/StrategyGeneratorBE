@@ -1,0 +1,37 @@
+{
+    "name": "OpeningRangeBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "openingBars": "8",
+        "firstCrossOnly": "0"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "orHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orBreakUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "orBreakDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The classic opening-range breakout: once the first openingBars bars of the\n// session have fixed the range, a bar closes above its high (long) or below\n// its low (short).\n//\n// Not Breakout or HighestHighBreakout, whose Donchian window MOVES with every\n// bar -- the opening-range level is FIXED for the whole session once set, so\n// the two fire on different bars from mid-session onward.\n//\n// SESSION MODEL, per the standing decision: a session starts when the\n// wall-clock close date changes -- day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// the same slicing CloseWithinAtrOfVwap uses and the same boundary the xxxD\n// family carries (EL_Date_Probe.txt: the bar's closing date, no session-date\n// reconstruction). The session's running values and a bars-into-session\n// counter live in locals reset on that change; SessionOpeningRange is inlined\n// rather than referenced, as the corpus does with named composites.\n//\n// firstCrossOnly = 0 (default) fires on EVERY bar closing beyond the level;\n// 1 fires only on the bar that FIRST crosses it. Only measurement will say\n// which pays, so the flag carries both.\n//\n// The bar on which barsIn reaches openingBars is still part of the range and\n// its own high is already in orHigh, so el_gt(close[0], orHigh) cannot hold\n// on it: the test is >= openingBars and the first bar that can fire is\n// openingBars + 1.\n//\n// WARM-UP: barsIn, orHigh and orLow start at 0 exactly as the EasyLanguage\n// variables do, so if the first calculated bar falls mid-session orLow stays\n// 0.0 until the first date change and the short side cannot fire. That is\n// EL's behaviour and it is mirrored, not corrected.\n//\n// EL does not short-circuit and C++ does; every operand here is a plain read\n// with no side effect and close[1] is always in range, so the two cannot\n// diverge. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    orHigh = high[0];\n    orLow = low[0];\n} else {\n    barsIn = barsIn + 1;\n    if (barsIn <= (int)openingBars) {\n        if (el_gt(high[0], orHigh)) orHigh = high[0];\n        if (el_lt(low[0], orLow)) orLow = low[0];\n    }\n}\norBreakUp = el_ge((double)barsIn, openingBars) && el_gt(close[0], orHigh)\n    && (el_eq(firstCrossOnly, 0.0) || el_le(close[1], orHigh));\norBreakDn = el_ge((double)barsIn, openingBars) && el_lt(close[0], orLow)\n    && (el_eq(firstCrossOnly, 0.0) || el_ge(close[1], orLow));",
+    "longCondition": "orBreakUp",
+    "shortCondition": "orBreakDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

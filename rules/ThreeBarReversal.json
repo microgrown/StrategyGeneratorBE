@@ -1,0 +1,30 @@
+{
+    "name": "ThreeBarReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "sizeRatio": "0.5",
+        "middleBarMaxFraction": "0.6",
+        "rangeLookback": "10"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "rngSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRng": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A NAMED BROOKS SETUP, carried whole per the composite-carrying rule for named\n// setups (the Harris patterns are the precedent): bars 2 and 0 form a TWO-BAR\n// REVERSAL, skipping bar 1, and the skipped middle bar is SMALL relative to the\n// recent average bar. The middle bar is what makes it a three-bar pattern rather\n// than a gap in the data -- Brooks reads the small bar as the pause that lets\n// the reversal count.\n//\n// THE TWO-BAR REVERSAL TEST IS THE CORPUS'S, TwoBarReversal's, not the merged\n// slice's: a bear trend bar followed by a bull bar closing above the bear bar's RANGE\n// midpoint (high + low)/2 whose own range is at least sizeRatio times the bear\n// bar's. The slice's parameters (overlapFraction, bodySizeRatioMin/Max) belong\n// to the overlap reading of the two-bar reversal, which the corpus examined and\n// did NOT carry when TwoBarReversal was authored; using them here would embed a\n// DIFFERENT two-bar reversal than the rule of that name, which is worse than\n// losing three inputs. They are therefore not inputs.\n//\n// Not HarrisThreeBarPattern, which is pure high/low ordering across three bars\n// with no body, midpoint or size term. Not TwoBarReversal itself, which reads\n// bars 1 and 0 adjacent: a bar sits BETWEEN the pair here, so the two fire on\n// different bars and neither implies the other.\n//\n// THE ENTRY ORDER IS NOT MECHANIZED. The source's buy stop one tick above the\n// three-bar combined extreme collapses under the standing signal-bar-close /\n// next-bar-open convention -- and a tick offset has no expression anyway, since\n// the engine exposes no tick size. The rule is the pattern; the fill is the\n// engine's.\n//\n// The average bar range mirrors the twin's average of the bar\n// range over rangeLookback bars: an average over a PRICE expression, which has real history, so a plain loop\n// over high[i]/low[i] is right and no zero-filled variable mirror is needed.\n// The window is bars 0..rangeLookback-1, EL's own inclusive convention. The\n// divisor 2 is a constant, never zero, so no guard against EasyLanguage's\n// runtime divide-by-zero is needed.\n//\n// rngSum is a localVariables entry and is reset at the top of the hook rather\n// than declared here, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(2, rangeLookback - 1).\nrngSum = 0.0;\nfor (kk = 0; kk < (int)rangeLookback; ++kk) {\n    rngSum += high[kk] - low[kk];\n}\navgRng = rngSum / rangeLookback;",
+    "longCondition": "el_lt(close[2], open[2]) && el_gt(close[0], open[0]) && el_gt(close[0], (high[2] + low[2]) / 2) && el_ge(high[0] - low[0], sizeRatio * (high[2] - low[2])) && el_le(high[1] - low[1], middleBarMaxFraction * avgRng)",
+    "shortCondition": "el_gt(close[2], open[2]) && el_lt(close[0], open[0]) && el_lt(close[0], (high[2] + low[2]) / 2) && el_ge(high[0] - low[0], sizeRatio * (high[2] - low[2])) && el_le(high[1] - low[1], middleBarMaxFraction * avgRng)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

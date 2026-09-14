@@ -1,0 +1,59 @@
+{
+    "name": "ConsecutiveSpikeCount",
+    "type": "Entry",
+    "inputVariables": {
+        "windowBars": "30",
+        "spikeBars": "2",
+        "minSpikes": "3",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "bb": {
+            "type": "int",
+            "init": "0"
+        },
+        "isUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "isDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "runDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "countedUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "countedDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "spikesUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "spikesDn": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// At least minSpikes separate same-direction SPIKES inside the last windowBars.\n// Brooks: every spike, one bar or many, is a climax, and three of them is a\n// wedge rather than a double top. A spike is the corpus's settled primitive --\n// StrongTrendBarRun's test, a run of at least spikeBars consecutive with-trend\n// bars whose body is at least bodyFraction of the bar's own range -- and two\n// runs count separately only when a NON-spike bar lies between them.\n//\n// NOT ConsecutiveClimaxBarCount: that counts separated CLIMAX bars, each of\n// which must be climaxMultiple x ATR tall, so it is a SIZE test at single bars.\n// This counts RUNS of ordinary strong trend bars and never reads ATR, so the\n// two fire on different bars. NOT MomentumConsecutiveBars either, which counts\n// closes above the close N bars ago and has no body test.\n//\n// THE SCAN RUNS OLDEST TO NEWEST so the run counter is causal within the\n// window. EasyLanguage's For only counts UP, so the loop index kk ascends and\n// the BAR OFFSET bb = windowBars - 1 - kk descends -- bb is the bars-ago index,\n// windowBars - 1 (oldest) first, 0 (this bar) last. The C++ is written the same\n// way rather than with a descending loop, so the twins are statement for\n// statement.\n//\n// COUNTING WITHOUT AN EQUALITY TEST: a maximal run is counted once, on the bar\n// where its length first reaches spikeBars, and the countedUp latch keeps the\n// rest of the same run from counting again. Written with el_ge and a latch\n// rather than runUp == spikeBars because spikeBars is a double input and float\n// equality is the corpus's standing trap. The latch clears on the same bar the\n// run breaks, which is exactly the \"separated by a non-spike bar\" clause.\n//\n// Both directions are computed in the one loop. Every scratch value is a\n// localVariables entry, never a hook-scope declaration, so the hooks can be\n// emitted twice into one class; the counters and latches persist across bars\n// and are all reset at the top.\n//\n// Deepest bar touched: windowBars - 1.\nspikesUp = 0;\nspikesDn = 0;\nrunUp = 0;\nrunDn = 0;\ncountedUp = false;\ncountedDn = false;\nfor (kk = 0; kk < (int)windowBars; ++kk) {\n    bb = (int)windowBars - 1 - kk;\n    isUp = el_gt(close[bb], open[bb]) && el_ge(close[bb] - open[bb], bodyFraction * (high[bb] - low[bb]));\n    isDn = el_lt(close[bb], open[bb]) && el_ge(open[bb] - close[bb], bodyFraction * (high[bb] - low[bb]));\n    if (isUp) {\n        runUp = runUp + 1;\n    } else {\n        runUp = 0;\n        countedUp = false;\n    }\n    if (isDn) {\n        runDn = runDn + 1;\n    } else {\n        runDn = 0;\n        countedDn = false;\n    }\n    if (el_ge((double)runUp, spikeBars) && countedUp == false) {\n        spikesUp = spikesUp + 1;\n        countedUp = true;\n    }\n    if (el_ge((double)runDn, spikeBars) && countedDn == false) {\n        spikesDn = spikesDn + 1;\n        countedDn = true;\n    }\n}",
+    "longCondition": "el_ge((double)spikesUp, minSpikes)",
+    "shortCondition": "el_ge((double)spikesDn, minSpikes)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

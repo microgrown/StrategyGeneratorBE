@@ -1,0 +1,21 @@
+{
+    "name": "VolumeDivergenceAfterClimax",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "5",
+        "divergenceFraction": "0.5"
+    },
+    "localVariables": {
+        "peakVolume": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S UP-TICK DIVERGENCE (V10-03). After a recent volume peak -- the\n// climax bar the book tells the reader to remember -- price makes one more\n// new extreme on far LESS volume than the peak carried. That is the bull\n// pullback signal in a bear trend: a lower low, but the sellers are gone.\n// LONG is the lower low on light volume; SHORT is the mirror, a higher high\n// on light volume.\n//\n// 'Remember the huge-volume bar' is mechanized as Highest(volume, lookback)[1]\n// -- the largest volume of the N bars ENDING ONE BAR AGO, so the current bar's\n// own volume can never be its own benchmark. That needs no cross-bar state at\n// all, which is why no climax latch is carried. Brooks's 'one or two lower\n// lows on less volume' is taken at its first term, a single lower-low bar; a\n// second leg is a separate placement.\n//\n// THE ENGINE ALIAS HERE IS UP-TICKS, NOT TOTAL. The register's `volume` row is VERIFIED:\n// EasyLanguage's volume word equals UpTicks on all 18,203 measured bars of @KW\n// 480min and 1440min, because a 1440-minute bar is still an INTRADAY bar\n// (BarInterval reads 1440). Both the peak and the current reading are that\n// same up-tick series, so the ratio is internally consistent -- but it is an\n// up-tick ratio, not a total-volume ratio, and a rule wanting total ticks\n// would have to say ctx.Ticks (as VolumeAboveAverageMultiple does).\n//\n// Highest bottoms out in EL's Extremes(), EasyLanguage SOURCE, so it carries\n// the relational tolerance -- hence el_gt in the scan and not a raw >. The\n// window is indices 1..lookback, exactly Highest(volume, lookback)[1].\n// volume is cast to double before any arithmetic, as VolumeBelowAverage does.\npeakVolume = (double)volume[1];\nfor (int i = 2; i <= (int)lookback; ++i) {\n    if (el_gt((double)volume[i], peakVolume)) peakVolume = (double)volume[i];\n}",
+    "longCondition": "el_lt(low[0], low[1]) && el_lt((double)volume[0], divergenceFraction * peakVolume)",
+    "shortCondition": "el_gt(high[0], high[1]) && el_lt((double)volume[0], divergenceFraction * peakVolume)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

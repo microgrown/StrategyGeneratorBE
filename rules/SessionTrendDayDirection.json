@@ -1,0 +1,38 @@
+{
+    "name": "SessionTrendDayDirection",
+    "type": "Entry",
+    "inputVariables": {
+        "openingBars": "12",
+        "trendDayAtr": "2",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrv": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE DAY IS A TREND DAY AND ITS DIRECTION IS UP (long side): once at least\n// openingBars bars of the session have printed, the close sits at least\n// trendDayAtr ATRs above the session's OPENING price. While that holds, only\n// with-trend entries are permitted for the rest of the session; the short\n// side is the mirror below the open.\n//\n// TP4-07 is the cleanest of the three sources -- \"the sign of close minus\n// session open once the opening range has printed\" -- and wins over R08-24's\n// alternative (a fraction of the session's bars closed on one side of the\n// EMA) and over TP4-08, which adds no test of its own.\n//\n// NOT MorningLegDirection, although both measure close minus session open at\n// the same default bar count. That rule LATCHES its answer at exactly\n// firstHourBars and holds it for the rest of the day, which is what makes it\n// a day-TYPE flag; this one is re-evaluated on EVERY bar from openingBars on,\n// so it goes false the moment price comes back to the open and true again\n// when it leaves. The two disagree on every day whose morning leg is given\n// back. Not the always-in direction either: this resets every session and\n// reads the session open, where always-in is continuous across the whole\n// series, and the two disagree on any gap day. Not\n// TrendDayIdentifiedInFirstHour, which measures from the opening RANGE\n// against that range's own height.\n//\n// The ATR is MultiWalk's WFSafe_AvgTrueRange, ONE CALL SITE, advanced\n// UNCONDITIONALLY before the conditions are read: it is a rolling accumulator\n// and must step exactly once per bar, so it can never sit inside an if.\n// Ported from AtrProfitTarget -- seeded with a full sum on the first\n// calculated bar or when the length changes, thereafter TWO statements,\n// because EL evaluates S[1] + in - out left to right.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)); barsIn is 1 on the\n// session's first bar, the corpus convention. Intraday bars only. WARM-UP\n// mirrors EL: barsIn and sessOpen hold their initial 0 if the first\n// calculated bar falls mid-session.\n//\n// Deepest bar touched: atrLookback + 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    sessOpen = open[0];\n} else {\n    barsIn = barsIn + 1;\n}\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrv = atrSum / (int)atrLookback;",
+    "longCondition": "el_ge((double)barsIn, openingBars) && el_ge(close[0] - sessOpen, trendDayAtr * atrv)",
+    "shortCondition": "el_ge((double)barsIn, openingBars) && el_ge(sessOpen - close[0], trendDayAtr * atrv)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

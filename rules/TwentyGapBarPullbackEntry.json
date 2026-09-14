@@ -1,0 +1,37 @@
+{
+    "name": "TwentyGapBarPullbackEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20",
+        "gapBarsRequired": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "touched": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "prevGap": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE \"20 GAP BAR\" PULLBACK BUY: the FIRST bar to touch the EMA after a run of\n// gapBarsRequired bars that never touched it, closing back on the trend side.\n// Brooks's claim is that buyers are waiting at the average after a run that\n// long; the entry is what monetizes it.\n//\n// CARRIED WHOLE, and it is NOT EmaGapBarRun AND EmaTouch. The counter resets to\n// 0 on the touch bar itself, so EmaGapBarRun evaluates FALSE on exactly the bar\n// this rule fires. What this rule needs is the counter's PREVIOUS value, which\n// no pair of ANDed panes can express -- the same argument that keeps every\n// crossing rule whole. prevGap is captured at the top of the hook, BEFORE the\n// update: locals persist across bars, so at that moment gapCount still holds\n// the previous bar's streak. It is a plain local read and NOT the lagged\n// function read XAverage(...)[k], which remains unmeasured.\n//\n// The touch tolerance in the sources (0 to 1 tick) is dropped in favour of the\n// exact straddle test, as EmaTouch does, because MinMove/PriceScale give the\n// engine no tick size. The limit-order mechanics of one source collapse under\n// the standing signal-bar-close / next-bar-open convention.\n//\n// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls, MEASURED\n// BIT-IDENTICAL to the plain XAverage built-in AT A FIXED LENGTH ((wf - xa)\n// exactly 0 on all 17,785 bars of EL_XAverage_Probe.txt, @OJ 240min): the SEED\n// is the PRICE on the study's first calculated bar; the recurrence is ONE\n// statement in EL's form, x + sf*(p - x), never sf*p + (1-sf)*x, because the\n// two separate in floating point on 67% of bars past 100; there is NO WARM-UP\n// HOLE, so no CurrentBar guard returning 0; an EMA never forgets its seed, so\n// Max Bars Back and the chart start are part of the specification. UNMEASURED:\n// the walkforward LENGTH CHANGE the wrapper exists for -- PIN emaLength in the\n// grid until it is measured.\n//\n// emaSf is a localVariables entry rather than a hook-scope const so the hooks\n// survive a double placement.\n//\n// Deepest bar touched: 0.\nprevGap = gapCount;\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\ntouched = el_le(low[0], emaVal) && el_ge(high[0], emaVal);\nif (touched) {\n    gapCount = 0;\n} else {\n    gapCount = gapCount + 1;\n}",
+    "longCondition": "el_ge((double)prevGap, gapBarsRequired) && el_le(low[0], emaVal) && el_gt(close[0], emaVal)",
+    "shortCondition": "el_ge((double)prevGap, gapBarsRequired) && el_ge(high[0], emaVal) && el_lt(close[0], emaVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

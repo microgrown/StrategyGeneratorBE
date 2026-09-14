@@ -3,7 +3,8 @@
     "type": "Entry",
     "inputVariables": {
         "lookback": "20",
-        "retracementFraction": "0.62"
+        "retracementFraction": "0.62",
+        "pullbackLookback": "1"
     },
     "localVariables": {
         "legHigh": {
@@ -13,13 +14,21 @@
         "legLow": {
             "type": "double",
             "init": "0.0"
+        },
+        "pbHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbLow": {
+            "type": "double",
+            "init": "0.0"
         }
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// Mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call: seeded at\n// bar 0 (the window INCLUDES the current bar), scanning bars 1..Length-1 with a\n// strict comparison so a tie keeps the earliest bar. Extremes is EL SOURCE, so\n// its comparisons carry the ordinary relational tolerance and use el_gt/el_lt.\n// The leg is this highest-high / lowest-low window rather than a swing-pivot\n// search: SwingHigh/SwingLow are not in the feature register, and the window is\n// the standing substitution for a leg.\nlegHigh = high[0];\nlegLow = low[0];\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_gt(high[i], legHigh)) legHigh = high[i];\n    if (el_lt(low[i], legLow)) legLow = low[i];\n}",
-    "longCondition": "el_ge(legHigh - low[0], retracementFraction * (legHigh - legLow))",
-    "shortCondition": "el_ge(high[0] - legLow, retracementFraction * (legHigh - legLow))",
+    "preConditionHook": "// Mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call: seeded at\n// bar 0 (the window INCLUDES the current bar), scanning bars 1..Length-1 with a\n// strict comparison so a tie keeps the earliest bar. Extremes is EL SOURCE, so\n// its comparisons carry the ordinary relational tolerance and use el_gt/el_lt.\n// The leg is this highest-high / lowest-low window rather than a swing-pivot\n// search: SwingHigh/SwingLow are not in the feature register, and the window is\n// the standing substitution for a leg.\nlegHigh = high[0];\nlegLow = low[0];\nfor (int i = 1; i < (int)lookback; ++i) {\n    if (el_gt(high[i], legHigh)) legHigh = high[i];\n    if (el_lt(low[i], legLow)) legLow = low[i];\n}\n// pullbackLookback MEASURES THE PULLBACK OVER A WINDOW RATHER THAN AT THIS BAR\n// (added in the final review in place of a separate DeepPullbackMeansRange\n// rule): the depth is taken from the lowest low of the last pullbackLookback\n// bars (long) / the highest high of them (short), so a pullback that reached\n// the threshold a few bars ago still counts. At the default 1 the window is the\n// current bar alone -- the window collapses to low[0] / high[0] -- and the rule\n// is unchanged, so no existing placement moves. Same Extremes() seeding as the\n// leg loop above.\npbHigh = high[0];\npbLow = low[0];\nfor (int i = 1; i < (int)pullbackLookback; ++i) {\n    if (el_gt(high[i], pbHigh)) pbHigh = high[i];\n    if (el_lt(low[i], pbLow)) pbLow = low[i];\n}",
+    "longCondition": "el_ge(legHigh - pbLow, retracementFraction * (legHigh - legLow))",
+    "shortCondition": "el_ge(pbHigh - legLow, retracementFraction * (legHigh - legLow))",
     "postConditionHook": "",
     "endOfFileHook": ""
 }

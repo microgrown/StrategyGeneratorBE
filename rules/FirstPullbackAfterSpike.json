@@ -1,0 +1,50 @@
+{
+    "name": "FirstPullbackAfterSpike",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "3",
+        "maxWaitBars": "3",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "spikeUpOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "spikeDnOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveSigUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveSigDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sigHighUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigLowDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FIRST PULLBACK OF A STRONG BULL SPIKE -- the high 1. After spikeBars\n// consecutive strong bull trend bars, the first bar whose low is below the\n// prior bar's low is the signal bar, and the entry fires when a bar within maxWaitBars closes above\n// that signal bar's high. Mirror: the low 1 after a bear spike.\n//\n// KEPT AS A COMPOSITE, deliberately, on both of the corpus's grounds: it is a\n// named Brooks setup stated whole in all three sources, and its trigger is\n// against a bar at a VARIABLE lag -- the pane cannot AND CloseAbovePriorHigh\n// at a fixed lag with a spike filter and get this rule.\n//\n// IT IS NOT HighLowBarCount AT countTarget 1. That counter's cycle resets on a\n// fresh N-bar high and it fires on the higher-high bar itself; this rule's\n// reset is a completed spike and its trigger is a LATER bar closing over a\n// retained level.\n//\n// SPIKE = StrongTrendBarRun's definition, the settled one: each bar closes\n// above its own open with a body of at least bodyFraction of its own range.\n// bodyFraction was implicit in the sources ('strong bull trend bars') and is\n// promoted to an input at the corpus default 0.6. spikeBars 3 is the merged\n// default (two sources say 3, one says 4).\n//\n// The scan runs oldest-last, so it ends on the OLDEST qualifying bar in the\n// window -- the FIRST pullback bar after the spike, not the most recent one.\n// The signal bar's high is retained in a local rather than read back through\n// a variable offset. Both sides are computed unconditionally here: EL does\n// not short-circuit, so a scan in a condition would run on every bar in EL\n// and only on some bars in C++. Brooks's caveat 'but not after a buy climax'\n// is a separate filter the pane ANDs, and is not carried here.\nhaveSigUp = false;\nhaveSigDn = false;\nsigHighUp = 0.0;\nsigLowDn = 0.0;\nfor (jj = 1; jj <= (int)maxWaitBars; ++jj) {\n    spikeUpOk = true;\n    spikeDnOk = true;\n    for (ii = jj + 1; ii <= jj + (int)spikeBars; ++ii) {\n        if (el_le(close[ii], open[ii])) spikeUpOk = false;\n        if (el_lt(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))) spikeUpOk = false;\n        if (el_ge(close[ii], open[ii])) spikeDnOk = false;\n        if (el_lt(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))) spikeDnOk = false;\n    }\n    if (spikeUpOk && el_lt(low[jj], low[jj + 1])) {\n        haveSigUp = true;\n        sigHighUp = high[jj];\n    }\n    if (spikeDnOk && el_gt(high[jj], high[jj + 1])) {\n        haveSigDn = true;\n        sigLowDn = low[jj];\n    }\n}",
+    "longCondition": "haveSigUp && el_gt(close[0], sigHighUp)",
+    "shortCondition": "haveSigDn && el_lt(close[0], sigLowDn)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

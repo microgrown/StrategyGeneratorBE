@@ -1,0 +1,45 @@
+{
+    "name": "SessionGapAtrDirectional",
+    "type": "Entry",
+    "inputVariables": {
+        "gapAtrMultiple": "1.0",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "prevClose": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "firstBar": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The session's first bar opens at least gapAtrMultiple ATRs ABOVE the prior\n// session's close (long) or below it (short) -- a SIGNED gap-size test, the\n// opening gap read as a spike in its own direction. One source treats it as\n// the spike of a spike-and-channel day, the other as a directional tilt;\n// behaviourally that is one test. 0.5 and 1.0 ATR were both stated, 1.0 kept.\n//\n// Kept apart from SessionGapAtrMagnitude, the same measurement UNSIGNED.\n// Neither is the other with a placement toggle: a placement carries one side\n// and the panes AND entry rules rather than OR them, so the two-sided reading\n// cannot be built out of this one.\n//\n// SESSION MODEL, per the standing decision: the first bar of a session is the\n// wall-clock close-date change, day_of(ctx.Time(0)) > day_of(ctx.Time(1)) --\n// the twin's date > date[1].\n//\n// prevClose IS CloseD(1), which the twin calls and the engine does not\n// expose. MEASURED (the closed register row): the day is the wall-clock\n// CALENDAR date, the same boundary as date <> date[1], and the function\n// returns a -1 SENTINEL while fewer than that many complete days exist. The\n// mirror is exact from its first observed date change on, because a day's\n// close is simply the close of its LAST bar and close[1] on the date-change\n// bar is exactly that -- no running accumulator and no sawStart guard are\n// needed, unlike HighD/LowD. Before that first observed change TradeStation\n// can already answer from chart data the engine's window never showed it, so\n// the mirror holds the -1 sentinel there and is silent: the engine's window\n// is part of the specification and the mirror errs toward no signal.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not a fresh N-term\n// mean: seeded with a full sum on the study's first calculated bar and\n// thereafter S += TrueRange - TrueRange[Length], re-seeding on a length change.\n// Ported from AtrProfitTarget, including the TWO separate statements --\n// EasyLanguage evaluates Summation[1] + Price - Price[Length] left to right\n// and folding it to S += in - out rounds onto the other side of a threshold.\n// The accumulator stays in the hook, which the generator emits\n// unconditionally: EL does not short-circuit, so a stateful call inside a\n// condition would advance every bar in EL and only on some bars here.\n//\n// Not LargeGapVsAverageRange, whose gap is the whole-range non-overlap with\n// the PREVIOUS BAR at any point of the chart. Intraday bars only.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLength;\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    prevClose = close[1];\n    firstBar = true;\n} else {\n    firstBar = false;\n}\ngapUp = firstBar && !el_eq(prevClose, -1.0)\n    && el_ge(open[0] - prevClose, gapAtrMultiple * atrValue);\ngapDn = firstBar && !el_eq(prevClose, -1.0)\n    && el_ge(prevClose - open[0], gapAtrMultiple * atrValue);",
+    "longCondition": "gapUp",
+    "shortCondition": "gapDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

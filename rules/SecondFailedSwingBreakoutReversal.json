@@ -1,0 +1,66 @@
+{
+    "name": "SecondFailedSwingBreakoutReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "strength": "2",
+        "swingLookback": "20"
+    },
+    "localVariables": {
+        "pivotHighBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "pivotLowBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "evLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "evHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLowEv": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHighEv": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lowEvAge": {
+            "type": "int",
+            "init": "0"
+        },
+        "highEvAge": {
+            "type": "int",
+            "init": "0"
+        },
+        "secondLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "secondHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SECOND failed swing-extreme breakout within the window -- Brooks's\n// second attempt to reverse, the one more likely to work.\n//\n// The counted event is FailedSwingBreakoutReversal's own condition, inlined,\n// over the pivot scan inlined from rules/SwingHigh.json (the measured\n// primitive: STRICTLY beyond the `strength` NEWER bars, AT OR BEYOND the\n// `strength` OLDER ones, confirmation lag exactly `strength`, -1 sentinel\n// guarded, deepest bar swingLookback - 1 + strength, el_gt/el_ge because the\n// comparisons carry the relational tolerance).\n//\n// NOT CountIF. The merged pseudocode counts the event over the last lookback\n// bars, but CountIF's condition is a true SERIES whose offsets shift per\n// counted bar, so counting this event would evaluate SwingLow(...)[i] at\n// every offset in the window -- and the LAGGED read of a swing function has\n// no register row. A persistent age counter says the same thing with measured\n// words only, and it is how the corpus already handles second-entry logic\n// (HighLowBarCount's settled counter).\n//\n// The age is advanced BEFORE the test and reset AFTER it, so at the moment of\n// the test lowEvAge is the number of bars since the PREVIOUS event -- 1 at\n// the earliest -- which reproduces \"some earlier bar i in 1..lookback\". The\n// locals start at 0 / false exactly as the EasyLanguage variables do, so the\n// twins agree through warm-up as well: no event can be claimed before one has\n// actually printed.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)strength;\npivWindow = (int)swingLookback;\npivotHighBar = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotHighBar = j; break; }\n}\npivotLowBar = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotLowBar = j; break; }\n}\nevLow = false;\nevHigh = false;\nif (pivotLowBar != -1) {\n    evLow = el_lt(low[0], low[pivotLowBar]) && el_gt(close[0], low[pivotLowBar]);\n}\nif (pivotHighBar != -1) {\n    evHigh = el_gt(high[0], high[pivotHighBar]) && el_lt(close[0], high[pivotHighBar]);\n}\nif (haveLowEv) lowEvAge = lowEvAge + 1;\nif (haveHighEv) highEvAge = highEvAge + 1;\nsecondLow = evLow && haveLowEv && el_le((double)lowEvAge, lookback);\nsecondHigh = evHigh && haveHighEv && el_le((double)highEvAge, lookback);\nif (evLow) { haveLowEv = true; lowEvAge = 0; }\nif (evHigh) { haveHighEv = true; highEvAge = 0; }",
+    "longCondition": "secondLow",
+    "shortCondition": "secondHigh",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

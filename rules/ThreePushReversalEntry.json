@@ -1,0 +1,73 @@
+{
+    "name": "ThreePushReversalEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "patUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patUpPrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patDnPrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE WEDGE / THREE-PUSH REVERSAL ENTRY. The pattern was complete as of the\n// PRIOR bar and this bar reverses out of it: after three pushes DOWN, the\n// close is above the prior bar's high (long); after three pushes UP, below the\n// prior bar's low (short). Signal-bar close, next-bar open: the standing\n// convention.\n//\n// The with-trend reading (a wedge pullback in a bull trend) and the\n// countertrend reading (a wedge reversal at a top) fire on the SAME bars --\n// the split is context supplied by other panes, not a different trigger -- so\n// they are one rule. No signal-bar quality gate: Brooks takes the entry even\n// when the signal bar is a bear trend bar, and any body or tail test belongs\n// to its own bar-anatomy pane.\n//\n// patDnPrev / patUpPrev MIRROR the pattern flag one bar back rather than\n// reading a history of it: they are assigned at the top of the hook, before\n// the scan overwrites the flag, so they hold the previous evaluated bar's\n// value and start false through warm-up -- the arrangement BarRangeAboveStd\n// uses for an EL variable's own history, and what the twin's variables do\n// natively.\n//\n// The pivot scan is ThreePushPattern's, inlined: rules in this corpus never\n// reference each other, and the register lists SwingLow's Occurrence 3+ as\n// unmeasured, so the third push is found by hand. Measured behaviour\n// reproduced (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the\n// pivot bar is AT OR ABOVE the swingStrength OLDER bars and STRICTLY ABOVE the\n// swingStrength NEWER bars -- bars-ago indexing, so the newer bars are the\n// SMALLER k and take el_gt / el_lt while the older take el_ge / el_le;\n// confirmation lag exactly swingStrength bars; candidate offsets\n// swingStrength .. lookbackBars - 1, the neighbourhood reaching swingStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength; newest-first recording reproduces\n// Occurrence 1, 2, 3; the -1 sentinel is initialised and gated on the counts.\n// No early break, matching the twin: Break is not a registered EL word.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\npatUpPrev = patUp;\npatDnPrev = patDn;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\npatUp = (nHiPiv == 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3);\npatDn = (nLoPiv == 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3);",
+    "longCondition": "patDnPrev && el_gt(close[0], high[1])",
+    "shortCondition": "patUpPrev && el_lt(close[0], low[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

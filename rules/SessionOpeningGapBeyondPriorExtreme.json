@@ -1,0 +1,46 @@
+{
+    "name": "SessionOpeningGapBeyondPriorExtreme",
+    "type": "Entry",
+    "inputVariables": {},
+    "localVariables": {
+        "curHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "sawStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstBar": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's glossary gap: the FIRST bar of a session opens beyond the prior\n// session's extreme -- above the prior session's high (long) or below its low\n// (short). Three sources quote the same glossary line; the whole-day high/low\n// won over 'the prior session's last bar', the weaker reading and no cheaper\n// once the day accumulator exists.\n//\n// SESSION MODEL, per the standing decision: a session starts when the\n// wall-clock close date changes -- day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// the EL twin's date > date[1]. IsFirstBarOfSession is INLINED rather than\n// referenced, as the corpus does with every named composite, and the gate is\n// structural rather than an independent filter: off the session's first bar\n// the rule has nothing to say.\n//\n// prevHigh / prevLow ARE HighD(1) / LowD(1), which the twin calls and the\n// engine does not expose. MEASURED (the highd/lowd register row): the day is\n// the wall-clock CALENDAR date, the SAME boundary as date <> date[1]; xxxD(0)\n// is the running value INCLUSIVE of the current bar; the functions return a\n// -1 SENTINEL while fewer than that many complete days exist. The mirror\n// keeps the running day extremes, rolls them at the date change and keeps the\n// -1 sentinel as the initial value, so the guard means the same thing in both\n// twins.\n//\n// WARM-UP, the one place the twins can differ, exactly as in\n// FailedBreakoutOfPriorSessionExtreme: TradeStation's HighD reads the chart's\n// own data and answers on the first evaluated bar, while this mirror sees\n// only bars from Max Bars Back on. sawStart makes that honest -- a day is\n// published as 'the prior session' only once its own first bar has been\n// observed, so the mirror is silent through the first partial day and the\n// first fully observed day and the two agree exactly from the second date\n// change on. The mirror errs toward no signal.\n//\n// Not TrueGapBar (a whole-range gap over the PREVIOUS BAR, at any point of\n// the chart) and not LargeGapVsAverageRange (the same bar-to-bar gap with a\n// size term): the reference here is a session extreme and the rule can fire\n// at most once a day. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    if (sawStart) {\n        prevHigh = curHigh;\n        prevLow = curLow;\n    }\n    sawStart = true;\n    curHigh = high[0];\n    curLow = low[0];\n    firstBar = true;\n} else {\n    if (el_gt(high[0], curHigh)) curHigh = high[0];\n    if (el_lt(low[0], curLow)) curLow = low[0];\n    firstBar = false;\n}\ngapUp = firstBar && !el_eq(prevHigh, -1.0) && el_gt(open[0], prevHigh);\ngapDn = firstBar && !el_eq(prevLow, -1.0) && el_lt(open[0], prevLow);",
+    "longCondition": "gapUp",
+    "shortCondition": "gapDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

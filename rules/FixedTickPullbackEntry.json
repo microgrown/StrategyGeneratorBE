@@ -1,0 +1,91 @@
+{
+    "name": "FixedTickPullbackEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "avgPullbackFraction": "0.9",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "runHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curPbUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curPbDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbSumUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbSumDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbCntUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "pbCntDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "avgPbUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgPbDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dipUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dipDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// IN A STRONG TREND, BUY A DIP OF A FIXED SIZE RATHER THAN A PATTERN: price\n// trades a set fraction of the trend's OWN AVERAGE PRIOR PULLBACK below the\n// running high. Sized to the trend's behaviour, so the entry adapts as the\n// trend's pullbacks grow. Brooks says \"equal to or slightly less than the\n// average prior pullbacks\", hence the 0.9 default.\n//\n// NO TICK UNIT IS USED DESPITE THE KEY'S NAME. The source states the entry in\n// ticks; the engine exposes no tick size to a strategy, and the merged rule\n// had already replaced the fixed tick distance with a fraction of the trend's\n// measured average pullback, which is instrument-independent and is what is\n// coded here. The key is kept because it is the merged key.\n//\n// A GENUINE EXTENSION OF MaxPullbackDepthBelowThreshold's give-back tracker\n// rather than a use of it: that rule keeps the MAXIMUM completed pullback,\n// this needs the running SUM and COUNT so it can average them. A pullback\n// COMPLETES when a new extreme is made -- on a bar that takes out the running\n// high the depth just accumulated is folded into the sum and the live depth\n// is cleared. Zero-depth pullbacks are not counted, so a run of consecutive\n// new-high bars does not drag the average down.\n//\n// THE LEG RESET IS THE ALWAYS-IN FLIP, the standing corpus decision, inlined\n// here as TrendDurationBars inlines it and with the same inputs so every\n// consumer reads the same state: the direction FLIPS on consecutiveBars\n// consecutive STRONG TREND BARS -- body at least bodyFraction of the bar's\n// own range and BOTH tails no more than tailFraction of it -- holds until the\n// opposite flip, and is UNDEFINED (aiDir = 0) until the first flip ever. The\n// sum and the count clear on the flip, so the average is always the CURRENT\n// trend's own behaviour.\n//\n// Under the standing convention the resting limit order becomes signal-bar\n// close and next-bar open, so the rule fires on the bar whose own low reaches\n// the level and the entry is the following open. The running high is extended\n// before the test, so a bar that makes a new high and later sells off deep\n// enough still fires -- which is what a resting order would have done.\n//\n// pbCntUp > 0 guards the division and also keeps the rule silent until the\n// trend has shown at least one pullback to average.\n//\n// Mirrored: the long side buys the dip below the bull leg's running high, the\n// short side sells the rally above the bear leg's running low.\n//\n// Deepest bar touched: consecutiveBars - 1.\nallBull = true;\nallBear = true;\nfor (kk = 0; kk < (int)consecutiveBars; ++kk) {\n    rng = high[kk] - low[kk];\n    if (el_le(close[kk], open[kk])) allBull = false;\n    if (el_lt(close[kk] - open[kk], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[kk] - close[kk], tailFraction * rng)) allBull = false;\n    if (el_gt(open[kk] - low[kk], tailFraction * rng)) allBull = false;\n    if (el_ge(close[kk], open[kk])) allBear = false;\n    if (el_lt(open[kk] - close[kk], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[kk] - low[kk], tailFraction * rng)) allBear = false;\n    if (el_gt(high[kk] - open[kk], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    flipped = true;\n}\nif (flipped) {\n    runHigh = high[0];\n    runLow = low[0];\n    curPbUp = 0.0;\n    curPbDn = 0.0;\n    pbSumUp = 0.0;\n    pbSumDn = 0.0;\n    pbCntUp = 0;\n    pbCntDn = 0;\n}\nif (flipped == false) {\n    if (el_gt(high[0], runHigh)) {\n        if (el_gt(curPbUp, 0.0)) {\n            pbSumUp = pbSumUp + curPbUp;\n            pbCntUp = pbCntUp + 1;\n        }\n        curPbUp = 0.0;\n        runHigh = high[0];\n    } else {\n        if (el_gt(runHigh - low[0], curPbUp)) curPbUp = runHigh - low[0];\n    }\n    if (el_lt(low[0], runLow)) {\n        if (el_gt(curPbDn, 0.0)) {\n            pbSumDn = pbSumDn + curPbDn;\n            pbCntDn = pbCntDn + 1;\n        }\n        curPbDn = 0.0;\n        runLow = low[0];\n    } else {\n        if (el_gt(high[0] - runLow, curPbDn)) curPbDn = high[0] - runLow;\n    }\n}\navgPbUp = 0.0;\nif (pbCntUp > 0) avgPbUp = pbSumUp / pbCntUp;\navgPbDn = 0.0;\nif (pbCntDn > 0) avgPbDn = pbSumDn / pbCntDn;\ndipUp = (aiDir == 1) && (pbCntUp > 0) && el_le(low[0], runHigh - avgPullbackFraction * avgPbUp);\ndipDn = (aiDir == -1) && (pbCntDn > 0) && el_ge(high[0], runLow + avgPullbackFraction * avgPbDn);",
+    "longCondition": "dipUp",
+    "shortCondition": "dipDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

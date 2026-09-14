@@ -1,0 +1,56 @@
+{
+    "name": "SessionGapFirstBarReversalEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyFraction": "0.4"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "curHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "sawStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "longSig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortSig": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A failed breakout of the opening gap. The session gapped BELOW the prior\n// session's low, the session's FIRST bar closed as a bull reversal bar, and\n// the second bar of the session now closes back above that first bar's high\n// -- buy. Short is the mirror after a gap above the prior session's high.\n//\n// The gate is barsIn == 2: the bar being judged is the session's SECOND bar,\n// so bar [1] is the session's first bar. barsIn is the standing\n// bars-into-session counter, 1 on the first bar of the session, reset at the\n// wall-clock close-date change day_of(ctx.Time(0)) > day_of(ctx.Time(1)) per\n// the session model decision. Written through the counter rather than as a\n// date comparison at an offset so that the same statement serves both twins\n// and matches the rest of the session family.\n//\n// prevHigh / prevLow ARE HighD(1) / LowD(1), which the twin calls and the\n// engine does not expose. MEASURED (the highd/lowd register row): the day is\n// the wall-clock CALENDAR date, the SAME boundary as date <> date[1]; xxxD(0)\n// is the running value INCLUSIVE of the current bar; the prior-day forms\n// return a -1 SENTINEL while fewer than that many complete days exist. Read\n// on the session's second bar they still refer to the day before this one.\n//\n// WARM-UP, as in FailedBreakoutOfPriorSessionExtreme: TradeStation's HighD\n// reads the chart's own data and answers on the first evaluated bar, while\n// this mirror sees only bars from Max Bars Back on. sawStart makes that\n// honest -- a day becomes 'the prior session' only once its own first bar has\n// been observed -- so the mirror is silent through the first partial day and\n// the first fully observed day and the twins agree exactly from the second\n// date change on.\n//\n// KEPT WHOLE, and it is not SessionBarBreakout with filters bolted on: every\n// added term reads bar [1], the session's FIRST bar, from the vantage of bar\n// [0], and no placement in the corpus can state 'the session's first bar\n// gapped below yesterday's low and closed as a bull reversal bar' at that\n// offset. Kept apart from FailedBreakoutOfPriorSessionExtreme (any bar of the\n// session, no gap and no reversal-bar term) and from GapPullbackFailureEntry\n// (an intraday retracement into the gap instead). Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    if (sawStart) {\n        prevHigh = curHigh;\n        prevLow = curLow;\n    }\n    sawStart = true;\n    curHigh = high[0];\n    curLow = low[0];\n    barsIn = 1;\n} else {\n    barsIn = barsIn + 1;\n    if (el_gt(high[0], curHigh)) curHigh = high[0];\n    if (el_lt(low[0], curLow)) curLow = low[0];\n}\nfirstBull = el_gt(close[1], open[1])\n    && el_ge(close[1] - open[1], bodyFraction * (high[1] - low[1]));\nfirstBear = el_lt(close[1], open[1])\n    && el_ge(open[1] - close[1], bodyFraction * (high[1] - low[1]));\nlongSig = (barsIn == 2) && !el_eq(prevLow, -1.0) && el_lt(open[1], prevLow)\n    && firstBull && el_gt(close[0], high[1]);\nshortSig = (barsIn == 2) && !el_eq(prevHigh, -1.0) && el_gt(open[1], prevHigh)\n    && firstBear && el_lt(close[0], low[1]);",
+    "longCondition": "longSig",
+    "shortCondition": "shortSig",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

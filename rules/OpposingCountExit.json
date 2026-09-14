@@ -1,0 +1,49 @@
+{
+    "name": "OpposingCountExit",
+    "type": "Exit",
+    "inputVariables": {
+        "resetLookback": "20",
+        "countTarget": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Exit the open position the moment the OPPOSITE side's bar count reaches\n// countTarget. Brooks: 'if you ever buy early, always get out and even\n// reverse if the market triggers a low 2 or 3 short', and mirrored for a\n// short caught by a high 2 or 3. The 'even reverse' half is the engine's own\n// reversal behaviour, not a condition, so it is not carried here.\n//\n// Kept as its own rule rather than a placement of HighLowBarCount because it\n// reads the OPPOSITE side's counter -- which a mirrored Entry placement\n// cannot supply -- and because it is an Exit: the long condition closes a\n// LONG, and what it watches is the low count.\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01), inlined here as\n// everywhere -- see HighLowBarCount for the full commentary. The advance flag\n// is deliberately not carried: the count is an equality against countTarget,\n// which first becomes true on the advancing bar, and for an exit there is\n// nothing to gain from firing on that bar only.\n//\n// ctx.MarketPosition() is the measured accessor (+1 / 0 / -1); it is read in\n// the condition, exactly as EasyLanguage's MarketPosition is.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n    }\n}",
+    "longCondition": "el_gt((double)ctx.MarketPosition(), 0.0) && el_eq((double)lowCount, countTarget)",
+    "shortCondition": "el_lt((double)ctx.MarketPosition(), 0.0) && el_eq((double)highCount, countTarget)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

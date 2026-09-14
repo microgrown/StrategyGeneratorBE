@@ -1,0 +1,99 @@
+{
+    "name": "ChannelLineOvershootReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "overshootBars": "1",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pokedDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pokedUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CHANNEL, built from four confirmed swing pivots and two trend lines.\n// One construction is used by every rule in this family so they all draw the\n// same channel:\n//   * the BULL channel's trend line runs through the two most recent confirmed\n//     swing LOWS and its channel line through the two most recent confirmed\n//     swing HIGHS;\n//   * the BEAR channel is the mirror -- trend line across the HIGHS, channel\n//     line across the LOWS.\n// The two lines are NOT parallel by construction, which is what lets the\n// channel converge (a wedge) or diverge; Brooks draws both forms.\n//\n// The pivot scan is INLINED here rather than reaching into SwingHigh.json --\n// rules in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the pivotStrength OLDER bars,\n//     STRICTLY ABOVE the pivotStrength NEWER bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly pivotStrength bars, never 0 or 1, which\n//     is what makes the scan lookahead-safe;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     pivotStrength bars PAST the window, so the deepest index the scan\n//     touches is pivotLookback - 1 + pivotStrength;\n//   * a window with no pivot returns the -1 SENTINEL. Scanning newest-first\n//     and taking the first two hits reproduces Occurrence 1 and 2; finding\n//     fewer than two is the sentinel case and is guarded below, since -1 as a\n//     price sits under every real price. Occurrence 3+ is UNMEASURED, which is\n//     why this family never asks for a third pivot;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule rather\n// than an observation. There is no WFSafe_SwingHigh, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue(P1, B1, P2, B2, target) is the pure\n// two-point line Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) *\n// Slope, anchored at the FIRST pair and extrapolating freely past both anchors\n// -- which is what lets the line be read at an OLDER bar inside the loop\n// below. The bar-number convention is the CALLER's; bars-ago is used here, so\n// the OLDER pivot (the LARGER bars-ago) is passed as P1/B1 -- the corpus's\n// older-anchor-first spelling, measured at zero drift. Bar1 = Bar2 does NOT\n// halt, it silently returns 0.0, so the twins guard B1 != B2 instead of\n// relying on that. The slope is hoisted out of the per-target arithmetic here\n// where the EL twin recomputes it inside each TLValue call: the inputs are\n// identical doubles, so the two are bit-for-bit the same line.\n//\n// THIS RULE: Brooks's most-repeated channel trade, the countertrend fade at\n// the channel line. Price POKED beyond the line within the last overshootBars\n// bars -- a wick is enough, unlike ChannelLineBreakoutFailure, which wants a\n// closing price beyond it -- and this bar closes back inside the channel with a\n// reversal body. The long side fades the BEAR channel at its lower line, the\n// short side the bull channel at its upper one.\n//\n// The merged pseudocode compared the lowest low of overshootBars bars against the line\n// at bar 0. The poke is tested here against the line AT THE POKING BAR, which\n// is the same test at the default overshootBars = 1 and the right one above\n// it, since the line moves.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n}\nif (haveHiLine) {\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n}\npokedDn = false;\npokedUp = false;\nfor (int kk = 0; kk <= (int)overshootBars - 1; ++kk) {\n    if (haveLoLine && el_lt(low[kk], loP1 + ((double)kk - loB1) * loSlope)) pokedDn = true;\n    if (haveHiLine && el_gt(high[kk], hiP1 + ((double)kk - hiB1) * hiSlope)) pokedUp = true;\n}",
+    "longCondition": "haveLoLine && pokedDn && el_gt(close[0], loNow) && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0]))",
+    "shortCondition": "haveHiLine && pokedUp && el_lt(close[0], hiNow) && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

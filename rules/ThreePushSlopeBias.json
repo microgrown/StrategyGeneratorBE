@@ -1,0 +1,57 @@
+{
+    "name": "ThreePushSlopeBias",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "slopeDownLows": {
+            "type": "bool",
+            "init": "false"
+        },
+        "slopeUpHighs": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PATTERN'S OWN SLOPE SETS THE EXPECTED BREAKOUT DIRECTION, whatever the\n// larger trend is doing. A DOWN-sloping wedge or channel is a bull-flag\n// context, so the long pane wants the line through the low pivots sloping\n// down; an UP-sloping one is a bear flag, so the short pane wants the line\n// through the high pivots sloping up. R18-09 and R23-08 state the same test\n// with different emphasis; as a pane filter it is just the slope sign, which\n// is why R23-08's override of the engine's trend context is not a problem.\n//\n// NO DIVISION. The slope through two pivots is\n// (newer price - older price) / (bars elapsed), and the denominator is\n// loBar3 - loBar1 > 0 whenever three distinct pivots exist, so the SIGN of the\n// slope is the sign of the price difference alone. Comparing the prices is\n// therefore exact, needs no TLValue anchor pair, cannot divide by zero, and\n// keeps the toleranced relational EL applies to prices (el_lt / el_gt).\n//\n// Only pivots 1 and 3 are used, but all three must exist: with fewer, the\n// pattern has no far end. Pivot scan as in ThreePushPattern, inlined; the\n// register lists Occurrence 3+ as unmeasured, so the oldest push is found by\n// hand. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the\n// pivot bar is AT OR ABOVE the swingStrength OLDER bars and STRICTLY ABOVE the\n// swingStrength NEWER bars -- bars-ago indexing, so the newer bars are the\n// smaller k and take el_gt / el_lt, the older el_ge / el_le; confirmation lag\n// exactly swingStrength bars; candidate offsets\n// swingStrength .. lookbackBars - 1, the neighbourhood reaching swingStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength. No early break, matching the twin.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nslopeDownLows = (nLoPiv == 3) && el_lt(loPx1, loPx3);\nslopeUpHighs = (nHiPiv == 3) && el_gt(hiPx1, hiPx3);",
+    "longCondition": "slopeDownLows",
+    "shortCondition": "slopeUpHighs",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,54 @@
+{
+    "name": "CorrectionBarsVsTrendLegBars",
+    "type": "Entry",
+    "inputVariables": {
+        "correctionFraction": "0.5",
+        "pivotStrength": "2",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hiBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "corrBars": {
+            "type": "int",
+            "init": "-1"
+        },
+        "legBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "adequate": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HAS THE CORRECTION LASTED LONG ENOUGH RELATIVE TO THE LEG IT IS CORRECTING?\n// Brooks's duration rule of thumb (V21-01), used to hold off a with-trend\n// continuation entry until the correction has had time to finish: \"about half\n// as many bars\" is his phrasing, so 0.5 is the default reading and the\n// source's own example was a 20-to-30-bar bear channel.\n//\n// IDENTICAL BOTH SIDES, as the merge recorded it: this counts BARS, not\n// direction. The leg and its correction are read off the pivot structure with\n// no reference to which way either ran -- the most recent CONFIRMED pivot of\n// either kind ends the leg and starts the correction, the most recent pivot\n// of the OPPOSITE kind before it started the leg, and the two bars-ago\n// numbers are the two durations. A pane that also wants a direction ANDs one.\n//\n// NOT CorrectionBarsFractionOfPattern, which is the same ratio measured\n// against a different span: that rule anchors on SAME-KIND pivots (the\n// pushCount-th swing low back, for a three-push bottom) and its long side\n// reads the low pivots only, where this one takes the last leg spanned by\n// two pivots of opposite kind and reads both series. They fire on different bars at every default, and at\n// pushCount = 1 that rule is switched off by its own patternBars > 0 guard\n// rather than degenerating to this one. DeepPullbackRetracementFilter is the\n// DEPTH half of the same idea, measured in price; the two should be tested\n// together.\n//\n// PIVOT SCAN, MEASURED (EL_Swing_Probe.txt, el_swing_output1.txt): the pivot\n// bar is AT OR ABOVE the pivotStrength OLDER bars and STRICTLY ABOVE the\n// pivotStrength NEWER bars -- bars-ago indexing, so the newer bars are the\n// SMALLER kk and take the strict test, the older the at-or-above one;\n// confirmation lag exactly pivotStrength bars; candidate offsets\n// pivotStrength..lookbackBars - 1, the neighbourhood reaching pivotStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + pivotStrength. Only the FIRST pivot of each kind is\n// wanted, which is the smallest offset, carried by the -1 guard rather than a\n// loop break -- EasyLanguage has no Break and the twin must scan the same\n// bars.\n//\n// lookbackBars is PROMOTED: the merged parameters name only the fraction and\n// the strength, but a pivot scan needs a window and this is\n// CorrectionBarsFractionOfPattern's default so the two can be tuned together.\n//\n// -1 IS THE NO-PIVOT SENTINEL and the guards on it are load-bearing: a\n// missing pivot must not read as a pivot at bar 0. An outside bar can in\n// principle be both a high and a low pivot; that leaves hiBar1 == loBar1,\n// corrBars stays -1 and the rule is simply false, which is the honest answer\n// for a degenerate structure.\n//\n// Compared, never divided.\n//\n// Deepest bar touched: lookbackBars - 1 + pivotStrength.\nhiBar1 = -1;\nloBar1 = -1;\nfor (jj = (int)pivotStrength; jj <= (int)lookbackBars - 1; ++jj) {\n    okHi = true;\n    okLo = true;\n    for (kk = jj - (int)pivotStrength; kk <= jj - 1; ++kk) {\n        if (el_le(high[jj], high[kk])) okHi = false;\n        if (el_ge(low[jj], low[kk])) okLo = false;\n    }\n    for (kk = jj + 1; kk <= jj + (int)pivotStrength; ++kk) {\n        if (el_lt(high[jj], high[kk])) okHi = false;\n        if (el_gt(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && hiBar1 == -1) hiBar1 = jj;\n    if (okLo && loBar1 == -1) loBar1 = jj;\n}\ncorrBars = -1;\nlegBars = 0;\nif (hiBar1 >= 0 && loBar1 >= 0) {\n    if (hiBar1 < loBar1) {\n        corrBars = hiBar1;\n        legBars = loBar1 - hiBar1;\n    }\n    if (loBar1 < hiBar1) {\n        corrBars = loBar1;\n        legBars = hiBar1 - loBar1;\n    }\n}\nadequate = (corrBars >= 0) && (legBars > 0) && el_ge((double)corrBars, correctionFraction * (double)legBars);",
+    "longCondition": "adequate",
+    "shortCondition": "adequate",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

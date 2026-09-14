@@ -1,0 +1,80 @@
+{
+    "name": "TrendResumptionDayContext",
+    "type": "Entry",
+    "inputVariables": {
+        "openBars": "12",
+        "minMiddayBars": "36",
+        "tightRangeFraction": "0.3",
+        "dayLookback": "20",
+        "maxScanBars": "500"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mld": {
+            "type": "int",
+            "init": "0"
+        },
+        "midHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "midLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "midBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "adrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adrDays": {
+            "type": "int",
+            "init": "0"
+        },
+        "dHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dOpen": {
+            "type": "bool",
+            "init": "false"
+        },
+        "adr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "adrReady": {
+            "type": "bool",
+            "init": "false"
+        },
+        "resumeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "resumeDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND-RESUMPTION DAY. The session opened with a leg in one direction\n// and has since spent several hours inside a tight range: favour continuation\n// in the MORNING leg's direction and block fresh countertrend entries. The\n// tighter that midday range against the recent average daily range, the\n// stronger the read. T01-07 previews the pattern in one sentence and T25-03\n// is the chapter version with the tight-range fraction; same rule, T25-03's\n// numbers.\n//\n// A NAMED BROOKS SETUP, so the parts are INLINED rather than referenced, as\n// the corpus does with composites: the morning-leg latch is\n// MorningLegDirection's (depends_on_keys), and AverageDailyRange is the\n// corpus's session primitive, same text as its own file. The leg latch here\n// carries NO ATR threshold -- the merged rule states the direction as the\n// sign of close minus session open at openBars and nothing more -- so a pane\n// wanting the strong-leg form ANDs MorningLegDirection alongside.\n//\n// THE MIDDAY WINDOW starts at the leg bar, not at the session open: midHigh\n// and midLow are re-seeded on the bar where barsIn reaches openBars and grow\n// from there, and midBars counts the bars since. So the range measured is the\n// action AFTER the morning leg, which is what the pattern is about.\n//\n// T25-03's page-454 caveat -- that the midday action can be a weakly trending\n// countertrend drift rather than a flat range -- is NOT mechanized;\n// tightRangeFraction is the proxy for both forms and should be LOOSENED\n// rather than special-cased.\n//\n// Mirrored: the long side wants an up morning leg, the short a down one. A\n// dead-flat leg (close == sessOpen at the leg bar) leaves mld at 0 and\n// neither side can fire, so no sign has to be invented for zero.\n//\n// Compared, never divided. The dayLookback guard WRAPS the date read rather\n// than being ANDed with it, because EasyLanguage does not short-circuit and\n// the twins must touch the same history.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)); barsIn is 1 on the\n// session's first bar. The latch and the accumulate tests sit OUTSIDE the\n// session if/else so that openBars = 1 still latches on the first bar.\n// Intraday bars only.\n//\n// Deepest bar touched: maxScanBars + 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    sessOpen = open[0];\n    mld = 0;\n    midHigh = high[0];\n    midLow = low[0];\n    midBars = 0;\n} else {\n    barsIn = barsIn + 1;\n}\nif (el_eq((double)barsIn, openBars)) {\n    midHigh = high[0];\n    midLow = low[0];\n    midBars = 0;\n    if (el_gt(close[0], sessOpen)) mld = 1;\n    if (el_lt(close[0], sessOpen)) mld = -1;\n}\nif (el_gt((double)barsIn, openBars)) {\n    midBars = midBars + 1;\n    if (el_gt(high[0], midHigh)) midHigh = high[0];\n    if (el_lt(low[0], midLow)) midLow = low[0];\n}\nadrSum = 0.0;\nadrDays = 0;\ndHi = 0.0;\ndLo = 0.0;\ndOpen = false;\nfor (int kk = 1; kk <= (int)maxScanBars; ++kk) {\n    if (el_lt((double)adrDays, dayLookback)) {\n        if (day_of(ctx.Time(kk)) != day_of(ctx.Time(0))) {\n            if (!dOpen) {\n                dHi = high[kk];\n                dLo = low[kk];\n                dOpen = true;\n            } else {\n                if (el_gt(high[kk], dHi)) dHi = high[kk];\n                if (el_lt(low[kk], dLo)) dLo = low[kk];\n            }\n            if (day_of(ctx.Time(kk + 1)) != day_of(ctx.Time(kk))) {\n                adrSum = adrSum + (dHi - dLo);\n                adrDays = adrDays + 1;\n                dOpen = false;\n            }\n        }\n    }\n}\nadrReady = el_ge((double)adrDays, dayLookback);\nif (adrReady) {\n    adr = adrSum / dayLookback;\n} else {\n    adr = 0.0;\n}\nresumeUp = (mld == 1) && el_ge((double)midBars, minMiddayBars) && adrReady && el_le(midHigh - midLow, tightRangeFraction * adr);\nresumeDn = (mld == -1) && el_ge((double)midBars, minMiddayBars) && adrReady && el_le(midHigh - midLow, tightRangeFraction * adr);",
+    "longCondition": "resumeUp",
+    "shortCondition": "resumeDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

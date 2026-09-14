@@ -1,0 +1,46 @@
+{
+    "name": "SwingLegLengthAtLeast",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "minLegBars": "5"
+    },
+    "localVariables": {
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLegs": {
+            "type": "bool",
+            "init": "false"
+        },
+        "legsLongEnough": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's credibility test for a leg: the leg that breaks the trend line and\n// the leg that tests the extreme both have to be long enough to mean something.\n// Both of the last two legs must run at least minLegBars bars -- the gap\n// between the last two CONFIRMED swing lows, and the bars since the most recent\n// one.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLowBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- the pivot low is AT OR BELOW the swingStrength\n//     OLDER bars and STRICTLY BELOW the swingStrength NEWER bars (the mirror of\n//     the measured high-side rule; the probe's flat-extreme series was a flat\n//     TOP only). Bars-ago indexing makes the SMALLER index the NEWER bar, so\n//     the strict half is the k < j loop;\n//   * the confirmation lag is exactly swingStrength bars, never 0 or 1, which\n//     both makes the scan lookahead-safe and bounds loB2 below by\n//     swingStrength;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     swingStrength bars PAST the window, so the deepest index touched is\n//     pivotLookback - 1 + swingStrength;\n//   * a window with no pivot returns the -1 SENTINEL. Scanning newest-first and\n//     taking the first two hits reproduces Occurrence 1 and 2; fewer than two\n//     is the sentinel case, guarded below because -1 compares SMALLER than any\n//     real bar count and would otherwise fail the test silently for the wrong\n//     reason. Occurrence 3+ is UNMEASURED and is not asked for;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_lt /\n//     el_le inside the scan rather than raw < and <=.\n// No WFSafe_SwingLow exists, so plain EL governs.\n//\n// SIDES ARE IDENTICAL, per the merge's 'same'. The rule is a size test in BARS,\n// not a price comparison, so there is nothing to flip; the swing-low series is\n// the one the merged pseudocode and description both name, and the swing-high\n// spelling is the recorded alternative rather than the short side. Placing this\n// beside a directional rule is what gives it a direction.\n//\n// It measures legs by SWING PIVOTS, not by the decided H1/H2 counter of\n// HighLowBarCount (R17-01), so the leg_counting family may hold a behaviourally\n// different rule with the same intent. Brooks's exception -- one leg may be one\n// or two exceptionally large bars instead -- is not mechanized.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nloB1 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loB2 = (double)j; }\n        else { loB1 = (double)j; break; }\n    }\n}\nhaveLegs = (foundLo == 2) && (loB1 != -1.0) && (loB2 != -1.0);\nlegsLongEnough = haveLegs && el_ge(loB1 - loB2, minLegBars) && el_ge(loB2, minLegBars);",
+    "longCondition": "legsLongEnough",
+    "shortCondition": "legsLongEnough",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

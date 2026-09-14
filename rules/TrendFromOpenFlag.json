@@ -1,0 +1,26 @@
+{
+    "name": "TrendFromOpenFlag",
+    "type": "Entry",
+    "inputVariables": {},
+    "localVariables": {
+        "tfo": {
+            "type": "int",
+            "init": "0"
+        },
+        "firstHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Trend from the open, as a per-session flag. Set to +1 the first time a bar\n// closes above the session's first bar's high, to -1 the first time one\n// closes below its low, and cleared back to 0 if price later closes through\n// the other extreme of that same first bar. The flag is reset at every\n// session start, so it never leaks across days.\n//\n// Brooks's glossary form -- a trend beginning at one of the first bars whose\n// start REMAINS one of the day's extremes -- needs a no-pullback counter, a\n// session-extreme tracker and a persistence test. The chapter's own\n// mechanical proxy is what is coded here: as soon as a bar closes beyond the\n// first bar's extreme the day is a trend-from-the-open day in that direction,\n// at least for that moment. The strict form's extra content is carried by\n// SessionExtremeSetInOpeningWindow.\n//\n// ORDER OF THE FOUR TESTS is safe as written: firstLow <= firstHigh, so a\n// close cannot be both above firstHigh and below firstLow, and no bar can set\n// and later clear the flag in the same pass.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)) on integer day\n// serials. tfo holds only the exact small integers 0, 1 and -1, so the\n// conditions compare it through el_eq for the twin's spelling even though no\n// tolerance can change the outcome. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    tfo = 0;\n    firstHigh = high[0];\n    firstLow = low[0];\n} else {\n    if (tfo == 0 && el_gt(close[0], firstHigh)) tfo = 1;\n    if (tfo == 0 && el_lt(close[0], firstLow)) tfo = -1;\n    if (tfo == 1 && el_lt(close[0], firstLow)) tfo = 0;\n    if (tfo == -1 && el_gt(close[0], firstHigh)) tfo = 0;\n}",
+    "longCondition": "el_eq((double)tfo, 1.0)",
+    "shortCondition": "el_eq((double)tfo, -1.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

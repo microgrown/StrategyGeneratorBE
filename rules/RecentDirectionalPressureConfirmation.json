@@ -1,0 +1,43 @@
+{
+    "name": "RecentDirectionalPressureConfirmation",
+    "type": "Entry",
+    "inputVariables": {
+        "pressureLookback": "10",
+        "minTailFraction": "0.4",
+        "minBodyFraction": "0.6",
+        "minPressureBars": "2"
+    },
+    "localVariables": {
+        "upperTailBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerTailBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearBodyBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullBodyBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EVIDENCE OF DIRECTIONAL PRESSURE AT THIS LEVEL WITHIN THE LAST N BARS:\n// either at least minPressureBars bars carried a prominent tail on the relevant\n// side, OR at least minPressureBars bars carried a strong same-direction body.\n//\n// This is UpperTailCountInWindow OR StrongBodyBarCountInWindow, each at its own\n// threshold. Both parts are carried separately in the catalog, and normally a\n// composite would be dropped in favour of its parts -- but the entry panes AND,\n// so an OR cannot be composed, and the rule is carried whole for that reason\n// alone.\n//\n// ORIENTATION, matching UpperTailCountInWindow and GrowingTopTails: the LONG\n// side counts UPPER tails and BEAR bodies, which is the BEARISH reading of the\n// window. A with-trend long filter therefore NEGATES the placement; a\n// reversal-long filter takes it as written.\n//\n// Not TailBarCountDominance, which COMPARES the two tail counts against each\n// other over one threshold; this counts two DIFFERENT classifications against\n// two thresholds and ORs them.\n//\n// EL: four CountIF calls over pressureLookback. CountIF counts bars 0..N-1\n// INCLUDING the current bar and its argument is a true SERIES (EL_FEATURES\n// `countif`, VERIFIED): every price term shifts with the counted bar, which is\n// what this loop does. The counted terms are prices with real history, so no\n// zero-filled variable mirror is needed. The counts are EL numeric variables,\n// kept as doubles.\n//\n// MaxList / MinList select among open and close -- tick-grid PRICE operands,\n// the scope their ACCEPTED row allows -- so plain > / < stand in, exactly as\n// UpperTailCountInWindow writes the same selection.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data. The counts and selections are class members and\n// persist across bars, so they are reset or reassigned before use.\n//\n// Deepest bar touched: pressureLookback - 1.\nupperTailBars = 0.0;\nlowerTailBars = 0.0;\nbearBodyBars = 0.0;\nbullBodyBars = 0.0;\nfor (int i = 0; i < (int)pressureLookback; ++i) {\n    bodyTop = open[i];\n    if (close[i] > bodyTop) bodyTop = close[i];\n    bodyBottom = open[i];\n    if (close[i] < bodyBottom) bodyBottom = close[i];\n    if (el_ge(high[i] - bodyTop, minTailFraction * (high[i] - low[i]))) {\n        upperTailBars = upperTailBars + 1;\n    }\n    if (el_ge(bodyBottom - low[i], minTailFraction * (high[i] - low[i]))) {\n        lowerTailBars = lowerTailBars + 1;\n    }\n    if (el_lt(close[i], open[i]) && el_ge(open[i] - close[i], minBodyFraction * (high[i] - low[i]))) {\n        bearBodyBars = bearBodyBars + 1;\n    }\n    if (el_gt(close[i], open[i]) && el_ge(close[i] - open[i], minBodyFraction * (high[i] - low[i]))) {\n        bullBodyBars = bullBodyBars + 1;\n    }\n}",
+    "longCondition": "el_ge(upperTailBars, minPressureBars) || el_ge(bearBodyBars, minPressureBars)",
+    "shortCondition": "el_ge(lowerTailBars, minPressureBars) || el_ge(bullBodyBars, minPressureBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

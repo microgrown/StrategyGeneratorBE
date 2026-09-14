@@ -1,0 +1,37 @@
+{
+    "name": "TrendDayIdentifiedInFirstHour",
+    "type": "Entry",
+    "inputVariables": {
+        "firstHourBars": "12",
+        "breakMultiple": "0.5"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "orHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trendUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trendDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// PAST THE FIRST HOUR, THE DAY IS A TREND DAY. The close has broken beyond\n// the opening range by at least breakMultiple times that range's OWN height,\n// so treat the day as a trend day and take only with-trend entries for the\n// rest of it. Short is the mirror below the opening range low.\n//\n// The candidate's own note is honest that Brooks's trend-day test is pattern\n// recognition; the opening-range break scaled by the range's own height is\n// the proxy, and it is the one measurable statement the two sources share.\n//\n// NOT OpeningRangeBreakout, which fires on the bare close beyond the level:\n// at breakMultiple = 0 this rule reproduces that one at firstCrossOnly = 0,\n// and the whole content here is the BUFFER, sized to the opening range\n// itself, so a wide opening range demands a proportionally larger break. The\n// two are kept apart the way ConsecutiveUpBars and StrongTrendBarRun are --\n// the degenerate setting exists, but the general rule is a different claim\n// and the base rule keeps reproducing bit for bit.\n//\n// Kept apart from SessionTrendDayDirection, which measures from the\n// session's opening price against an ATR: on a wide-range opening the two\n// disagree, and they should be tested against each other before either is\n// trusted. Kept apart\n// from OpeningRangeVsAvgDailyRange, which only measures the opening range's\n// WIDTH and never asks whether price left it.\n//\n// SessionOpeningRange is INLINED rather than referenced, per the composites\n// decision, in the same spelling OpeningRangeBreakout uses: the bar on which\n// barsIn reaches firstHourBars is still part of the range and its own high is\n// already in orHigh, so the test is >= firstHourBars and the first bar that\n// can fire is firstHourBars + 1.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)); barsIn is 1 on the\n// session's first bar. WARM-UP mirrors EL: barsIn, orHigh and orLow hold\n// their initial 0 if the first calculated bar falls mid-session, so orLow\n// stays 0.0 until the first date change and the short side cannot fire.\n// Intraday bars only.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    orHigh = high[0];\n    orLow = low[0];\n} else {\n    barsIn = barsIn + 1;\n    if (barsIn <= (int)firstHourBars) {\n        if (el_gt(high[0], orHigh)) orHigh = high[0];\n        if (el_lt(low[0], orLow)) orLow = low[0];\n    }\n}\ntrendUp = el_ge((double)barsIn, firstHourBars) && el_gt(close[0], orHigh + breakMultiple * (orHigh - orLow));\ntrendDn = el_ge((double)barsIn, firstHourBars) && el_lt(close[0], orLow - breakMultiple * (orHigh - orLow));",
+    "longCondition": "trendUp",
+    "shortCondition": "trendDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

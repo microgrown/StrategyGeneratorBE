@@ -1,0 +1,31 @@
+{
+    "name": "DojiAfterLargeOppositeTrendBar",
+    "type": "Entry",
+    "inputVariables": {
+        "bodyFraction": "0.6",
+        "bigBarMultiple": "2.0",
+        "atrLookback": "14",
+        "dojiFraction": "0.2"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A LARGE OPPOSITE TREND BAR FOLLOWED BY A DOJI -- a possible climax and reversal.\n// The long side wants the PREVIOUS bar to be a large BEAR trend bar (a bear\n// body of at least bodyFraction of its range, and a range of at least\n// bigBarMultiple times the ATR) and THIS bar to be a doji. Short is the mirror.\n// Under the corpus's standing signal-bar / next-open convention the doji bar is\n// the signal bar and the entry is the next open.\n//\n// KEPT WHOLE rather than split into a trend-bar test, a large-range test and a\n// doji test: the first two are evaluated at lag 1 with the direction OPPOSITE\n// to the trade, the third at lag 0, and the panes cannot mix lags.\n//\n// NOT ExhaustionBarAfterLargeTrendBar, which sizes the second bar's body\n// against the FIRST BAR'S body and demands a tail on it; this sizes the first\n// bar against the ATR and asks only that the second bar be a doji, so the two\n// fire on different bars.\n//\n// The doji test is DojiBar's, unchanged: std::fabs(close - open) measured\n// against the bar's OWN range, EL's AbsValue.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget, including the TWO separate\n// accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: atrLookback + 1.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;",
+    "longCondition": "el_lt(close[1], open[1]) && el_ge(open[1] - close[1], bodyFraction * (high[1] - low[1])) && el_ge(high[1] - low[1], bigBarMultiple * atrValue) && el_le(std::fabs(close[0] - open[0]), dojiFraction * (high[0] - low[0]))",
+    "shortCondition": "el_gt(close[1], open[1]) && el_ge(close[1] - open[1], bodyFraction * (high[1] - low[1])) && el_ge(high[1] - low[1], bigBarMultiple * atrValue) && el_le(std::fabs(close[0] - open[0]), dojiFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

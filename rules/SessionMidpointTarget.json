@@ -1,0 +1,45 @@
+{
+    "name": "SessionMidpointTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "midpointFraction": "0.5",
+        "minSessionBars": "6"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessTgtUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessTgtDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SESSION'S OWN MIDPOINT AS THE TARGET. On a trading-range day a reversal\n// from near the day's extreme is expected to test the middle of the session's\n// range so far, so the countertrend long is taken off there.\n//\n// THE RANGE IS THE SESSION SO FAR THROUGH THE PREVIOUS BAR, not through this\n// one. Updating the running extremes first and afterwards testing this bar's high\n// against the midpoint of a range this bar just widened would fire on EVERY bar\n// that makes a new session extreme, since the new extreme is above its own\n// midpoint by construction. priorHigh / priorLow hold the range as of the\n// previous bar -- the same \"ending one bar ago\" convention RangeMidpointTarget\n// uses on its fixed window.\n//\n// midpointFraction generalises the level from the low upward for a long and from\n// the high downward for a short; at 0.5 both sides are the midpoint, which is\n// Brooks's statement. minSessionBars is the second guard: with two or three bars\n// printed the \"midpoint of the session\" is the middle of one or two bars and the\n// target sits inside the current bar. It also covers the session's first bar,\n// where priorHigh and priorLow still hold yesterday's numbers.\n//\n// Not RangeMidpointZone or RangeMidpointTarget, which band or target the\n// midpoint of a FIXED N-bar window, and not CloseNearSessionRangeMidpoint, an\n// Entry filter asking whether the close sits inside a band around the midpoint:\n// this asks whether the bar's high REACHED the level, in the exit pane.\n//\n// SESSION MODEL per the standing decision: EL's date > date[1] mirrored as\n// day_of(ctx.Time(0)) > day_of(ctx.Time(1)), running extremes and a\n// bars-into-session counter in locals reset there. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    barsIn = barsIn + 1;\n    priorHigh = sessHigh;\n    priorLow = sessLow;\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}\nsessTgtUp = priorLow + midpointFraction * (priorHigh - priorLow);\nsessTgtDn = priorHigh - midpointFraction * (priorHigh - priorLow);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge((double)barsIn, minSessionBars) && el_ge(high[0], sessTgtUp)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge((double)barsIn, minSessionBars) && el_le(low[0], sessTgtDn)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

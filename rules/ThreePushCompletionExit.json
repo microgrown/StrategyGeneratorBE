@@ -1,0 +1,65 @@
+{
+    "name": "ThreePushCompletionExit",
+    "type": "Exit",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "patUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TAKE THE WITH-TREND TRADE OFF AT THE THIRD PUSH. A channel usually corrects\n// after a third push, so a long is closed once three pushes UP are complete\n// and this bar turns down through the prior bar's low; a short is closed on\n// three pushes down and a close above the prior bar's high.\n//\n// Same pattern as ThreePushReversalEntry's precondition but in the EXIT pane,\n// where an Entry rule cannot sit -- and read on the CURRENT bar rather than\n// the prior one, because an exit does not wait for a signal bar. That\n// difference is deliberate and is what keeps the two from firing together.\n//\n// Pivot scan as in ThreePushPattern, inlined (rules here never reference each\n// other; the register lists Occurrence 3+ as unmeasured, so the third push is\n// found by hand). MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60\n// min): the pivot bar is AT OR ABOVE the swingStrength OLDER bars and STRICTLY\n// ABOVE the swingStrength NEWER bars -- bars-ago indexing, so the newer bars\n// are the smaller k and take el_gt / el_lt, the older el_ge / el_le;\n// confirmation lag exactly swingStrength bars; candidate offsets\n// swingStrength .. lookbackBars - 1, the neighbourhood reaching swingStrength\n// bars past the window, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength. No early break, matching the twin.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\npatUp = (nHiPiv == 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3);\npatDn = (nLoPiv == 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && patUp && el_lt(close[0], low[1])",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && patDn && el_gt(close[0], high[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,50 @@
+{
+    "name": "BreakoutRunsWithoutPullback",
+    "type": "Entry",
+    "inputVariables": {
+        "scalpDistance": "4",
+        "confirmBars": "3",
+        "breakoutLookback": "10"
+    },
+    "localVariables": {
+        "brkUpBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "brkDnBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "lvlUpAt": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlDnAt": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// FILTER: price has travelled at least scalpDistance beyond the breakout\n// level within the first few bars after the breakout, with no pullback\n// through that level -- read the move as new with-trend buying rather than a\n// reversal setup.\n//\n// Kept apart from SpikeWithoutPullback on purpose: this measures distance\n// from a SPECIFIC breakout level inside a fixed window after it, where\n// SpikeWithoutPullback is a rolling window statistic with no level at all.\n//\n// The breakout bar is the most recent bar k in 0..confirmBars -- the current\n// bar included, so the filter is live on the breakout bar itself -- whose\n// close is beyond the extreme of the breakoutLookback bars ending one bar\n// before it. The level is open-coded because a function-history reference at\n// a VARIABLE offset is not available; Extremes(), which Highest and Lowest\n// call, is EL source and is exactly this loop, so the comparisons carry the\n// relational tolerance and go through el_gt / el_lt. \"Most recent\" is the\n// brkUpBar == -1 guard rather than a loop break, because EasyLanguage has\n// none and the twins must run the same iterations.\n//\n// \"No pullback\" is the lowest low of the bars from the breakout bar to now,\n// bars 0..brkUpBar, holding at or above the level -- since the breakout, not\n// over a fixed window that would reach back before it.\n//\n// scalpDistance is in PRICE POINTS, as BreakoutMissesScalpTarget's is: the\n// source states it in ticks and the engine exposes no tick size to strategies\n// (MinMove / PriceScale are measured but not reachable here), so the\n// threshold is instrument-specific and must be set per symbol in the grid.\n//\n// The deepest bar touched is confirmBars + breakoutLookback.\nbrkUpBar = -1;\nbrkDnBar = -1;\nlvlUpAt = 0.0;\nlvlDnAt = 0.0;\nfor (int k = 0; k <= (int)confirmBars; ++k) {\n    double lvlHigh = high[k + 1];\n    double lvlLow = low[k + 1];\n    for (int j = k + 2; j <= k + (int)breakoutLookback; ++j) {\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n    }\n    if (brkUpBar == -1 && el_gt(close[k], lvlHigh)) { brkUpBar = k; lvlUpAt = lvlHigh; }\n    if (brkDnBar == -1 && el_lt(close[k], lvlLow)) { brkDnBar = k; lvlDnAt = lvlLow; }\n}\nminLowSince = low[0];\nmaxHighSince = high[0];\nif (brkUpBar != -1) {\n    for (int m = 1; m <= brkUpBar; ++m) {\n        if (el_lt(low[m], minLowSince)) minLowSince = low[m];\n    }\n}\nif (brkDnBar != -1) {\n    for (int m = 1; m <= brkDnBar; ++m) {\n        if (el_gt(high[m], maxHighSince)) maxHighSince = high[m];\n    }\n}\nrunUp = brkUpBar != -1 && el_ge(close[0] - lvlUpAt, scalpDistance) && el_ge(minLowSince, lvlUpAt);\nrunDn = brkDnBar != -1 && el_ge(lvlDnAt - close[0], scalpDistance) && el_le(maxHighSince, lvlDnAt);",
+    "longCondition": "runUp",
+    "shortCondition": "runDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

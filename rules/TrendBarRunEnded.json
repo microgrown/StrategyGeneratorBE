@@ -1,0 +1,37 @@
+{
+    "name": "TrendBarRunEnded",
+    "type": "Entry",
+    "inputVariables": {
+        "runBars": "3",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "runUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nowUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nowDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR THAT ENDS THE CLIMAX, not the climax itself. Bars 1..runBars were all\n// with-trend trend bars -- StrongTrendBarRun's settled spike test, body at least\n// bodyFraction of the bar's own range -- and THIS bar is not one. Brooks times\n// the fade off the interruption: a small bar, a tailed bar, an inside bar, a\n// doji or an opposite bar all end the run, so the break test is the NEGATION of\n// the strong-trend-bar test and nothing narrower.\n//\n// NOT StrongTrendBarRun in the entry pane: that reads bars 0..N-1 and so is\n// still true DURING the run, where this rule is true only on the bar after it.\n// The lagged run cannot be produced by ANDing panes, which all evaluate at bar\n// 0. NOT BuyOppositeColorBarAfterTrendBarRun either, which requires bar 0 to\n// close DOWN -- a strictly narrower break test, so a small bull bar or a doji\n// ends the run here and not there, and the two fire on different bars. NOT\n// MomentumConsecutiveBars, which counts closes against the close N bars ago with\n// no body test and no break term.\n//\n// The run is all-of-N in the StrongTrendBarRun shape: start true, let a failing\n// bar clear the flag, loop unconditionally so EasyLanguage's lack of\n// short-circuiting cannot matter. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement; the flags persist across bars and are all reset before use.\n//\n// Product, not quotient, for the body test: EasyLanguage raises a runtime\n// divide-by-zero and a zero-range bar is legal data.\n//\n// Deepest bar touched: runBars.\nrunUp = true;\nrunDn = true;\nfor (ii = 1; ii <= (int)runBars; ++ii) {\n    if (el_le(close[ii], open[ii])) runUp = false;\n    if (el_lt(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))) runUp = false;\n    if (el_ge(close[ii], open[ii])) runDn = false;\n    if (el_lt(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))) runDn = false;\n}\nnowUp = el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0]));\nnowDn = el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0]));",
+    "longCondition": "runUp && !nowUp",
+    "shortCondition": "runDn && !nowDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

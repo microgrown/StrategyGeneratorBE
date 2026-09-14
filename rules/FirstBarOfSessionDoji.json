@@ -1,0 +1,20 @@
+{
+    "name": "FirstBarOfSessionDoji",
+    "type": "Entry",
+    "inputVariables": {
+        "dojiFraction": "0.25"
+    },
+    "localVariables": {
+        "rangeDayBias": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FIRST BAR OF THE SESSION WAS A DOJI -- LATCHED for the rest of the day\n// as a trading-range-day bias, favouring fades over breakout continuation.\n//\n// THE LATCH IS THE POINT, and the only reason this is a rule rather than\n// DojiBar ANDed with a first-bar filter: the doji fires once, at the open, and\n// biases the WHOLE day. Read one bar at a time it would gate one bar a session\n// and nothing else. The verdict is recomputed only on a session boundary and\n// otherwise held -- rangeDayBias is a class member, so it persists across bars\n// by construction, exactly as the EL variable does.\n//\n// SESSION MODEL, per the standing decision: day_of(ctx.Time(0)) >\n// day_of(ctx.Time(1)), the EasyLanguage twin's date > date[1]. The comparison\n// is on integer day serials, not prices, so it is exact and does not go\n// through el_gt.\n//\n// The doji test is DojiBar's, unchanged: std::fabs(close - open) against the\n// bar's OWN range, EL's AbsValue. Book values 0.1 (R21-15) and 0.25 (VP3-04);\n// default 0.25.\n//\n// NOT FirstBarDojiInsidePriorClosingRange, which adds a size test and a\n// containment test in yesterday's closing range and does NOT latch; the two\n// fire on different days and for different spans.\n//\n// WARM-UP: rangeDayBias starts false like every EL variable, so the rule is\n// false until the first session boundary the study sees -- a first calculated\n// bar falling mid-session gates nothing until the next open, which is the\n// conservative reading and is what EL does.\n//\n// Direction-agnostic -- it is a day-type bias, not a direction -- so both sides\n// are identical text. Intraday bars only.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    rangeDayBias = el_le(std::fabs(close[0] - open[0]), dojiFraction * (high[0] - low[0]));\n}",
+    "longCondition": "rangeDayBias",
+    "shortCondition": "rangeDayBias",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

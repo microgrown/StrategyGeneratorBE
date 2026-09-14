@@ -1,0 +1,45 @@
+{
+    "name": "SessionOpenNearSessionExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "nearAtr": "0.1",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "nearBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's sign of strength: a day that opens on its low often closes on its\n// high. Stated in hindsight, it is made real-time here by comparing the\n// session's opening price with the session's low SO FAR. That quantity is\n// monotone -- once the open is far enough above the running low it stays\n// broken for the rest of the session -- which is the wanted behaviour for a\n// day-type filter.\n//\n// Distinct from TrendFromOpenFlag, which needs a close beyond the first bar's\n// extreme; this one only needs the open to remain the session extreme.\n//\n// TICKS -> ATR: the source says \"within a few ticks\", but the engine exposes\n// no tick size to a strategy (MinMove/PriceScale are chart constants only),\n// so the margin is a fraction of the ATR -- the substitution\n// PriorSessionLevelTest and BreakoutLevelRetest make.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)).\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget. Seeded with a full sum on the first calculated bar or when\n// the length changes, thereafter updated as TWO statements -- EL evaluates\n// S[1] + in - out left to right and folding it to S += in - out rounds\n// differently. One call site, in the hook, so it advances once per bar.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessOpen = open[0];\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nnearBand = nearAtr * atr;",
+    "longCondition": "el_le(sessOpen - sessLow, nearBand)",
+    "shortCondition": "el_le(sessHigh - sessOpen, nearBand)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

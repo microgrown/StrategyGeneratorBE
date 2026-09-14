@@ -1,0 +1,56 @@
+{
+    "name": "CounterSpikeIntoEmaSupportEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "3",
+        "bodyFraction": "0.6",
+        "emaLength": "20",
+        "supportAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "bearRun": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bullRun": {
+            "type": "bool",
+            "init": "false"
+        },
+        "buyNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sellNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A sharp countertrend bear spike -- spikeBars consecutive bear TREND bars,\n// each with a body of at least bodyFraction of its own range -- reaches down\n// to the moving average, and the current bar closes up: buy near its close.\n// Short is the mirror.\n//\n// The run is read at bars 1..spikeBars, NOT 0..spikeBars-1: the current bar\n// is the reversal bar and closes against the spike, so it cannot be part of\n// it. The run test is StrongTrendBarRun's, written the same way -- start true\n// and let any failing bar clear the flag, so the loop runs unconditionally\n// and EasyLanguage's lack of short-circuiting cannot matter.\n//\n// \"Reaches the average\" is a BAND, low at or below the EMA plus supportAtr\n// ATRs, not a touch: the source's tolerance is in ticks and the engine\n// exposes no tick size, so it becomes an ATR fraction as in\n// PriorSessionLevelTest and BreakoutLevelRetest.\n//\n// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls. MEASURED\n// bit-identical to the plain XAverage built-in AT A FIXED LENGTH ((wf - xa)\n// printed exactly 0 on all 17,785 probed bars). SEED: the PRICE on the\n// study's first calculated bar, NOT a length-term simple average -- an EMA\n// never forgets its seed, so the seed BAR is part of the specification and\n// moves with Max Bars Back and the chart start. ONE STATEMENT, IN EL'S FORM:\n// x + sf*(p - x), never sf*p + (1-sf)*x -- the two separate on 67% of bars\n// past 100. NO WARM-UP HOLE: non-zero from bar 1 on, so no CurrentBar guard\n// returning 0. UNMEASURED: the walkforward LENGTH CHANGE, so emaLength is\n// PINNED in the grid; and the lagged read XAverage(...)[k], which this rule\n// does not use -- it reads the current value only.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, then updated as\n// TWO statements -- EL evaluates S[1] + in - out left to right, and folding\n// it to S += in - out rounds differently.\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLookback;\nbearRun = true;\nbullRun = true;\nfor (int k = 1; k <= (int)spikeBars; ++k) {\n    if (el_ge(close[k], open[k])) bearRun = false;\n    if (el_lt(open[k] - close[k], bodyFraction * (high[k] - low[k]))) bearRun = false;\n    if (el_le(close[k], open[k])) bullRun = false;\n    if (el_lt(close[k] - open[k], bodyFraction * (high[k] - low[k]))) bullRun = false;\n}\nbuyNow = bearRun && el_le(low[0], emaVal + supportAtr * atrVal) && el_gt(close[0], open[0]);\nsellNow = bullRun && el_ge(high[0], emaVal - supportAtr * atrVal) && el_lt(close[0], open[0]);",
+    "longCondition": "buyNow",
+    "shortCondition": "sellNow",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

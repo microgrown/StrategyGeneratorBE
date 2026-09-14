@@ -1,0 +1,41 @@
+{
+    "name": "FailedSwingBreakoutReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "lookback": "20"
+    },
+    "localVariables": {
+        "pivotHighBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "pivotLowBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "failLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The swing-extreme breakout that fails. Long: this bar's low trades below\n// the most recent confirmed swing low but the bar CLOSES back above it. Short\n// is the mirror at a swing high.\n//\n// THE PIVOT SCAN IS INLINED from rules/SwingHigh.json, the corpus's measured\n// primitive, exactly as the B-list decision says to (inline it; do not\n// reference the rule file). It reproduces EasyLanguage's\n// SwingHighBar/SwingLowBar, and the twin reads the same pivot as a PRICE\n// through SwingHigh/SwingLow. Measured, EL_Swing_Probe.txt:\n//\n//   * THE PIVOT TEST IS MIXED: the pivot bar is STRICTLY beyond the\n//     `strength` NEWER bars and AT OR BEYOND the `strength` OLDER ones, so a\n//     flat top yields exactly one pivot, the LATER of the equal bars. Hence\n//     el_gt on the newer side and el_ge on the older side.\n//   * CONFIRMATION LAG is exactly `strength` bars -- no lookahead.\n//   * THE -1 SENTINEL is real and is guarded below: -1 as a PRICE sits under\n//     every real price, so an unguarded read fires the long side on warm-up.\n//   * `lookback` is EL's Length: candidate offsets 0..lookback-1, and the\n//     neighbourhood test reaches `strength` bars PAST the window, so the\n//     deepest bar touched is lookback - 1 + strength.\n//   * The comparisons carry the 2.22e-12 relational tolerance, so the scan\n//     uses el_gt / el_ge and not raw > and >=.\n//\n// THE PIVOT IS READ AT THE CURRENT BAR, NOT LAGGED. The newest pivot the scan\n// can return sits `strength` bars back, and to be a pivot low that bar must\n// be STRICTLY below the `strength` bars newer than it -- bar 0 among them --\n// so el_lt(low[0], pivot) can never hold against a pivot confirmed on this\n// bar. The rule therefore cannot fire against a pivot that has not yet been\n// broken, which is what the merged pseudocode's [1] was reaching for, and the\n// twin avoids the unmeasured lagged function read SwingLow(...)[1].\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)strength;\npivWindow = (int)lookback;\npivotHighBar = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotHighBar = j; break; }\n}\npivotLowBar = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivStrength; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivotLowBar = j; break; }\n}\nfailLow = false;\nfailHigh = false;\nif (pivotLowBar != -1) {\n    failLow = el_lt(low[0], low[pivotLowBar]) && el_gt(close[0], low[pivotLowBar]);\n}\nif (pivotHighBar != -1) {\n    failHigh = el_gt(high[0], high[pivotHighBar]) && el_lt(close[0], high[pivotHighBar]);\n}",
+    "longCondition": "failLow",
+    "shortCondition": "failHigh",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

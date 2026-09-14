@@ -1,0 +1,36 @@
+{
+    "name": "SessionOpeningRange",
+    "type": "Entry",
+    "inputVariables": {
+        "openingBars": "12"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "orHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orHeight": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orSet": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE OPENING RANGE -- the corpus's session primitive. The highest high and\n// lowest low of the session's first openingBars bars fix orHigh, orLow and\n// orHeight; every other opening-range rule INLINES this same block rather\n// than referencing the file, as the corpus does with named composites.\n//\n// SESSION MODEL, per the standing decision: a session starts when the\n// wall-clock close date changes -- day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// the EasyLanguage twin's date > date[1]. EL_Date_Probe.txt measured Date as\n// the bar's wall-clock close date on 169/169 bars and the same slicing serves the xxxD\n// family, so there is no session-date reconstruction anywhere. barsIn is 1 on\n// the session's FIRST bar, the convention OpeningRangeBreakout and\n// FailedBreakoutOfPriorSessionExtreme already use, so the range is still\n// growing while barsIn <= openingBars and is FIXED for the rest of the\n// session from the bar where barsIn reaches openingBars.\n//\n// As a filter the rule says one thing: the opening range is SET. True from\n// the openingBars'th bar of the session to the session's last bar, false\n// before it. Direction-agnostic, so both sides are identical text.\n//\n// WARM-UP: barsIn, orHigh and orLow start at 0 exactly as the EasyLanguage\n// variables do, so if the first calculated bar falls mid-session the values\n// describe a partial session until the first date change. That is EL's\n// behaviour, mirrored rather than corrected. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    orHigh = high[0];\n    orLow = low[0];\n} else {\n    barsIn = barsIn + 1;\n    if (barsIn <= (int)openingBars) {\n        if (el_gt(high[0], orHigh)) orHigh = high[0];\n        if (el_lt(low[0], orLow)) orLow = low[0];\n    }\n}\norHeight = orHigh - orLow;\norSet = el_ge((double)barsIn, openingBars);",
+    "longCondition": "orSet",
+    "shortCondition": "orSet",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

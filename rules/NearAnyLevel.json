@@ -1,0 +1,79 @@
+{
+    "name": "NearAnyLevel",
+    "type": "Entry",
+    "inputVariables": {
+        "magnetToleranceAtr": "0.5",
+        "atrLookback": "14",
+        "lookback": "20",
+        "emaLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "hh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ll": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tol": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE META-FILTER: a reversal signal AT A LEVEL is worth more than the same\n// signal in open space. The close is within magnetToleranceAtr ATRs of ANY of\n// the corpus's mechanized magnets -- the lookback-bar high above, the\n// lookback-bar low below, or the EMA.\n//\n// DELIBERATELY A COMPOSITE, against the usual \"atomic beats composite\" rule,\n// because ENTRY PANES AND. TouchOfRecentExtreme AND CloseWithinAtrOfEma requires\n// BOTH to be true, which is not what Brooks means -- he means any ONE of them.\n// That OR is unreachable from the parts, so it is a rule; DayOfWeekAnyOf exists\n// in the catalog for exactly this reason.\n//\n// THE ROUND-NUMBER TERM OF THE MERGED RULE IS NOT WRITTEN. Distance to the\n// nearest multiple of a step needs a rounding word -- Round, IntPortion, Floor\n// or Mod -- and NONE of them has a VERIFIED or ACCEPTED row in EL_FEATURES.md\n// (Mod's row is UNKNOWN), so there is no register-clean way to spell it. The\n// remaining three magnets are written; the round-number disjunct can be added\n// later as another OR term, exactly as the merge notes anticipate for trend\n// lines, channel lines and measured-move targets. roundStep is therefore not an\n// input.\n//\n// THE EXTREMES EXCLUDE BAR 0 -- the twin takes its highest over the\n// one-bar-shifted price series rather than lagging the function's own result,\n// which would be a function-history reference the register does not cover -- so this bar's own high cannot be the\n// level it is being measured against. The loop here mirrors that, seeded from\n// bar 1 and running to bar lookback.\n//\n// IDENTICAL BOTH SIDES: the test is a distance, measured with std::fabs (EL's\n// AbsValue), and carries no direction.\n//\n// MultiWalk's WFSafe_AvgTrueRange is the ROLLING accumulator of AtrProfitTarget,\n// two separate accumulator statements and a re-seed on a length change.\n// WFSafe_Xaverage is MEASURED bit-identical to plain XAverage at a fixed length,\n// seeded with the PRICE on the study's first calculated bar, recurrence\n// x + sf*(p - x) as ONE statement, no warm-up hole; the walkforward LENGTH\n// CHANGE is still unmeasured, so PIN emaLength in the grid. Only the CURRENT\n// EMA is read -- the lagged read XAverage(...)[k] remains unmeasured and no\n// rule here depends on it.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(lookback, atrLookback + 1).\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\nhh = high[1];\nll = low[1];\nfor (kk = 1; kk <= (int)lookback; ++kk) {\n    if (el_gt(high[kk], hh)) hh = high[kk];\n    if (el_lt(low[kk], ll)) ll = low[kk];\n}\ntol = magnetToleranceAtr * atrValue;",
+    "longCondition": "el_le(std::fabs(close[0] - hh), tol) || el_le(std::fabs(close[0] - ll), tol) || el_le(std::fabs(close[0] - emaVal), tol)",
+    "shortCondition": "el_le(std::fabs(close[0] - hh), tol) || el_le(std::fabs(close[0] - ll), tol) || el_le(std::fabs(close[0] - emaVal), tol)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

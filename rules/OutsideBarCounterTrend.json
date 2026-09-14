@@ -1,0 +1,50 @@
+{
+    "name": "OutsideBarCounterTrend",
+    "type": "Entry",
+    "inputVariables": {
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "outsideOne": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PRIOR BAR WAS AN OUTSIDE BAR AND THE ALWAYS-IN DIRECTION IS NOT WITH\n// THE TRADE. Brooks allows only the WITH-TREND breakout of an outside bar, so\n// the rule is stated in the permitting sense and the pane ANDs it in: the long\n// side asks that the always-in direction is not already long.\n//\n// OUTSIDE BAR is the strict two-sided engulf that OutsideOutsidePattern uses,\n// read at lag 1: high[1] > high[2] and low[1] < low[2]. Strict on both sides,\n// as the source writes it -- an equal high or equal low is not an engulf here.\n//\n// ALWAYS-IN DIRECTION, the standing corpus decision, inlined here because no\n// rule file carries it (same block as TrendDurationBars): the direction FLIPS\n// on consecutiveBars consecutive STRONG TREND BARS -- body at least\n// bodyFraction of the bar's own range and BOTH tails no more than tailFraction\n// of it -- holds until the opposite flip, and is UNDEFINED (aiDir = 0) until\n// the first flip ever. The test is `aiDir != 1`, so an UNDEFINED direction\n// counts as \"not long\" and the rule passes: before any flip Brooks has no\n// always-in read either, and the merged pseudocode says != +1, not == -1.\n//\n// The flip is written as two guarded blocks and a flipped flag rather than an\n// else-if chain, so the twin is statement for statement. A bar cannot satisfy\n// both branches, so the flag only prevents a double count.\n//\n// The all-of-N loop starts true and lets any failing bar clear the flag --\n// StrongTrendBarRun's arrangement -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. The flags are class\n// members and persist across bars, so both are reset at the top.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: max(2, consecutiveBars - 1).\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    flipped = true;\n}\noutsideOne = el_gt(high[1], high[2]) && el_lt(low[1], low[2]);\n// aiDir is an integer STATE, not a price, so its comparison is exact and must\n// not go through el_gt; it lands in a local because a rule CONDITION may not\n// carry a raw relational operator.\nfireLong = outsideOne && (aiDir != 1);\nfireShort = outsideOne && (aiDir != -1);",
+    "longCondition": "fireLong",
+    "shortCondition": "fireShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

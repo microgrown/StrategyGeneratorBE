@@ -1,0 +1,50 @@
+{
+    "name": "SessionExtremeSetInOpeningWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "firstHourBars": "12",
+        "nearAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "loBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrv": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// \"The high or low of the day usually forms in the first hour.\" Past the\n// opening window, the session's low (long side) was made INSIDE that window\n// and is still the session low, and price has come back to within nearAtr\n// ATRs of it -- so the level can be traded as the probable low of the day.\n// Short is the mirror on the session high.\n//\n// The measurable half of the strict trend-from-the-open definition: the day's\n// extreme was set early and has gone unchallenged. Kept apart from\n// TrendFromOpenFlag because it fires on DIFFERENT bars -- that flag only\n// needs the first bar's extreme taken out, this needs price back NEAR the\n// level after the opening window has closed.\n//\n// loBar / hiBar are the bars-into-session indices at which the running\n// extreme was last improved. The comparisons are STRICT, so a tie keeps the\n// EARLIER bar -- the convention EL's own Highest/Lowest carry, since they\n// bottom out in Extremes and scan strictly.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)); barsIn is 1 on the\n// session's first bar, so \"inside the opening window\" is\n// barsIn <= firstHourBars. Intraday bars only.\n//\n// The ATR block is AtrProfitTarget's WFSafe_AvgTrueRange rolling accumulator,\n// one call site in the hook so it advances exactly once per bar; the update\n// is TWO statements because EL evaluates S[1] + in - out left to right.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    sessHigh = high[0];\n    sessLow = low[0];\n    hiBar = 1;\n    loBar = 1;\n} else {\n    barsIn = barsIn + 1;\n    if (el_gt(high[0], sessHigh)) {\n        sessHigh = high[0];\n        hiBar = barsIn;\n    }\n    if (el_lt(low[0], sessLow)) {\n        sessLow = low[0];\n        loBar = barsIn;\n    }\n}\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrv = atrSum / (int)atrLookback;",
+    "longCondition": "el_gt((double)barsIn, firstHourBars) && el_le((double)loBar, firstHourBars) && el_le(close[0], sessLow + nearAtr * atrv)",
+    "shortCondition": "el_gt((double)barsIn, firstHourBars) && el_le((double)hiBar, firstHourBars) && el_ge(close[0], sessHigh - nearAtr * atrv)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

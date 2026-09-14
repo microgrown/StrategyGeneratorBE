@@ -1,0 +1,75 @@
+{
+    "name": "NoQualifyingPullbackSinceLegStart",
+    "type": "Entry",
+    "inputVariables": {
+        "minRetraceFraction": "0.2",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "legHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "noPbUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "noPbDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "newHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "newLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A NEW EXTREME HAS BEEN MADE AND NO BAR HAS CLOSED BACK THROUGH EVEN A\n// SHALLOW RETRACEMENT OF THE LEG. The ABSENCE of any proper pullback, read as\n// a sign of strength in its own right (T24-11).\n//\n// MEASURED BY PRICE, unlike its two relatives: HigherLowStreak measures \"no\n// pullback\" by BARS and MaxPullbackDepthBelowThreshold by the DEPTH of the\n// worst give-back against an external threshold. This one is a LATCH -- once\n// a close comes back through the retracement level the leg is disqualified\n// for good, however shallow the give-back afterwards -- and it fires only on\n// the bar that makes the new extreme, so all three fire on different bars.\n// All three should be compared before more than one is placed together.\n//\n// THE LEG IS THE ALWAYS-IN LEG, the standing corpus decision, inlined here as\n// TrendDurationBars inlines it and with the same inputs so every consumer\n// reads the same state: the direction FLIPS on consecutiveBars consecutive\n// STRONG TREND BARS -- body at least bodyFraction of the bar's own range and\n// BOTH tails no more than tailFraction of it -- holds until the opposite\n// flip, and is UNDEFINED (aiDir = 0) until the first flip ever. The merged\n// rule asks for the FIRST leg's start and height in price, which the corpus\n// leg counter cannot give (it counts leg numbers, not prices); the flip bar\n// supplies both, and it needs no pivot search.\n//\n// legHigh and legLow are the leg's running extremes, both seeded on the flip\n// bar, so the leg's height grows as the leg extends and the retracement level\n// travels up with it. The retracement is tested BEFORE this bar's extreme is\n// folded in, so a bar that makes a new high and later closes far down clears\n// the latch and cannot fire -- a big reversal bar is not \"no pullback\".\n//\n// EARLY IN A LEG the height is one bar's range and almost any close clears\n// the latch. That is honest to the claim rather than a defect;\n// minRetraceFraction is the knob and the merged default of 0.2 is a shallow\n// one.\n//\n// Compared, never divided.\n//\n// Mirrored: the long side is a new high in a bull leg with no close back down\n// through the level, the short side a new low in a bear leg with no close\n// back up through it.\n//\n// Deepest bar touched: consecutiveBars - 1.\nallBull = true;\nallBear = true;\nfor (kk = 0; kk < (int)consecutiveBars; ++kk) {\n    rng = high[kk] - low[kk];\n    if (el_le(close[kk], open[kk])) allBull = false;\n    if (el_lt(close[kk] - open[kk], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[kk] - close[kk], tailFraction * rng)) allBull = false;\n    if (el_gt(open[kk] - low[kk], tailFraction * rng)) allBull = false;\n    if (el_ge(close[kk], open[kk])) allBear = false;\n    if (el_lt(open[kk] - close[kk], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[kk] - low[kk], tailFraction * rng)) allBear = false;\n    if (el_gt(high[kk] - open[kk], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    flipped = true;\n}\nif (flipped) {\n    legHigh = high[0];\n    legLow = low[0];\n    noPbUp = true;\n    noPbDn = true;\n}\nnewHigh = false;\nnewLow = false;\nif (flipped == false) {\n    if (el_le(close[0], legHigh - minRetraceFraction * (legHigh - legLow))) noPbUp = false;\n    if (el_ge(close[0], legLow + minRetraceFraction * (legHigh - legLow))) noPbDn = false;\n    if (el_gt(high[0], legHigh)) {\n        newHigh = true;\n        legHigh = high[0];\n    }\n    if (el_lt(low[0], legLow)) {\n        newLow = true;\n        legLow = low[0];\n    }\n}\ncleanUp = (aiDir == 1) && newHigh && noPbUp;\ncleanDn = (aiDir == -1) && newLow && noPbDn;",
+    "longCondition": "cleanUp",
+    "shortCondition": "cleanDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

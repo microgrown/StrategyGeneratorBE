@@ -1,0 +1,24 @@
+{
+    "name": "CloseNearSessionExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "nearExtremeFraction": "0.2"
+    },
+    "localVariables": {
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR CLOSES IN THE BOTTOM FRACTION OF THE DAY'S RANGE SO FAR (long\n// side), the top fraction (short) -- the session-scoped form of the\n// range-position test, which is how Brooks states it for trading-range days.\n// V25-01 states it as a block (\"do not buy near the top of the day's range\")\n// and RP4-21 as a permission (look for a reversal at the day's extreme going\n// into the last hour or two); one is the other flipped, so they are one rule.\n//\n// RP4-21's final-hours term is the catalog's TimeWindow ANDed alongside and\n// is not carried here; V25-01's day-type gate is TradingRangeDay, likewise a\n// separate pane.\n//\n// Kept apart from RangeExtremeFade and CloseInRangePosition because the\n// window is the SESSION, not a bar count -- early in a session the day's\n// range is a handful of bars and late in one it may be wider than any 20-bar\n// window, so the two disagree constantly. Not CloseNearSessionRangeMidpoint,\n// which bands the MIDDLE of the same window and is direction-agnostic.\n//\n// Written MULTIPLIED, never as a ratio, so a session whose high equals its\n// low fires on both sides rather than raising EL's runtime divide-by-zero.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)), with the running\n// extremes held in locals reset on that change. Intraday bars only. On the\n// session's first bar sessHigh/sessLow are that bar's own extremes, so the\n// test degenerates to CloseRangePosition on that bar alone.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}",
+    "longCondition": "el_le(close[0] - sessLow, nearExtremeFraction * (sessHigh - sessLow))",
+    "shortCondition": "el_le(sessHigh - close[0], nearExtremeFraction * (sessHigh - sessLow))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

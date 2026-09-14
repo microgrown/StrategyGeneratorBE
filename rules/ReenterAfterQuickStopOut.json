@@ -1,0 +1,37 @@
+{
+    "name": "ReenterAfterQuickStopOut",
+    "type": "Entry",
+    "inputVariables": {
+        "reentryBars": "1",
+        "quickBars": "2"
+    },
+    "localVariables": {
+        "prevMp": {
+            "type": "int",
+            "init": "0"
+        },
+        "prevBse": {
+            "type": "int",
+            "init": "0"
+        },
+        "lastHeld": {
+            "type": "int",
+            "init": "0"
+        },
+        "haveHeld": {
+            "type": "bool",
+            "init": "false"
+        },
+        "reenterNow": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's permission to reverse: the last position closed as a LOSER within\n// a bar or two of being entered, and the exit was just now. A gate only --\n// the direction of the re-entry comes from whatever entry rule shares the\n// pane, which is why both sides carry the same text.\n//\n// It is LastTradeCooldown's condition in the opposite sense PLUS the term\n// that makes it a different rule: the losing trade must have been\n// SHORT-LIVED. All three position accessors are measured (the\n// positionprofit/totaltrades and barssinceexit register rows):\n// PositionProfit(1) is the most recently CLOSED position net of the full\n// round turn, ctx.BarsSinceExit() is EL's BarsSinceExit(1) -- 0 on the exit's\n// own fill bar, counting up from there -- and TotalTrades is already\n// incremented at that bar's close.\n//\n// THE HOLDING PERIOD IS NOT AN ACCESSOR, in either library. BarsSinceEntry\n// answers 0 while flat (measured -- never a -1 sentinel), so once the trade\n// is closed it cannot say how long it was open. It is reconstructed here, in\n// the same three statements in BOTH twins, from the two values that ARE\n// measured: carry the previous bar's MarketPosition and BarsSinceEntry, and\n// on the bar the position goes flat the trade lasted prevBse + 1 bars -- the\n// entry filled at the entry bar's open (BarsSinceEntry = 0 at that bar's\n// close) and the exit filled at this bar's open. This is a reconstruction of\n// an ELAPSED-BAR count, not of per-position P&L: ctx.MaxPositionProfit() and\n// ctx.PositionProfit() are still used for anything about money, never\n// emulated. A reversal never passes through flat so it cannot be mistaken\n// for an exit, and the rule requires MarketPosition() == 0 in any case.\n//\n// haveHeld keeps the warm-up honest: lastHeld starts at 0, which would read\n// as the quickest possible trade, so nothing fires until a position has\n// actually closed.\nif (prevMp != 0 && ctx.MarketPosition() == 0) {\n    lastHeld = prevBse + 1;\n    haveHeld = true;\n}\nreenterNow = ctx.MarketPosition() == 0 && ctx.TotalTrades() > 0\n    && el_lt(ctx.PositionProfit(1), 0.0)\n    && el_le((double)ctx.BarsSinceExit(), reentryBars)\n    && haveHeld && el_le((double)lastHeld, quickBars);\nprevMp = ctx.MarketPosition();\nprevBse = ctx.BarsSinceEntry();",
+    "longCondition": "reenterNow",
+    "shortCondition": "reenterNow",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,33 @@
+{
+    "name": "EmaGapBarRun",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20",
+        "gapBarsRequired": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "touched": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapCount": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S \"TWENTY GAP BARS\": the market has gone gapBarsRequired consecutive\n// bars without a single bar touching the EMA -- a strong trend, and an overdone\n// one. One PERSISTENT counter that resets whenever a bar's range straddles the\n// average, tested against a threshold; the four restatements that spell it as a\n// fixed-length loop over the EmaGapBar primitive cost a 20-deep loop and an EMA\n// read per bar for the same bars, so the counter form wins.\n//\n// Not EmaGapBar, which is the ONE-BAR test and says nothing about how long the\n// gap has run; not EmaTouch, which is the straddle itself. Nothing in the\n// catalog carries a bars-since-event counter -- MomentumConsecutiveBars is the\n// closest shape but counts a price relation over a fixed window, not a\n// reset-on-event streak.\n//\n// DIRECTION-AGNOSTIC, deliberately: the counter does not care which side of the\n// average the run is on, so both sides are identical text and a pane that wants\n// the direction ANDs EmaGapBar or CloseBeyondEma. That differs from the mirrored\n// loop forms only when price gaps clean across the average without any bar\n// straddling it -- rare, and the price of the cheaper machine.\n//\n// Brooks says outright that twenty \"is arbitrary ... any large number of bars\",\n// so gapBarsRequired is an optimizer input and not a book constant.\n//\n// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls, MEASURED\n// BIT-IDENTICAL to the plain XAverage built-in AT A FIXED LENGTH ((wf - xa)\n// exactly 0 on all 17,785 bars of EL_XAverage_Probe.txt, @OJ 240min):\n//   * SEED is the PRICE on the study's first calculated bar, ctx.CurrentBar()\n//     == 1 -- not a length-term simple average, which is what most other\n//     platforms do and what a textbook twin would write;\n//   * ONE STATEMENT IN EL'S FORM, x + sf*(p - x), never sf*p + (1-sf)*x: the\n//     two are algebraically identical and separate in floating point on 67% of\n//     bars past 100. Do not re-associate it;\n//   * NO WARM-UP HOLE: non-zero from bar 1 on every probed bar, so no\n//     CurrentBar guard returning 0;\n//   * AN EMA NEVER FORGETS ITS SEED, so Max Bars Back and the chart start are\n//     part of the specification (~330 bars of memory);\n//   * UNMEASURED: the walkforward LENGTH CHANGE the wrapper exists for. PIN\n//     emaLength in the grid until it is measured.\n//\n// ONLY THE CURRENT EMA IS READ. gapCount is a local holding its own previous\n// value across bars, which is not the lagged function read XAverage(...)[k] --\n// that remains unmeasured, and no rule here depends on it.\n//\n// emaSf is a localVariables entry rather than a hook-scope const so the hooks\n// survive a double placement; it is recomputed every bar from the raw input,\n// because EL's Length slot is numeric and 2/(Length+1) is evaluated on the\n// value passed.\n//\n// Deepest bar touched: 0.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\ntouched = el_le(low[0], emaVal) && el_ge(high[0], emaVal);\nif (touched) {\n    gapCount = 0;\n} else {\n    gapCount = gapCount + 1;\n}",
+    "longCondition": "el_ge((double)gapCount, gapBarsRequired)",
+    "shortCondition": "el_ge((double)gapCount, gapBarsRequired)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

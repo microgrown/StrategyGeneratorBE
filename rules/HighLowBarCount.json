@@ -1,0 +1,57 @@
+{
+    "name": "HighLowBarCount",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "countTarget": "2"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "advHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "advLow": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CORPUS'S LEG COUNTER -- Brooks's high 1 / high 2 / high 3 / high 4 and\n// the mirrored low 1..low 4. This is the SETTLED counter of Ranges ch17\n// (R17-01) and every other rule in the corpus that counts legs inlines this\n// same block rather than referencing this file.\n//\n// THE DEFINITION (do not re-deliberate; the merge pass chose it over five\n// competing ones because it needs no swing pivots, no lookahead and no leg\n// definition):\n//\n//   * A bar whose high exceeds the PRIOR bar's high advances the count -- but\n//     only once a new low has formed since the last counted bar. Without that\n//     guard a second higher-high bar in the same push would count again, and\n//     it is a retest of the one leg, not a new leg.\n//   * The count RESETS to 0 the instant the close makes a fresh\n//     resetLookback-bar high. That is the concrete stand-in for 'the trend\n//     made a new extreme, so the pullback is over'; Brooks fixes no window\n//     and 20 is the merged default.\n//   * The count SATURATES at 4. Brooks names no high 5.\n//\n// The reset window is Highest(high, resetLookback)[1] -- the N bars ENDING\n// ONE BAR AGO, so the current bar's own high cannot defeat its own reset\n// test. Highest/Lowest bottom out in EL's Extremes(), which is EasyLanguage\n// SOURCE and so carries the relational tolerance, which is why the scan uses\n// el_gt / el_lt and not raw > and <.\n//\n// The rule FIRES on the bar that advances the count to countTarget: that bar\n// is the high-N signal bar, and under the corpus's signal-bar-close /\n// next-bar-open convention the fire IS the entry. advHigh is what makes it a\n// one-bar event rather than a level -- LegCountAtLeast is the same counter\n// read as a standing threshold.\n//\n// WARM-UP: minLowSince and signalLow start at 0 like every EL variable, so on\n// positive prices the first advance can only come through the highCount == 0\n// branch, and both values are real prices from the first counted bar on. The\n// EasyLanguage twin's variables initialise to the same 0, so the two agree\n// bar for bar through warm-up as well.\n//\n// On a reset the count alone is cleared, exactly as R17-01 states: signalLow\n// and minLowSince are left stale deliberately, because the highCount == 0\n// branch bypasses them until the next advance overwrites both.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nadvHigh = false;\nadvLow = false;\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        advHigh = true;\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        advLow = true;\n    }\n}",
+    "longCondition": "advHigh && el_eq((double)highCount, countTarget)",
+    "shortCondition": "advLow && el_eq((double)lowCount, countTarget)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

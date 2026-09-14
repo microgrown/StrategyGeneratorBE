@@ -1,0 +1,79 @@
+{
+    "name": "ConsecutiveClimaxBars",
+    "type": "Entry",
+    "inputVariables": {
+        "maxGapBars": "5",
+        "sizeMultiple": "2.0",
+        "atrLookback": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "bigUpNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bigDnNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bigUpK": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bigDnK": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trendUpJ": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trendDnJ": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pauseUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pauseDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S CONSECUTIVE CLIMAXES, stated entirely in bar anatomy: THIS bar is a\n// large bull trend bar, and a SECOND large bull trend bar printed between 2 and\n// maxGapBars bars ago with at least one bar between them that was NOT a bull\n// trend bar. Short is the mirror.\n//\n// NOT COMPOSABLE: \"two large trend bars with a pause between them\" is a pattern\n// over a VARIABLE offset, not an AND of per-bar tests.\n//\n// NOT ConsecutiveClimaxBarCount, which is the LEVEL reading of the same idea:\n// it counts separated climaxes anywhere in a 30-bar window and stays true for\n// bars afterwards, and it never requires the CURRENT bar to be a climax. This\n// rule is the EVENT -- it fires on the second climax bar itself and only while\n// the pair is within maxGapBars. Same distinction the corpus draws between\n// HighLowBarCount and LegCountAtLeast.\n//\n// THE PAUSE test is weaker than the count rule's: the separating bar need only\n// fail to be a with-trend TREND bar, not fail to be a CLIMAX. That is what\n// Brooks means by a pause -- the market stopped going, not merely stopped going\n// violently.\n//\n// ii starts at 2, so there is always at least one bar between the two climaxes\n// and the inner scan is never empty.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// carrying S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget and ConsecutiveClimaxBarCount,\n// including the TWO separate accumulator statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently. One ATR read serves every bar of the scan,\n// which keeps the rule off the ATR variable's own zero-filled history.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: max(maxGapBars, atrLookback + 1).\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\nbigUpNow = el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])) && el_ge(high[0] - low[0], sizeMultiple * atrValue);\nbigDnNow = el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])) && el_ge(high[0] - low[0], sizeMultiple * atrValue);\nfoundUp = false;\nfoundDn = false;\nfor (ii = 2; ii <= (int)maxGapBars; ++ii) {\n    bigUpK = el_gt(close[ii], open[ii])\n        && el_ge(close[ii] - open[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], sizeMultiple * atrValue);\n    bigDnK = el_lt(close[ii], open[ii])\n        && el_ge(open[ii] - close[ii], bodyFraction * (high[ii] - low[ii]))\n        && el_ge(high[ii] - low[ii], sizeMultiple * atrValue);\n    pauseUp = false;\n    pauseDn = false;\n    for (jj = 1; jj <= ii - 1; ++jj) {\n        trendUpJ = el_gt(close[jj], open[jj])\n            && el_ge(close[jj] - open[jj], bodyFraction * (high[jj] - low[jj]));\n        trendDnJ = el_lt(close[jj], open[jj])\n            && el_ge(open[jj] - close[jj], bodyFraction * (high[jj] - low[jj]));\n        if (trendUpJ == false) pauseUp = true;\n        if (trendDnJ == false) pauseDn = true;\n    }\n    if (bigUpK && pauseUp) foundUp = true;\n    if (bigDnK && pauseDn) foundDn = true;\n}",
+    "longCondition": "bigUpNow && foundUp",
+    "shortCondition": "bigDnNow && foundDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

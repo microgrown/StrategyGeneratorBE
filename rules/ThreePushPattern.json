@@ -1,0 +1,94 @@
+{
+    "name": "ThreePushPattern",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40",
+        "shapeMode": "0"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "patUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upLate": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upEarly": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnLate": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnEarly": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shapeOkUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shapeOkDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "mode": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE THREE-PUSH PATTERN -- Brooks's wedge / three-push / expanding triangle,\n// read as three successive CONFIRMED swing pivots on the same side, each one\n// extending further than the last. LONG is a three-push BOTTOM (three\n// successively lower swing lows -- the bull setup); SHORT is a three-push TOP.\n// This is the base of the B03 family; the other rules carry their own copy of\n// the scan below, because rules in this corpus never reference each other.\n//\n// THE PIVOT SCAN IS INLINED rather than leaning on SwingLow(1/2/3, ...) in the\n// twin: the register's swinghigh row lists Occurrence 3 and above as\n// UNMEASURED, so the third push -- the whole point of the pattern -- would\n// otherwise rest on an untested argument. The scan reproduces the MEASURED\n// pivot test exactly (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min):\n//   * the pivot bar is AT OR ABOVE the `swingStrength` OLDER bars and STRICTLY\n//     ABOVE the `swingStrength` NEWER bars, so a flat top yields exactly ONE\n//     pivot, the LATER of the equal bars. Bars-ago indexing means the SMALLER\n//     index is the NEWER bar, so the strict half is the k < j loop (el_gt) and\n//     the at-or-above half the k > j loop (el_ge);\n//   * the confirmation lag is exactly `swingStrength` bars, which is why the\n//     scan starts at j = swingStrength and never at 0 -- that lag is what\n//     makes the rule lookahead-safe;\n//   * candidate offsets run 0 .. Length - 1 from the current bar INCLUSIVE, so\n//     j stops at lookbackBars - 1, while the neighbourhood test reaches\n//     `swingStrength` bars PAST the window: the deepest bar touched is\n//     lookbackBars - 1 + swingStrength;\n//   * scanning newest-first and recording the first three hits reproduces\n//     Occurrence 1, 2, 3;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge / el_lt / el_le rather than raw > and >=;\n//   * the prices are initialised to the -1 SENTINEL and every use is gated on\n//     the count reaching 3 -- -1 as a price sits under every real price;\n//   * the low side's TIE sense is the mirror of the measured high-side rule\n//     rather than an observation, as the swinglow row records.\n// There is no WFSafe_SwingHigh in the MultiWalk library, so plain EL governs.\n// Written WITHOUT an early `break`, matching the EL twin statement for\n// statement: Break is not a registered EasyLanguage word, so the twin's loops\n// run to the end and the `< 3` guards stop a fourth pivot being recorded.\n//\n// shapeMode selects the SHAPE: 0 = any three pushes, 1 = CONVERGING, each push\n// extending less than the one before (Brooks's wedge), 2 = EXPANDING, each\n// push extending more (the expanding triangle). The extents are raw price\n// differences; the per-bar (slope) reading of the same two increments is\n// ThreePushAcceleration, a separate pane. shapeMode is an integer selector,\n// compared exactly rather than through el_eq -- it is not a price.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nmode = (int)shapeMode;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\npatUp = (nHiPiv == 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3);\npatDn = (nLoPiv == 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3);\nupLate = hiPx1 - hiPx2;\nupEarly = hiPx2 - hiPx3;\ndnLate = loPx2 - loPx1;\ndnEarly = loPx3 - loPx2;\nshapeOkUp = (mode == 0) || ((mode == 1) && el_lt(upLate, upEarly)) || ((mode == 2) && el_gt(upLate, upEarly));\nshapeOkDn = (mode == 0) || ((mode == 1) && el_lt(dnLate, dnEarly)) || ((mode == 2) && el_gt(dnLate, dnEarly));",
+    "longCondition": "patDn && shapeOkDn",
+    "shortCondition": "patUp && shapeOkUp",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,28 @@
+{
+    "name": "SessionAvgBarRangeStop",
+    "type": "Exit",
+    "inputVariables": {
+        "stopMultiple": "1"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A protective stop sized by the average bar range SO FAR TODAY. Brooks\n// quotes it as \"around the height of an average bar so far today, maybe 10 to\n// 15 cents\" -- the cents are stock-specific, the multiple is the portable\n// form.\n//\n// The window is what makes this its own rule: session-relative and GROWING\n// through the day, starting at one bar at the open and resetting at the next\n// one. No setting of AtrTrailingStop's fixed rolling N reproduces that, and\n// this is a fixed protective stop rather than a trailing one.\n//\n// It is a mean of high-low, not of true range, and NOT the\n// WFSafe_AvgTrueRange rolling accumulator -- there is no seeding or\n// length-change behaviour to mirror here, just a running sum.\n//\n// barsIn is at least 1 on every evaluated bar (the session-start branch sets\n// it to 1, the other increments from 0), so the division is safe.\n//\n// Direction-agnostic: a stop distance in dollars is the same both sides, as\n// in StopLoss and AtrProfitTarget. BigPointValue is the raw contract\n// multiplier and is NOT currency-converted while OpenPositionProfit is --\n// TradeStation's own inconsistency, preserved as AtrProfitTarget preserves it.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)). Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    rangeSum = high[0] - low[0];\n} else {\n    barsIn = barsIn + 1;\n    rangeSum = rangeSum + (high[0] - low[0]);\n}\navgRange = rangeSum / barsIn;",
+    "longCondition": "el_le(ctx.OpenPositionProfit(), -(stopMultiple * avgRange * ctx.BigPointValue()))",
+    "shortCondition": "el_le(ctx.OpenPositionProfit(), -(stopMultiple * avgRange * ctx.BigPointValue()))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

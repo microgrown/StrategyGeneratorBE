@@ -1,0 +1,72 @@
+{
+    "name": "ChannelStartRetestEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "tolAtr": "0.25",
+        "maxUndershootAtr": "0.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "tol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "under": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE START OF THE CHANNEL. Brooks buys the test of the level where the\n// channel began -- the low of the pullback that followed the spike, the\n// higher-low double bottom at the channel's starting swing low. This family\n// draws the bull channel's trend line through the two most recent confirmed\n// swing lows, so the OLDER of those two anchors is where the channel begins,\n// and that is the level taken here: SwingLow occurrence 2 in the EL twin, the\n// mirror on SwingHigh occurrence 2 for a bear channel. pivotLookback is\n// therefore what says how far back 'the start' may be.\n//\n// The pivot scan is INLINED here rather than reaching into SwingHigh.json --\n// rules in this corpus never reference each other -- and reproduces the\n// builtin by scanning newest-first and taking the SECOND hit.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the pivotStrength older bars,\n//     STRICTLY ABOVE the pivotStrength newer bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly pivotStrength bars, never 0 or 1;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     pivotStrength bars PAST the window, so the deepest index touched is\n//     pivotLookback - 1 + pivotStrength;\n//   * fewer than two pivots in the window is occurrence 2's -1 SENTINEL,\n//     guarded by haveLoStart / haveHiStart, since -1 as a price sits under\n//     every real price and would sail through the band test. Occurrence 3+ is\n//     UNMEASURED and is never asked for;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule. There\n// is no WFSafe_SwingHigh, so plain EL governs.\n//\n// The band is two-sided because Brooks says the test 'often goes slightly\n// below its low': the prior bar's low must reach the level (within tolAtr x\n// ATR above it) without blowing more than maxUndershootAtr x ATR through it.\n// Both bands are ATR fractions rather than ticks -- the engine exposes no tick\n// size -- the substitution BreakoutLevelRetest and PriorSessionLevelTest make.\n// The trigger is the close above the prior bar's high, which T03-09 and T21-44\n// state explicitly; R28-19's 'low-momentum pullback' qualifier has no measure\n// and is left out.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 2) { loP1 = low[j]; break; }\n    }\n}\nhiP1 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 2) { hiP1 = high[j]; break; }\n    }\n}\nhaveLoStart = (foundLo == 2);\nhaveHiStart = (foundHi == 2);\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently.\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\ntol = tolAtr * atrVal;\nunder = maxUndershootAtr * atrVal;",
+    "longCondition": "haveLoStart && el_le(low[1], loP1 + tol) && el_ge(low[1], loP1 - under) && el_gt(close[0], high[1])",
+    "shortCondition": "haveHiStart && el_ge(high[1], hiP1 - tol) && el_le(high[1], hiP1 + under) && el_lt(close[0], low[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

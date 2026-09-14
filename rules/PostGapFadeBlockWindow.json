@@ -1,0 +1,24 @@
+{
+    "name": "PostGapFadeBlockWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "withinBars": "10"
+    },
+    "localVariables": {
+        "noGap": {
+            "type": "bool",
+            "init": "false"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// The gap window has ELAPSED: no gap bar printed in the last withinBars bars,\n// so it is no longer 'too early to tell'. Brooks's point is the block -- for\n// a while after a fresh breakout gap you cannot know whether it is a\n// breakaway gap or a measuring gap, so do not fade it -- and the book says\n// the distinction is retrospective. The rule is written in the PASSING sense\n// and the per-placement NEGATE toggle gives the blocking sense, which is how\n// the corpus states every 'do not trade while X' claim.\n//\n// 'barsSince(gap) > withinBars' is mechanized as its exact contrapositive: no\n// gap bar at offsets 0..withinBars. That also covers what the book leaves\n// implicit -- a chart with no gap at all passes, bars-since being unbounded.\n//\n// The gap primitive is TrueGapBar's relation, the whole-range non-overlap\n// with the previous bar, and BOTH directions count: a fresh gap either way\n// starts the window. Sides are therefore identical text.\n//\n// The loop runs WITHOUT a break and the flag is cleared rather than the scan\n// abandoned -- EasyLanguage has no loop break, and Max Bars Back must cover\n// withinBars + 1 on every bar regardless. noGap is a class member and\n// persists across bars, so it is set at the top rather than relied on to\n// start true. The comparisons carry the EL relational tolerance (el_gt /\n// el_lt), as TrueGapBar's do.\nnoGap = true;\nfor (kk = 0; kk <= (int)withinBars; ++kk) {\n    if (el_gt(low[kk], high[kk + 1])) noGap = false;\n    if (el_lt(high[kk], low[kk + 1])) noGap = false;\n}",
+    "longCondition": "noGap",
+    "shortCondition": "noGap",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

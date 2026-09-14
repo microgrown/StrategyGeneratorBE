@@ -1,0 +1,42 @@
+{
+    "name": "PullbackBeyondBreakoutPoint",
+    "type": "Entry",
+    "inputVariables": {
+        "startWindow": "5",
+        "breakoutLookback": "10",
+        "lookback": "1"
+    },
+    "localVariables": {
+        "brkUpBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "brkDnBar": {
+            "type": "int",
+            "init": "-1"
+        },
+        "brkUpLvl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brkDnLvl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "beyondUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "beyondDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE LEVEL TEST THAT SEPARATES A BREAKOUT PULLBACK FROM A FAILED BREAKOUT.\n// After a bull breakout, the pullback trades back BEYOND the breakout point\n// -- the low goes under the level the breakout bar closed above -- and the\n// read flips: this is no longer a pullback to buy, it is a failed breakout.\n// The source states it as exactly this negation gate. Short is the mirror.\n//\n// The breakout bar is found by the same bounded backward scan\n// BreakoutPullbackWindow and BreakoutPullbackEntry use: the most recent bar k\n// in 1..startWindow whose close is beyond the extreme of the breakoutLookback\n// bars ending one bar before it. The level is open-coded per candidate\n// because Highest(h, N)[k + 1] is a function-history reference at a\n// VARIABLE offset; Extremes(), which Highest and Lowest call, is EL source\n// and is exactly this loop, so the comparisons carry the EL relational\n// tolerance. 'Most recent' is carried by the brkUpBar == -1 guard rather than\n// a loop break, because EasyLanguage has none and both twins must run the\n// same iterations.\n//\n// lookback EXTENDS THE LEVEL BACK INTO THE SPIKE. At the default 1 the level\n// is the breakout point itself, which is what the rest of the bucket\n// remembers. At 2 it also takes in the breakout bar's own low, at 3 the bar\n// before that -- the second source's deeper reading, 'back beyond where the\n// spike began', as one parameter over the spike's bars rather than a second\n// rule. The extension sits inside an IF on the -1 guard: EasyLanguage does\n// not short-circuit, and low[-1] is a future bar.\n//\n// Not BreakoutLevelRetest, which wants the pullback to HOLD the level (a\n// touch within a tolerance, a capped overshoot, and a swing pivot rather than\n// a Donchian level); this rule is the outright violation, and the two are not\n// negations of each other because 'never came back at all' fails both. Not\n// BreakoutPullbackWindow either -- that one says a pullback is in progress\n// and says nothing about the level.\n//\n// startWindow and breakoutLookback are PROMOTED at BreakoutPullbackWindow's\n// defaults: the merged pseudocode leaves 'the breakout' implicit and the two\n// rules are meant to be tuned together. The deepest bar touched is\n// startWindow + breakoutLookback.\nbrkUpBar = -1;\nbrkDnBar = -1;\nbrkUpLvl = 0.0;\nbrkDnLvl = 0.0;\nfor (int k = 1; k <= (int)startWindow; ++k) {\n    double lvlHigh = high[k + 1];\n    double lvlLow = low[k + 1];\n    for (int j = k + 2; j <= k + (int)breakoutLookback; ++j) {\n        if (el_gt(high[j], lvlHigh)) lvlHigh = high[j];\n        if (el_lt(low[j], lvlLow)) lvlLow = low[j];\n    }\n    if (brkUpBar == -1 && el_gt(close[k], lvlHigh)) {\n        brkUpBar = k;\n        brkUpLvl = lvlHigh;\n    }\n    if (brkDnBar == -1 && el_lt(close[k], lvlLow)) {\n        brkDnBar = k;\n        brkDnLvl = lvlLow;\n    }\n}\nif (brkUpBar != -1) {\n    for (int j = 1; j <= (int)lookback - 1; ++j) {\n        if (el_lt(low[brkUpBar + j - 1], brkUpLvl)) brkUpLvl = low[brkUpBar + j - 1];\n    }\n}\nif (brkDnBar != -1) {\n    for (int j = 1; j <= (int)lookback - 1; ++j) {\n        if (el_gt(high[brkDnBar + j - 1], brkDnLvl)) brkDnLvl = high[brkDnBar + j - 1];\n    }\n}\nbeyondUp = false;\nif (brkUpBar != -1) {\n    beyondUp = el_lt(low[0], brkUpLvl);\n}\nbeyondDn = false;\nif (brkDnBar != -1) {\n    beyondDn = el_gt(high[0], brkDnLvl);\n}",
+    "longCondition": "beyondUp",
+    "shortCondition": "beyondDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

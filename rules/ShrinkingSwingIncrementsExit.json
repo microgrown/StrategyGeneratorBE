@@ -1,0 +1,66 @@
+{
+    "name": "ShrinkingSwingIncrementsExit",
+    "type": "Exit",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40",
+        "shrinkFraction": "0.5"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "shrinkUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shrinkDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// WANING MOMENTUM IN THE SWINGS THEMSELVES: the gains between successive swing\n// highs are shrinking, so take profits on the long. With three confirmed swing\n// highs, the newest increment (pivot 1 minus pivot 2) is less than\n// shrinkFraction of the one before it (pivot 2 minus pivot 3). Short is the\n// mirror on three swing lows.\n//\n// Brooks's worked numbers -- the second peak eight ticks above the first, the\n// third only three above the second -- put the fraction well under 0.5; 0.5 is\n// the candidate's default. Also usable as a negative entry filter, which is the\n// per-placement negate toggle rather than a second rule.\n//\n// BOTH INCREMENTS ARE REQUIRED POSITIVE (pivot 1 above pivot 2 above pivot 3).\n// The merged pseudocode states only the first; without the second the\n// right-hand side can be negative and the comparison stops meaning \"shrinking\".\n//\n// THE PIVOT SCAN IS HAND-ROLLED because occurrence 3 and beyond is UNMEASURED in\n// the register, exactly as SwingPivotTarget does it. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR ABOVE the swingStrength older bars and STRICTLY ABOVE the swingStrength\n// newer bars -- bars-ago indexing, so the newer bars are the smaller k and take\n// el_gt / el_lt, the older el_ge / el_le; confirmation lag exactly\n// swingStrength; candidate offsets swingStrength..lookbackBars-1; the\n// neighbourhood reaches swingStrength bars past the window, so the deepest bar\n// touched is lookbackBars - 1 + swingStrength. No early break, matching the\n// twin, and the counters cap the pivots kept at three. The comparisons carry the\n// 2.22e-12 relational tolerance. The low side's tie sense is the mirror of the\n// measured high-side rule. The -1 initialisers are inert here because the\n// nHiPiv >= 3 gate covers them.\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nshrinkUp = (nHiPiv >= 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3)\n    && el_lt(hiPx1 - hiPx2, shrinkFraction * (hiPx2 - hiPx3));\nshrinkDn = (nLoPiv >= 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3)\n    && el_lt(loPx2 - loPx1, shrinkFraction * (loPx3 - loPx2));",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && shrinkUp",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && shrinkDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

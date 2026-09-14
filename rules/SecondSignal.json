@@ -1,0 +1,40 @@
+{
+    "name": "SecondSignal",
+    "type": "Entry",
+    "inputVariables": {
+        "withinBars": "10"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "runLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "secondUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "secondDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SECOND ENTRY -- Brooks's most-repeated reliability filter, and the one\n// condition he says is sufficient on its own. An earlier same-side signal\n// triggered within the last withinBars bars, that first entry failed, and a\n// new same-side signal is triggering now.\n//\n// THE DEFINITION OF 'THE SAME SIGNAL' IS THE CONCRETE PROXY, chosen by the\n// merge pass over a generic setup-identity registry: the signal is the\n// generic price trigger -- a close above the prior bar's high -- and the\n// failure is price trading back beyond that signal bar's opposite extreme.\n// The registry version would need a per-placement fire/fail log the engine\n// does not have. THE LOSS IS REAL AND DELIBERATE: this counts a second\n// GENERIC trigger, not a second instance of whichever pattern the pane is\n// actually trading.\n//\n// Bar kk is the earlier trigger bar and bar kk + 1 its signal bar. The\n// failure window is the kk - 1 bars ENDING AT THE CURRENT BAR, exactly as the\n// merged pseudocode spells it, which is why the outer scan starts at 2 -- at\n// kk = 2 that window is the current bar alone. The inner loop is a running\n// extreme rather than a Lowest() call because the length is a loop variable;\n// at kk = 2 it does not execute, in EasyLanguage and here alike.\n//\n// Both flags are cleared at the top and both sides are computed here rather\n// than in the conditions: EasyLanguage does not short-circuit, so a scan in a\n// condition would run on every bar in EL and only on some bars in C++.\n//\n// Not LastTradeCooldown: that gates on a REALIZED trade's outcome through\n// PositionProfit(1) and BarsSinceExit. This gates on a repeated raw pattern\n// whether or not a trade was ever taken, and can fire before any trade\n// exists.\nsecondUp = false;\nsecondDn = false;\nfor (kk = 2; kk <= (int)withinBars; ++kk) {\n    runLow = low[0];\n    runHigh = high[0];\n    for (jj = 1; jj <= kk - 2; ++jj) {\n        if (el_lt(low[jj], runLow)) runLow = low[jj];\n        if (el_gt(high[jj], runHigh)) runHigh = high[jj];\n    }\n    if (el_gt(close[kk], high[kk + 1]) && el_lt(runLow, low[kk + 1])) secondUp = true;\n    if (el_lt(close[kk], low[kk + 1]) && el_gt(runHigh, high[kk + 1])) secondDn = true;\n}",
+    "longCondition": "secondUp && el_gt(close[0], high[1])",
+    "shortCondition": "secondDn && el_lt(close[0], low[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

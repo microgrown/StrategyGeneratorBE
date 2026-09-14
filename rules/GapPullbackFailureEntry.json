@@ -1,0 +1,48 @@
+{
+    "name": "GapPullbackFailureEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "gapFillFraction": "0.5"
+    },
+    "localVariables": {
+        "curOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "sawStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "longSig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortSig": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's gap-open discipline: do not chase the open. The session gapped\n// above the prior day's high extreme, an early pullback has already retraced\n// at least gapFillFraction of the way back into the gap, and this bar resumes\n// away from the prior day's range -- a bull bar closing above the previous\n// bar's high. Short is the mirror below the prior day's low.\n//\n// curOpen / curHigh / curLow ARE OpenD(0) / HighD(0) / LowD(0), and prevHigh\n// / prevLow ARE HighD(1) / LowD(1), which the twin calls and the engine does\n// not expose. MEASURED (the highd/lowd register row): the day is the\n// wall-clock CALENDAR date, the SAME boundary as date <> date[1]; xxxD(0) is\n// the running value INCLUSIVE of the current bar and OpenD(0) is the date's\n// first bar open; the prior-day forms return a -1 SENTINEL while fewer than\n// that many complete days exist. Because HighD(0)/LowD(0) already mean 'since\n// the session open', the merged pseudocode's lowest(low, barsIntoSession)\n// needs no bars-into-session counter here.\n//\n// SESSION MODEL, per the standing decision: the session starts at the\n// wall-clock close-date change, day_of(ctx.Time(0)) > day_of(ctx.Time(1)),\n// where the running values roll.\n//\n// WARM-UP, the one place the twins can differ, exactly as in\n// FailedBreakoutOfPriorSessionExtreme: TradeStation's HighD reads the chart's\n// own data and answers on the first evaluated bar, while this mirror sees\n// only bars from Max Bars Back on. sawStart makes that honest -- a day\n// becomes 'the prior session' only once its own first bar has been observed,\n// so prevHigh / prevLow hold the -1 sentinel through the first partial day\n// and the first fully observed day, the rule is silent there, and the two\n// twins agree exactly from the second date change on. The same guard also\n// covers curOpen, which is 0.0 until the first observed date change.\n//\n// The retracement test is a MULTIPLICATION of the gap height, not a ratio: EL\n// raises a runtime divide-by-zero and a zero-height gap is legal data.\n//\n// gapFillFraction IS INVENTED -- the book gives no depth for the pullback --\n// so it is an input at 0.5 rather than a hard-coded number. The book also\n// gates the setup on a DAILY buy/sell setup being in force; that\n// higher-timeframe flag is DROPPED rather than inherited, the engine being\n// single-timeframe.\n//\n// Kept apart from SessionGapFirstBarReversalEntry (the session's very first\n// bar only, and a reversal bar) and from FailedBreakoutOfPriorSessionExtreme\n// (any bar that pierces and recovers the level, no gap and no retracement\n// term). Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    if (sawStart) {\n        prevHigh = curHigh;\n        prevLow = curLow;\n    }\n    sawStart = true;\n    curOpen = open[0];\n    curHigh = high[0];\n    curLow = low[0];\n} else {\n    if (el_gt(high[0], curHigh)) curHigh = high[0];\n    if (el_lt(low[0], curLow)) curLow = low[0];\n}\nlongSig = !el_eq(prevHigh, -1.0) && el_gt(curOpen, prevHigh)\n    && el_le(curLow, curOpen - gapFillFraction * (curOpen - prevHigh))\n    && el_gt(close[0], open[0]) && el_gt(close[0], high[1]);\nshortSig = !el_eq(prevLow, -1.0) && el_lt(curOpen, prevLow)\n    && el_ge(curHigh, curOpen + gapFillFraction * (prevLow - curOpen))\n    && el_lt(close[0], open[0]) && el_lt(close[0], low[1]);",
+    "longCondition": "longSig",
+    "shortCondition": "shortSig",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

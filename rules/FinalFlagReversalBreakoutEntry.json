@@ -1,0 +1,92 @@
+{
+    "name": "FinalFlagReversalBreakoutEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "flagBars": "8",
+        "requirePriorBreakout": "0",
+        "priorBreakoutWindow": "5",
+        "overlapThreshold": "0.5",
+        "minOverlapFraction": "0.5",
+        "minTrendBars": "30",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "aiBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "ovBar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "isCandidate": {
+            "type": "bool",
+            "init": "false"
+        },
+        "candPrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flagOffset": {
+            "type": "int",
+            "init": "0"
+        },
+        "flagHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "flagLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brkUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brkDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "revLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "revShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FINAL FLAG GIVES WAY THE WRONG WAY. Price closes through the\n// COUNTERTREND side of the final-flag range: in a bull trend the flag's low\n// gives out and the short fires; in a bear trend its high does and the long\n// fires.\n//\n// V24-09 takes the break directly. R03-10 and R10-11 insist the market first\n// breaks out WITH the trend, fails, comes back through the flag and out its\n// other side -- the same trigger with a precondition, carried as the\n// requirePriorBreakout input rather than as a second rule. R03-10's barbwire\n// framing is just a short flagBars.\n//\n// THE FLAG WINDOW MOVES BACK when the prior breakout is required, and that is\n// not cosmetic: measured over the same bars, the flag's own extreme would\n// always be at or beyond any breakout inside it, so the with-trend breakout\n// test could never be satisfied. With requirePriorBreakout on, the flag is the\n// flagBars bars ENDING priorBreakoutWindow + 1 bars ago and the breakout is\n// looked for in the priorBreakoutWindow bars since. With it off, flagOffset is\n// 0 and the flag is simply the flagBars bars ending one bar ago -- and the\n// breakout loop's k <= flagOffset guard is never true in that case, so it adds\n// nothing to the unconditionally-true flags. That structure is used instead of an else\n// branch because the loop must run either way, which also keeps the twin free\n// of any dependence on short-circuiting.\n//\n// The flag extremes are scanned by hand rather than through a\n// highest/lowest window so the offset can be a variable: seeded on the\n// window's first bar and scanned with a STRICT comparison, which is what EL's\n// Extremes does, and with el_gt / el_lt so the comparison carries the\n// relational tolerance.\n//\n// FinalFlagCandidate is INLINED, read ONE BAR BACK (candPrev, mirrored at the\n// top of the hook before it is recomputed): the flag has to have been a flag\n// before this bar broke it. Its parts -- the always-in state machine and the\n// bar-overlap count -- are the standing corpus decision and V07-01's\n// definition; see FinalFlagCandidate for the reasoning and the MinList /\n// MaxList note. A named Brooks setup inlines its parts, as the corpus does.\n//\n// Deepest bar touched: flagBars + priorBreakoutWindow.\ncandPrev = isCandidate;\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    aiBars = 0;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    aiBars = 0;\n    flipped = true;\n}\nif (flipped == false) aiBars = aiBars + 1;\novCount = 0;\nfor (int k = 0; k < (int)flagBars; ++k) {\n    ovBar = (high[k] < high[k + 1] ? high[k] : high[k + 1])\n            - (low[k] > low[k + 1] ? low[k] : low[k + 1]);\n    if (el_lt(ovBar, 0.0)) ovBar = 0.0;\n    if (el_ge(ovBar, overlapThreshold * (high[k + 1] - low[k + 1]))) ovCount = ovCount + 1;\n}\nisCandidate = (aiDir != 0) && ((double)aiBars >= minTrendBars) && el_ge((double)ovCount, minOverlapFraction * flagBars);\nflagOffset = 0;\nif ((int)requirePriorBreakout != 0) flagOffset = (int)priorBreakoutWindow;\nflagHigh = high[1 + flagOffset];\nflagLow = low[1 + flagOffset];\nfor (int k = 2 + flagOffset; k <= (int)flagBars + flagOffset; ++k) {\n    if (el_gt(high[k], flagHigh)) flagHigh = high[k];\n    if (el_lt(low[k], flagLow)) flagLow = low[k];\n}\nbrkUp = ((int)requirePriorBreakout == 0);\nbrkDn = ((int)requirePriorBreakout == 0);\nfor (int k = 1; k <= (int)priorBreakoutWindow; ++k) {\n    if (k <= flagOffset && el_gt(high[k], flagHigh)) brkUp = true;\n    if (k <= flagOffset && el_lt(low[k], flagLow)) brkDn = true;\n}\nrevLong = candPrev && brkDn && el_gt(close[0], flagHigh);\nrevShort = candPrev && brkUp && el_lt(close[0], flagLow);",
+    "longCondition": "revLong",
+    "shortCondition": "revShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

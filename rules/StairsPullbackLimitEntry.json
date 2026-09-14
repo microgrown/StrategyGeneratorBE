@@ -1,0 +1,55 @@
+{
+    "name": "StairsPullbackLimitEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "stairPullbackAtr": "0.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "pivLo": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "pivHi": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// In a stairs trend, buy a fixed distance BELOW the most recent swing low --\n// the pullback that tests the prior stair. Brooks's 'four points below the\n// prior swing low' is instrument-specific, so the distance is carried as\n// stairPullbackAtr x ATR and ports; the point form is the recorded\n// alternative.\n//\n// The stairs context itself is NOT inlined. StairsPattern is a filter Entry\n// and the entry panes AND, so the gate belongs in the pane beside this rule\n// rather than compounded into it -- and the two stay independently\n// parameterizable and independently negatable, which a compound would not be.\n// (StairsPattern is itself blocked on SwingHigh/SwingLow Occurrence 3+, which\n// is unmeasured; see the rows file.)\n//\n// This is DipBelowPriorBarLow's idea applied to a swing PIVOT rather than to\n// the prior bar -- a different level and different bars, which is why it is a\n// separate rule. It is also not BreakoutLevelRetest: that one wants the\n// pullback to HOLD at the level within a tolerance band, this one wants price\n// to trade a fixed ATR distance THROUGH it.\n//\n// The pivot scan is INLINED here rather than reaching into SwingHigh.json --\n// rules in this corpus never reference each other -- and reproduces\n// SwingLow(1, ...) / SwingHigh(1, ...) by scanning newest-first and taking the\n// first hit.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the pivotStrength older bars,\n//     STRICTLY ABOVE the pivotStrength newer bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly pivotStrength bars, never 0 or 1;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     pivotStrength bars PAST the window, so the deepest index touched is\n//     pivotLookback - 1 + pivotStrength;\n//   * an empty window is the -1 SENTINEL, guarded by haveLo / haveHi, because\n//     -1 as a price sits under every real price;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule. There\n// is no WFSafe_SwingHigh, so plain EL governs.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\npivLo = -1.0;\nhaveLo = false;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivLo = low[j]; haveLo = true; break; }\n}\npivHi = -1.0;\nhaveHi = false;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { pivHi = high[j]; haveHi = true; break; }\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently.\n// The local counter is atrLen, not atrLength: atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "haveLo && el_le(low[0], pivLo - stairPullbackAtr * atrVal)",
+    "shortCondition": "haveHi && el_ge(high[0], pivHi + stairPullbackAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

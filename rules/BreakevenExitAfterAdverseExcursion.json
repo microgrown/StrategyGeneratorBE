@@ -1,0 +1,20 @@
+{
+    "name": "BreakevenExitAfterAdverseExcursion",
+    "type": "Exit",
+    "inputVariables": {
+        "adverseDollars": "200"
+    },
+    "localVariables": {
+        "minProf": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SCRATCH AT BREAKEVEN AFTER A BAD EXCURSION. Once this position's open loss has\n// at some point been worse than adverseDollars, leave as soon as the close comes\n// back to the entry price. The adverse-excursion gate is what makes the rule\n// real: V21-02's half on its own (\"once the market gets back to their very first\n// entry, they exit\") fires on the first profitable bar and is degenerate, so\n// T15-50's gate governs.\n//\n// ENGINE PRIMITIVE NOTE: there is no ctx.MinPositionProfit() -- the mirror of\n// MaxPositionProfit -- so the running minimum is kept here. It is reset on\n// BarsSinceEntry() == 0 and NOT on MarketPosition() == 0: BarsSinceEntry is\n// VERIFIED as 0 on the fill bar and as RESTARTING THROUGH A REVERSAL, which is\n// exactly the per-position boundary MaxPositionProfit carries and which a flat\n// test misses, since a reversal never passes through flat (skill section 4).\n// While flat BarsSinceEntry is also 0, so minProf is re-seeded on every flat\n// bar; that is harmless and is what leaves it correct on the fill bar -- the\n// same convention slices 09 and 10 use to capture signal-bar values.\n//\n// ONE BEHAVIOURAL DIFFERENCE FROM A TRUE MinPositionProfit REMAINS and cannot be\n// removed here: OpenPositionProfit is marked at the last close (VERIFIED, and net of the\n// entry side's costs), so minProf is the worst bar-close excursion, not the\n// intrabar low water mark the accessor would report.\n//\n// Not BreakevenStop, which arms on peak PROFIT and exits at EntryPrice - buffer:\n// that arms after the trade has gone WELL, this one after it has gone BADLY.\n// Sides are MIRRORED, not the slice's \"same\" -- the EntryPrice comparison is\n// directional -- the same correction slice 09 made to BreakevenStop.\nif (ctx.BarsSinceEntry() == 0) minProf = ctx.OpenPositionProfit();\nif (el_lt(ctx.OpenPositionProfit(), minProf)) minProf = ctx.OpenPositionProfit();",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le(minProf, -adverseDollars) && el_ge(close[0], ctx.EntryPrice())",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(minProf, -adverseDollars) && el_le(close[0], ctx.EntryPrice())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

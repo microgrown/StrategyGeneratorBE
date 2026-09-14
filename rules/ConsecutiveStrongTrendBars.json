@@ -1,0 +1,30 @@
+{
+    "name": "ConsecutiveStrongTrendBars",
+    "type": "Entry",
+    "inputVariables": {
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S ALWAYS-IN FLIP TEST: each of the last consecutiveBars bars is a\n// STRONG bull trend bar -- a strict body direction, a body of at least\n// bodyFraction of the bar's own range, and BOTH tails no more than tailFraction\n// of it. Short is the mirror. \"There usually has to have been at least two\n// consecutive strong bull trend bars before most traders will believe that the\n// always-in direction is long\", hence consecutiveBars = 2.\n//\n// This is the RECOMMENDED DEFINITION behind the corpus's settled always-in\n// decision, carried as its own rule so a placement can ask for the flip event\n// directly; the rules that need the persistent DIRECTION still inline the state\n// machine (TrendDurationBars, OutsideBarCounterTrend) rather than reference\n// this file.\n//\n// NOT StrongTrendBarRun, which tests only the body on each bar of the run.\n// Adding both tails is the same difference the catalog already draws between\n// StrongTrendBar and CloseRangePosition: a shaved-top bull bar with a middling\n// body passes one and fails the other. At tailFraction >= 1 the two rules do\n// coincide; at the defaults they fire on different bars.\n//\n// NOT ConsecutiveUpBars, which tests only close against the bar's own open.\n//\n// The three tests cannot be ANDed in from other panes because they must hold on\n// EACH bar of the run, not on the current bar.\n//\n// The all-of-N loop starts true and lets any failing bar clear the flag --\n// StrongTrendBarRun's arrangement -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. The flags are class\n// members and persist across bars, so both are reset at the top.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: consecutiveBars - 1.\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}",
+    "longCondition": "allBull",
+    "shortCondition": "allBear",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

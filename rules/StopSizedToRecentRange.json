@@ -1,0 +1,29 @@
+{
+    "name": "StopSizedToRecentRange",
+    "type": "Exit",
+    "inputVariables": {
+        "runLookback": "20",
+        "runFraction": "1.0"
+    },
+    "localVariables": {
+        "runHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RISK WHAT THE MOVE BEING FADED ALREADY MADE. Brooks: \"risk about five points\n// to make five points, expecting a test of the breakout\" -- the protective stop\n// is sized to the run, not to a fixed dollar amount and not to one bar.\n//\n// The book measures the breakout's start-to-extreme leg, which needs a leg\n// measurement; the mechanizable stand-in is the high-low SPAN of the last\n// runLookback bars, over the window ENDING ONE BAR AGO so the bar being judged\n// cannot widen its own stop. runFraction 1.0 is \"risk as much as the run\".\n//\n// Not StopAtSignalBarRangeMultiple (ONE bar's range), not SessionAvgBarRangeStop\n// (the MEAN bar range so far today), not AvgDailyRangeFractionStop (an N-SESSION\n// average daily range), not AtrProfitTarget / AtrTrailingStop (a rolling N-bar\n// ATR, and a target and a trail). This is an N-BAR SPAN and a fixed stop.\n//\n// Direction-agnostic, so both sides are identical text, as StopLoss is.\n// BigPointValue is the raw multiplier and is NOT currency-converted while\n// OpenPositionProfit is -- preserved as in AtrProfitTarget.\n//\n// The Extremes loop is seeded on the window's FIRST bar (index 1) and scans the\n// rest with the tolerance-carrying strict comparison, matching EL's Extremes\n// source, as StopBeyondRecentRangeExtreme and RoomToRangeTargetFilter do.\nrunHi = high[1];\nrunLo = low[1];\nfor (int i = 2; i <= (int)runLookback; ++i) {\n    if (el_gt(high[i], runHi)) runHi = high[i];\n    if (el_lt(low[i], runLo)) runLo = low[i];\n}\nrunSize = runHi - runLo;",
+    "longCondition": "el_le(ctx.OpenPositionProfit(), -runFraction * runSize * ctx.BigPointValue())",
+    "shortCondition": "el_le(ctx.OpenPositionProfit(), -runFraction * runSize * ctx.BigPointValue())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

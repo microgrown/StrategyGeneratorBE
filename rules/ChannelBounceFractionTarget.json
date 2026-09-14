@@ -1,0 +1,82 @@
+{
+    "name": "ChannelBounceFractionTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "bounceFraction": "0.25"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoAnchor": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiAnchor": {
+            "type": "bool",
+            "init": "false"
+        },
+        "chanExtHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chanExtLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveTargetUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveTargetDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CHANNEL START, the same level ChannelStartRetestEntry uses, so the whole\n// family agrees on where a channel begins: it is SwingLow Occurrence 2 -- the\n// OLDER of the two anchors the bull trend line is drawn through. The start of\n// the channel is therefore the start of the line every other rule in the family\n// draws, and pivotLookback is what says how far back 'the start' may be. The\n// BEAR channel's start is the mirror, SwingHigh Occurrence 2.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the pivotStrength OLDER bars, STRICTLY ABOVE the\n// pivotStrength NEWER bars -- so a flat top yields exactly one pivot, the later\n// of the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar,\n// so the strict half is the k < j loop. The confirmation lag is exactly\n// pivotStrength bars, never 0 or 1. pivotLookback is EL's Length (offsets\n// 0..pivotLookback-1 inclusive) and the neighbourhood test reaches pivotStrength\n// bars PAST the window, so the deepest index the scan touches is\n// pivotLookback - 1 + pivotStrength. A window with fewer than two pivots is the\n// -1 SENTINEL case, guarded below, because -1 as a price sits under every real\n// price AND as a bar count would run the extreme scan backwards. Occurrence 3+\n// is UNMEASURED and never asked for. The comparisons carry the 2.22e-12\n// relational tolerance, hence el_gt / el_ge. The low side's tie sense is the\n// mirror of the measured high-side rule. No WFSafe_SwingLow exists, so plain EL\n// governs.\n//\n// THIS RULE: Brooks's 'reverses back at least 25 percent in the direction of\n// the trend' (T21-45) -- one of the few explicit numbers he gives for a\n// channel. The long was taken at the channel start; take profit once price has\n// travelled bounceFraction of the channel's own height back toward the\n// channel's extreme. p359 warns the pattern's predictability ends at the\n// bounce, which is the argument for a fixed fractional target and not a trail.\n//\n// THE CHANNEL'S HEIGHT is measured on the channel's OWN SPAN, not on a fixed\n// window: the extreme is the highest high between the current bar and the\n// channel-start bar inclusive, which is why the loop bound is loB1 and not an\n// input. Written as an explicit loop rather than EL's Highest over a variable Length\n// because the register measures Highest's Length as a constant per bar and a\n// variable in that slot is unmeasured; the loop is the same scan spelled out,\n// statement for statement in both twins.\n//\n// chanExtHi > loP1 is the rule's own guard: a degenerate span makes the\n// fraction meaningless and would put the target at the entry level.\n//\n// Related but distinct from RangeMidpointTarget, which is the FIXED 50% of a\n// DONCHIAN window ending one bar ago. Here the fraction is an input, the\n// anchors are the channel's own pivot and extreme, and the window ends on the\n// current bar.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 2) { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 2) { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoAnchor = (foundLo == 2) && (loB1 != -1.0);\nhaveHiAnchor = (foundHi == 2) && (hiB1 != -1.0);\nchanExtHi = 0.0;\nchanExtLo = 0.0;\ntargetUp = 0.0;\ntargetDn = 0.0;\nhaveTargetUp = false;\nhaveTargetDn = false;\nif (haveLoAnchor) {\n    chanExtHi = high[0];\n    for (int kk = 1; kk <= (int)loB1; ++kk) {\n        if (el_gt(high[kk], chanExtHi)) chanExtHi = high[kk];\n    }\n    if (el_gt(chanExtHi, loP1)) {\n        targetUp = loP1 + bounceFraction * (chanExtHi - loP1);\n        haveTargetUp = true;\n    }\n}\nif (haveHiAnchor) {\n    chanExtLo = low[0];\n    for (int kk = 1; kk <= (int)hiB1; ++kk) {\n        if (el_lt(low[kk], chanExtLo)) chanExtLo = low[kk];\n    }\n    if (el_gt(hiP1, chanExtLo)) {\n        targetDn = hiP1 - bounceFraction * (hiP1 - chanExtLo);\n        haveTargetDn = true;\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveTargetUp && el_ge(high[0], targetUp)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveTargetDn && el_le(low[0], targetDn)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

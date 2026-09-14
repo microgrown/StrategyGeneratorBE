@@ -1,0 +1,24 @@
+{
+    "name": "ExitOnMicroChannelBreakout",
+    "type": "Exit",
+    "inputVariables": {
+        "minBars": "5"
+    },
+    "localVariables": {
+        "priorChanLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "priorChanHigh": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MICRO CHANNEL ENDS, SO THE WITH-TREND TRADE ENDS. A long taken inside a\n// bull micro channel is closed by the first bar that violates the run of higher\n// lows: the channel must have held over the minBars bar pairs ENDING AT BAR 1,\n// and this bar makes a strictly lower low. Short is the mirror on highs.\n//\n// Same run test as MicroChannelRunLength read one bar back, so the loop runs\n// i = 1..minBars and reaches low[minBars + 1]. Containment is INCLUSIVE -- an\n// equal low keeps a bull micro channel alive -- so only a strictly lower low\n// breaks it, and the relationals carry the 2.22e-12 tolerance via el_lt/el_gt.\n//\n// The condition text is MicroChannelBreakoutBar's plus a position guard, in the\n// EXIT role. That pairing is established here (ConsecutiveCloseExit is\n// MomentumConsecutiveBars in the exit pane; AdverseBodyCountExit is\n// ConsecutiveUpBars mirrored there) and an Entry rule cannot occupy the exit\n// pane. Unlike AdverseBodyCountExit this one DOES read position state, because\n// the side matters: the bull channel is what takes the long off.\n//\n// Same shape as ExitOnFirstOppositeBodyAfterRun but the run is counted on higher\n// lows rather than on bull bodies, so the two fire on different bars.\npriorChanLow = true;\npriorChanHigh = true;\nfor (int i = 1; i <= (int)minBars; ++i) {\n    if (el_lt(low[i], low[i + 1])) priorChanLow = false;\n    if (el_gt(high[i], high[i + 1])) priorChanHigh = false;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && priorChanLow && el_lt(low[0], low[1])",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && priorChanHigh && el_gt(high[0], high[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

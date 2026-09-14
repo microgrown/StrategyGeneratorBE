@@ -1,0 +1,33 @@
+{
+    "name": "WeakEntryBarExit",
+    "type": "Exit",
+    "inputVariables": {
+        "strongBodyFraction": "0.6",
+        "maxBars": "1"
+    },
+    "localVariables": {
+        "bse": {
+            "type": "int",
+            "init": "0"
+        },
+        "eb": {
+            "type": "int",
+            "init": "0"
+        },
+        "weakBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "weakBear": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// 'Strong closes mean swing it, weak closes mean scalp it', recast as a\n// binary scalp-versus-hold exit: if the ENTRY BAR did not close as a strong\n// with-trend trend bar, take the scalp -- get out on the entry bar itself or\n// within maxBars bars of it, once the trade is showing a profit.\n//\n// LABELLED HONESTLY: Brooks's actual point is about position SIZE (swing part\n// of it, scalp the rest), which the engine cannot express. This is the binary\n// approximation of that, not a translation of it.\n//\n// THE BAR TESTED IS THE ENTRY BAR, at offset BarsSinceEntry. That variable\n// lag is the whole machinery of the rule: at BarsSinceEntry = 0 it is the\n// current bar, at 1 the bar before, so the same bar's strength governs both\n// chances to exit.\n//\n// eb IS CLAMPED TO maxBars BEFORE IT INDEXES ANYTHING. EasyLanguage does not\n// short-circuit, so 'bse <= maxBars and weak(close[bse])' would still read\n// close[bse] at whatever offset an old open position has reached, and past\n// Max Bars Back that raises in both libraries. The clamp keeps the read\n// inside a small fixed window while the UNCLAMPED bse still gates the\n// condition, so the behaviour is unchanged and the read is always legal.\n//\n// ctx.BarsSinceEntry() is 0 WHILE FLAT and never a -1 sentinel (measured over\n// 13,630 flat bars), which is why the MarketPosition guard carries the flat\n// case rather than the counter.\n//\n// DIRECTION-ADJUSTED, refining the merged 'sides: same': a long is weak when\n// the entry bar failed to close as a strong BULL bar, a short when it failed\n// to close as a strong BEAR bar, so the two sides carry different text and\n// each guards its own MarketPosition -- the shape ExitOnWeakFollowThrough\n// uses. Body fractions are products, not quotients: EL raises a runtime\n// divide-by-zero and a zero-range bar is legal data.\n//\n// Not WeakEntryBarScratchExit, which fires only at BarsSinceEntry = 0, judges\n// the body by its ABSOLUTE size (so a strong bar against the position passes\n// it) and has no profit term. Not NumBarsIfProfitable either: elapsed bars\n// plus a profit sign, with no bar-strength test at all.\nbse = ctx.BarsSinceEntry();\neb = bse;\nif (eb > (int)maxBars) eb = (int)maxBars;\nweakBull = el_le(close[eb], open[eb])\n    || el_lt(close[eb] - open[eb], strongBodyFraction * (high[eb] - low[eb]));\nweakBear = el_ge(close[eb], open[eb])\n    || el_lt(open[eb] - close[eb], strongBodyFraction * (high[eb] - low[eb]));",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le((double)bse, maxBars) && weakBull && el_gt(ctx.OpenPositionProfit(), 0.0)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le((double)bse, maxBars) && weakBear && el_gt(ctx.OpenPositionProfit(), 0.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

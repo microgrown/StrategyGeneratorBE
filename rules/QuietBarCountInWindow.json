@@ -1,0 +1,35 @@
+{
+    "name": "QuietBarCountInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "minQuietBars": "30",
+        "smallRangeFraction": "0.7",
+        "lookback": "60",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "quietCount": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// AN EXTENDED QUIET PERIOD: at least minQuietBars of the lookback bars BEFORE\n// this one had a high-low range no larger than smallRangeFraction of the\n// current N-bar ATR. Brooks's '30 to 60 minutes of quiet' before an unusually\n// large breakout bar, counted in bars, so the timeframe has to be fixed when\n// the grid is set.\n//\n// This is the QUIET half only. The source claim is a conjunction -- a long\n// quiet period AND an outsized breakout bar, which should not be entered\n// directly -- and the second half is already in the corpus as\n// BarRangeAtrMultiple at rangeMultiple = 2.0. The panes AND entry rules, so\n// two placements are strictly better than one compound.\n//\n// The window is bars 1..lookback, EXCLUDING the current bar, because the\n// quiet period is what PRECEDES the bar being judged -- which is also what\n// lets this rule be ANDed with a current-bar size rule without the breakout\n// bar polluting its own precondition. That is the one difference from\n// LargeBarCountInWindow's bars 0..lookback-1.\n//\n// It is NOT LargeBarCountInWindow negated: negating that rule gives 'fewer\n// than minCount large bars', which is not 'at least minQuietBars small ones'.\n//\n// ONE ATR VALUE FOR THE WHOLE WINDOW, read at the current bar. The count is\n// an explicit loop rather than CountIF precisely so the ATR is not\n// re-evaluated at each counted offset -- CountIF's argument is a true SERIES\n// and would shift the function call with it, and a history read of\n// WFSafe_AvgTrueRange has no register row.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh\n// N-term mean: seeded with a full sum on the study's first calculated bar,\n// thereafter S += TrueRange - TrueRange[Length], re-seeding when the length\n// changes. Same block as AtrProfitTarget and LargeBarCountInWindow, including\n// the TWO separate statements -- EasyLanguage evaluates\n// Summation[1] + Price - Price[Length] left to right, and folding it to\n// S += in - out rounds differently and lands on the other side of a\n// threshold. The accumulator stays in the hook, which the generator emits\n// unconditionally: EL does not short-circuit, so a stateful call in a\n// condition would advance every bar in EL and only on some bars here.\n//\n// quietCount is a class member and persists across bars, so it is reset\n// first. Products, not quotients -- EL raises a runtime divide-by-zero.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\nquietCount = 0.0;\nfor (int k = 1; k <= (int)lookback; ++k) {\n    if (el_le(high[k] - low[k], smallRangeFraction * atrValue)) {\n        quietCount = quietCount + 1;\n    }\n}",
+    "longCondition": "el_ge(quietCount, minQuietBars)",
+    "shortCondition": "el_ge(quietCount, minQuietBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

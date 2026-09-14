@@ -1,0 +1,56 @@
+{
+    "name": "SecondLegExceedsFirstLegExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLegLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLegHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE EXPANDING CORRECTION. The second leg of the correction has run beyond\n// the FIRST leg's extreme: the running low since the last counted bar is\n// below the low retained when the count first reached 1. Brooks: 'bears who\n// shorted the first up leg will add as soon as the second leg up goes above\n// the high of the first leg up.'\n//\n// THE COUNTER IS THE SETTLED ONE (Ranges ch17, R17-01), inlined here as\n// everywhere -- see HighLowBarCount for the full commentary. Two of the three\n// values this rule needs are already retained by it (the running extreme\n// since the last counted bar, and the counted bar's own extreme); the one\n// addition is firstLegLow / firstLegHigh, latched when the count advances to\n// 1 and left alone until the next cycle. Every cycle passes through count 1,\n// so by the time the count reaches 2 the latch always holds a real price.\n//\n// WHY THIS IS NOT THE COUNTER'S OWN ADVANCE GUARD: the guard asks for a new\n// low since the LAST COUNTED bar, this asks for one beyond the FIRST leg's\n// extreme. At the advance from 1 to 2 the two coincide exactly, because the\n// last counted bar IS the count-1 bar; from count 3 on they diverge, and the\n// shallow later leg is exactly the case Brooks is separating. The literal 2\n// is structural -- the rule is about the SECOND leg -- so it is not an input.\n//\n// Distinct from LegCountAtLeast, which only asks HOW MANY legs there have\n// been, and from HighLowBarCount, which fires on the signal bar itself.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        if (highCount == 1) firstLegLow = low[0];\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        if (lowCount == 1) firstLegHigh = high[0];\n    }\n}",
+    "longCondition": "el_ge((double)highCount, 2.0) && el_lt(minLowSince, firstLegLow)",
+    "shortCondition": "el_ge((double)lowCount, 2.0) && el_gt(maxHighSince, firstLegHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

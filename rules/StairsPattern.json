@@ -1,0 +1,62 @@
+{
+    "name": "StairsPattern",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "40",
+        "minStairs": "3"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "needPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "stairsUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "stairsDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S STAIRS (T26-01, the chapter named for it) -- a broad channel\n// trend that climbs in steps. LONG is the BULL stairs: minStairs successive\n// confirmed swing pivots on BOTH series, each newer swing low above the one\n// before it AND each newer swing high above the one before it, with the\n// OVERLAP that separates stairs from a plain trend of higher highs and higher\n// lows -- each new leg's swing low trades back BELOW the previous leg's swing\n// high, i.e. the breakout retraces past its own breakout point. SHORT is the\n// mirror bear stairs.\n//\n// minStairs is the number of PIVOTS per series the merged pseudocode asks for\n// ('for k in 1..minStairs-1', comparing pivot k against pivot k+1), so the\n// default 3 is three pivots and TWO step comparisons. It is clamped to 2..3:\n// three pivot slots per series are carried, which is what the default needs\n// and what the pivot window can be relied on to hold.\n//\n// The merged parameter maxLegs(6) is NOT carried. Nothing in the rule ranges\n// over more legs than minStairs, so an input capping a range that does not\n// exist would only waste an optimizer dimension. pivotLookback(40) replaces\n// it -- the merged parameters omitted the window, which is EL's Length and is\n// load-bearing here because it bounds how old the oldest of the three pivots\n// may be. 40 is ThreePushPattern's default, the corpus's three-pivot window.\n//\n// THE PIVOT SCAN IS INLINED rather than calling SwingHigh / SwingLow at\n// Occurrence 1, 2 and 3. The register's swinghigh and swinglow rows are\n// VERIFIED but list Occurrence 3+ explicitly as UNMEASURED, and the third\n// pivot is exactly what makes this stairs rather than one leg. Slices B01 and\n// B02 blocked this rule on that; the inlined scan is the route ratified for a\n// third or later pivot, since plain EL loops and comparisons are themselves\n// registered and the scan reproduces the MEASURED pivot test exactly\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min):\n//\n//   * the pivot bar is AT OR ABOVE the pivotStrength OLDER bars and STRICTLY\n//     ABOVE the pivotStrength NEWER bars, so a flat top yields exactly ONE\n//     pivot, the LATER of the equal bars. Bars-ago indexing makes the SMALLER\n//     index the NEWER bar, so the strict half is the k < j loop (el_gt) and\n//     the at-or-above half the k > j loop (el_ge);\n//   * the confirmation lag is exactly pivotStrength bars, which is why the\n//     scan starts at j = pivotStrength -- that lag is what makes it\n//     lookahead-safe;\n//   * candidate offsets run 0 .. Length - 1 from the current bar INCLUSIVE,\n//     so j stops at pivotLookback - 1, while the neighbourhood test reaches\n//     pivotStrength bars PAST the window: deepest bar touched is\n//     pivotLookback - 1 + pivotStrength;\n//   * scanning newest-first and recording the first three hits reproduces\n//     Occurrence 1, 2, 3;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge / el_lt / el_le rather than raw > and >=;\n//   * the prices are initialised to the -1 SENTINEL and every use is gated on\n//     the counts reaching needPiv -- -1 as a PRICE sits under every real one;\n//   * the low side's TIE sense is the mirror of the measured high-side rule\n//     rather than an observation, as the swinglow row records.\n//\n// There is no WFSafe_SwingHigh in the MultiWalk library, so plain EL governs.\n// Written WITHOUT an early break, matching the EL twin statement for\n// statement: Break is not a registered EasyLanguage word, so the twin's loops\n// run to the end and the `< 3` guards stop a fourth pivot being recorded.\n//\n// No scratch is declared at hook scope -- every value below is a\n// localVariables entry -- because this rule may be placed twice in one\n// strategy and its hooks emitted twice into the one class.\n//\n// ShrinkingStairs is deliberately a SEPARATE rule and is not inlined here: a\n// stairs trend can have growing, equal or shrinking steps, and only the\n// shrinking case carries Brooks's warning. AND the two in a pane.\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = (int)pivotStrength; j <= (int)pivotLookback - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - (int)pivotStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + (int)pivotStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nneedPiv = (int)minStairs;\nif (needPiv > 3) needPiv = 3;\nif (needPiv < 2) needPiv = 2;\nstairsUp = (nHiPiv >= needPiv) && (nLoPiv >= needPiv);\nstairsDn = stairsUp;\nif (!el_gt(loPx1, loPx2)) stairsUp = false;\nif (!el_gt(hiPx1, hiPx2)) stairsUp = false;\nif (!el_lt(loPx1, hiPx2)) stairsUp = false;\nif (!el_lt(loPx1, loPx2)) stairsDn = false;\nif (!el_lt(hiPx1, hiPx2)) stairsDn = false;\nif (!el_gt(hiPx1, loPx2)) stairsDn = false;\nif (needPiv >= 3) {\n    if (!el_gt(loPx2, loPx3)) stairsUp = false;\n    if (!el_gt(hiPx2, hiPx3)) stairsUp = false;\n    if (!el_lt(loPx2, hiPx3)) stairsUp = false;\n    if (!el_lt(loPx2, loPx3)) stairsDn = false;\n    if (!el_lt(hiPx2, hiPx3)) stairsDn = false;\n    if (!el_gt(hiPx2, loPx3)) stairsDn = false;\n}",
+    "longCondition": "stairsUp",
+    "shortCondition": "stairsDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

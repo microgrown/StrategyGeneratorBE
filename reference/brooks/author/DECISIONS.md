@@ -131,3 +131,123 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
   Superseded merged assumptions: pivot newer-side test is strict; BreakoutLevelRetest anchors on a
   confirmed pivot. CloseCrossesEma left for Brian: EL `crosses above` (state machine) would
   unblock it today but changes the merged two-bar spec. emaLength must stay pinned in grids.
+- B pass (2026-09-13): PostClimaxCorrectionBlock (B06) dropped: ConsecutiveClimaxBarCount negated at
+  fixed inputs. HighThreeEntry (B03) = HighLowBarCount at countTarget 3; B03 told to drop it.
+- B01: PriceInLowerHalfOfChannel dropped (EntryRoomToChannelLine with fraction = 1 - minRoomFraction).
+  StairsPattern and ShrinkingStairs blocked: need SwingHigh/SwingLow Occurrence 3-4, unmeasured
+  (probe extension: print occurrences 1-4). Channel construction settled by B01 and binding on
+  B02: trend line through the two most recent confirmed swing lows, channel line through the two
+  most recent swing highs (bear mirrored), NON-parallel; pivotLookback(20) added everywhere.
+- B03: HighThreeEntry dropped (HighLowBarCount at countTarget 3). Three-pivot scans are hand-written
+  (swing Occurrence 3+ unmeasured); always-in inlined with consecutiveBars/bodyFraction/tailFraction
+  inputs, to be pinned in grids.
+- B04: BreakoutFailedBackIntoRange dropped (FailedBreakoutReversal side-flipped);
+  OverlappingLargeBarCluster dropped as a composition of AverageBarOverlap (negated) and the
+  existing LargeBarCountInWindow. SessionBarBreakout (B04) vs SessionFirstBarBreakout (B05): B05
+  told to check.
+- B02: dropped ChannelHeightEqualsSpikeHeightTarget (PatternHeightMeasuredMoveTarget at 1),
+  ChannelStartRetestExit (SwingPivotTarget at pivotIndex 2), ThreePushesInChannel (ThreePushPattern
+  shapeMode 0), TrendChannelLineOvershoot (TrendLineTouch at negative touchTolAtr). B09's
+  TrendChannelLineTarget and B10's CountertrendNeedsPriorTrendLineBreak are covered by
+  ChannelLineTargetExit / TrendLineBrokenRecently and are not to be authored.
+- Corpus-wide decision (orchestrator): the third-and-later pivot may be found by an INLINED scan
+  written in both twins (B03's route: plain EL loops and comparisons, all VERIFIED words), since
+  only the SwingHigh/SwingLow FUNCTION's Occurrence 3+ is unmeasured. Unblocks
+  TrendLineSlopeFlattening (B02), StairsPattern and ShrinkingStairs (B01); authored in a final
+  orphan slice.
+- B07: 12 written, none dropped. AverageDailyRange family is a bar scan with maxScanBars(500)
+  (HighD(k) has no engine counterpart). MaxTradesPerSession Switch carries MarketPosition = 0 so
+  it blocks without liquidating.
+- Final review must scan every new rule's hooks for hook-scope C++ declarations (e.g. B04's
+  SessionBarBreakout `const int sessOffset`) that collide when a rule is placed twice, the
+  AdxBelowThreshold class of bug; move such scratch into localVariables.
+- B05: SessionFirstBarBreakout not authored; final review adds windowBars(1) to SessionBarBreakout
+  (B04) so it covers the window form. LargeOpeningRangeBreakoutFilter dropped
+  (OpeningRangeVsAvgDailyRange at lowFraction 0, negated). QuietPeriodBreakoutNeedsPullback split:
+  quiet half authored as QuietBarCountInWindow, size half is BarRangeAtrMultiple.
+- B08: FirstBarOfSessionTrendBar dropped (IsFirstBarOfSession AND StrongTrendBarRun(1, 0.7)).
+  Supersets kept with a note: ConsecutiveStrongTrendBars over StrongTrendBarRun,
+  TrendBarRunWithinWindow over StrongTrendBarRun.
+- B09: StopAtInitialRiskMultiple and ProfitTargetAtInitialRiskMultiple blocked on the missing
+  initial-risk accessor (engine request). PriorSwingExtremeTarget not authored; final review adds
+  toleranceAtr(0) to SwingPivotTarget. BarsSinceEntry() == 0 accepted as the per-position reset for
+  hand-kept state (it is the VERIFIED accessor that restarts through a reversal); BreakevenExit-
+  AfterAdverseExcursion therefore measures bar-close MAE, noted in its row. Hook-scope const
+  declarations reported in SwingHigh, ChannelLineTargetExit, EmaGapBar -> final review fixes.
+- Double-placement sweep (compileCheck.py --double): 31 of 92 checked B rules fail with C2374
+  redefinitions from hook-scope consts (pivS/pivW/foundLo/foundHi in channel and trend-line rules,
+  pivStrength/pivWindow in three-push rules, emaSf, sessOffset). Final fix agent moves every
+  hook-scope declaration into localVariables across ALL new rules (A and B), then re-runs
+  --double over the whole new set until clean.
+- INCIDENT: the harness agent killed a running bt_walkforward.exe (a live runBatch computation,
+  spec s_202608_bas_1_v9) to free a build lock. Brian to check that family's state and re-run
+  the interrupted version; runBatch skips cached versions so only the lost one recomputes.
+- B11: ClimaxBarAfterExtendedRun dropped (ClimaxBar AND TrendDurationBars). NearAnyLevel carries
+  three magnets; the round-number magnet is blocked on a rounding word (Round/IntPortion/Floor
+  have no register row, Mod is UNKNOWN).
+- B10: RecentStrongTrendDaysCount dropped (StrongBodyBarCountInWindow on daily bars).
+  DeepPullbackMeansRange not authored; final review adds pullbackLookback(1) to
+  PullbackDepthFromRecentHigh. Note: the engine link step fails with LNK1104 while Brian's
+  walkforward holds bt_walkforward.exe; compile diagnostics (C2374 etc.) still surface, so the
+  double-placement sweep judges by compiler errors, never by killing the process.
+
+## Final review of the A + B passes (2026-09-13)
+
+- Double-placement repair: 43 of the 293 rules added since 78da94e declared C++ scratch at
+  hook scope. Every such declaration was promoted to `localVariables` and the declaration
+  turned into a plain assignment, exactly as f65c5e4 did for AdxBelowThreshold; each hook
+  carries a four-line note saying why. The scratch was `pivS`/`pivW`/`foundLo`/`foundHi` in
+  the eleven channel and trend-line rules, `pivStrength`/`pivWindow` (plus `mode`, `perBarMode`,
+  `loBound`/`hiBound`, `failWindow`) in the three-push and swing rules, `emaSf` in the six EMA
+  rules, `sessOffset` in SessionBarBreakout and `histLen` in AtrAtExtreme. No name collided
+  with an existing local or input and none was shadowed in a nested block, so behaviour is
+  unchanged: every one is fully assigned each bar before it is read. `compileCheck.py --double
+  --since 78da94e` went from 31+ rules failing (the first pass stopped at MSVC's 100-error cap,
+  alphabetically at FirstTrendLineBreakOfSession) to "No compiler errors or warnings attributed
+  to checked rules". The build still exits 1 on LNK1104 while Brian's walkforward holds
+  bt_walkforward.exe; that is the environment, not a rule.
+- Three input additions the log assigned to this review, both twins each, behaviour unchanged
+  at the new default:
+  * `SessionBarBreakout` gains `windowBars(1)` -- the session's first bar is now accepted at any
+    offset from `offsetBars` to `offsetBars + windowBars - 1`, which is B05's SessionFirstBarBreakout
+    window form. At most one offset in a window can be a session start, so the scan finds at most
+    one level. Reaches back becomes `offsetBars + windowBars`.
+  * `SwingPivotTarget` gains `toleranceAtr(0)` and, with it, `atrLength(14)` -- the tolerance is
+    meaningless without an ATR, and ChannelLineTargetExit's `touchTolAtr`/`atrLength` pair is the
+    precedent. WFSafe_AvgTrueRange rolling accumulator on the C++ side, the built-in on the EL side.
+    Reaches back becomes `max(lookbackBars - 1 + swingStrength, atrLength + 1)`.
+  * `PullbackDepthFromRecentHigh` gains `pullbackLookback(1)` -- depth measured from the lowest low
+    (long) / highest high (short) of the last N bars instead of this bar alone. `Lowest(Low, 1)` is
+    `Low`, so the default reproduces the rule exactly. Reaches back becomes
+    `max(lookback, pullbackLookback) - 1`.
+- Dedup review of the B pass. NO rule deleted; every flagged pair is distinct, and the rows now
+  say why:
+  * `ConsecutiveStrongTrendBars` vs `StrongTrendBarRun` -- KEPT BOTH. StrongTrendBarRun is this
+    rule at `tailFraction = 1` exactly (a tail cannot exceed the bar's own range, so both tail
+    tests go vacuous), but the base rule stands beside its generalization on the
+    MomentumChange / MomentumConsecutiveBars precedent this log already cites twice, and it is
+    the corpus's settled spike definition -- sixteen catalog rows cite it, a dozen rules inline
+    it, and three rules were dropped in its favour. Row wording corrected from `>= 1` to `= 1`.
+  * `TrendBarRunWithinWindow` vs `StrongTrendBarRun` -- KEPT BOTH, same precedent. The two
+    supersets generalize the base in DIFFERENT directions (tails vs window position) and neither
+    reaches the other, so StrongTrendBarRun is their shared floor and cannot be folded into
+    either.
+  * The day-type reads -- DISTINCT, wording added. `SessionTrendDayDirection` is re-evaluated
+    every bar where `MorningLegDirection` latches once and holds (already in the rows);
+    `TradingRangeDay` and `TrendResumptionDayContext` share only the AverageDailyRange divisor --
+    whole-session travel and direction-agnostic vs the midday window from the leg bar on and
+    directional -- and neither row said so, so both now cross-reference the other.
+  * `ConsecutiveClimaxBars` vs `ConsecutiveClimaxBarCount` -- DISTINCT, confirmed. No setting of
+    the count rule requires the CURRENT bar to be a climax, and the separation tests differ
+    (non-climax bar there, non-trend bar here).
+- Consistency sweep: 382 rules on disk, 382 catalog rows, 382 TS twins, no orphan either way.
+  26 TS twins were missing the `type` field entirely and so defaulted to Entry -- two of them,
+  `ExitOnConsecutiveClimax` and `WeakEntryBarExit`, are Exits, which was a live bug in the EL
+  twin. All 26 now carry the BE type explicitly. `HigherLowStreak` in
+  NoQualifyingPullbackSinceLegStart's row is a mined candidate that was never authored; the rule
+  it meant is `MicroChannelRunLength`, and the row was corrected. `TrendChannelLineTarget`,
+  `SessionFirstBarBreakout`, `PriorSwingExtremeTarget` and `DeepPullbackMeansRange` are now
+  annotated in their rows as not on disk. Remaining twin difference, left alone: ProfitProtector,
+  ProfitProtectorRatio and TieredProfitProtector spell fractional defaults `.5` in EL and `0.5`
+  in C++ -- numerically identical, pre-dates this batch, and changing it would move committed
+  EL text for no behavioural gain.

@@ -1,0 +1,103 @@
+{
+    "name": "FailedFinalFlagTrendResumption",
+    "type": "Entry",
+    "inputVariables": {
+        "flagBars": "8",
+        "failureWindowBars": "2",
+        "overlapThreshold": "0.5",
+        "minOverlapFraction": "0.5",
+        "minTrendBars": "30",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "aiBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "ovBar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "isCandidate": {
+            "type": "bool",
+            "init": "false"
+        },
+        "candPrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flagHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "flagLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "revUpNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "revDnNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnSigAge": {
+            "type": "int",
+            "init": "-1"
+        },
+        "upSigAge": {
+            "type": "int",
+            "init": "-1"
+        },
+        "dnSigHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upSigLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "resumeLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "resumeShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FINAL FLAG'S REVERSAL FAILS AND THE TREND RESUMES. A final-flag reversal\n// triggers -- price closes out of the flag on the countertrend side -- and\n// within a couple of bars price closes back through THAT SIGNAL BAR'S OWN\n// extreme. The reversal was the trap; the original trend is going again, so\n// this is a breakout-pullback entry WITH it. A failed bear reversal is a long;\n// a failed bull reversal a short.\n//\n// The three-push twin of this rule is FailedThreePushReversalContinuation,\n// kept separate because the precondition is a different pattern, so different\n// bars. The two are listed on each other as near-misses.\n//\n// THE PRECONDITION IS THE PLAIN FLAG BREAK, without\n// FinalFlagReversalBreakoutEntry's optional prior-breakout term: that input\n// would double the state this rule already carries with no source behind it,\n// so the flag here is always the flagBars bars ending one bar ago. Recorded,\n// not hidden.\n//\n// STATE, two variables per side. When the flag's countertrend break fires, the\n// age is set to 0 and the SIGNAL BAR'S own extreme is latched -- its high for\n// a bear signal, its low for a bull one, which is the level a failure has to\n// close back through. Every later bar ages the pending signal BEFORE the\n// failure test reads it, so the test only ever refers to a bar strictly in the\n// past, and the latch happens AFTER the test so a signal cannot fail on its\n// own bar. An age of -1 means nothing is pending.\n//\n// FinalFlagCandidate is inlined and read one bar back (candPrev), as in\n// FinalFlagReversalBreakoutEntry; its parts are the standing always-in\n// decision and V07-01's overlap definition, and the MinList / MaxList note is\n// there too. The flag extremes are scanned by hand, seeded on the window's\n// first bar with a STRICT comparison, which is what EL's Extremes does, and\n// with el_gt / el_lt so it carries the relational tolerance.\n//\n// Deepest bar touched: flagBars, or consecutiveBars - 1 if that is larger.\ncandPrev = isCandidate;\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    aiBars = 0;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    aiBars = 0;\n    flipped = true;\n}\nif (flipped == false) aiBars = aiBars + 1;\novCount = 0;\nfor (int k = 0; k < (int)flagBars; ++k) {\n    ovBar = (high[k] < high[k + 1] ? high[k] : high[k + 1])\n            - (low[k] > low[k + 1] ? low[k] : low[k + 1]);\n    if (el_lt(ovBar, 0.0)) ovBar = 0.0;\n    if (el_ge(ovBar, overlapThreshold * (high[k + 1] - low[k + 1]))) ovCount = ovCount + 1;\n}\nisCandidate = (aiDir != 0) && ((double)aiBars >= minTrendBars) && el_ge((double)ovCount, minOverlapFraction * flagBars);\nflagHigh = high[1];\nflagLow = low[1];\nfor (int k = 2; k <= (int)flagBars; ++k) {\n    if (el_gt(high[k], flagHigh)) flagHigh = high[k];\n    if (el_lt(low[k], flagLow)) flagLow = low[k];\n}\nrevUpNow = candPrev && el_gt(close[0], flagHigh);\nrevDnNow = candPrev && el_lt(close[0], flagLow);\nif (dnSigAge >= 0) dnSigAge = dnSigAge + 1;\nif (upSigAge >= 0) upSigAge = upSigAge + 1;\nresumeLong = (dnSigAge >= 1) && ((double)dnSigAge <= failureWindowBars) && el_gt(close[0], dnSigHigh);\nresumeShort = (upSigAge >= 1) && ((double)upSigAge <= failureWindowBars) && el_lt(close[0], upSigLow);\nif (revDnNow) {\n    dnSigAge = 0;\n    dnSigHigh = high[0];\n}\nif (revUpNow) {\n    upSigAge = 0;\n    upSigLow = low[0];\n}",
+    "longCondition": "resumeLong",
+    "shortCondition": "resumeShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

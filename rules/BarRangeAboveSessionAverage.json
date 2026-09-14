@@ -1,0 +1,28 @@
+{
+    "name": "BarRangeAboveSessionAverage",
+    "type": "Entry",
+    "inputVariables": {
+        "sizeMultiple": "1"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgBarRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THIS BAR IS AT LEAST AS BIG AS THE SESSION'S AVERAGE BAR SO FAR. Brooks's\n// gate on range scalps: a tight trading range is only worth fading when the\n// bars inside it are large enough to pay for the trade.\n//\n// The window is what makes this its own rule, and it is the same growing\n// session-to-date window SessionAvgBarRangeStop uses for a money stop -- one\n// shared primitive, read here as an entry filter on the CURRENT bar instead\n// of as a stop distance. Not BarRangeAboveStd, whose benchmark is a FIXED\n// N-bar mean plus K standard deviations, and not BarRangeAtrMultiple, whose\n// benchmark is a fixed rolling ATR: this benchmark is one bar wide at the\n// open and grows through the day, so no lookback setting reproduces it.\n//\n// The average INCLUDES the current bar, exactly as the pseudocode's\n// average(high - low, barsSinceSessionOpen) does, so on the session's first\n// bar the test is high - low >= sizeMultiple * (high - low) and fires at\n// sizeMultiple <= 1. That is deliberate: the first bar of a session has no\n// other bar to be compared against.\n//\n// It is a mean of the bar's high minus its low, not of true range, and not\n// the WFSafe_AvgTrueRange rolling accumulator -- there is no seeding and no\n// length-change behaviour here, just a running sum reset at the open.\n//\n// barsIn is at least 1 on every evaluated bar (the session branch sets it to\n// 1 and the other increments from 0), so the division is safe.\n//\n// Direction-agnostic: the size of a bar is the same fact for a buyer and a\n// seller, so both conditions are identical text.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)). Intraday bars only.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    rangeSum = high[0] - low[0];\n} else {\n    barsIn = barsIn + 1;\n    rangeSum = rangeSum + (high[0] - low[0]);\n}\navgBarRange = rangeSum / barsIn;",
+    "longCondition": "el_ge(high[0] - low[0], sizeMultiple * avgBarRange)",
+    "shortCondition": "el_ge(high[0] - low[0], sizeMultiple * avgBarRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,88 @@
+{
+    "name": "ThreePushDurationWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "minBars": "10",
+        "maxBars": "20",
+        "swingStrength": "2",
+        "pushCount": "3",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "hiBar2": {
+            "type": "int",
+            "init": "-1"
+        },
+        "hiBar3": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar2": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar3": {
+            "type": "int",
+            "init": "-1"
+        },
+        "needP": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiBarP": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBarP": {
+            "type": "int",
+            "init": "-1"
+        },
+        "inWindowLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inWindowHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "loBound": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiBound": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HOW BIG IS THE PATTERN? The bar count from the FIRST push to the current bar\n// must lie inside [minBars, maxBars]. This is the book's size test, and one\n// rule carries all three of its parameterizations rather than three rules: a\n// wedge FLAG runs 10-20 bars (R18-04 = V05-07, the default here), a wedge\n// REVERSAL 20 or more (R18-05 = V05-06 -- set maxBars to 0, which means\n// unbounded), and a three-legged pullback 5-15 (R11-12).\n//\n// R18-05 / V05-06 also demand a clear trend channel line. That half has no\n// numeric definition anywhere in the bucket and is left to the\n// trend-channel-line fit rule in lines_channels_channels; recorded here, not\n// encoded.\n//\n// MIRRORED, not identical on both sides, though the merged slice recorded the\n// rule as same-sided: the first push of a three-push BOTTOM is a swing low and\n// the first push of a three-push TOP is a swing high, so the long pane must\n// read loBarP and the short hiBarP. The arithmetic is the same on both sides;\n// the pivot series is not.\n//\n// The pivot's BARS-AGO count IS the bar distance from the current bar, so the\n// pattern's length needs no bar-number bookkeeping. pushCount selects which\n// pivot counts as the first push and is clamped to the three the scan keeps.\n// The bar counts and the mode selectors are integers, compared exactly rather\n// than through el_*; only prices carry the relational tolerance.\n//\n// Pivot scan as in ThreePushPattern, inlined; the register lists Occurrence 3+\n// as unmeasured, so the oldest push is found by hand. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR ABOVE the swingStrength OLDER bars and STRICTLY ABOVE the swingStrength\n// NEWER bars -- bars-ago indexing, so the newer bars are the smaller k and\n// take el_gt / el_lt, the older el_ge / el_le; confirmation lag exactly\n// swingStrength bars; candidate offsets swingStrength .. lookbackBars - 1, the\n// neighbourhood reaching swingStrength bars past the window, so the deepest\n// bar touched is lookbackBars - 1 + swingStrength. lookbackBars must exceed\n// maxBars or the window can never be satisfied. No early break, as the twin.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nloBound = (int)minBars;\nhiBound = (int)maxBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiBar1 = -1;\nhiBar2 = -1;\nhiBar3 = -1;\nloBar1 = -1;\nloBar2 = -1;\nloBar3 = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiBar1 = j;\n        if (nHiPiv == 2) hiBar2 = j;\n        if (nHiPiv == 3) hiBar3 = j;\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loBar1 = j;\n        if (nLoPiv == 2) loBar2 = j;\n        if (nLoPiv == 3) loBar3 = j;\n    }\n}\nneedP = (int)pushCount;\nif (needP < 1) needP = 1;\nif (needP > 3) needP = 3;\nhiBarP = hiBar3;\nloBarP = loBar3;\nif (needP == 1) { hiBarP = hiBar1; loBarP = loBar1; }\nif (needP == 2) { hiBarP = hiBar2; loBarP = loBar2; }\ninWindowLo = (nLoPiv >= needP) && (loBarP >= loBound) && ((hiBound == 0) || (loBarP <= hiBound));\ninWindowHi = (nHiPiv >= needP) && (hiBarP >= loBound) && ((hiBound == 0) || (hiBarP <= hiBound));",
+    "longCondition": "inWindowLo",
+    "shortCondition": "inWindowHi",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

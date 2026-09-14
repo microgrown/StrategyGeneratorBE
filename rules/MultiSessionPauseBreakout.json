@@ -1,0 +1,50 @@
+{
+    "name": "MultiSessionPauseBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "legLookback": "40",
+        "maxPauseBars": "10",
+        "maxRetraceFraction": "0.5"
+    },
+    "localVariables": {
+        "legHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "loBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "pauseLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pauseHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearOk": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Trend resumption after a shallow pause. A strong leg ran to its extreme,\n// price has since stayed inside the leg without retracing past\n// maxRetraceFraction of its height, the pause has lasted no more than\n// maxPauseBars, and this bar closes beyond the leg's extreme in the leg's own\n// direction -- a high-conviction continuation entry. Short is the mirror.\n//\n// EVERY TERM IS READ OFF THE WINDOW EXTREMES; no leg detector is invented.\n// Over bars 1..legLookback (bar 0 EXCLUDED, so the current bar cannot be its\n// own benchmark and the breakout is a genuine one), legHigh / legLow are the\n// window's extremes and hiBar / loBar the bars they printed on. The leg is\n// BULL when the high came AFTER the low, hiBar < loBar; its height is\n// legHigh - legLow; the pause is hiBar bars long, which is what maxPauseBars\n// caps; the retracement is legHigh minus the lowest low SINCE the leg high.\n// The pause range's high IS legHigh -- it is the window's highest bar and\n// every pause bar lies inside the pause -- so 'closes beyond the pause range'\n// is close[0] > legHigh with no extra state.\n//\n// UNITS: the source counts SESSIONS ('up to K sessions of pause') and this\n// input counts BARS. The engine has no multi-session leg machinery; on a\n// daily or 1440-minute series the two coincide exactly, and on a finer series\n// maxPauseBars must be scaled in the grid. Stated rather than hidden.\n// legLookback is PROMOTED -- the merged parameters gave the pause cap and the\n// retracement cap but nothing bounding the leg itself.\n//\n// Each scan is seeded at the NEWEST offset in its range and walks outward\n// with a STRICT comparison, so a tie keeps the newest bar -- the same scan\n// order and tie sense as Extremes(), which Highest() and Lowest() call, and\n// which is EL source and therefore carries the 2.22e-12 relational tolerance.\n// The tie sense matters here because it decides hiBar and loBar, and with\n// them the leg's direction.\n//\n// The inner scans run to hiBar / loBar, which are at least 1, so they are\n// always in range and need no -1 guard. Kept whole per the merge: the pause\n// and the breakout are the same claim, and the retracement cap is measured\n// from a data-dependent origin, which no pane can express. Deepest bar\n// touched is legLookback.\nlegHigh = high[1];\nlegLow = low[1];\nhiBar = 1;\nloBar = 1;\nfor (int j = 2; j <= (int)legLookback; ++j) {\n    if (el_gt(high[j], legHigh)) {\n        legHigh = high[j];\n        hiBar = j;\n    }\n    if (el_lt(low[j], legLow)) {\n        legLow = low[j];\n        loBar = j;\n    }\n}\npauseLow = low[1];\nfor (int j = 2; j <= hiBar; ++j) {\n    if (el_lt(low[j], pauseLow)) pauseLow = low[j];\n}\npauseHigh = high[1];\nfor (int j = 2; j <= loBar; ++j) {\n    if (el_gt(high[j], pauseHigh)) pauseHigh = high[j];\n}\nbullOk = (hiBar < loBar) && el_le((double)hiBar, maxPauseBars)\n    && el_le(legHigh - pauseLow, maxRetraceFraction * (legHigh - legLow))\n    && el_gt(close[0], legHigh);\nbearOk = (loBar < hiBar) && el_le((double)loBar, maxPauseBars)\n    && el_le(pauseHigh - legLow, maxRetraceFraction * (legHigh - legLow))\n    && el_lt(close[0], legLow);",
+    "longCondition": "bullOk",
+    "shortCondition": "bearOk",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

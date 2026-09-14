@@ -1,0 +1,25 @@
+{
+    "name": "SpikePullbackLimitFade",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "2",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "spikeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "spikeDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FIRST WEAK PULLBACK BAR OF A SPIKE, FADED. After spikeBars consecutive\n// bull trend bars ending ONE BAR AGO, the current bar trades below the previous\n// bar's low: buy, betting the pullback fails and the spike resumes. Short is\n// the mirror.\n//\n// THE LIMIT FILL IS APPROXIMATED BY THE BAR TRADING THROUGH THE LEVEL, as the\n// mining brief allows -- low[0] <= low[1] rather than a resting order. Three\n// sources state the same setup (5 bars with a limit at the prior bar's extreme;\n// 2 bars with a limit at or below the doji's low; 2 bars as a with-trend stop\n// entry on the first bar poking past the prior extreme) and all three fire on\n// the same bar. Default spikeBars 2, from two of the three.\n//\n// KEPT WHOLE: the run must END one bar before the pullback bar, an offset no\n// pane can supply, and the pullback half is LaggedHigherHigh negated and\n// flipped, which a placement toggle would apply to the run half as well.\n//\n// NOT FirstPullbackAfterSpike, which retains the pullback bar's HIGHEST price and waits\n// for a LATER bar to close above it within a wait window; this rule enters on\n// the pullback bar itself, so the two fire on different bars.\n//\n// NOT BuyOppositeColorBarAfterTrendBarRun, which needs the pullback bar to\n// FINISH down and says nothing about where it traded.\n//\n// The run's bar shape is StrongTrendBarRun's settled definition read at lag 1:\n// a strict body direction and a body of at least bodyFraction of the bar's own\n// range. The all-of-N loop starts true and lets any failing bar clear the flag,\n// so the loop runs unconditionally and EasyLanguage's lack of short-circuiting\n// cannot matter. The flags are class members and persist across bars, so both\n// are reset at the top.\n//\n// Products, not quotients: EasyLanguage raises a runtime divide-by-zero and a\n// zero-range bar is legal data.\n//\n// Deepest bar touched: spikeBars.\nspikeUp = true;\nspikeDn = true;\nfor (int k = 1; k <= (int)spikeBars; ++k) {\n    if (el_le(close[k], open[k])) spikeUp = false;\n    if (el_lt(close[k] - open[k], bodyFraction * (high[k] - low[k]))) spikeUp = false;\n    if (el_ge(close[k], open[k])) spikeDn = false;\n    if (el_lt(open[k] - close[k], bodyFraction * (high[k] - low[k]))) spikeDn = false;\n}",
+    "longCondition": "spikeUp && el_le(low[0], low[1])",
+    "shortCondition": "spikeDn && el_ge(high[0], high[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

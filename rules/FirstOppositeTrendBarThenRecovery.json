@@ -1,0 +1,42 @@
+{
+    "name": "FirstOppositeTrendBarThenRecovery",
+    "type": "Entry",
+    "inputVariables": {
+        "flagBars": "5",
+        "strongBars": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "kBear": {
+            "type": "int",
+            "init": "-1"
+        },
+        "kBull": {
+            "type": "int",
+            "init": "-1"
+        },
+        "cleanBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "longSig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortSig": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// 'The first bear spike in a strong bull trend is almost always just a bull\n// flag.' The FIRST against-trend trend bar in a long while printed within the\n// last flagBars bars, nothing like it appeared in the strongBars bars BEFORE\n// it, and this bar has now closed above its high -- buy. Short is the mirror.\n//\n// KEPT WHOLE rather than split, and the reason is structural: the 'no other\n// opposite trend bar in the preceding strongBars bars' term is\n// StrongTrendBarCount negated, but it must be measured FROM THE FOUND BAR k,\n// not from bar 0, and a pane cannot express a window whose origin is data.\n// The same goes for the trigger, close[0] > high[k], a comparison at a\n// VARIABLE lag. Everything is bounded -- at most flagBars for the scan and\n// strongBars for the clean run -- so the deepest bar touched is\n// flagBars + strongBars.\n//\n// 'FIRST' is the smallest offset, carried by the kBear == -1 guard rather\n// than a loop break, because EasyLanguage has none and both twins must run\n// the same iterations.\n//\n// THE -1 GUARD IS LOAD-BEARING TWICE. EasyLanguage does not short-circuit, so\n// 'kBear != -1 && close[0] > high[kBear]' would still evaluate high[-1], a\n// future bar, in the twin. Both the clean-run scan and the trigger therefore\n// sit inside an IF on the guard rather than behind an AND, in both twins.\n//\n// A trend bar is StrongTrendBarRun's definition: it closes in its own\n// direction and its body is at least bodyFraction of the bar's own range,\n// written as a product because EL raises a runtime divide-by-zero on a\n// zero-range bar and that is legal data. Brooks states the setup only for the\n// FIRST opposite spike, which is why the zero-count window is part of the\n// rule and not a separate filter.\n//\n// The flags are class members and persist across bars, so each is set at the\n// top of its block rather than relied on to start clear.\nkBear = -1;\nkBull = -1;\nfor (int k = 1; k <= (int)flagBars; ++k) {\n    if (kBear == -1 && el_lt(close[k], open[k])\n        && el_ge(open[k] - close[k], bodyFraction * (high[k] - low[k]))) {\n        kBear = k;\n    }\n    if (kBull == -1 && el_gt(close[k], open[k])\n        && el_ge(close[k] - open[k], bodyFraction * (high[k] - low[k]))) {\n        kBull = k;\n    }\n}\ncleanBear = true;\nif (kBear != -1) {\n    for (int j = kBear + 1; j <= kBear + (int)strongBars; ++j) {\n        if (el_lt(close[j], open[j])\n            && el_ge(open[j] - close[j], bodyFraction * (high[j] - low[j]))) {\n            cleanBear = false;\n        }\n    }\n}\ncleanBull = true;\nif (kBull != -1) {\n    for (int j = kBull + 1; j <= kBull + (int)strongBars; ++j) {\n        if (el_gt(close[j], open[j])\n            && el_ge(close[j] - open[j], bodyFraction * (high[j] - low[j]))) {\n            cleanBull = false;\n        }\n    }\n}\nlongSig = false;\nif (kBear != -1) {\n    longSig = cleanBear && el_gt(close[0], high[kBear]);\n}\nshortSig = false;\nif (kBull != -1) {\n    shortSig = cleanBull && el_lt(close[0], low[kBull]);\n}",
+    "longCondition": "longSig",
+    "shortCondition": "shortSig",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

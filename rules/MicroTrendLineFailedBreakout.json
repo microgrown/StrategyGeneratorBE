@@ -1,0 +1,99 @@
+{
+    "name": "MicroTrendLineFailedBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "microSwingStrength": "1",
+        "pivotLookback": "20",
+        "microLineBars": "10",
+        "failureWindowBars": "2"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pokeLoFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pokeHiFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pokeLoHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pokeHiLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MICRO TREND LINE. Same machinery as TrendLineTouch -- the two most recent\n// CONFIRMED swing pivots, the bull line across the LOWS and the bear line\n// across the HIGHS, TLValue's FIRST-anchor two-point projection -- but read at\n// microSwingStrength 1 and with the ADDITIONAL requirement that the two anchors\n// lie no more than microLineBars apart. That span test is what makes this a\n// MICRO line and not the swing line.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the microSwingStrength OLDER bars, STRICTLY\n// ABOVE the microSwingStrength NEWER bars -- so a flat top yields exactly one\n// pivot, the later of the equal bars; bars-ago indexing makes the SMALLER index\n// the NEWER bar, so the strict half is the k < j loop. The confirmation lag is\n// exactly microSwingStrength bars -- ONE bar here, the minimum that is still\n// lookahead-safe. pivotLookback is EL's Length (offsets 0..pivotLookback-1\n// inclusive) and the neighbourhood test reaches microSwingStrength bars PAST\n// the window, so the deepest index the scan touches is\n// pivotLookback - 1 + microSwingStrength. A window with no pivot returns the -1\n// SENTINEL, guarded below. Occurrence 3+ is UNMEASURED and never asked for. The\n// comparisons carry the 2.22e-12 relational tolerance, hence el_gt / el_ge.\n// Strength 1 is inside the measured range; Length below Strength+1 is not, and\n// pivotLookback 20 is far above it. No WFSafe_SwingHigh exists, so plain EL\n// governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: the two-point line anchored at the FIRST\n// pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * Slope,\n// extrapolating freely, so it can be read at the poking bar. Bars-ago\n// convention, OLDER pivot as P1/B1 (the zero-drift spelling). Bar1 = Bar2\n// silently returns 0.0 and is guarded rather than relied on. The slope is\n// hoisted out of the per-target arithmetic where the EL twin recomputes it\n// inside each TLValue call; identical doubles, same line.\n//\n// THIS RULE: the FAILED micro-breakout, back in the micro-trend's direction. A\n// bar within the last failureWindowBars poked THROUGH the micro line -- for a\n// LONG, a bar whose low traded below the bull micro line -- and the market has\n// now closed back through that bar's own opposite extreme (close above that\n// bar's high). Brooks's span is '2 to about 10 bars'; R00-39 read 6 and T16-08\n// read 10, default 10.\n//\n// Deliberately NOT merged with TrendLineTouch: a poke that FAILS within a bar\n// or two and a closing price beyond the line are opposite trades. Also distinct from\n// MicroChannelFailedBreakoutEntry, which breaks a micro CHANNEL -- a run of\n// bars none of which made a lower low -- rather than a projected line: price\n// can poke through this line without breaking any bar-to-bar structure, and a\n// micro channel can end without any line being touched.\n//\n// The scan runs NEWEST FIRST and keeps the first hit, so the poking bar is the\n// most recent one and its extreme is the level the close must clear.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)microSwingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2) && el_le(loB1 - loB2, microLineBars);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2) && el_le(hiB1 - hiB2, microLineBars);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\npokeLoFound = false;\npokeHiFound = false;\npokeLoHigh = 0.0;\npokeHiLow = 0.0;\nfor (int kk = 1; kk <= (int)failureWindowBars; ++kk) {\n    if (haveLoLine && !pokeLoFound && el_lt(low[kk], loP1 + ((double)kk - loB1) * loSlope)) {\n        pokeLoFound = true;\n        pokeLoHigh = high[kk];\n    }\n    if (haveHiLine && !pokeHiFound && el_gt(high[kk], hiP1 + ((double)kk - hiB1) * hiSlope)) {\n        pokeHiFound = true;\n        pokeHiLow = low[kk];\n    }\n}",
+    "longCondition": "haveLoLine && pokeLoFound && el_gt(close[0], pokeLoHigh)",
+    "shortCondition": "haveHiLine && pokeHiFound && el_lt(close[0], pokeHiLow)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

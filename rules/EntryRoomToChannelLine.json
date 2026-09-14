@@ -1,0 +1,98 @@
+{
+    "name": "EntryRoomToChannelLine",
+    "type": "Entry",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "minRoomFraction": "0.5"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveChannel": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chanHeight": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CHANNEL, built from four confirmed swing pivots and two trend lines.\n// One construction is used by every rule in this family so they all draw the\n// same channel:\n//   * the BULL channel's trend line runs through the two most recent confirmed\n//     swing LOWS and its channel line through the two most recent confirmed\n//     swing HIGHS;\n//   * the BEAR channel is the mirror -- trend line across the HIGHS, channel\n//     line across the LOWS.\n// The two lines are NOT parallel by construction, which is what lets the\n// channel converge (a wedge) or diverge; Brooks draws both forms.\n//\n// The pivot scan is INLINED here rather than reaching into SwingHigh.json --\n// rules in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min):\n//   * the pivot test is MIXED -- AT OR ABOVE the pivotStrength older bars,\n//     STRICTLY ABOVE the pivotStrength newer bars -- so a flat top yields\n//     exactly one pivot, the later of the equal bars;\n//   * the confirmation lag is exactly pivotStrength bars, never 0 or 1, which\n//     is what makes the scan lookahead-safe;\n//   * pivotLookback is EL's Length: candidate offsets 0..pivotLookback-1 from\n//     the current bar inclusive, and the neighbourhood test reaches\n//     pivotStrength bars PAST the window, so the deepest index touched is\n//     pivotLookback - 1 + pivotStrength;\n//   * a window with no pivot returns the -1 SENTINEL. Scanning newest-first\n//     and taking the first two hits reproduces Occurrence 1 and 2; finding\n//     fewer than two is the sentinel case, guarded below. Occurrence 3+ is\n//     UNMEASURED and is never asked for;\n//   * the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n//     el_ge inside the scan rather than raw > and >=.\n// The low side's tie sense is the mirror of the measured high-side rule. There\n// is no WFSafe_SwingHigh, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: TLValue(P1, B1, P2, B2, target) is the pure\n// two-point line Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) *\n// Slope, anchored at the FIRST pair and extrapolating freely past both\n// anchors. The bar-number convention is the CALLER's; bars-ago is used here,\n// so the OLDER pivot (the LARGER bars-ago) is passed as P1/B1 -- the corpus's\n// older-anchor-first spelling, measured at zero drift. Bar1 = Bar2 does NOT\n// halt, it silently returns 0.0, so the twins guard B1 != B2 instead of\n// relying on that. The slope is hoisted out of the per-target arithmetic here\n// where the EL twin recomputes it inside each TLValue call: the inputs are\n// identical doubles, so the two are bit-for-bit the same line.\n//\n// THIS RULE: trade viability. There must be at least minRoomFraction of the\n// channel's own height between the close and the line AHEAD -- the upper line\n// for a long, the lower for a short -- or the trade has nowhere to pay before\n// it reaches the far side. Brooks: 'so tight there was no room for a\n// profitable short and no trade should be taken'. Scaled to the channel's\n// height, not to ATR; the absolute form (room >= minRoomAtr x ATR) is the\n// recorded alternative and is the better one if channel height is noisy.\n//\n// chanHeight must be positive for the fraction to mean anything: crossed lines\n// make the comparison nonsense, and that guard is the rule's own.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nhaveChannel = haveLoLine && haveHiLine;\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nchanHeight = 0.0;\nif (haveChannel) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n    chanHeight = hiNow - loNow;\n}",
+    "longCondition": "haveChannel && el_gt(chanHeight, 0.0) && el_ge(hiNow - close[0], minRoomFraction * chanHeight)",
+    "shortCondition": "haveChannel && el_gt(chanHeight, 0.0) && el_ge(close[0] - loNow, minRoomFraction * chanHeight)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

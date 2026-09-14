@@ -1,0 +1,48 @@
+{
+    "name": "FailedBreakoutOfPriorSessionExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "maxBarsIntoSession": "12"
+    },
+    "localVariables": {
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "curHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "sawStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "failHigh": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Intraday: the bar's low breaks below the PRIOR session's low but the bar\n// closes back above it -- a failed breakout of yesterday's extreme, and a\n// long at the next open. Short is the mirror at the prior session's high.\n//\n// Kept apart from FailedBreakoutReversal: the level is a session boundary\n// rather than an N-bar window, so the two fire on different bars, and this\n// one fires on the BREAKOUT BAR ITSELF rather than on a later close back\n// inside.\n//\n// prevHigh / prevLow ARE HighD(1) / LowD(1), which the EasyLanguage twin\n// calls and the engine does not expose. MEASURED (the highd/lowd register\n// row): the day is the wall-clock CALENDAR date, the SAME boundary as\n// date <> date[1] -- one slicing serves both -- xxxD(0) is the running value\n// inclusive of the current bar, and the functions return a -1 SENTINEL while\n// fewer than that many complete days exist. The mirror therefore keeps the\n// running day extremes, rolls them at the date change, and keeps the -1\n// sentinel as the initial value so the guard below means the same thing in\n// both twins.\n//\n// WARM-UP, THE ONE PLACE THE TWINS CAN DIFFER: TradeStation's HighD reads the\n// chart's own data and answers on the very first evaluated bar, while this\n// mirror can only see bars from Max Bars Back on. sawStart makes that honest\n// rather than silent -- a day is published as \"the prior session\" only once\n// its own first bar has been observed, so prevHigh / prevLow hold the -1\n// sentinel through the first partial day AND the first fully observed day,\n// and the rule is simply silent there. From the second date change on the two\n// agree exactly. This is the EMA-seed situation again: the engine's window is\n// part of the specification, and the mirror errs toward no signal.\n//\n// barsIn is the standing bars-into-session counter, reset on the date change;\n// Brooks's setup is an early-session one, so the test is confined to the\n// first maxBarsIntoSession bars of the day. Intraday bars only.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    if (sawStart) {\n        prevHigh = curHigh;\n        prevLow = curLow;\n    }\n    sawStart = true;\n    curHigh = high[0];\n    curLow = low[0];\n    barsIn = 1;\n} else {\n    barsIn = barsIn + 1;\n    if (el_gt(high[0], curHigh)) curHigh = high[0];\n    if (el_lt(low[0], curLow)) curLow = low[0];\n}\nfailLow = !el_eq(prevLow, -1.0) && el_lt(low[0], prevLow) && el_gt(close[0], prevLow)\n    && el_le((double)barsIn, maxBarsIntoSession);\nfailHigh = !el_eq(prevHigh, -1.0) && el_gt(high[0], prevHigh) && el_lt(close[0], prevHigh)\n    && el_le((double)barsIn, maxBarsIntoSession);",
+    "longCondition": "failLow",
+    "shortCondition": "failHigh",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

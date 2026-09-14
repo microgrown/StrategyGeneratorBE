@@ -1,0 +1,127 @@
+{
+    "name": "ThreePushAcceleration",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40",
+        "perBar": "1",
+        "accelMultiple": "1.0"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "hiBar2": {
+            "type": "int",
+            "init": "-1"
+        },
+        "hiBar3": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar1": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar2": {
+            "type": "int",
+            "init": "-1"
+        },
+        "loBar3": {
+            "type": "int",
+            "init": "-1"
+        },
+        "upLate": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upEarly": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnLate": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnEarly": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upGapLate": {
+            "type": "int",
+            "init": "0"
+        },
+        "upGapEarly": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnGapLate": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnGapEarly": {
+            "type": "int",
+            "init": "0"
+        },
+        "accelUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "accelDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "perBarMode": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// IS THE THREE-PUSH PATTERN ACCELERATING? Compare the SECOND push-to-push\n// increment against the first. Accelerating (parabolic, V05-08) when the later\n// increment is the larger; decelerating (shrinking stairs, waning momentum,\n// V05-09) when it is the smaller -- and the second case is simply this rule\n// NEGATED in the pane, which is why it is one rule and not two.\n//\n// perBar picks which of the two book readings is used: 1 divides each\n// increment by the bars between its pivots, giving V05-08's\n// trend-channel-line SLOPE; 0 leaves the raw price increments, which is\n// V05-09's spelling. The divisor is guarded above zero because EasyLanguage\n// raises a runtime divide-by-zero error, and the guard falls back to the raw\n// increments rather than halting.\n//\n// Long reads the low pivots (three pushes down, the bull setup) and short the\n// high pivots, the same side convention as the rest of the B03 family. The\n// early increment must be positive: a pattern that is not pushing in one\n// direction has nothing to accelerate.\n//\n// V05-08's 2 legs / 10 bars reversal expectation is guidance, not a condition,\n// and is not encoded here.\n//\n// Pivot scan as in ThreePushPattern, inlined; the register lists Occurrence 3+\n// as unmeasured, so the third push is found by hand. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR ABOVE the swingStrength OLDER bars and STRICTLY ABOVE the swingStrength\n// NEWER bars -- bars-ago indexing, so the newer bars are the smaller k and\n// take el_gt / el_lt, the older el_ge / el_le; confirmation lag exactly\n// swingStrength bars; candidate offsets swingStrength .. lookbackBars - 1; the\n// bars-ago count IS the pivot's bar index here, which is what the increments\n// are divided by; the deepest bar touched is lookbackBars - 1 + swingStrength.\n// No early break, matching the twin.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nperBarMode = (int)perBar;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nhiBar1 = -1;\nhiBar2 = -1;\nhiBar3 = -1;\nloBar1 = -1;\nloBar2 = -1;\nloBar3 = -1;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) { hiPx1 = high[j]; hiBar1 = j; }\n        if (nHiPiv == 2) { hiPx2 = high[j]; hiBar2 = j; }\n        if (nHiPiv == 3) { hiPx3 = high[j]; hiBar3 = j; }\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) { loPx1 = low[j]; loBar1 = j; }\n        if (nLoPiv == 2) { loPx2 = low[j]; loBar2 = j; }\n        if (nLoPiv == 3) { loPx3 = low[j]; loBar3 = j; }\n    }\n}\naccelUp = false;\naccelDn = false;\nif (nHiPiv == 3) {\n    upLate = hiPx1 - hiPx2;\n    upEarly = hiPx2 - hiPx3;\n    upGapLate = hiBar2 - hiBar1;\n    upGapEarly = hiBar3 - hiBar2;\n    if (perBarMode == 1 && upGapLate > 0 && upGapEarly > 0) {\n        upLate = upLate / upGapLate;\n        upEarly = upEarly / upGapEarly;\n    }\n    accelUp = el_gt(upEarly, 0.0) && el_gt(upLate, upEarly * accelMultiple);\n}\nif (nLoPiv == 3) {\n    dnLate = loPx2 - loPx1;\n    dnEarly = loPx3 - loPx2;\n    dnGapLate = loBar2 - loBar1;\n    dnGapEarly = loBar3 - loBar2;\n    if (perBarMode == 1 && dnGapLate > 0 && dnGapEarly > 0) {\n        dnLate = dnLate / dnGapLate;\n        dnEarly = dnEarly / dnGapEarly;\n    }\n    accelDn = el_gt(dnEarly, 0.0) && el_gt(dnLate, dnEarly * accelMultiple);\n}",
+    "longCondition": "accelDn",
+    "shortCondition": "accelUp",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

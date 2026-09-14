@@ -1,0 +1,49 @@
+{
+    "name": "FirstPullbackDelay",
+    "type": "Entry",
+    "inputVariables": {
+        "breakoutLookback": "20",
+        "minBarsBeforePullback": "3"
+    },
+    "localVariables": {
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barsSinceBoUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "barsSinceBoDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "minLowSinceBo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSinceBo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevMinLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevMaxHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FIRST PULLBACK ARRIVES LATE. This bar is the first bar since the\n// breakout whose low is below the prior bar's low, and it is at least\n// minBarsBeforePullback bars after that breakout. Brooks's leading sign of\n// breakout strength -- 'the first pullback occurs only after three or more\n// bars of breaking out'. NEGATED with the per-placement toggle it is his sign\n// of weakness ('the first pullback occurs two bars after the reversal'), and\n// at minBarsBeforePullback = 6 it is the other bound he states ('any pullback\n// should come within five bars or so').\n//\n// THE BREAKOUT ANCHOR is a close above EL's Highest(high, breakoutLookback)[1]\n// -- the N bars ENDING ONE BAR AGO -- the same fresh-N-bar-extreme anchor the\n// rest of this bucket uses. Extremes() is EasyLanguage source, so the scan\n// carries the relational tolerance through el_gt / el_lt.\n//\n// 'NO EARLIER PULLBACK BAR SINCE THE BREAKOUT' is carried as a RUNNING\n// MINIMUM, not as Lowest(low, barsSince)[1]: the bars-since count is\n// unbounded before the first breakout of a run, and a window of that length\n// would index past Max Bars Back. prevMinLow holds the lowest low from the\n// breakout bar through the PREVIOUS bar, which is exactly what\n// Lowest(low, barsSince)[1] would return, and nothing here reaches deeper\n// than breakoutLookback. On the breakout bar itself that window is empty and\n// prevMinLow is seeded with the previous bar's low, so the test degenerates\n// to true -- which only matters at minBarsBeforePullback = 0.\n//\n// Warm-up: before the first breakout the running minimum is still its initial\n// 0 and the test cannot pass on positive prices; the EasyLanguage twin's\n// variable initialises to the same 0.\n//\n// Not PullbackDurationBars, which reads the same anchor's bars-since as an\n// upper bound and adds no pullback-bar test.\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)breakoutLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    barsSinceBoUp = 0;\n    prevMinLow = low[1];\n    minLowSinceBo = low[0];\n} else {\n    barsSinceBoUp = barsSinceBoUp + 1;\n    prevMinLow = minLowSinceBo;\n    if (el_lt(low[0], minLowSinceBo)) minLowSinceBo = low[0];\n}\nif (el_lt(close[0], priorLow)) {\n    barsSinceBoDn = 0;\n    prevMaxHigh = high[1];\n    maxHighSinceBo = high[0];\n} else {\n    barsSinceBoDn = barsSinceBoDn + 1;\n    prevMaxHigh = maxHighSinceBo;\n    if (el_gt(high[0], maxHighSinceBo)) maxHighSinceBo = high[0];\n}",
+    "longCondition": "el_ge((double)barsSinceBoUp, minBarsBeforePullback) && el_lt(low[0], low[1]) && el_ge(prevMinLow, low[1])",
+    "shortCondition": "el_ge((double)barsSinceBoDn, minBarsBeforePullback) && el_gt(high[0], high[1]) && el_le(prevMaxHigh, high[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,103 @@
+{
+    "name": "ChannelLineTargetExit",
+    "type": "Exit",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotLookback": "20",
+        "touchTolAtr": "0.0",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE CHANNEL, one construction shared by the whole lines/channels family\n// (decided in slice B01, carried here unchanged):\n//   * the BULL channel's trend line runs through the two most recent CONFIRMED\n//     swing LOWS and its CHANNEL line through the two most recent confirmed\n//     swing HIGHS;\n//   * the BEAR channel is the mirror -- trend line across the HIGHS, channel\n//     line across the LOWS.\n// The two lines are deliberately NOT parallel; a parallel channel has constant\n// width, under which ChannelWidthConvergence could never fire.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the pivotStrength OLDER bars, STRICTLY ABOVE the\n// pivotStrength NEWER bars -- so a flat top yields exactly one pivot, the later\n// of the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar,\n// so the strict half is the k < j loop. The confirmation lag is exactly\n// pivotStrength bars, never 0 or 1. pivotLookback is EL's Length (offsets\n// 0..pivotLookback-1 inclusive) and the neighbourhood test reaches pivotStrength\n// bars PAST the window, so the deepest index the scan touches is\n// pivotLookback - 1 + pivotStrength. A window with no pivot returns the -1\n// SENTINEL, guarded below. Occurrence 3+ is UNMEASURED and never asked for. The\n// comparisons carry the 2.22e-12 relational tolerance, hence el_gt / el_ge. The\n// low side's tie sense is the mirror of the measured high-side rule. No\n// WFSafe_SwingHigh exists, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: the pure two-point line anchored at the FIRST\n// pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * Slope.\n// Bars-ago convention, so the OLDER pivot (LARGER bars-ago) is P1/B1, the\n// zero-drift spelling. Bar1 = Bar2 silently returns 0.0, so B1 != B2 is\n// guarded. The slope is hoisted out of the per-target arithmetic where the EL\n// twin recomputes it inside each TLValue call; identical doubles, same line.\n//\n// THIS RULE: take profit where the channel says the move should stall. A LONG\n// is closed when the bar's high reaches the channel line ABOVE (the line\n// through the swing highs); a SHORT when the low reaches the line BELOW. Three\n// merged framings collapse to one rule because they differ only in which side\n// the trade was on: T15-14 is the with-trend long taking profit at the top of\n// its own bull channel, T15-35 the countertrend long out of a failed breakout\n// targeting the OPPOSITE side, R10-03 the line as a magnet with no trade.\n//\n// touchTolAtr defaults to 0 (T15-14's plain 'reaches the line'); a small\n// positive tolerance takes profit just SHORT of the line, which is what\n// Brooks's 'rallies up to that line' implies. It is an ATR fraction rather than\n// a tick count because the engine exposes no tick size to strategies.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivS = (int)pivotStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) {\n    loSlope = (loP2 - loP1) / (loB2 - loB1);\n    loNow = loP1 + (0.0 - loB1) * loSlope;\n}\nif (haveHiLine) {\n    hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\n    hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget. Seeded with a full sum on the first calculated bar or when\n// the length changes, and updated thereafter as TWO statements -- EL evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently. The local counter is atrLen; atrLength is this rule's INPUT.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveHiLine && el_ge(high[0], hiNow - touchTolAtr * atrVal)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveLoLine && el_le(low[0], loNow + touchTolAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

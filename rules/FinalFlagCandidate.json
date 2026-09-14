@@ -1,0 +1,58 @@
+{
+    "name": "FinalFlagCandidate",
+    "type": "Entry",
+    "inputVariables": {
+        "flagBars": "8",
+        "overlapThreshold": "0.5",
+        "minOverlapFraction": "0.5",
+        "minTrendBars": "30",
+        "consecutiveBars": "2",
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2"
+    },
+    "localVariables": {
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "allBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "allBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flipped": {
+            "type": "bool",
+            "init": "false"
+        },
+        "aiDir": {
+            "type": "int",
+            "init": "0"
+        },
+        "aiBars": {
+            "type": "int",
+            "init": "0"
+        },
+        "ovBar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "isCandidate": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FINAL FLAG -- a named Brooks setup, so the parts are inlined rather than\n// referenced, as the corpus does with every composite. After a trend has run\n// for many bars, a mostly-horizontal pause showing TWO-SIDED trading is a\n// candidate for the trend's last flag.\n//\n// V07-01 wins the definition: it is the only source that reduces 'final flag'\n// to something PROSPECTIVE -- a bar-overlap fraction after an extended trend\n// -- instead of the retrospective label VP1-32 correctly calls circular.\n// T03-11 contributes the flag's minimum length (6 bars) and V07-06 the\n// opposite extreme (a one- or two-bar pause after a spike still counts);\n// flagBars 8 sits inside the book's usual 5-10. V07-06's 10-20 bar retest\n// expectation is guidance, not a condition.\n//\n// TWO-SIDED TRADING IS MEASURED AS OVERLAP: a bar counts when it overlaps the\n// bar before it by at least overlapThreshold of THAT bar's range, and at least\n// minOverlapFraction of the window's bars must count. Deliberately NOT merged\n// with a range/ATR width test, which is a different reading of horizontal, and\n// not the same as OverlappingBarRun, which demands EVERY pair overlap. The\n// count is compared against a fraction of the window rather than divided by\n// it: no division, so no divide-by-zero at flagBars 0.\n//\n// The twin uses MinList / MaxList, ACCEPTED for tick-grid PRICE operands,\n// which bar extremes are; the plain ternary stand-in here is exact for the\n// same reason (the operands differ by 0 or by at least one tick, 1e9-1e11x the\n// relational tolerance). The clamp at zero on a gap is an if rather than\n// MaxList(0, ...) because 0 against a price DIFFERENCE is a computed operand,\n// outside their accepted scope. Same arrangement as AverageBarOverlap;\n// <algorithm> is not among the emitted includes, so no std::min / std::max.\n//\n// ALWAYS-IN DIRECTION, the standing corpus decision, inlined: the direction\n// flips on consecutiveBars consecutive STRONG TREND BARS -- body at least\n// bodyFraction of the range, both tails no more than tailFraction -- holds\n// until the opposite flip, and is undefined until the first flip. aiBars is\n// the trend's age, 0 on the flip bar. The pair of that counter and its\n// threshold is TrendDurationBars, an AND-able pane in its own right; this rule\n// carries its own copy because a named setup is one rule.\n//\n// SAME on both sides: the flag is a context, not a direction.\n//\n// Deepest bar touched: flagBars (the overlap pair reads high[flagBars]), or\n// consecutiveBars - 1 if that is larger.\nallBull = true;\nallBear = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rng = high[k] - low[k];\n    if (el_le(close[k], open[k])) allBull = false;\n    if (el_lt(close[k] - open[k], bodyFraction * rng)) allBull = false;\n    if (el_gt(high[k] - close[k], tailFraction * rng)) allBull = false;\n    if (el_gt(open[k] - low[k], tailFraction * rng)) allBull = false;\n    if (el_ge(close[k], open[k])) allBear = false;\n    if (el_lt(open[k] - close[k], bodyFraction * rng)) allBear = false;\n    if (el_gt(close[k] - low[k], tailFraction * rng)) allBear = false;\n    if (el_gt(high[k] - open[k], tailFraction * rng)) allBear = false;\n}\nflipped = false;\nif (allBull && aiDir != 1) {\n    aiDir = 1;\n    aiBars = 0;\n    flipped = true;\n}\nif (allBear && aiDir != -1 && flipped == false) {\n    aiDir = -1;\n    aiBars = 0;\n    flipped = true;\n}\nif (flipped == false) aiBars = aiBars + 1;\novCount = 0;\nfor (int k = 0; k < (int)flagBars; ++k) {\n    ovBar = (high[k] < high[k + 1] ? high[k] : high[k + 1])\n            - (low[k] > low[k + 1] ? low[k] : low[k + 1]);\n    if (el_lt(ovBar, 0.0)) ovBar = 0.0;\n    if (el_ge(ovBar, overlapThreshold * (high[k + 1] - low[k + 1]))) ovCount = ovCount + 1;\n}\nisCandidate = (aiDir != 0) && ((double)aiBars >= minTrendBars) && el_ge((double)ovCount, minOverlapFraction * flagBars);",
+    "longCondition": "isCandidate",
+    "shortCondition": "isCandidate",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

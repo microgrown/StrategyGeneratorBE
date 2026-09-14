@@ -1,0 +1,28 @@
+{
+    "name": "CloseNearSessionRangeMidpoint",
+    "type": "Entry",
+    "inputVariables": {
+        "middleZoneFraction": "0.2"
+    },
+    "localVariables": {
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessMid": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Brooks's middle-of-the-day, middle-of-the-range caution, price half only:\n// the close sits within middleZoneFraction of the session's range of that\n// range's midpoint. Placed NEGATED it is the \"trade only away from the\n// middle\" filter; placed plain it selects the chop.\n//\n// The source is a composite of a clock window and this price test. The clock\n// half IS TimeWindow, already in the corpus, and the entry pane ANDs, so only\n// the price half is carried here.\n//\n// Not RangeMidpointZone, which bands the midpoint of a FIXED N-bar window,\n// and not CloseRangePosition, which places the close inside its OWN bar. The\n// window here is the session so far: it grows through the day and resets at\n// the open, so no setting of rangeLookback reproduces it.\n//\n// Direction-agnostic, so both sides are identical text.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)). Intraday bars only.\n// The test is written multiplied, never as a ratio, so a session whose high\n// equals its low fires on both sides rather than dividing by zero (EL raises\n// a runtime divide-by-zero on a zero denominator).\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}\nsessMid = (sessHigh + sessLow) / 2;",
+    "longCondition": "el_le(std::fabs(close[0] - sessMid), middleZoneFraction * (sessHigh - sessLow))",
+    "shortCondition": "el_le(std::fabs(close[0] - sessMid), middleZoneFraction * (sessHigh - sessLow))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

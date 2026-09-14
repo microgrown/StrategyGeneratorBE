@@ -1,0 +1,91 @@
+{
+    "name": "ThreePushExtremeRetestFade",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "tolAtr": "0.1",
+        "atrLookback": "14",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "patUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "patDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "tol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fadeLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fadeShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// FADE THE TEST OF THE WEDGE'S EXTREME. After a three-push pattern, price comes\n// back to within a tolerance of the pattern's own extreme WITHOUT exceeding\n// it, and the next bar reverses away from it: the double-top test of a wedge\n// high is a short, the double-bottom test of a wedge low a buy.\n//\n// T21-78 gives the mechanizable form -- a test of the extreme within a band\n// followed by a close beyond the prior bar's opposite extreme -- and R03-05 the same\n// trade in words. R03-05's tolerance was 2 ticks; T21-78's 0.1 ATR is kept as\n// the default because the engine exposes no tick size to strategies, so a tick\n// threshold cannot be converted -- the same substitution BreakoutLevelRetest\n// and PriorSessionLevelTest make. The general double-top machinery lives in\n// swing_structure; this rule is the version anchored on the three-push\n// extreme.\n//\n// THE TEST BAR IS THE PRIOR BAR, and the extreme is a CONFIRMED pivot, so it\n// is at least swingStrength bars old -- at swingStrength >= 2 the prior bar\n// can never be the pivot bar itself. At swingStrength 1 it can, and the test\n// degenerates to the pivot touching itself; the grid should keep\n// swingStrength >= 2.\n//\n// WFSafe_AvgTrueRange, not the built-in: MultiWalk's override is a DIFFERENT\n// function -- a ROLLING accumulator, seeded with a full sum on the first\n// calculated bar or when the length changes, and updated thereafter as TWO\n// statements, because EL evaluates S[1] + in - out left to right and folding\n// it to S += in - out rounds differently. Ported from AtrProfitTarget, the\n// reference. One call site, here in the hook, so exactly one accumulator\n// advances per bar.\n//\n// Pivot scan as in ThreePushPattern, inlined; the register lists Occurrence 3+\n// as unmeasured, so the third push is found by hand. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR ABOVE the swingStrength OLDER bars and STRICTLY ABOVE the swingStrength\n// NEWER bars -- bars-ago indexing, so the newer bars are the smaller k and\n// take el_gt / el_lt, the older el_ge / el_le; confirmation lag exactly\n// swingStrength bars; candidate offsets swingStrength .. lookbackBars - 1, the\n// neighbourhood reaching swingStrength bars past the window, so the deepest\n// bar the scan touches is lookbackBars - 1 + swingStrength. No early break.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\npivStrength = (int)swingStrength;\npivWindow = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\npatUp = (nHiPiv == 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3);\npatDn = (nLoPiv == 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3);\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\ntol = tolAtr * atr;\nfadeLong = patDn && el_ge(low[1], loPx1) && el_le(low[1], loPx1 + tol) && el_gt(close[0], high[1]);\nfadeShort = patUp && el_le(high[1], hiPx1) && el_ge(high[1], hiPx1 - tol) && el_lt(close[0], low[1]);",
+    "longCondition": "fadeLong",
+    "shortCondition": "fadeShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
