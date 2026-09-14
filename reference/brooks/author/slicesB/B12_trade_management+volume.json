@@ -1,0 +1,72 @@
+{
+ "slice": "B12_trade_management+volume.json",
+ "rules": [
+  {
+   "key": "CounterSignalReversalPermission",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "While holding a countertrend position, if a second with-trend counting-setup signal (e.g. a High2 while short in a bull trend) fires against it, permit exiting the countertrend position or reversing to the with-trend direction.",
+   "pseudocode": "isSecondAdverseWithTrendSignal = isHigh2Setup[0] && isBullTrend[0]; allowExitOrReverseToLong = ctx.MarketPosition() == -1 && isSecondAdverseWithTrendSignal",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reuses the H2/L2 counting-setup primitive and a position-state read; the MA-proximity emphasis in the book is a strengthening condition, not a hard requirement"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "FlatOrOpenLossExceeds",
+    "relation": "variant",
+    "note": "Same family as catalog's FlatOrOpenLossExceeds -- an Entry that reads position state to permit a reversal -- but gated on a with-trend counting setup instead of an open-loss threshold."
+   },
+   "sources": [
+    "R28-45"
+   ],
+   "merge_notes": "Reads as a scale-in caveat in the book ('exit or reverse on the second move against a countertrend scale-in') but the rule itself is a single-position permission-to-exit-or-reverse; does not require holding multiple units. Depends on the H2/L2 counting-setup primitive, expected key High2Setup per T10-23/T00-19.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [
+    "High2Setup"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "trade_management",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "VolumeDivergenceAfterClimax",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After a recent volume peak, the bar makes a lower low than the previous bar on volume well below that peak — Brooks's volume divergence, a pullback-long signal in a bear trend; mirrored for shorts.",
+   "pseudocode": "peakVolume = highest(volume, lookback)[1]; low[0] < low[1] && volume[0] < divergenceFraction * peakVolume",
+   "sides": "mirrored",
+   "parameters": {
+    "divergenceFraction": 0.5,
+    "lookback": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a bounded Highest over the volume series stands in for remembering the climax bar; no persistent state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V10-03"
+   ],
+   "merge_notes": "Stray from swing_structure. Brooks's 'remember the huge-volume bar' is mechanized as highest(volume, lookback)[1], which needs no state; 'one or two lower lows on less volume' becomes a single lower-low bar. divergenceFraction 0.5 and lookback 5 are the miner's readings.",
+   "variants_kept_separate": [
+    "MinimumAbsoluteVolume"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "volume",
+   "el_words": [
+    "highest"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

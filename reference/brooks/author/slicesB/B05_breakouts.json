@@ -1,0 +1,585 @@
+{
+ "slice": "B05_breakouts.json",
+ "rules": [
+  {
+   "key": "GapPullbackFailureEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "When the market gaps open beyond the prior day's range, do not chase the open: wait for an early pullback that retraces partway back into the gap, then enter once that pullback fails and price resumes away from the prior day's range.",
+   "pseudocode": "open[0] > prevSessionHigh && lowest(low, barsIntoSession) <= open[0] - gapFillFraction * (open[0] - prevSessionHigh) && close[0] > open[0] && close[0] > high[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "gapFillFraction": 0.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the prior day's extreme, a gap detector, an intraday retracement measurement and a reversal-bar test chained together"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V22-02"
+   ],
+   "merge_notes": "The book gates this on a daily buy/sell setup being in force; that higher-timeframe flag is dropped rather than inherited (the engine is single-timeframe), which keeps the rule at B. gapFillFraction is invented -- the book gives no depth for how far into the gap the pullback must travel.",
+   "variants_kept_separate": [
+    "SessionGapFirstBarReversalEntry",
+    "GapLevelRetest"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "date",
+    "highd",
+    "highest",
+    "lowd",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "LargeOpeningRangeBreakoutFilter",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The opening range is already a large fraction of the recent average daily range, so a later breakout is unlikely to become a strong trend: down-weight or block breakout entries for the session.",
+   "pseudocode": "openingRangeSet && (openingRangeHigh - openingRangeLow) > weakBreakoutFraction * avgDailyRange(dayLookback)",
+   "sides": "same",
+   "parameters": {
+    "weakBreakoutFraction": 0.3,
+    "dayLookback": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "needs the session's opening range and a multi-session average range, then one comparison"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T24-02"
+   ],
+   "merge_notes": "The mirror of the small-opening-range breakout-mode filters mined into other buckets; recorded here because it gates breakout entries specifically.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "date",
+    "highd",
+    "highest",
+    "lowd",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "MultiSessionPauseBreakout",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "After a strong multi-session trend leg, price has stayed inside that leg's range without retracing past a fraction of it for up to K sessions; a breakout beyond the pause range in the leg's original direction is a high-conviction trend-resumption entry.",
+   "pseudocode": "priorLegDirection == 1 && sessionsSincePriorLeg <= maxPauseSessions && retracementSincePriorLeg <= maxRetraceFraction * priorLegHeight && close[0] > pauseRangeHigh",
+   "sides": "mirrored",
+   "parameters": {
+    "maxPauseSessions": 10,
+    "maxRetraceFraction": 0.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "cross-session state remembering a leg's direction, height and the pause range it settled into, over many sessions"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T25-06"
+   ],
+   "merge_notes": "The pause need not be a single tight box the whole time, which is why the state is a retracement cap rather than a range detector -- that keeps it out of the trading-range design decision.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PostGapFadeBlockWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "For a number of bars after a fresh breakout gap forms, block countertrend (fade) entries -- it is too early to know whether the gap is a breakaway or a measuring gap.",
+   "pseudocode": "barsSince(gapBar) > withinBars",
+   "sides": "same",
+   "parameters": {
+    "withinBars": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a bars-since-event counter on top of the gap primitive"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R06-16"
+   ],
+   "merge_notes": "Written as a block, so recorded in the passing sense (the window has elapsed) with the negate toggle giving the blocking sense. The book notes the breakaway/measuring distinction is inherently retrospective; withinBars is the proxy for 'too early'. The gap primitive itself belongs to breakouts_volume_gap.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "PullbackBeyondBreakoutPoint",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The pullback after a breakout trades back beyond the breakout point (or all the way beyond where the spike began), flipping the read from breakout pullback to failed breakout.",
+   "pseudocode": "low[0] < breakoutPoint",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 1
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one comparison, but the breakout point must be carried forward from the breakout bar"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R02-30",
+    "V00-67",
+    "R02-16"
+   ],
+   "merge_notes": "V00-67 is explicitly the negation gate that separates a breakout pullback from a failed breakout, and R02-30 is the same test with the level taken at the START of the spike rather than at the breakout point -- a deeper level for the same read. Breakout point kept as the default because it is what the rest of the bucket remembers; the spike-start form is a lookback parameter over the spike's bars. This is the level complement of BreakoutLevelRetest (holds above) and the direct negation of BreakoutPullbackWindow's read.",
+   "variants_kept_separate": [
+    "BreakoutLevelRetest",
+    "BreakoutPullbackWindow"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "QuietPeriodBreakoutNeedsPullback",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "After an extended quiet period, an unusually large trend bar breaking out of the tight range should not be entered directly -- require a confirming pullback first.",
+   "pseudocode": "countif(k in 1..lookback, (high[k] - low[k]) <= smallRangeFraction * atr(atrLookback)) >= minQuietBars && (high[0] - low[0]) >= breakoutBarMultiple * atr(atrLookback)",
+   "sides": "same",
+   "parameters": {
+    "minQuietBars": 30,
+    "smallRangeFraction": 0.7,
+    "breakoutBarMultiple": 2.0,
+    "lookback": 60,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a rolling quiet-bar count plus a size-relative-to-ATR test on the current bar; no cross-bar state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "the catalog rule is only the outsized-bar half; this adds the preceding quiet run and reads as a block rather than a trigger"
+   },
+   "sources": [
+    "V25-03"
+   ],
+   "merge_notes": "The book says 30 to 60 minutes of quiet; minQuietBars is that in bars and needs the timeframe fixed at authoring. Written as a block on the immediate entry, so it pairs with BreakoutPullbackEntry as the permitted alternative.",
+   "variants_kept_separate": [
+    "WeakFollowThroughBarRequiresPullback"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "countif",
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionGapFirstBarReversalEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The session gapped beyond the prior session's extreme and the first bar of the session is a reversal bar: enter when the next bar closes back through that first bar's far side -- a failed breakout of the gap.",
+   "pseudocode": "barsIntoSession == 1 && open[1] < prevSessionLow && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] > high[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.4
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "session-boundary state plus the prior session's extreme; the bar tests are fixed offsets"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-67"
+   ],
+   "merge_notes": "Kept apart from FailedBreakoutOfPriorSessionExtreme: that one fires on any bar of the session that pierces and recovers the level, this one only on the session's very first bar and requires a reversal bar plus a confirming close.",
+   "variants_kept_separate": [
+    "FailedBreakoutOfPriorSessionExtreme",
+    "GapPullbackFailureEntry"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "date",
+    "highd",
+    "lowd"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TwiceFailedBreakoutAttempt",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The market has attempted and failed to break a level in the same direction at least twice within a lookback window; the odds now favour the opposite direction (and the per-placement negate toggle gives the book's other reading, that the next same-side attempt is the one that goes).",
+   "pseudocode": "countFailedBreakouts(direction, level = highest(high, rangeBars), attemptLookback) >= minFailedAttempts",
+   "sides": "mirrored",
+   "parameters": {
+    "minFailedAttempts": 2,
+    "attemptLookback": 20,
+    "rangeBars": 20,
+    "failBars": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a persistent count of discrete failed-breakout attempts against one level, on top of the FailedBreakoutReversal primitive"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP4-20",
+    "R22-06",
+    "V07-13",
+    "V18-05",
+    "T05-14"
+   ],
+   "merge_notes": "One counter, two opposite readings, which makes them one rule under the per-placement negate toggle: RP4-20, V07-13 and V18-05 say expect the OPPOSITE direction next, R22-06 says permit the SAME-direction breakout entry on the next attempt. T05-14 is the entry version (buy above the bar that reverses back into the range after the second failed attempt), which is FailedBreakoutReversal gated by this counter. R22-06 grades the counter research because 'failed breakout attempt' is undefined; FailedBreakoutReversal supplies that bar-level definition (close beyond the level, close back inside within failBars), so no design decision is raised. Windows: 20 bars (V07-13, RP4-20 at 30), or the session (V18-05, intraday).",
+   "variants_kept_separate": [
+    "FailedBreakoutReversal"
+   ],
+   "depends_on_keys": [
+    "FailedBreakoutReversal"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_pullback_retest",
+   "el_words": [
+    "highest",
+    "lowest",
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstOppositeTrendBarThenRecovery",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "In a one-sided trend, the FIRST against-trend trend bar in a long while printed within the last few bars, and this bar has now closed above that bar's high (long) — the first bear spike in a strong bull trend is almost always just a bull flag.",
+   "pseudocode": "k = smallest index in 1..flagBars with (close[k] < open[k] && (open[k]-close[k]) >= bodyFraction*(high[k]-low[k])); k exists && countif(j in k+1..k+strongBars: bear trend bar[j]) == 0 && close[0] > high[k]",
+   "sides": "mirrored",
+   "parameters": {
+    "flagBars": 5,
+    "strongBars": 20,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a backward scan for the FIRST qualifying bar, whose index k then drives both a second count window and the price comparison — a variable offset, not a fixed lag"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-53"
+   ],
+   "merge_notes": "Kept whole rather than split: the 'no other opposite trend bar in the preceding 20 bars' term is StrongTrendBarCount negated, but it must be measured FROM the found bar k, not from bar 0, so it cannot be a separate pane. Everything is bounded and deterministic (scan at most flagBars bars back), so the definition is clear — B, not C. Brooks states it only for the FIRST opposite spike, which is why the zero-count window is part of the rule.",
+   "variants_kept_separate": [
+    "StrongTrendBarCount"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_signal_strength",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "WeakEntryBarExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit at the first or second bar after entry if that bar did not close as a strong with-trend trend bar — Brooks's 'strong closes mean swing it, weak closes mean scalp it', recast as a binary scalp-versus-hold exit.",
+   "pseudocode": "n = ctx.BarsSinceEntry(); n <= maxBars && barWeak(n) && ctx.OpenPositionProfit() > 0   // barWeak(k) = close[k] <= open[k] || (close[k]-open[k]) < strongBodyFraction * (high[k]-low[k]), direction-adjusted",
+   "sides": "same",
+   "parameters": {
+    "strongBodyFraction": 0.6,
+    "maxBars": 1
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "must index the bar series by BarsSinceEntry and adjust the body test by the open position's direction"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "NumBarsIfProfitable",
+    "relation": "variant",
+    "note": "NumBarsIfProfitable exits on elapsed bars plus a profit sign. This adds the bar-strength test on the entry bar itself and only fires in the first maxBars+1 bars, so it is an early-scalp exit rather than a time stop."
+   },
+   "sources": [
+    "T08-01"
+   ],
+   "merge_notes": "The chapter's only bar-level idea; the rest is intrabar behaviour in the final seconds of a bar, which is below the data. The miner recorded that Brooks's actual point is about position SIZE, which the engine cannot express — this is the honest binary approximation and should be labelled as such when authored. B because the BarsSinceEntry indexing plus the direction-dependent body test is real machinery, but the definition itself is unambiguous.",
+   "variants_kept_separate": [
+    "StrongTrendBar"
+   ],
+   "depends_on_keys": [
+    "StrongTrendBar"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "breakouts_signal_strength",
+   "el_words": [
+    "barssinceentry",
+    "openpositionprofit"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "GapHoldsAbovePriorSessionClose",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the last N bars the lowest low has stayed above the prior session's close (long) / the highest high below it (short) — the opening gap has not been filled early.",
+   "pseudocode": "lowest(low, checkBars) > priorSessionClose",
+   "sides": "mirrored",
+   "parameters": {
+    "checkBars": 12
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "window extreme against the prior session's close carried as state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T19-15"
+   ],
+   "merge_notes": "T19-15 only, carried as the atomic half of its composite with T19-14 — the gap-size half is SessionGapAtrMagnitude. Brooks: large gaps that do not reverse early usually start a strong trend day. checkBars 12 is the miner's reading of 'early'.",
+   "variants_kept_separate": [
+    "GapFilledExit"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "session boundary and prior-session values"
+   ],
+   "bucket": "breakouts_volume_gap",
+   "el_words": [
+    "date",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionFirstBarBreakout",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Early in the session, price closes beyond the high of the session's first bar (long) / below its low (short) — a trend-from-the-open breakout.",
+   "pseudocode": "barsIntoSession(0) >= 1 && barsIntoSession(0) <= maxBarsIntoSession && close[0] > sessionFirstBarHigh",
+   "sides": "mirrored",
+   "parameters": {
+    "maxBarsIntoSession": 4
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "session-relative bar index plus the session's first bar high/low carried as state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T23-13"
+   ],
+   "merge_notes": "T23-13's gap term is SessionGapAtrMagnitude and its strong-trend-bar term belongs to bar_anatomy; carried here is the atomic remainder. The book itself says the trade is good even without a gap (p419), so no gap term is bundled in.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "session boundary and prior-session values"
+   ],
+   "bucket": "breakouts_volume_gap",
+   "el_words": [
+    "date",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionGapAtrDirectional",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session's first bar opens at least K x ATR above the prior session's close (long) / below it (short) — a signed gap-size test, the gap read as a spike in its own direction.",
+   "pseudocode": "isFirstBarOfSession(0) && open[0] - priorSessionClose >= gapAtrMultiple * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "gapAtrMultiple": 1.0,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "session boundary plus the prior session's close and an ATR"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-49",
+    "T23-05"
+   ],
+   "merge_notes": "T21-49 treats the gap as the spike of a spike-and-channel day, T23-05 as a directional tilt; behaviourally one signed test. T23-05 uses 0.5 ATR, T21-49 1.0 — both recorded, 1.0 the default. Kept apart from the unsigned SessionGapAtrMagnitude.",
+   "variants_kept_separate": [
+    "SessionGapAtrMagnitude"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "session boundary and prior-session values"
+   ],
+   "bucket": "breakouts_volume_gap",
+   "el_words": [
+    "date",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionGapAtrMagnitude",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session's first bar opens at least K x ATR away from the prior session's close in either direction — a large-gap day flag, identical on both sides.",
+   "pseudocode": "isFirstBarOfSession(0) && fabs(open[0] - priorSessionClose) >= gapAtrMultiple * atr(atrLength)",
+   "sides": "same",
+   "parameters": {
+    "gapAtrMultiple": 1.0,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "session boundary plus the prior session's close and an ATR"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T12-03",
+    "T19-14"
+   ],
+   "merge_notes": "Same measurement as SessionGapAtrDirectional but unsigned, so it passes both sides after a gap either way — Brooks's 'large gaps lead to trend days in either direction'. T19-14's absolute 8-point Emini threshold lost to T12-03's ATR multiple, which is instrument-independent.",
+   "variants_kept_separate": [
+    "SessionGapAtrDirectional",
+    "SessionOpeningGapBeyondPriorExtreme"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "session boundary and prior-session values"
+   ],
+   "bucket": "breakouts_volume_gap",
+   "el_words": [
+    "date",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionOpeningGapBeyondPriorExtreme",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The first bar of a session opens beyond the prior session's extreme — above the prior session's high (long) / below its low (short).",
+   "pseudocode": "isFirstBarOfSession(0) && open[0] > priorSessionHigh",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "needs session-boundary detection and the prior session's high/low carried as state"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R00-22",
+    "V00-16",
+    "T00-10"
+   ],
+   "merge_notes": "All three quote the same glossary line from different volumes. Brooks allows either the prior session's last bar or the whole prior day as reference; the whole-session high/low won, equally cheap once the accumulator exists and the stronger reading.",
+   "variants_kept_separate": [
+    "SessionGapAtrMagnitude"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "session boundary and prior-session values"
+   ],
+   "bucket": "breakouts_volume_gap",
+   "el_words": [
+    "date",
+    "time"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

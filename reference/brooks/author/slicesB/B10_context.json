@@ -1,0 +1,553 @@
+{
+ "slice": "B10_context.json",
+ "rules": [
+  {
+   "key": "CorrectionBarsVsTrendLegBars",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The correction has now lasted at least F times as many BARS as the trend leg it is correcting — Brooks's duration rule of thumb, used to hold off a continuation entry until the correction has had time to finish. Identical both sides: it counts bars, not direction.",
+   "pseudocode": "barsSinceCorrectionStart >= correctionFraction * trendLegLengthInBars",
+   "sides": "same",
+   "parameters": {
+    "correctionFraction": 0.5,
+    "pivotStrength": 2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs a swing detector to bound the prior leg in bars, plus a persistent counter for the correction; the comparison itself is trivial once those exist"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V21-01"
+   ],
+   "merge_notes": "Duration, where DeepPullbackRetracement is depth — both listed on each other so the authoring pass sees the pair and can test whether they coincide. 'About half' is Brooks's phrasing; 0.5 is a reading, and the source's example was a 20 to 30 bar bear channel.",
+   "variants_kept_separate": [
+    "DeepPullbackRetracement"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "CountertrendNeedsPriorTrendLineBreak",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The exception clause on the with-trend gate: a countertrend entry is permitted only if, within the last N bars, price has already closed beyond the trend line drawn through the last two same-side swing pivots, OR a trend-channel-line overshoot has reversed. Until one of those has happened, no countertrend entry is allowed however good the setup looks.",
+   "pseudocode": "trendLine = line through the last two swing lows (strength pivotStrength);\nbarsSince(close[i] < trendLine[i]) <= lookback || barsSince(trendChannelLineOvershootReversal) <= lookback",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 30,
+    "pivotStrength": 2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs swing pivots, a two-point line projection forward, and a bars-since counter on each of the two conditions"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "no line-projection rule exists in the corpus"
+   },
+   "sources": [
+    "V02-35",
+    "R26-02",
+    "V07-15",
+    "R10-01"
+   ],
+   "merge_notes": "V02-35's own note calls it 'the single most repeated rule of the trilogy', and this bucket bears that out. V02-35 is the cleanest statement and wins. R26-02 adds a steepness precondition ('if the trend is STEEP, never trade countertrend unless...') — the steepness measure is dropped as unstated and the rule is taken at its stronger reading, applying whenever the with-trend gate is on. V07-15 restates it as 'exceptionally strong momentum, no shorts until the bears show a significant sign of strength' and its own mining note flags it as a likely duplicate of V02-35; agreed. R10-01 adds 'at a magnet level' and an alternative escape ('or the move is a pullback in a higher time frame trend'); the magnet gate belongs to support_resistance_levels and the higher-time-frame escape needs a second data series, so both are dropped and only the shared permission clause is merged. Kept SEPARATE from AlwaysInBlockCountertrend: that filter blocks countertrend entries outright, this one re-opens them on a specific event, and they will not fire on the same bars.",
+   "variants_kept_separate": [
+    "AlwaysInBlockCountertrend",
+    "CountertrendNeedsPriorPush"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionTrendDayDirection",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The day is a trend day and its direction is up (long side): once at least `openingBars` bars of the session have printed, the close sits at least `trendDayAtr` x ATR above the session's open. While that holds, only with-trend entries are permitted for the rest of the session.",
+   "pseudocode": "barsIntoSession >= openingBars && (close[0] - sessionOpen) >= trendDayAtr * atr(atrLookback)",
+   "sides": "mirrored",
+   "parameters": {
+    "openingBars": 12,
+    "trendDayAtr": 2.0,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "session-open detection and a bars-into-session counter, both reset on the date change, plus an ATR"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "the corpus has no session-scoped rule; CalendarBoundaryExit reads Date but not the session open"
+   },
+   "sources": [
+    "R08-24",
+    "TP4-08",
+    "TP4-07"
+   ],
+   "merge_notes": "TP4-07 is the stray sent over from ema_relations and it is the cleanest of the three: 'sign of close minus session open once the opening range has printed'. It wins over R08-24's alternative ('a fraction of the session's bars closed on one side of the EMA'), which is recorded as the second option, and over TP4-08, which adds no test of its own — it is TP4-07 used as a with-trend gate. Deliberately kept separate from AlwaysInDirection: this resets every session and reads the session open, where always-in is continuous across the whole series, and the two will disagree on any gap day.",
+   "variants_kept_separate": [
+    "AlwaysInDirection",
+    "TrendResumptionDayContext"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "date",
+    "opend",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TrendResumptionDayContext",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session opened with a strong trend leg and has since spent several hours inside a tight range: favour continuation in the morning leg's direction and block fresh countertrend entries. The tighter that midday range against the average daily range, the stronger the read.",
+   "pseudocode": "morningLegDirection != 0 && barsSinceMorningLeg >= minMiddayBars && (middayRangeHigh - middayRangeLow) <= tightRangeFraction * avgDailyRange",
+   "sides": "mirrored",
+   "parameters": {
+    "openBars": 12,
+    "minMiddayBars": 36,
+    "tightRangeFraction": 0.3,
+    "dayLookback": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a session-scoped morning-leg direction, a running midday range measured from the end of that leg, and an average daily range over completed sessions"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T01-07",
+    "T25-03"
+   ],
+   "merge_notes": "T01-07 previews the pattern in one sentence ('strong trend on the open, then a tight trading range for several hours, good chance of a trend resumption day') and T25-03 is the fleshed-out chapter version with the tight-range fraction; same rule, T25-03's numbers win. T25-03's page 454 caveat — the midday action can be a weakly trending countertrend drift rather than a flat range — is NOT mechanized; tightRangeFraction is the proxy for both forms and should be loosened rather than special-cased. Depends on SessionTrendDayDirection for the morning leg.",
+   "variants_kept_separate": [
+    "SessionTrendDayDirection"
+   ],
+   "depends_on_keys": [
+    "SessionTrendDayDirection"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_always_in",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarRangeAboveSessionAverage",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "This bar's high-low range is at least as large as the average bar range of the session so far. Identical both sides. Brooks's gate on range scalps: a tight range is only worth fading when the bars in it are big enough to pay.",
+   "pseudocode": "sessionAvgBarRange = average(high - low, barsSinceSessionOpen); (high[0] - low[0]) >= sizeMultiple * sessionAvgBarRange",
+   "sides": "same",
+   "parameters": {
+    "sizeMultiple": 1.0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a running session sum of bar ranges and a bar count, both reset on each new date"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "BarRangeAboveStd compares the bar against a fixed N-bar mean plus K standard deviations; this compares it against the session-to-date mean, whose window grows through the day. Also near bar_anatomy_trend_doji's merged BarRangeAboveAtrMultiple."
+   },
+   "sources": [
+    "R22-14"
+   ],
+   "merge_notes": "The session-average bar range is the same measure R21-13 uses for a money stop (exits_stops bucket) -- one shared primitive, flagged for the roll-up. R22-14's other half, Brooks allowing a four- or five-point range to still count as tight when the bars are large, is the reason RangeWidthBelowAtrMultiple divides by ATR rather than by points: a wide-bar tight range already scores as tight on the ATR scale, so that half needs no rule.",
+   "variants_kept_separate": [],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "date",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "CloseNearSessionExtreme",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the bottom fraction of the day's range so far (long) / the top fraction (short) -- the session-scoped form of the range-position test, which is how Brooks states it for trading-range days. Mirrored.",
+   "pseudocode": "dayHigh = highest(high, barsSinceSessionOpen)[0]; dayLow = lowest(low, barsSinceSessionOpen)[0]; (close[0] - dayLow) <= nearExtremeFraction * (dayHigh - dayLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "nearExtremeFraction": 0.2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a running session high and low reset on each new date, then one ratio"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP4-21",
+    "V25-01"
+   ],
+   "merge_notes": "Kept separate from RangeExtremeFade because the window is the session, not a bar count -- the two disagree constantly (early in a session the day's range is a handful of bars, late it may be wider than any 20-bar window). V25-01 states it as a block ('do not buy near the top of the day's range'), RP4-21 as a permission (look for a reversal at the day's extreme going into the last hour or two); one is the other flipped, so they are one rule. RP4-21's final-hours term is the catalog's TimeWindow AND-ed alongside, not carried here. V25-01's day-type gate is TradingRangeDay, likewise a separate pane.",
+   "variants_kept_separate": [
+    "RangeExtremeFade",
+    "TradingRangeDay"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "DeepPullbackMeansRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The current pullback has retraced at least fraction F of the prior leg -- once pullbacks get this deep, Brooks says they behave like trading ranges rather than flags, and a new high above the old one is a range breakout likely to fail. Mirrored.",
+   "pseudocode": "legHigh = highest(high, legLookback)[0]; pullbackLow = lowest(low, pullbackLookback)[0]; legLow = lowest(low, legLookback)[0]; (legHigh - pullbackLow) >= maxPullbackFraction * (legHigh - legLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "legLookback": 40,
+    "pullbackLookback": 10,
+    "maxPullbackFraction": 0.5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "three window extremes; the book's swing-pivot anchoring is replaced by nested windows"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "TP3-35"
+   ],
+   "merge_notes": "TP3-35 anchors the leg on swing pivots (lastSwingHigh, priorSwingLow, pivotStrength 2). Replaced by nested highest/lowest windows per the most-mechanizable rule -- no pivot search, no persistent pivot state, and the corpus already reaches for Highest/Lowest everywhere. swing_structure has merged a related PullbackDepthFromRecentHigh; the roll-up should compare the two and keep one. Brooks's page-314 aside is worth carrying to the authoring pass: every trading range sits inside either a bull or a bear trend, so this rule is a trend-quality filter, not a regime flag on its own.",
+   "variants_kept_separate": [
+    "BarsSinceExtremeExceeds",
+    "RangeWidthBelowAtrMultiple"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TradingRangeDay",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session so far is a trading-range day: the range travelled since the open (highest high minus lowest low of the session's bars) is no more than F of the recent average daily range. Identical both sides. Used to permit fade and scalp entries and to suppress with-trend swing entries.",
+   "pseudocode": "sessionHigh = highest(high, barsSinceSessionOpen)[0]; sessionLow = lowest(low, barsSinceSessionOpen)[0]; (sessionHigh - sessionLow) <= dayRangeFraction * average(priorDailyRange, adrLookbackDays)",
+   "sides": "same",
+   "parameters": {
+    "dayRangeFraction": 0.7,
+    "adrLookbackDays": 20,
+    "minSessionBars": 12
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs a session boundary (running high/low reset on each new date) and a rolling average of completed daily ranges"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "Nothing in the catalog is session-scoped except TimeOfDayExit and TimeWindow, which only read the clock."
+   },
+   "sources": [
+    "T17-04",
+    "T05-12",
+    "T07-33",
+    "R21-14"
+   ],
+   "merge_notes": "The day-scale sibling of RangeWidthBelowAtrMultiple, kept apart because its window is the session rather than a bar count and it therefore needs the session machinery. The width definition is chosen for the same reason it won at bar scale, and it beats the two counting definitions in the sources: T07-33 wants K reversals plus tailed bars in the first N bars and R21-14 wants four or five reversals in the first hour, both of which need a 'reversal' defined before they can be coded and both of which are only predictive of the day type, not a measurement of it. T17-04 states the gate as plain NOT(trend day); T05-12 uses the classification permissively (a trending trading range day often reverses late). minSessionBars guards the classification from firing on the first few bars, when every session is narrow. dayRangeFraction is a fresh reading, not a book number -- Brooks never quantifies a trading-range day.",
+   "variants_kept_separate": [
+    "RangeWidthBelowAtrMultiple",
+    "CloseNearSessionExtreme"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trading_range",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FixedTickPullbackEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "In a strong trend, buy a dip of a fixed size rather than a pattern: enter when price trades a set fraction of the trend's AVERAGE prior pullback below the running high. Sized to the trend's own behaviour, so it adapts as the trend's pullbacks grow.",
+   "pseudocode": "avgPullback = mean of the completed pullback depths since the trend began;\nlow[0] <= runningHigh - avgPullbackFraction * avgPullback",
+   "sides": "mirrored",
+   "parameters": {
+    "avgPullbackFraction": 0.9
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs every completed pullback depth of the current trend accumulated and averaged, not just the maximum"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V24-32"
+   ],
+   "merge_notes": "Shares MaxPullbackDepthBelowThreshold's give-back tracker but needs a running SUM and COUNT of completed pullbacks rather than a maximum, so it is a genuine extension of that state rather than a use of it. Brooks says 'equal to or slightly less than the average prior pullbacks', hence the 0.9 default. Under the standing convention the resting limit becomes signal-bar close then next-bar open.",
+   "variants_kept_separate": [
+    "MaxPullbackDepthBelowThreshold"
+   ],
+   "depends_on_keys": [
+    "MaxPullbackDepthBelowThreshold"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "MaxPullbackDepthBelowThreshold",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Since the current trend leg began, the DEEPEST pullback so far has stayed below a threshold — expressed as a fraction of the average daily range (portable) or as a fixed number of points (Brooks's own form). This is the small-pullback trend, the strongest kind of trend there is. The rule tracks a running extreme and the maximum give-back from it.",
+   "pseudocode": "// persistent, reset when the trend flag resets\nrunningHigh = max(runningHigh, high[0]);\nif (high[0] < runningHigh) pullbackMax = max(pullbackMax, runningHigh - low[0]);\npullbackMax <= smallPullbackFraction * avgDailyRange",
+   "sides": "mirrored",
+   "parameters": {
+    "smallPullbackFraction": 0.2,
+    "dayLookback": 20,
+    "maxPullbackPoints": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a running extreme, a give-back tracker, an average daily range over completed sessions, and a reset rule for when the leg starts"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ProfitProtector",
+    "relation": "none",
+    "note": "ProfitProtector tracks give-back from peak PROFIT on an open position; this tracks give-back from peak PRICE with no position involved. Structurally similar, behaviourally unrelated"
+   },
+   "sources": [
+    "V00-40",
+    "T23-06",
+    "T23-07"
+   ],
+   "merge_notes": "Three statements of one measurement. T23-06 is the state primitive (track the largest pullback since the trend began), T23-07 is the test against a fraction of the average daily range, and V00-40 is the same test with Brooks's raw Emini number (pullbacks under 3 to 4 points on a 12-point average range — which IS about 0.25 of the range, so the two forms agree). Merged rather than kept apart because a state primitive with no comparison is not a rule and the comparison is meaningless without the state. The fraction form is the default and the points form is kept as a second input for exact reproduction of the book's example. T23-07's session scoping (trend-from-open flag, T23-03) is NOT baked in: reset-on-leg-start is the general form and the session reset is one choice of leg.",
+   "variants_kept_separate": [
+    "PullbackDepthExceedsPriorMax"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "NoQualifyingPullbackSinceLegStart",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A new extreme has been made and, since the first leg completed, no bar has closed back through even a shallow retracement of that leg — the ABSENCE of any proper pullback, read as a sign of strength in its own right.",
+   "pseudocode": "// persistent since the first leg's extreme\nif (close[0] <= firstLegHigh - minRetraceFraction * firstLegHeight) noQualifyingPullback = false;\nhigh[0] > firstLegHigh && noQualifyingPullback",
+   "sides": "mirrored",
+   "parameters": {
+    "minRetraceFraction": 0.2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the first leg's start and extreme remembered, plus a latch that clears on the first qualifying retracement"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T24-11"
+   ],
+   "merge_notes": "Needs leg START and leg HEIGHT in price, which the settled leg definition (HighLowBarCount, R17-01, leg_counting) does not provide — that counter gives leg numbers, not prices — so this needs swing pivots regardless and is graded accordingly. Related to HigherLowStreak and MaxPullbackDepthBelowThreshold, which measure 'no pullback' by bars and by depth respectively; all three should be compared before more than one is authored.",
+   "variants_kept_separate": [
+    "HigherLowStreak",
+    "MaxPullbackDepthBelowThreshold"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PullbackDepthExceedsPriorMax",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The pullback now underway is at least `growthMultiple` times as deep as the largest pullback seen earlier in this trend. On a small-pullback trend day Brooks expects exactly this later in the session and warns against reading it as a reversal — so the rule is most useful NEGATED, as 'this pullback is still within the trend's normal size'.",
+   "pseudocode": "currentPullbackDepth = runningHigh - low[0];\ncurrentPullbackDepth >= growthMultiple * pullbackMaxBefore",
+   "sides": "mirrored",
+   "parameters": {
+    "growthMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs both the running pullback depth and the prior maximum held apart from each other"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T23-08"
+   ],
+   "merge_notes": "Brooks gives 'about twice the size' and 'two-thirds of these days'; growthMultiple defaults to 1.5 as the conservative reading, 2.0 recorded. The 11:00 a.m. gate is CATALOG's TimeWindow in a separate pane, not part of this rule. Kept separate from MaxPullbackDepthBelowThreshold: that one caps the historical maximum, this one compares the live pullback to it, and they fire on different bars.",
+   "variants_kept_separate": [
+    "MaxPullbackDepthBelowThreshold"
+   ],
+   "depends_on_keys": [
+    "MaxPullbackDepthBelowThreshold"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "RecentStrongTrendDaysCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least K of the last N completed DAILY bars closed as strong bull trend days — a large bull body relative to the day's range. A higher-time-frame confirmation for entries on the trading timeframe. Mirrored for bear days.",
+   "pseudocode": "countIf(d, 0, dayLookback-1, dailyClose[d] > dailyOpen[d] && (dailyClose[d]-dailyOpen[d]) >= strongBodyFraction*(dailyHigh[d]-dailyLow[d])) >= minStrongDays",
+   "sides": "mirrored",
+   "parameters": {
+    "dayLookback": 5,
+    "minStrongDays": 2,
+    "strongBodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs daily bars — either a second data series or session aggregation carried across the date change — which nothing in the corpus currently does"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "no corpus rule reads a second timeframe"
+   },
+   "sources": [
+    "R02-12",
+    "T00-47"
+   ],
+   "merge_notes": "Both volumes print the identical sentence ('the market has had several strong bull trend days recently'). R02-12 leaves 'trend day' to a design decision and reaches for the session-level classification; T00-47 gives a concrete daily-bar body test, which wins because it needs no session state at all when the strategy already runs on M1440 bars — on a daily chart this degenerates to StrongTrendBarCount and should be authored as that rather than duplicated. Defaults from T00-47 (5 days, 2 strong); R02-12's were 10 and 2.",
+   "variants_kept_separate": [
+    "StrongTrendBarCount"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [
+    "date"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TrendDayIdentifiedInFirstHour",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Past the first hour of the session, the close has broken beyond the opening range by at least `breakMultiple` times that range's own height — treat the day as a trend day and take only with-trend entries for the rest of it.",
+   "pseudocode": "barsIntoSession >= firstHourBars && close[0] > openingRangeHigh + breakMultiple * (openingRangeHigh - openingRangeLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "firstHourBars": 12,
+    "breakMultiple": 0.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "session-open detection, a bars-into-session counter and a latched opening range, all reset on the date change"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "TP3-38",
+    "T22-11"
+   ],
+   "merge_notes": "The candidate's own note is honest that Brooks's trend-day test is pattern recognition and the opening-range break is a proxy. Kept apart from the context_regime_always_in bucket's SessionTrendDayDirection, which measures from the session OPEN against an ATR; this measures from the opening RANGE against its own height, and on a wide-range opening they disagree. The two should be tested against each other before either is trusted.",
+   "variants_kept_separate": [
+    "SessionTrendDayDirection"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "context_regime_trend_strength",
+   "el_words": [
+    "date",
+    "highest",
+    "lowest",
+    "time"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

@@ -283,7 +283,11 @@ everything that is not A already.
    table inside the probe file, and writes `reference/<source>/probes/<NAME>_FINDINGS.md`
    with the answers, the exact replacement register rows, and the C++ mirror the
    authoring pass must use. Agents do not edit `rules/EL_FEATURES.md`; the
-   orchestrator applies the rows once, then re-runs the A-queue split.
+   orchestrator applies the rows once, then re-runs the A-queue split. **First thing
+   every analysis agent does: prove the output is from the intended study**, by
+   grepping for the new column names and comparing byte size against earlier runs.
+   Brooks: the XAverage follow-up outputs were a byte-identical copy of the old run
+   and a fresh run of the old strategy; nothing had been measured.
 2. **Split the A list by blockage, not by hand.** A script reads `merged/*.json`,
    normalizes each A rule's `el_words_needed`, looks them up via
    `lintElFeatures.loadRegistry()`, and writes `author/A_QUEUE.json` with `unblocked`
@@ -314,7 +318,16 @@ everything that is not A already.
    can hand it a rule; give any leftover orphan to the last slice. Agents also flag
    near-neighbours they wrote anyway; collect those pairs for one dedup review agent
    after the last slice, before the commit.
-7. **Per-slice cost:** 12–14 rules, both twins, validated and linted, ran 145k–180k
+7. **The B list, once the probes flip rows:** rebuild the queue from `merged/*.json`
+   (priority B, key not on disk and not in DECISIONS/rows), classify each rule as
+   ready / tick-unit (engine accessor still missing) / lagged-EMA / blocked, slice the
+   ready set by family into `author/slicesB/`, and append a **B-list addendum** to the
+   authoring brief that names the measured reference implementations to copy
+   (`SwingHigh`, `EmaGapBar`, the TLValue form) and restates every settled design
+   decision as an instruction (always-in state machine, H1/H2 counter, trading-range
+   width, session model), so B agents build on primitives instead of re-deferring.
+   Brooks: 212 B → 154 ready, 47 tick-unit, 3 lagged-EMA, 3 blocked; 12 slices.
+8. **Per-slice cost:** 12–14 rules, both twins, validated and linted, ran 145k–180k
    Opus tokens and 10–15 minutes each. Rows files append cleanly with
    `reference/brooks/appendRows.py`, which skips keys already in the catalog.
 

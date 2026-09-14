@@ -1,0 +1,593 @@
+{
+ "slice": "B08_bar.json",
+ "rules": [
+  {
+   "key": "OutsideBarCounterTrend",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The prior bar is an outside bar and the always-in direction is not long, the case in which Brooks allows only the with-trend breakout.",
+   "pseudocode": "OutsideBar[1] && AlwaysInDirection() != +1",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "moderate",
+    "reason": "needs the always-in state, a persistent cross-bar read"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "No always-in or outside-bar rule in the catalog."
+   },
+   "sources": [
+    "T07-24"
+   ],
+   "merge_notes": "Positive composite, placed negated so only with-trend breakouts of an outside bar survive. Uses the agreed always-in definition (AlwaysInDirection, two consecutive strong trend bars), so it is not blocked on a design decision; it is B only because that primitive has to exist first.",
+   "variants_kept_separate": [
+    "OutsideBar"
+   ],
+   "depends_on_keys": [
+    "OutsideBar",
+    "AlwaysInDirection"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_inside_outside",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "OutsideBarWithoutPriorSignalBar",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The current bar is an outside bar and the bar before it was not a decent bull reversal bar (a bull body closing near its high).",
+   "pseudocode": "OutsideBar[0] && !(close[1] > open[1] && (high[1] - close[1]) <= closeNearFraction * (high[1] - low[1]))",
+   "sides": "mirrored",
+   "parameters": {
+    "closeNearFraction": 0.25
+   },
+   "complexity": {
+    "grade": "trivial",
+    "reason": "the outside-bar test plus a single-bar body and close-position test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "The reversal-bar half resembles CloseRangePosition but is measured on the prior bar and combined with a body sign."
+   },
+   "sources": [
+    "T07-13"
+   ],
+   "merge_notes": "Positive composite, placed negated to reproduce Brooks's rule that a reversal entry on an outside bar needs a decent signal bar before it. The reversal-bar definition is inlined from bar_anatomy_trend_doji's family and should be reconciled with whatever that bucket names it.",
+   "variants_kept_separate": [
+    "OutsideBar"
+   ],
+   "depends_on_keys": [
+    "OutsideBar"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_inside_outside",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionOpenNoPauseRun",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the session's first N bars extended the move with no pause, every one making a higher high than the bar before it (mirrored down).",
+   "pseudocode": "barsSinceSessionStart >= noPauseBars && for i in 0..noPauseBars-1: high[i] > high[i+1]",
+   "sides": "mirrored",
+   "parameters": {
+    "noPauseBars": 4
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "needs a session-bar counter reset on each new date, plus a short window loop"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "No session-structure rule in the catalog; CalendarBoundaryExit reads Date but for a different purpose."
+   },
+   "sources": [
+    "T23-16"
+   ],
+   "merge_notes": "Brooks says the odds of a reversal rise when the market has not paused by the third or fourth bar; the tradeable form is this run test placed negated (or used as a countertrend permission). Only the odds statement is discretionary, the bar test is not. Low source confidence, so treat the defaults as a starting point.",
+   "variants_kept_separate": [
+    "PauseBarNoNewExtreme"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_inside_outside",
+   "el_words": [
+    "date"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PullbackEndReversalBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar that ends a pullback within an existing bull leg - the first bar to make a higher high after at least one down close - is itself a strong bull reversal bar (mirror in a bear leg).",
+   "pseudocode": "close[1] < open[1] && high[0] > high[1] && bullReversalBarShape[0] && close[0] > close[pullbackLookback]",
+   "sides": "mirrored",
+   "parameters": {
+    "pullbackLookback": 10,
+    "bodyFraction": 0.6,
+    "tailFraction": 0.2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the shape test plus a pullback-end test plus a momentum context term"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "Momentum",
+    "relation": "variant",
+    "note": "The close[0] > close[pullbackLookback] term is exactly Momentum(pullbackLookback); the rest is new."
+   },
+   "sources": [
+    "V02-23"
+   ],
+   "merge_notes": "The source records this as the High-1 proxy WITHOUT the leg counter - the mechanizable reading MERGE.md asks for, so it stays here rather than going to leg_counting. The Momentum term is a carried catalog rule and could be split off at authoring time; kept in the pseudocode because without it the rule fires on every pullback in a downtrend too.",
+   "variants_kept_separate": [
+    "BullReversalBarShape",
+    "PullbackNotAfterStrongOppositeReversalBar"
+   ],
+   "depends_on_keys": [
+    "BullReversalBarShape"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "RecentDirectionalPressureConfirmation",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Within the last N bars there is evidence of directional pressure at this level: either at least K bars with a prominent tail on the relevant side, OR at least K bars with a strong same-direction body.",
+   "pseudocode": "countIf(k in 0..pressureLookback-1: (high[k] - max(open[k], close[k])) >= minTailFraction * (high[k] - low[k])) >= minPressureBars || countIf(k in 0..pressureLookback-1: close[k] < open[k] && (open[k] - close[k]) >= minBodyFraction * (high[k] - low[k])) >= minPressureBars",
+   "sides": "mirrored",
+   "parameters": {
+    "pressureLookback": 10,
+    "minTailFraction": 0.4,
+    "minBodyFraction": 0.6,
+    "minPressureBars": 2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two window counts of two different per-bar classifications, combined with an OR"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "TailBarCountDominance",
+    "relation": "variant",
+    "note": "Same CountIF machinery; different counted conditions, and an OR between two counts rather than a comparison between them."
+   },
+   "sources": [
+    "RP4-16"
+   ],
+   "merge_notes": "This is UpperTailCountInWindow OR StrongBodyBarCountInWindow at their own thresholds. Normally a composite would be dropped in favour of its parts, but the pane system ANDs entries, so the OR cannot be composed - carried whole for that reason, with both parts also carried separately.",
+   "variants_kept_separate": [
+    "UpperTailCountInWindow",
+    "StrongBodyBarCountInWindow"
+   ],
+   "depends_on_keys": [
+    "UpperTailCountInWindow",
+    "StrongBodyBarCountInWindow"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_reversal_signal",
+   "el_words": [
+    "countif"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BuyOppositeColorBarAfterTrendBarRun",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After N consecutive bull trend bars, the first bar that closes DOWN is bought at the next open (short: after N bear trend bars, the first up-closing bar is sold) - the countertrend bar is expected to fail immediately.",
+   "pseudocode": "for k in 1..runBars: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k]); && close[0] < open[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "runBars": 2,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a run of the per-bar classification at lag 1 plus an opposite-direction test on bar 0"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R28-20",
+    "T18-11"
+   ],
+   "merge_notes": "R28-20 ('buy a bear close after at least a couple of strong bull trend bars at the start of a strong bull swing') and T18-11 ('buying the close of the first bear bar in a bull spike') are the same bars; R28-20's 'start of a strong swing' qualifier is a research-grade context read and is dropped, which is what keeps the merged rule out of grade C. Not composable: the long side needs a BEAR bar at lag 0 and BULL bars at lags 1..N, and a placement's flip toggle reverses both halves at once. Distinct from SpikePullbackLimitFade, which enters on a price poke below the prior low with no requirement that the bar close down.",
+   "variants_kept_separate": [
+    "SpikePullbackLimitFade",
+    "ConsecutiveTrendBars"
+   ],
+   "depends_on_keys": [
+    "ConsecutiveTrendBars",
+    "TrendBarBody"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "ConsecutiveClimaxBars",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Two large bull trend bars within M bars of each other, separated by at least one bar that is not a bull trend bar (short: mirrored) - Brooks's consecutive climaxes.",
+   "pseudocode": "largeBullTrendBar[0] && exists k in 2..maxGapBars: (largeBullTrendBar[k] && exists j in 1..k-1: !bullTrendBar[j])",
+   "sides": "mirrored",
+   "parameters": {
+    "maxGapBars": 5,
+    "sizeMultiple": 2.0,
+    "atrLookback": 20,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a short backward scan for a second qualifying bar with a pause between, on top of an ATR window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-38"
+   ],
+   "merge_notes": "Not composable: 'two large trend bars with a pause between them' is a pattern over a variable offset, not an AND of per-bar tests. Kept here rather than sent to climax_reversal because the pattern is stated entirely in bar anatomy; T21-37, which needs a swing low and a trend-age counter, went to that bucket instead.",
+   "variants_kept_separate": [
+    "ConsecutiveTrendBars",
+    "LargeTrendBarCountInWindow"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody",
+    "BarRangeAboveAtrMultiple"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ConsecutiveStrongTrendBars",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Each of the last N bars is a STRONG bull trend bar (short: strong bear): body at least a fraction of its range AND both tails no more than a small fraction of its range. Brooks's always-in flip test.",
+   "pseudocode": "for k in 0..consecutiveBars-1: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k]) && (high[k] - close[k]) <= tailFraction * (high[k] - low[k]) && (open[k] - low[k]) <= tailFraction * (high[k] - low[k])",
+   "sides": "mirrored",
+   "parameters": {
+    "consecutiveBars": 2,
+    "bodyFraction": 0.6,
+    "tailFraction": 0.2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a fixed-length loop over a three-part per-bar classification; the tail terms cannot be ANDed in from other panes because they must hold on each bar of the run"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveUpBars",
+    "relation": "variant",
+    "note": "ConsecutiveUpBars tests only close vs the bar's own open; this adds the body-size and both-tail tests to every bar of the run."
+   },
+   "sources": [
+    "V15-03",
+    "V15-01",
+    "V16-01"
+   ],
+   "merge_notes": "V15-01 and V16-01 are the reversals volume's two identical definitions of the strong trend bar (body >= 0.6 of range, each tail <= 0.2 of range); they are carried here as citations rather than as their own rule, because a standalone strong-trend-bar test is just TrendBarBody AND CloseRangePosition AND OpenNearBarLow, which the entry pane already ANDs. What is NOT composable is requiring all three on each bar of a RUN, which is this rule. Brooks: 'there usually has to have been at least two consecutive strong bull trend bars before most traders will believe that the always-in direction is long'; default consecutiveBars 2 as stated. This is the recommended definition for the always-in design decision.",
+   "variants_kept_separate": [
+    "ConsecutiveTrendBars",
+    "SpikeTrendBarsLowOverlap"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody",
+    "OpenNearBarLow"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "DojiAfterLargeOppositeTrendBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The previous bar was a large bear trend bar (range above K times the ATR) and this bar is a doji: a possible sell climax and reversal - enter long at the next open. Short is the mirror.",
+   "pseudocode": "close[1] < open[1] && (open[1] - close[1]) >= bodyFraction * (high[1] - low[1]) && (high[1] - low[1]) >= bigBarMultiple * atr(atrLookback) && abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.6,
+    "bigBarMultiple": 2.0,
+    "atrLookback": 14,
+    "dojiFraction": 0.2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "an ATR window plus fixed-offset bar tests across two bars"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T10-12"
+   ],
+   "merge_notes": "Kept whole rather than split into TrendBarBody + BarRangeAboveAtrMultiple + DojiBar: the first two terms are evaluated at lag 1 with the direction OPPOSITE to the trade, the third at lag 0, and the panes cannot mix lags. A named two-bar Brooks reversal, mechanized under the standing close-then-next-open convention.",
+   "variants_kept_separate": [
+    "DojiBar",
+    "BarRangeAboveAtrMultiple"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody",
+    "BarRangeAboveAtrMultiple",
+    "DojiBar"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstBarDojiInsidePriorClosingRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session's first bar is a small doji that sits entirely inside the high-low range of the previous session's last N bars: a stronger range-day bias than a doji open alone. Identical both sides.",
+   "pseudocode": "ctx.SessionDate(0) != ctx.SessionDate(1) && abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0]) && (high[0] - low[0]) <= dojiRangeFraction * atr(atrLookback) && low[0] >= lowest(low, closingRangeBars)[1] && high[0] <= highest(high, closingRangeBars)[1]",
+   "sides": "same",
+   "parameters": {
+    "dojiFraction": 0.25,
+    "dojiRangeFraction": 1.0,
+    "atrLookback": 14,
+    "closingRangeBars": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a session boundary, a doji test, an ATR window and a containment test against the prior session's last bars"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V19-07"
+   ],
+   "merge_notes": "Kept apart from FirstBarOfSessionDoji: the containment test in yesterday's closing range is what Brooks adds, and the two fire on different days. Note it does NOT latch, unlike FirstBarOfSessionDoji - the mining agent recorded it as a one-bar filter and the book's wording supports either reading; the authoring pass should pick one and note it. closingRangeBars = 5 is a guess, Brooks gives no count.",
+   "variants_kept_separate": [
+    "FirstBarOfSessionDoji"
+   ],
+   "depends_on_keys": [
+    "DojiBar"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "date",
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstBarOfSessionDoji",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The first bar of the session was a doji - latched for the rest of the session as a trading-range-day bias, favouring fades over breakout continuation. Identical both sides.",
+   "pseudocode": "if ctx.SessionDate(0) != ctx.SessionDate(1) then rangeDayBias = abs(close[0] - open[0]) <= dojiFraction * (high[0] - low[0]); // rangeDayBias holds for the rest of the session",
+   "sides": "same",
+   "parameters": {
+    "dojiFraction": 0.25
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a session-boundary test plus a latch that persists the verdict across the session's remaining bars"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R21-15",
+    "VP3-04"
+   ],
+   "merge_notes": "Both sources state the same test. Kept as a rule rather than dropped as DojiBar AND a session filter, because the book's point is the LATCH: the doji fires once, at the open, and biases the whole day. Without the latch it would fire on one bar a day and gate nothing. Book values 0.1 (R21-15) and 0.25 (VP3-04); default 0.25.",
+   "variants_kept_separate": [
+    "DojiBar",
+    "FirstBarDojiInsidePriorClosingRange",
+    "FirstBarOfSessionTrendBar"
+   ],
+   "depends_on_keys": [
+    "DojiBar"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "absvalue",
+    "date"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstBarOfSessionTrendBar",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The first bar of the session closed as a bull trend bar: take a scalp long at the next open. Short is the mirror.",
+   "pseudocode": "ctx.SessionDate(0) != ctx.SessionDate(1) && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.7
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a session-boundary test plus a single-bar classification"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V17-02"
+   ],
+   "merge_notes": "Kept rather than dropped as a composition because the session-boundary primitive is not carried in this bucket and because it is the anchor of the FirstBarSessionTrendBarFailureReversal pair, which Brooks states together. Brooks frames the exit as a scalp; only the entry is mined.",
+   "variants_kept_separate": [
+    "FirstBarOfSessionDoji",
+    "FirstBarSessionTrendBarFailureReversal"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "date"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "FirstBarSessionTrendBarFailureReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The session's first bar was a bull trend bar and the second bar is a bear trend bar closing below the first bar's open: the long setup failed, enter short at the next open. Long is the mirror.",
+   "pseudocode": "ctx.SessionDate(1) != ctx.SessionDate(2) && close[1] > open[1] && (close[1] - open[1]) >= bodyFraction * (high[1] - low[1]) && close[0] < open[0] && (open[0] - close[0]) >= bodyFraction * (high[0] - low[0]) && close[0] < open[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "bodyFraction": 0.7
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a two-bar pattern anchored on the session boundary, otherwise fixed-offset comparisons"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V17-03"
+   ],
+   "merge_notes": "Not composable in any direction: the trade is SHORT while the first bar is BULL. Brooks gives no numeric failure threshold; 'the second bar closes below the first bar's open' is the mining agent's reading and is the tunable part of the rule.",
+   "variants_kept_separate": [
+    "FirstBarOfSessionTrendBar"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [
+    "date"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SpikePullbackLimitFade",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "After N consecutive bull trend bars, the current bar trades below the previous bar's low (the first weak pullback bar): buy, betting the pullback fails and the spike resumes. Short is the mirror.",
+   "pseudocode": "for k in 1..spikeBars: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k]); && low[0] <= low[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "spikeBars": 2,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the consecutive-trend-bar run evaluated at lag 1, plus a touch-of-level test standing in for the limit fill"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "LaggedHigherHigh",
+    "relation": "variant",
+    "note": "The pullback half is LaggedHigherHigh(0) negated and flipped; the run half is ConsecutiveTrendBars at lag 1. Kept whole because the run must END one bar before the pullback bar, an offset no pane can supply."
+   },
+   "sources": [
+    "V03-10",
+    "V19-05",
+    "VP3-10"
+   ],
+   "merge_notes": "Three statements of the same setup - V03-10 (5 bars, limit at the prior bar's extreme), VP3-10 (2 bars, limit at or below the doji's low), V19-05 (2 bars, the first bar that pokes past the prior bar's extreme). V19-05 phrases it as a with-trend stop entry and the other two as a limit entry, but all three fire on the same bar; the limit fill is approximated by the bar trading through the level, as the mining brief allows. Default spikeBars 2 (two of the three sources).",
+   "variants_kept_separate": [
+    "ConsecutiveTrendBars",
+    "BuyOppositeColorBarAfterTrendBarRun"
+   ],
+   "depends_on_keys": [
+    "ConsecutiveTrendBars"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "TrendBarRunWithinWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Somewhere in the last N bars there was a run of at least R consecutive bull trend bars (short: bear) - earlier strength, not necessarily still in progress. Negate for Brooks's 'the rally never produced two consecutive strong bull trend bars'.",
+   "pseudocode": "exists i in 0..lookback-runBars: for all j in 0..runBars-1: close[i+j] > open[i+j] && (close[i+j] - open[i+j]) >= bodyFraction * (high[i+j] - low[i+j])",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 10,
+    "runBars": 2,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a nested window scan for a run anywhere in the lookback, rather than a run ending at the current bar"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V01-12",
+    "T07-38"
+   ],
+   "merge_notes": "T07-38 ('a strong bull trend bar occurred within the last K bars, so a high 2 pullback may be bought') is this rule at runBars = 1; V01-12 ('the rally did not contain two consecutive strong bull trend bars') is it at runBars = 2, negated. One rule with a parameter and the negate toggle. Kept apart from ConsecutiveTrendBars, which requires the run to end at the current bar: 'strength ten bars ago' and 'strength right now' fire on different bars. T07-38 also required range >= average range on the run's bars; that term is dropped here (AND in BarRangeAboveAtrMultiple is not equivalent inside a scan, so the stricter reading is noted rather than coded).",
+   "variants_kept_separate": [
+    "ConsecutiveTrendBars",
+    "TrendBarCountInWindow"
+   ],
+   "depends_on_keys": [
+    "TrendBarBody"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "bar_anatomy_trend_doji",
+   "el_words": [],
+   "blocking_words": []
+  }
+ ]
+}

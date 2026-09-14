@@ -89,3 +89,64 @@ appends the rows so parallel agents do not collide. Do not commit.
 Under 30 lines: rules written (key, role, one phrase), rules not written with
 reason, any `ASSUMED` register row a rule now leans on, anything outside the EL
 translation table, and the path of your rows file. No JSON in the report.
+
+## B-list addendum (2026-09-13, after the probes)
+
+Slices for the B list live in `reference/brooks/author/slicesB/BNN_<family>.json`;
+the key list is `reference/brooks/author/B_KEYS.md`; rows go to
+`reference/brooks/author/rows/BNN_<family>.md`. The catalog now has 247 rules,
+so the duplicate check is against `rules/CATALOG.md`, `rules/` on disk,
+`author/rows/*.md` and `B_KEYS.md`. Everything above still applies. What is new:
+
+**Measured primitives, with the reference implementation to copy:**
+
+- Swing pivot: `rules/SwingHigh.json` (and its TS twin). The measured test is
+  at-or-above the `strength` OLDER bars and STRICTLY above the `strength` NEWER
+  bars, `el_ge`/`el_gt` inside the scan, lag exactly `strength`, `-1` sentinel
+  guarded, history `lookback - 1 + strength`. Details in
+  `reference/brooks/probes/SWING_FINDINGS.md` §4. Inline it; do not reference
+  the rule file.
+- EMA: `rules/EmaGapBar.json` carries the `WFSafe_Xaverage` mirror (price seed on
+  the first calculated bar, `X = X[1] + SF*(P - X[1])`, `SF = 2/(Length+1)`).
+  `emaLength` stays an input and the row says it must be pinned in grids.
+  **Lagged reads `ema(...)[k]`, k > 0: read the `xaverage` row in
+  `rules/EL_FEATURES.md` when you start.** If it still says lagged reads are
+  unmeasured, a rule that needs one is blocked; report it. If the row has been
+  updated with the measured behaviour, follow what it says.
+- Trend line: `TLValue` is a first-anchor two-point interpolation,
+  `slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * slope`, older
+  anchor first (zero-drift spelling), free extrapolation, and the equal-bar case
+  returns 0.0 instead of halting, so every rule guards `B1 <> B2`. Details in
+  `reference/brooks/probes/TLVALUE_FINDINGS.md` §4. Anchors are the two most
+  recent CONFIRMED pivots at `strength`, per the merge decision.
+- Tick size: `MinMove`/`PriceScale` are VERIFIED, but the engine exposes no tick
+  size to strategies yet, so rules fundamentally stated in ticks were kept out
+  of these slices. If one slipped in, express the threshold in price points or
+  ATR fractions as before and say so in the row.
+
+**Settled design decisions (apply, do not re-deliberate; cite the decision in
+the row):**
+
+- Always-in direction: a persistent state that flips on `consecutiveBars`
+  (default 2) consecutive strong trend bars (body >= 0.6 of range, both tails
+  <= 0.2), holds until the opposite flip, undefined until the first flip. No
+  rule file exists for it yet; a B rule that needs it inlines this state machine
+  in its hooks and names the decision in the row.
+- Leg counting: the persistent H1/H2 counter of Ranges ch17 (`R17-01`): advance
+  on a higher-high bar only after a new low since the last counted bar, reset on
+  a fresh `resetLookback`-bar high, saturate at 4. The `leg_counting` slice
+  authors `HighLowBarCount` first; other rules inline the same counter.
+- Trading range: `highest(high,20) - lowest(low,20) <= 4 x ATR(14)`
+  (`rules/RangeWidthBelowAtrMultiple.json`); tight range is the same at
+  15 bars / 1.2 ATR; barbwire is `rules/Barbwire.json`.
+- Tight channel: `rules/TightChannel.json`. Spike: `rules/StrongTrendBarRun.json`
+  and `StrongTrendBarCount`. Climax: `rules/ClimaxBar.json`.
+- Session model: a session starts when `Date[0] <> Date[1]`; keep the session's
+  running open/high/low and a bars-into-session counter in locals, reset on the
+  date change. Prior-session levels use `HighD(1)`/`LowD(1)`/`OpenD(1)`/
+  `CloseD(1)` (VERIFIED). A 1440-minute bar is still intraday per the register.
+- Composites that are named Brooks setups keep `depends_on_keys` in the row
+  text but inline the parts in code, as the corpus does.
+
+**Reaches back** must include the pivot lag (`lookback - 1 + strength`), the
+trend-line anchors, and any counter's reset lookback.

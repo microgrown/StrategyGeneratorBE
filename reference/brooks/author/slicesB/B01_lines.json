@@ -1,0 +1,617 @@
+{
+ "slice": "B01_lines.json",
+ "rules": [
+  {
+   "key": "ChannelLineBreakTrendBarClose",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A bar closes beyond the channel line with a strong with-trend body -- not a reversal, a strengthening trend. The filter against fading a channel-line break.",
+   "pseudocode": "close[0] > channelLine[0] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the projected line plus a trend-bar body test"
+   },
+   "timeframe": "daily-ok",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V10-04",
+    "V04-10"
+   ],
+   "merge_notes": "V04-10 states the routing rule with no numbers ('breaking a trend channel line means the trend has increased in strength', the opposite implication to a trend-line break); V10-04 gives it the measurable form -- the bar must CLOSE well beyond the line with a strong body. V10-04 wins, V04-10 is the citation. Direct contrast with ChannelLineOvershootReversal: same line, opposite bar shape, opposite trade, so both are kept.",
+   "variants_kept_separate": [
+    "ChannelLineOvershootReversal",
+    "ClimaxBarAtChannelLine",
+    "ChannelLineBreakoutFailure"
+   ],
+   "depends_on_keys": [
+    "ChannelLineOvershoot"
+   ],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ChannelLineBreakoutFailure",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A bar within the last N CLOSED beyond a channel's line and this bar closes back inside the channel -- the failed channel breakout, which Brooks says then runs to the opposite side of the channel.",
+   "pseudocode": "exists i in 1..failBars with close[i] < channelLine[i] && close[0] > channelLine[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "failBars": 5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the projected line evaluated on every bar of a small window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T03-16",
+    "V04-09",
+    "T15-31",
+    "T21-23",
+    "T14-07"
+   ],
+   "merge_notes": "Five statements, one behaviour, and all five give the same five-bar window -- the most consistent number in the bucket. They differ only in WHICH line broke: T03-16, V04-09 and T21-23 the trend channel line (a with-trend breakout that fails), T14-07 the bottom of a falling channel (which is that channel's channel line, despite the mined pseudocode calling it a trend line), T15-31 either side ('with ANY channel breakout that reenters the channel'). T15-31's generic statement wins as the definition and the line is a placement choice. Companion exit is ChannelLineTargetExit at the opposite line (T15-35).",
+   "variants_kept_separate": [
+    "ChannelLineOvershootReversal",
+    "FirstTightChannelBreakoutFails"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ChannelLineOvershootReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Price poked beyond the projected trend channel line within the last K bars and this bar closes back inside the channel as a reversal bar -- the countertrend fade at the channel line.",
+   "pseudocode": "lowest(low, overshootBars) < channelLine[0] && close[0] > channelLine[0] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "overshootBars": 1,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the channel-line projection, evaluated across a small window"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T14-04",
+    "T15-15",
+    "VP1-15",
+    "V02-21"
+   ],
+   "merge_notes": "Four statements of Brooks's single most-repeated channel trade. T14-04 and T15-15 are the same bar (poke beyond, close back inside, reversal body) with bodyFraction 0.5 and 0.6; 0.6 chosen. V02-21 lets the poke be up to three bars old (lowest(low, overshootBars) < line) and VP1-15 puts it exactly one bar back -- so overshootBars is the parameter and 1 the default, which reproduces T14-04/T15-15 exactly. Kept apart from ChannelLineBreakoutFailure: that one needs a prior bar to CLOSE beyond the line, this one only a wick.",
+   "variants_kept_separate": [
+    "ChannelLineBreakoutFailure",
+    "ClimaxBarAtChannelLine",
+    "SecondChannelLinePenetration"
+   ],
+   "depends_on_keys": [
+    "ChannelLineOvershoot"
+   ],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "highest",
+    "lowest",
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ChannelLineTestMomentumEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A recent bar tested the channel's near line and price has since moved a fixed ATR amount back away from that test bar's extreme -- a with-trend momentum entry off the line test.",
+   "pseudocode": "exists k in 1..testWindow with low[k] <= trendLine[k] + touchTolAtr * atr(atrLength); close[0] >= low[k] + moveAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "testWindow": 10,
+    "touchTolAtr": 0.1,
+    "moveAtr": 0.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the projected line across a window, plus the test bar's extreme carried forward"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T21-62"
+   ],
+   "merge_notes": "Brooks states it as the bears' mirror ('short on a fixed amount below every test of the top of the channel, like one or two points down'); the long side written here is the mirror of that. The 'one or two points' is Emini-specific and is carried as moveAtr so it ports.",
+   "variants_kept_separate": [
+    "PullbackFromRecentHigh"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ChannelStartRetestEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Price has come back down to the channel's starting level and a bar closes above the prior bar's high there -- buy the test of the start of the channel.",
+   "pseudocode": "low[1] <= channelStart + tolAtr * atr(atrLength) && low[1] >= channelStart - maxUndershootAtr * atr(atrLength) && close[0] > high[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "tolAtr": 0.25,
+    "maxUndershootAtr": 0.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the remembered channel-start level plus a two-bar trigger"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP1-13",
+    "R28-19",
+    "T21-44",
+    "T03-09"
+   ],
+   "merge_notes": "The entry side of ChannelStartRetestExit's level. Four statements: RP1-13 the gap test after a spike ('often goes slightly below its low' -- hence maxUndershootAtr), R28-19 the low-momentum pullback to the bottom of the channel, T03-09 the higher-low double bottom at the channel's starting swing low, T21-44 (stray, absorbed) the double bottom bull flag at the channel start. All buy the same level; the trigger differs only in whether a close above the prior high is required, which T03-09 and T21-44 state explicitly and is carried. R28-19's extra 'low-momentum pullback' qualifier has no measure and is left out.",
+   "variants_kept_separate": [
+    "ChannelStartRetestExit",
+    "DipBelowPriorBarLow"
+   ],
+   "depends_on_keys": [
+    "SpikeAndChannelContext"
+   ],
+   "design_decisions_needed": [
+    "when a channel begins and ends"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ChannelWidthConvergence",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The channel's width (channel line minus trend line) is narrower now than K bars ago by at least a fraction -- a converging channel, i.e. a wedge or triangle. Negated and inverted it is the expanding triangle.",
+   "pseudocode": "widthNow = channelLine[0] - trendLine[0]; widthEarlier = channelLine[k] - trendLine[k]; widthNow <= convergeFraction * widthEarlier",
+   "sides": "same",
+   "parameters": {
+    "pivotStrength": 2,
+    "convergeFraction": 0.7,
+    "k": 10
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "both projected lines evaluated at two points in time"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "TP2-04"
+   ],
+   "merge_notes": "Direction-agnostic (a width is a width), so sides are 'same'. Brooks's own framing -- parallel means continuation, convergent means wedge, divergent means expanding triangle -- makes this the cheap wedge detector; the three_push_patterns bucket carries the pivot-based one (T14-08), and the authoring pass should compare them.",
+   "variants_kept_separate": [
+    "ChannelSlopeSteep",
+    "TightChannel"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ClimaxBarAtChannelLine",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A large with-trend trend bar reaches the projected channel line -- the vacuum test. Brooks fades it: the eager buyers who created it are the last ones.",
+   "pseudocode": "high[0] >= channelLine[0] && close[0] > open[0] && (close[0] - open[0]) >= bodyFraction * (high[0] - low[0]) && (high[0] - low[0]) >= largeBarAtrMultiple * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "bodyFraction": 0.6,
+    "largeBarAtrMultiple": 1.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the channel-line projection plus a large-trend-bar test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T15-17"
+   ],
+   "merge_notes": "Stray sent here from bar_anatomy_trend_doji; it fits and is absorbed. Deliberately NOT merged into ChannelLineOvershootReversal even though both fade at the line: this bar closes WITH the trend and near its high, the reversal form closes back inside against it -- opposite bar shapes, different bars. The book's use is a fade, so the placement is the trend bar's opposite side; the authoring pass should note the sides read backwards from the bar's own colour.",
+   "variants_kept_separate": [
+    "ChannelLineOvershootReversal",
+    "ChannelLineBreakTrendBarClose"
+   ],
+   "depends_on_keys": [
+    "ChannelLineOvershoot"
+   ],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "EntryRoomToChannelLine",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "There is at least F x the channel height between the current close and the channel line ahead -- room for the trade to pay before it hits the far side of the channel.",
+   "pseudocode": "(channelLine[0] - close[0]) >= minRoomFraction * (channelLine[0] - trendLine[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "minRoomFraction": 0.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "both projected lines"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T15-22"
+   ],
+   "merge_notes": "Kept apart from PriceInLowerHalfOfChannel although both measure position within the channel: this one is scaled to the channel's own height as a trade-viability test ('so tight there was no room for a profitable short and no trade should be taken'), the other places price in the channel for direction. An absolute form (room >= minRoomAtr x ATR) is the alternative the miner flagged and is the better one if channel height turns out to be noisy.",
+   "variants_kept_separate": [
+    "PriceInLowerHalfOfChannel",
+    "ChannelLineTargetExit"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "PriceInLowerHalfOfChannel",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the lower fraction of the channel -- above the trend line by no more than F x the channel height. Buy low in the channel, and the odds fall as price works into the upper half.",
+   "pseudocode": "close[0] <= trendLine[0] + fraction * (channelLine[0] - trendLine[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "fraction": 0.5
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "both projected lines; the horizontal proxy is trivial but is a different rule"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "AtrBandBreakout",
+    "relation": "variant",
+    "note": "T15-23's HORIZONTAL proxy -- close below the Donchian midline (highest + lowest)/2 -- is AtrBandBreakout at atrMultiple 0 with the sides flipped, i.e. already in the corpus. The SLOPING form here is not: its midline follows the channel, not a flat Donchian."
+   },
+   "sources": [
+    "T15-23"
+   ],
+   "merge_notes": "Only the sloping form is carried as a rule; the horizontal proxy the miner offered alongside it is already authorable as AtrBandBreakout(atrMultiple = 0) flipped, and should not be authored again. Brooks p256: the middle of the channel has a magnetic pull, so a band form (lower third, upper third) is a reasonable second parameterization of the same rule.",
+   "variants_kept_separate": [
+    "EntryRoomToChannelLine"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SecondChannelLinePenetration",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The channel line is being penetrated now and it was already penetrated at least once in the last N bars -- prefer the second penetration to the first when fading a channel.",
+   "pseudocode": "high[0] > channelLine[0] && countIf(high[i] > channelLine[i], i in 1..lookback) >= 1",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "lookback": 15
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a window count of a derived per-bar flag; hard only through the line it counts"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T14-05"
+   ],
+   "merge_notes": "Brooks's 'especially if it is the second penetration that is reversing', which he attaches to the channel-line fade throughout both books. Kept separate from ChannelLineOvershootReversal so the fade can be tested with and without it -- that is exactly the comparison Brooks is asserting.",
+   "variants_kept_separate": [
+    "ChannelLineOvershootReversal",
+    "FirstTightChannelBreakoutFails"
+   ],
+   "depends_on_keys": [
+    "ChannelLineOvershoot"
+   ],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "countif",
+    "swinghigh",
+    "swinglow",
+    "tlvalue"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ShrinkingStairs",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each successive new extreme in a stairs trend extends less than the one before it -- shrinking stairs, a waning-momentum filter against the next with-trend breakout.",
+   "pseudocode": "(swingHigh(1).price - swingHigh(2).price) < (swingHigh(2).price - swingHigh(3).price) && (swingHigh(2).price - swingHigh(3).price) < (swingHigh(3).price - swingHigh(4).price)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "shrinkLegs": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "four swing pivots and a monotonic-decrease test over the gaps between them"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T00-17",
+    "T26-04"
+   ],
+   "merge_notes": "T00-17 is the glossary entry over four pivots, T26-04 (stray, absorbed) the chapter statement over two legs; one rule with shrinkLegs as the parameter, default 3 comparisons (four pivots) from T00-17. Kept apart from StairsPattern: a stairs trend can have growing, equal or shrinking steps, and only the shrinking case carries the warning.",
+   "variants_kept_separate": [
+    "StairsPattern",
+    "ThreePushesInChannel"
+   ],
+   "depends_on_keys": [
+    "StairsPattern"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SignificantChannelLineOvershoot",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Some bar in the last N overshot the channel line by at least K x ATR -- a SIGNIFICANT overshoot, as opposed to a minor poke. Brooks uses it negated: a trend with no significant overshoots is healthy.",
+   "pseudocode": "exists k in 0..lookback-1 with (high[k] - channelLine[k]) >= significantOvershootAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "significantOvershootAtr": 0.5,
+    "atrLength": 14,
+    "lookback": 10
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the projected line on every bar of a window, plus an ATR magnitude"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T00-45",
+    "T19-19"
+   ],
+   "merge_notes": "The same sign-of-strength bullet, stated identically in the glossary (T00-45) and in the trends chapter on trend strength (T19-19). Both are phrased as the NEGATIVE ('no significant overshoots occur'), which is the per-placement toggle; the rule states the positive. Not ChannelLineOvershoot with a window: the ATR magnitude that separates 'significant' from 'minor' is the content, and it is the miners' number, not Brooks's. The sources' second clause -- 'and the minor ones result in only sideways corrections' -- has no measurable form and is dropped.",
+   "variants_kept_separate": [
+    "ChannelLineOvershoot"
+   ],
+   "depends_on_keys": [
+    "ChannelLineOvershoot"
+   ],
+   "design_decisions_needed": [
+    "trend channel line construction"
+   ],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "tlvalue",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StairsPattern",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least three consecutive swing legs each making a higher swing low AND a higher swing high, where each breakout retraces back past its own breakout point before the next leg -- Brooks's stairs, a broad channel trend.",
+   "pseudocode": "for k in 1..minStairs-1: swingLow(k).price > swingLow(k+1).price && swingHigh(k).price > swingHigh(k+1).price && swingLow(k).price < swingHigh(k+1).price (the overlap)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "minStairs": 3,
+    "maxLegs": 6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "swing-pivot detection, a run test over several pivots, and an overlap test between consecutive legs"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T26-01"
+   ],
+   "merge_notes": "The only source in the trilogy that defines stairs precisely enough to code, and the chapter named for it. The overlap requirement is what separates stairs from a plain trend of higher highs and higher lows, and from an accelerating spike-and-channel; it is carried. Gates StairsBreakoutFade, StairsPullbackLimitEntry and ShrinkingStairs.",
+   "variants_kept_separate": [
+    "ChannelConfirmedByTwoLegs",
+    "ThreePushesInChannel"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "StairsPullbackLimitEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "In a stairs trend, buy a fixed distance below the most recent swing low -- the pullback that tests the prior stair.",
+   "pseudocode": "stairsDetected && low[0] <= swingLow(1).price - stairPullbackAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "pivotStrength": 2,
+    "stairPullbackAtr": 0.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the stairs primitive plus the most recent swing pivot"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "R28-32"
+   ],
+   "merge_notes": "Brooks's 'four points below the prior swing low' is instrument-specific; carried as an ATR multiple so it ports, with the point form as the alternative. This is DipBelowPriorBarLow's idea applied to a swing pivot rather than the prior bar, which is why it is a separate rule -- different level, different bars.",
+   "variants_kept_separate": [
+    "DipBelowPriorBarLow",
+    "StairsBreakoutFade"
+   ],
+   "depends_on_keys": [
+    "StairsPattern"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "lines_channels_channels",
+   "el_words": [
+    "swinghigh",
+    "swinglow",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  }
+ ]
+}

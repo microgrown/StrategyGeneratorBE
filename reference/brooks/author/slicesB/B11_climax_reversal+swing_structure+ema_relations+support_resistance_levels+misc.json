@@ -1,0 +1,597 @@
+{
+ "slice": "B11_climax_reversal+swing_structure+ema_relations+support_resistance_levels+misc.json",
+ "rules": [
+  {
+   "key": "ClimaxBarAfterExtendedRun",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A climax bar that arrives after the always-in direction has held the same way for at least minRunBars bars -- the exhaustion form, where the biggest-looking breakout of the move is the one most likely to fail.",
+   "pseudocode": "ClimaxBar[0] && alwaysInRunLength(0) >= minRunBars, where alwaysInRunLength counts the bars since AlwaysInDirection last flipped",
+   "sides": "mirrored",
+   "parameters": {
+    "minRunBars": 10,
+    "climaxMultiple": 1.5,
+    "atrLength": 10,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the always-in flip persisted as a bar counter on top of the climax bar test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "as ClimaxBar, plus the run gate"
+   },
+   "sources": [
+    "V24-20",
+    "T06-25",
+    "T21-37"
+   ],
+   "merge_notes": "Held apart from ClimaxBar rather than dropped as a composition, because the run gate has no independent rule to AND against: the always-in run LENGTH is not itself a mined candidate anywhere in this bucket, and the whole point of both sources is that the same bar means the opposite thing early and late in a trend. Measured against the decided AlwaysInDirection (two consecutive strong trend bars, body >= 0.6, tails <= 0.2) rather than a bars-since-swing-pivot count -- the alternative is recorded in design_decisions. Book run lengths: 10 or 20 bars (V24-20), 10 bars (T06-25), 30 (T02-10), 40 (V04-08); default 10, the value both sources here give. T06-25 supplies the softer 1.5 x ATR over 10 bars, used as the default here since the run gate is already doing selection work.",
+   "variants_kept_separate": [
+    "ClimaxBar",
+    "LargestTrendBarOfTheRun"
+   ],
+   "depends_on_keys": [
+    "ClimaxBar",
+    "AlwaysInDirection"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [
+    "average",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ConsecutiveSpikeCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least minSpikes separate same-direction spikes -- runs of at least spikeBars consecutive strong trend bars, each run separated from the next by a non-spike bar -- within the last windowBars. Brooks: every spike, one bar or many, is a climax.",
+   "pseudocode": "count of disjoint runs of >= spikeBars consecutive StrongTrendBar(up) bars inside bars 0..windowBars-1 >= minSpikes",
+   "sides": "mirrored",
+   "parameters": {
+    "windowBars": 30,
+    "spikeBars": 2,
+    "minSpikes": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "run detection with state over a window, on top of the shared spike primitive"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "MomentumConsecutiveBars",
+    "relation": "variant",
+    "note": "that rule needs one run of N bars each closing above the close N bars ago; this needs several separated runs of strong trend BODIES, so the bars differ"
+   },
+   "sources": [
+    "VP1-20",
+    "V01-16",
+    "T15-57",
+    "T10-16"
+   ],
+   "merge_notes": "The run form of the climax-classification decision, built on the already-decided spike primitive (StrongTrendBarRun / StrongTrendBarCount) rather than redefining it. T15-57 is the cleanest statement (disjoint runs of >= 2 bull trend bars, 3 within 30 bars) and supplies the defaults; T10-16 (stray, absorbed) is the same test on bear spikes with an added reversal-bar entry term, which is left to bar_anatomy. VP1-20 and V01-16 count 'climaxes without much of a pullback' since the session start -- the same idea with an intraday anchor and the pullback qualifier; both are folded in and the pullback qualifier is left to the decided tight-channel measure in its own pane. Threshold 3 here (all four sources say three) against 2 on ConsecutiveClimaxBarCount, which is the book's own asymmetry: two big bars is a double top, three spikes is a wedge.",
+   "variants_kept_separate": [
+    "ConsecutiveClimaxBarCount",
+    "SpikeReversedBySpike"
+   ],
+   "depends_on_keys": [
+    "StrongTrendBarRun"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "SessionMoveExhaustsDailyRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session's move from the open has reached rangeFraction of the recent average daily range, so further movement in that direction is treated as exhausted and countertrend setups are favoured.",
+   "pseudocode": "sessionRange(k) = the high-low of session k built from the intraday bars; abs(close[0] - sessionOpen) >= rangeFraction * average(sessionRange, dailyLookback)",
+   "sides": "same",
+   "parameters": {
+    "rangeFraction": 0.9,
+    "dailyLookback": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "per-session high/low accumulated on the intraday series and averaged over the last N sessions, plus a session-open reference"
+   },
+   "timeframe": "intraday-only",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T13-14"
+   ],
+   "merge_notes": "Kept because it is the one exhaustion measure in the bucket that is scaled to the DAY rather than to the bar, and it needs no climax primitive at all. The mined candidate assumed a second daily data stream; rewritten to accumulate session ranges on the intraday series, which is what makes it hard rather than out of scope. Intraday-only, tagged per the standing convention.",
+   "variants_kept_separate": [
+    "AtrAtExtreme"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [
+    "average",
+    "date",
+    "opend",
+    "time"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SpikeReversedBySpike",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A spike in one direction immediately followed by a spike in the opposite direction: the climactic reversal. Brooks's expectation is a transition into a trading range whose eventual breakout runs about the height of the first spike.",
+   "pseudocode": "strongTrendBarRun(down, spikeBars) ending at bar 0 && strongTrendBarRun(up, spikeBars) ending at bar spikeBars + gapBars or closer",
+   "sides": "mirrored",
+   "parameters": {
+    "spikeBars": 2,
+    "gapBars": 1
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "two opposite-direction runs located relative to each other, on the shared spike primitive"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP4-18"
+   ],
+   "merge_notes": "The one candidate in this bucket for the chapter title's own pattern ('a spike followed by a spike in the opposite direction'), and the only climax rule that is a two-sided shape rather than a count or a size. Built on the decided spike primitive. The measured-move consequence Brooks attaches to it (the breakout runs the height of the first spike) is a target, not a condition, and is left to the exits/targets pass.",
+   "variants_kept_separate": [
+    "ConsecutiveSpikeCount",
+    "TrendBarRunEnded"
+   ],
+   "depends_on_keys": [
+    "StrongTrendBarRun"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "TrendBarRunEnded",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A run of at least runBars consecutive same-direction strong trend bars ended on the previous bar: this bar is not one (a small bar, a tailed bar, an inside bar, a doji or an opposite bar broke the streak). Brooks: the climax ends as soon as the strong trending behaviour is interrupted.",
+   "pseudocode": "strongTrendBarRun(up, runBars) ending at bar 1 && !StrongTrendBar(up)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "runBars": 3,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a consecutive-run counter on the shared strong-trend-bar test, plus the break condition"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "MomentumConsecutiveBars",
+    "relation": "variant",
+    "note": "the mining file guessed that rule; it counts closes above the close N bars ago, not strong trend BODIES, and has no 'and the streak just broke' term"
+   },
+   "sources": [
+    "T02-03",
+    "V04-02"
+   ],
+   "merge_notes": "The event that Brooks uses to time a fade -- not the climax itself but the bar that ends it -- so it is behaviourally distinct from every count rule here and from the spike primitive it is built on. Three bars is the book's example; runBars is the input.",
+   "variants_kept_separate": [
+    "ConsecutiveSpikeCount",
+    "SpikeReversedBySpike"
+   ],
+   "depends_on_keys": [
+    "StrongTrendBarRun"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [],
+   "blocking_words": []
+  },
+  {
+   "key": "ExitOnConsecutiveClimax",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit the open position once a second same-direction climax has printed -- take profits into the climax, or on the first opposite-body bar after it.",
+   "pseudocode": "ctx.MarketPosition() > 0 && ConsecutiveClimaxBarCount(minClimaxes = 2) && (exitOnClimaxClose || close[0] < open[0])",
+   "sides": "mirrored",
+   "parameters": {
+    "minClimaxes": 2,
+    "windowBars": 15,
+    "exitOnClimaxClose": 0
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the climax count plus position state"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "ConsecutiveCloseExit",
+    "relation": "variant",
+    "note": "same shape -- an exit on a run of with-trend bars -- but keyed on climax bars rather than on N consecutive rising closes"
+   },
+   "sources": [
+    "T21-39"
+   ],
+   "merge_notes": "Cannot be composed from ConsecutiveClimaxBarCount: that is an Entry, exits are ORed and an Entry cannot sit in the exit pane, so the exit form has to exist separately -- the same reason the catalog carries ConsecutiveCloseExit alongside MomentumConsecutiveBars. The exitOnClimaxClose toggle picks between selling into the climax bar's close and waiting for the first opposite-body bar; both are in the quote.",
+   "variants_kept_separate": [
+    "ConsecutiveClimaxBarCount"
+   ],
+   "depends_on_keys": [
+    "ConsecutiveClimaxBarCount"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "climax_reversal",
+   "el_words": [
+    "average",
+    "marketposition",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "BarsBeyondSwingPointWithoutPullback",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Price has held beyond the prior swing high for at least barsBeyond consecutive bars without a pullback (mirror: below the prior swing low) - Brooks's stand-down rule: once the 'test' of the old extreme runs five or more bars past it, it is a successful breakout, not a reversal setup, and the countertrend trade is off.",
+   "pseudocode": "barsSince(low[0] < priorSwingHigh(strength)) >= barsBeyond",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "barsBeyond": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a persisting bar counter over a retained pivot level"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "V03-07"
+   ],
+   "merge_notes": "Single source. Stated as a blocker for a countertrend entry, so in the pane system it is used negated; kept in its positive form since the negate toggle is per placement. V03-07's own trend-line-break gate belongs to lines_channels_trendlines and is ANDed there.",
+   "variants_kept_separate": [
+    "CloseBeyondLastSwingPoint"
+   ],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "highest",
+    "lowest",
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "HigherSwingLow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The most recently confirmed swing low is above the swing low before it (a higher low); mirror: the most recent swing high is below the one before it (a lower high). Brooks's minimum precondition for taking a with-trend trade: 'a trader usually should not be looking to buy unless the market is at least forming a higher low'.",
+   "pseudocode": "lastSwingLow(strength) > priorSwingLow(strength)",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "maxBarsBack": 60
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the last two confirmed same-side pivots retained across bars"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "LaggedHigherHigh",
+    "relation": "variant",
+    "note": "same shape at pivots rather than adjacent bars, and on the opposite series"
+   },
+   "sources": [
+    "R00-30",
+    "V00-12",
+    "TP3-07",
+    "R02-25",
+    "V08-03"
+   ],
+   "merge_notes": "R00-30, V00-12 and TP3-07 are the same test. R02-25 ('the resumption stalls and forms a lower high with a bear signal bar') is this rule's SHORT side ANDed with a bear signal bar; atomic beats composite, so the signal-bar conjunct is left to bar_anatomy_reversal_signal and only the lower-high half is merged here. TP3-07 offers a cheap window proxy, lowest(low, n)[0] > lowest(low, n)[n] with n the leg length, which the authoring pass can use if pivot retention proves expensive.",
+   "variants_kept_separate": [
+    "HigherSwingHigh",
+    "TrendingSwings",
+    "HigherLowBar"
+   ],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "highest",
+    "lowest",
+    "swinghigh",
+    "swinglow"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "SwingPointTestHolds",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A test of support that holds: the bar's low comes within toleranceAtr x ATR of the most recent confirmed swing low WITHOUT trading below it (mirror: the high tests the last swing high from below without exceeding it). Brooks's 'test' - the market returns to a prior swing level and fails to break it.",
+   "pseudocode": "lastSwingLow(strength) <= low[0] && low[0] <= lastSwingLow(strength) + toleranceAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "toleranceAtr": 0.25,
+    "atrLength": 14,
+    "maxBarsBack": 60
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the retained pivot price plus an ATR"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T03-04",
+    "T10-22"
+   ],
+   "merge_notes": "T03-04 states the general 'test' as a symmetric tolerance BAND around the pivot (2 ticks either side); T10-22 states the one-sided form, the low approaches but does not break the pivot, plus a close-up conjunct left to bar_anatomy. WINNER: the one-sided form - the two-sided band double-counts SwingPointUndercut, which already covers the break. Tolerance expressed as an ATR fraction (T10-22's 0.25) rather than T03-04's ticks so it ports across symbols; see the level-tolerance design decision. Kept apart from SwingPointUndercut (breaks the level) and DoubleExtreme (matches a level formed by a pivot, not necessarily the most recent one).",
+   "variants_kept_separate": [
+    "SwingPointUndercut",
+    "DoubleExtreme"
+   ],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "highest",
+    "lowest",
+    "swinghigh",
+    "swinglow",
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "EmaGapBarRun",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Price has gone at least N consecutive bars without any bar touching the N-bar EMA -- Brooks's '20 gap bars', a strong but overdone trend.",
+   "pseudocode": "barsSinceEmaTouch = (low[0] <= ema(close, emaLength)[0] && high[0] >= ema(close, emaLength)[0]) ? 0 : barsSinceEmaTouch[1] + 1; barsSinceEmaTouch >= gapBarsRequired",
+   "sides": "same",
+   "parameters": {
+    "emaLength": 20,
+    "gapBarsRequired": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an EMA plus one persistent bars-since-touch counter; no window loop"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "Nothing in the catalog carries a bars-since-event counter; MomentumConsecutiveBars is the closest shape but counts a price relation over a fixed window, not a reset-on-event streak."
+   },
+   "sources": [
+    "R13-01",
+    "R00-24",
+    "V00-14",
+    "T00-13",
+    "T19-13",
+    "TP1-09",
+    "V23-01"
+   ],
+   "merge_notes": "R13-01's definition wins: one persistent counter that resets when the bar's range straddles the EMA, tested against a threshold. The four 'twenty gap bars' restatements (R00-24, V00-14, T00-13, T19-13) all express it as a fixed-length loop over the EmaGapBar primitive, which costs a 20-deep loop and an EMA read per bar for the same bars; kept as citations. Direction is dropped with the loop: the counter is direction-agnostic (sides 'same'), which differs from the mirrored loop forms only when price gaps clean across the EMA without a straddling bar -- rare, and recorded here as the cost of the cheaper machine. Book thresholds: 20 (five sources, the default), 30 (V23-01), 45 on the daily (TP1-09). V23-01 also fades the extreme streak countertrend and predicts an EMA touch within 10 bars; the fade is this same rule with the placement flipped, and the 10-bar window is a target/exit idea not carried here. Brooks says outright that 20 'is arbitrary ... any large number of bars', so gapBarsRequired is an optimizer input, not a book constant. Kept apart from the one-bar EmaGapBar per MERGE.md.",
+   "variants_kept_separate": [
+    "EmaGapBar",
+    "BarsBeyondEmaCount",
+    "PullbackDepthBeyondEma",
+    "BarsSinceEmaCross"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "ema_relations",
+   "el_words": [
+    "xaverage"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "TwentyGapBarPullbackEntry",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The first bar to touch the EMA after a run of N bars that never touched it, closing back on the trend side: the '20 gap bar' pullback buy.",
+   "pseudocode": "barsSinceEmaTouch[1] >= gapBarsRequired && low[0] <= ema(close, emaLength)[0] && close[0] > ema(close, emaLength)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "emaLength": 20,
+    "gapBarsRequired": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the bars-since-touch counter read one bar back, plus a straddle test"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T17-08",
+    "T18-18",
+    "R26-12"
+   ],
+   "merge_notes": "Carried whole even though it looks like EmaGapBarRun AND EmaTouch, because it is NOT that conjunction: the counter resets to 0 on the touch bar itself, so EmaGapBarRun evaluates FALSE on exactly the bar this rule fires. The rule needs the counter's PREVIOUS value, which no pair of ANDed panes can express. R26-12 states it as 'the first pullback that touches the moving average in more than 20 bars', T18-18 as a limit order one tick above the average once 20 bars have passed without a touch, T17-08 as the '20 gap bar pullback setup'; identical bars, and the limit-order mechanics collapse under the standing signal-bar-close/next-bar-open convention. Brooks's 'buyers at the moving average' claim is what the entry monetizes; the touch tolerance in the sources (0 to 1 tick) is dropped in favour of the exact straddle test.",
+   "variants_kept_separate": [
+    "EmaGapBarRun",
+    "EmaTouch",
+    "EmaGapBarBreakoutEntry"
+   ],
+   "depends_on_keys": [
+    "EmaGapBarRun",
+    "EmaTouch"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "ema_relations",
+   "el_words": [
+    "xaverage"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "LevelTouchCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Count how many of the last lookback bars touched the same support/resistance level within a tolerance. A low count means the level is still fresh; once the count reaches minTouches Brooks reads the level either as proven (repeated holds) or as worn out (each test consumes the orders defending it) -- the same measurement, used to favour a bounce or a breakout.",
+   "pseudocode": "touchCount = count over k in 1..lookback of (low[k] <= level + tolAtr * atr[k] && close[k] > level - breakTolAtr * atr[k]); touchCount >= minTouches",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 40,
+    "minTouches": 3,
+    "tolAtr": 0.15,
+    "breakTolAtr": 0.1
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs a level to count against; the count itself is a window scan"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "RP2-07",
+    "T25-08"
+   ],
+   "merge_notes": "RP2-07 (touches weaken the level, favour the breakout) and T25-08 (touches that hold strengthen it) are the same touch counter read with opposite sign, so one rule with a per-placement direction. RP2-07 gives touchesForWeakening, T25-08 gives minTouches; default 3 sits between them.",
+   "variants_kept_separate": [
+    "TrendLineTouchCount"
+   ],
+   "depends_on_keys": [],
+   "design_decisions_needed": [],
+   "bucket": "support_resistance_levels",
+   "el_words": [
+    "wfsafe_avgtruerange"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "NearAnyLevel",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close is within K ATRs of ANY of the mechanized levels -- the N-bar extreme above or below, the nearest round number, or the EMA. Identical both sides. Brooks's meta-filter: a reversal signal at a level is worth more than the same signal in open space.",
+   "pseudocode": "tol = magnetToleranceAtr * atr(atrLookback)[0]; absValue(close[0] - highest(high, lookback)[1]) <= tol || absValue(close[0] - lowest(low, lookback)[1]) <= tol || absValue(close[0] - (round(close[0] / roundStep) * roundStep)) <= tol || absValue(close[0] - ema(close, emaLength)[0]) <= tol",
+   "sides": "same",
+   "parameters": {
+    "magnetToleranceAtr": 0.5,
+    "atrLookback": 14,
+    "lookback": 20,
+    "roundStep": 100,
+    "emaLength": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "an OR over four level constructions, one of which needs an EMA; each term is simple on its own"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "DayOfWeekAnyOf",
+    "relation": "variant",
+    "note": "Not the same subject, but the same structural argument: DayOfWeekAnyOf exists precisely because entry panes AND, so an OR of alternatives cannot be composed from separate placements. This rule earns its keep for the same reason."
+   },
+   "sources": [
+    "R06-14",
+    "V19-11",
+    "R09-05"
+   ],
+   "merge_notes": "Deliberately carried as a composite despite 'atomic beats composite', because the pane system ANDs entries: RoundNumberProximity AND TouchOfRecentExtreme AND EmaTouch requires ALL of them to be true, which is not what Brooks means. He means any one of them. That OR is unreachable from the parts, so it is a rule. All three sources say the same thing at different levels of generality -- R06-14 ('the closer the market gets to any magnet, the more likely it reaches it'), V19-11 (a named list: EMA, trend lines, channel lines, swing highs and lows especially yesterday's, breakout areas, range boundaries, measured-move targets), R09-05 (only trust a reversal at a key technical level). The level SET is narrowed to the four that are mechanized in this corpus today; trend lines, channel lines and measured-move targets are named by V19-11 but each needs its own bucket's primitive first, and each can be added as another OR term later. Tolerance in ATRs, from R09-05, rather than in ticks -- an OR across heterogeneous levels needs one scale-free band.",
+   "variants_kept_separate": [
+    "RoundNumberProximity",
+    "TouchOfRecentExtreme",
+    "FibonacciRetracementLevel",
+    "EmaTouch"
+   ],
+   "depends_on_keys": [
+    "RoundNumberProximity",
+    "TouchOfRecentExtreme",
+    "EmaTouch"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "support_resistance_levels",
+   "el_words": [
+    "absvalue",
+    "highest",
+    "lowest",
+    "wfsafe_avgtruerange",
+    "xaverage"
+   ],
+   "blocking_words": []
+  },
+  {
+   "key": "ThreeBarReversal",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A named Brooks setup: bars 2 and 0 form a two-bar reversal (skipping bar 1), and the skipped middle bar is small relative to recent bars. Enter beyond the combined extreme of the three bars.",
+   "pseudocode": "TwoBarReversal(bar2, bar0) && (high[1] - low[1]) <= middleBarMaxFraction * avgRange(rangeLookback); entry: buy stop one tick above the highest high of bars {2,1,0}",
+   "sides": "mirrored",
+   "parameters": {
+    "overlapFraction": 0.5,
+    "bodySizeRatioMin": 0.5,
+    "bodySizeRatioMax": 2.0,
+    "middleBarMaxFraction": 0.6,
+    "rangeLookback": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "reuses TwoBarReversal's ratios plus a small-middle-bar test; depends on TwoBarReversal (T06-05) being authored first"
+   },
+   "timeframe": "any",
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": ""
+   },
+   "sources": [
+    "T06-08",
+    "T06-09"
+   ],
+   "merge_notes": "T06-08 defines the three-bar shape (bars 2 and 0 form T06-05's two-bar reversal, skipping a small bar 1); T06-09 is its Entry order-type wrapper (stop above the three-bar combined extreme). T06-09 also describes an earlier-entry alternative when the last two bars alone already qualify as a two-bar reversal -- not mechanized here, just the standard stop-beyond-extreme entry (standing convention). Kept whole as a named Brooks setup, not split, per the composite-carrying rule for named setups (Harris-pattern precedent in the catalog).",
+   "variants_kept_separate": [],
+   "depends_on_keys": [
+    "TwoBarReversal"
+   ],
+   "design_decisions_needed": [],
+   "bucket": "misc",
+   "el_words": [],
+   "blocking_words": []
+  }
+ ]
+}
