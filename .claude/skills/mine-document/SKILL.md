@@ -288,6 +288,12 @@ everything that is not A already.
    grepping for the new column names and comparing byte size against earlier runs.
    Brooks: the XAverage follow-up outputs were a byte-identical copy of the old run
    and a fresh run of the old strategy; nothing had been measured.
+   **Brace-check every probe file before handing it over.** EL comments are `{ }`
+   and do not nest: a header comment that is not closed before `inputs:`, a nested
+   `{` in the prose, or an `awk '{print NF}'` in a note turns the whole file into
+   one comment. Such a study verifies, shows no inputs, and never prints. Walk the
+   file counting braces: depth must return to 0 before `inputs:` and never exceed
+   1. The Brooks lag probe shipped that way and cost a run.
 2. **Split the A list by blockage, not by hand.** A script reads `merged/*.json`,
    normalizes each A rule's `el_words_needed`, looks them up via
    `lintElFeatures.loadRegistry()`, and writes `author/A_QUEUE.json` with `unblocked`
@@ -386,3 +392,7 @@ everything that is not A already.
   swing low-side tie sense, the stock tick case. Lesson: a probe that prints only the
   current value of a series function cannot verify the `[k]` reads most rules make;
   print one or two lagged values from the start.
+- **2026-09-17, Brooks lag probe fix.** `EL_XAverage_Lag_Probe.txt` verified but
+  would not apply and showed no inputs: its header brace was never closed before
+  the code, so the study was one comment. Fixed (engine 6b88d09); brace check added
+  to §7.
