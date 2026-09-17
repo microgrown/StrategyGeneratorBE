@@ -350,6 +350,11 @@ ctx.OpenPositionProfit()    // NET of the entry side's costs, marked at the last
 ctx.NetProfit()             // cumulative net P&L of all closed trades
 ctx.BigPointValue()         // $ per full point per contract; NOT currency-converted
 
+// Tick grid (EL's own words; per-symbol constants for the whole run)
+ctx.MinMove()               // EL MinMove: the tick in SCALED units (ES 25, HO 1, OJ 5)
+ctx.PriceScale()            // EL PriceScale: 10^price_decimals (ES 100, HO 10000, OJ 100)
+ctx.TickSize()              // MinMove() / PriceScale(), the tick as a price (ES 0.25)
+
 // Orders (fill at the NEXT bar's open)
 ctx.EnterLong(size)  ctx.EnterShort(size)  ctx.Exit()  ctx.Exit(size)
 ```
@@ -368,6 +373,21 @@ and cost a walkforward comparison to find:
   late.
 - `BigPointValue()` is **not** currency-converted while the profit accessors
   are. That is TradeStation's own inconsistency, preserved deliberately.
+
+**"N ticks" is written division-first**, in both twins:
+
+```cpp
+ticks * (ctx.MinMove() / ctx.PriceScale())     // C++
+```
+```
+ticks * (MinMove / PriceScale)                 { EasyLanguage }
+```
+
+`ctx.TickSize()` is that same division and returns the same double, so the two
+spellings can never disagree; the corpus writes the paired form so the C++ reads
+token for token against its EasyLanguage. The operand orders were measured
+bit-identical on @ES, @HO and @OJ (`reference/brooks/probes/TICKSIZE_FINDINGS.md`),
+and the three values never changed mid-run — read them once, not per bar.
 
 `BacktestEngine/CLAUDE.md` is the source of truth for all of these, and
 `rules/EL_FEATURES.md` records which EasyLanguage features have been measured

@@ -1,201 +1,96 @@
-# XAverage lag / length-change probe -- findings
+# XAverage follow-up: lagged reads and the length change
 
-Source probe: `C:\Users\brian\source\repos\BacktestEngine\EL_XAverage_Lag_Probe.txt`.
-Outputs read: `el_xaverage_output_rerun_chart4.txt` (labelled chart 4 = RunTag 1,
-2007 start, 9,646 lines) and `el_xaverage_output_rerun_chart5.txt` (labelled
-chart 5 = RunTag 2, 8,339 lines).
+Source probe: `C:\Users\brian\source\repos\BacktestEngine\EL_XAverage_Lag_Probe.txt`
+(engine commit 6b88d09; the 2026-09-13 copy was one unclosed comment and never ran).
+Outputs, run 2026-09-17: `el_xaverage_lag_output1.txt` (chart start 01/01/2007,
+9,665 bars, bar 1 = 1070703) and `el_xaverage_lag_output2.txt` (01/01/2010, 8,158
+bars, bar 1 = 1100702). Both print `run=1` (RunTag was left at 1 for the second
+chart); the files are told apart by their bar-1 date. Both carry the five new
+fields on every line (`grep -c 'xa1='` equals the line count in each).
 
-**Headline: the follow-up probe did not run. Neither output file contains any of
-the five new columns (`xa1=`, `lag1=`, `xa5=`, `lag5=`, `ovrd=`), so nothing in
-this probe was measured. Both questions the probe exists to close -- (a) the
-lagged read `XAverage(...)[k]`, and (b) the length change -- remain exactly as
-open as they were in `XAVERAGE_FINDINGS.md` section 5. Nine of the fourteen
-XAverage-blocked A rules stay blocked; `emaLength` stays pinned in the grid.**
+Sanity columns match the first run exactly: `sf = 0.095238095238095` on every
+line, `ovr = 0` on all 17,823 lines, `xa` on bar 1 equals the close (28.80 /
+17.45), and a Python re-run of `X = X[1] + SF*(C - X[1])` from the printed closes
+reproduces `xa` to 5.1e-13 over both charts.
 
-Nothing in the register or the mirror changes on the strength of these files,
-and nothing below should be read as a measurement.
+## 1. Lagged reads: `XAverage(Close, Length)[k]` is the printed history, exactly
 
-## 1. What the two files actually are
-
-`grep -c` over both files, for each of the five new field labels:
-
-| file | `xa1=` | `lag1=` | `xa5=` | `lag5=` | `ovrd=` | fields/line | lines |
-|---|---|---|---|---|---|---|---|
-| `el_xaverage_output_rerun_chart4.txt` | 0 | 0 | 0 | 0 | 0 | 14 (uniform) | 9,646 |
-| `el_xaverage_output_rerun_chart5.txt` | 0 | 0 | 0 | 0 | 0 | 14 (uniform) | 8,339 |
-
-`awk '{print NF}' | sort -u` returns the single value `14` for both files --
-i.e. every line of both files is the ORIGINAL probe's `Print`, the twelve fields
-`run bar date time c sf xa wf ovr d1 d2 d3` (14 whitespace tokens because the
-`:6:0` and `:5:0` formats put a space inside `bar=` and `time=`). Not one line
-of either file carries a sixth-through-tenth new field, so this is not a
-partially-written or truncated run: it is the old strategy's output.
-
-`el_xaverage_lag_output.txt`, the file the new study prints to, **does not exist**
-anywhere in the engine repo. `grep -rl 'xa1=' *.txt` over the engine repo
-returns exactly one file: `EL_XAverage_Lag_Probe.txt` itself, the probe text.
-
-### chart 4: a byte-for-byte copy of the first run's output
-
-`cmp el_xaverage_output4.txt el_xaverage_output_rerun_chart4.txt` reports
-**IDENTICAL** -- same 1,501,742 bytes, same 9,646 lines, same first and last
-line. The suspicion raised by the matching byte size is confirmed: this file is
-a copy of the original run's `el_xaverage_output4.txt`, not a new run at all.
-
-```
-run=1 bar=     1 date=1070703 time= 1200 c=28.800000 sf=0.095238095238095 xa=28.800000000000 wf=28.800000000000 ovr=0.0000 d1=0.0000 d2=28800000000000.0000 d3=0.0000
-run=1 bar=  9646 date=1260902 time= 1400 c=148.050000 sf=0.095238095238095 xa=147.909807060146 wf=147.909807060146 ovr=0.0000 d1=0.0000 d2=0.0000 d3=0.0000
-```
-
-(first and last line of `el_xaverage_output_rerun_chart4.txt`; identical to the
-first and last line of `el_xaverage_output4.txt`.)
-
-### chart 5: a genuinely new run -- of the OLD strategy, on a DIFFERENT chart
-
-This one is not a copy. It differs from `el_xaverage_output5.txt` in length
-(8,339 vs 8,139 lines) and in its first bar:
-
-```
-el_xaverage_output5.txt            run=2 bar=     1 date=1100702 time= 1200 c=17.450000 ...
-el_xaverage_output_rerun_chart5.txt run=2 bar=     1 date=1100209 time= 1200 c=11.350000 ...
-```
-
-Both still end on the same last bar, `1260902 14:00`. So the rerun's history
-starts exactly 200 bars earlier than the original chart 5's -- ~5 months of
-@OJ 240min at 2 bars/day, which is the signature of a smaller Max Bars Back
-(250 -> 50) or an earlier chart start, not of the new code. **The chart 5 rerun
-was therefore executed, but with the original probe's strategy, and on a chart
-whose setup no longer matches either the original run or the follow-up probe's
-SETUP block.** It cannot be used as a fresh chart-5 comparison either.
-
-### block (b): not "dropped per the fallback" -- never attempted
-
-The probe's fallback for block (b) is that if TradeStation rejects a variable in
-the `numericsimple` `Length` slot, the `DynLen`/`Xd`/`Wd` lines and the `ovrd`
-field are removed and the run proceeds -- which would leave a file with `xa1=`,
-`lag1=`, `xa5=` and `lag5=` present and `ovrd=` absent. That is not what these
-files look like: **all five new fields are absent, including the four that have
-nothing to do with `DynLen`.** The fallback was not exercised; the whole new
-`Print` is missing. So we cannot even record "a variable Length does not
-compile" as the answer to (b) -- that outcome would have been visible, and is
-not what we have.
-
-### sanity columns (all that these files can confirm)
-
-The two sanity checks the probe reprints do pass, on both files -- which is
-consistent with them being (a copy of, and a rerun of) the original strategy:
-`sf` is `0.095238095238095` on every line of both, `ovr` is `0.0000` on all
-9,646 + 8,339 lines (`grep -vc ' ovr=0.0000 '` returns 0), and `d3` is non-zero
-on 5,534 of the chart-5 rerun's 8,339 lines (66.4%), the same ~67% as the first
-run. These re-confirm section 1-2 of `XAVERAGE_FINDINGS.md` at a third chart
-start; they say nothing about the lag or the length change.
-
-## 2. Results table
-
-Every cell that the probe asked for is unmeasured, for the reason above.
-
-| question | run 1 (chart 4 file) | run 2 (chart 5 file) |
+| question | run 1 (2007) | run 2 (2010) |
 |---|---|---|
-| xa1 on bar 1 | NOT MEASURED -- no `xa1=` field | NOT MEASURED -- no `xa1=` field |
-| lag1 on bar 2 / bar 100 / last bar | NOT MEASURED -- no `lag1=` field | NOT MEASURED -- no `lag1=` field |
-| xa5 on bars 1..5 | NOT MEASURED -- no `xa5=` field | NOT MEASURED -- no `xa5=` field |
-| lag5 on bar 6 / bar 100 / last bar | NOT MEASURED -- no `lag5=` field | NOT MEASURED -- no `lag5=` field |
-| max abs ovrd on bars 1..1999 | NOT MEASURED -- no `ovrd=` field | NOT MEASURED -- no `ovrd=` field |
-| first bar where ovrd != 0 after bar 2000 | NOT MEASURED | NOT MEASURED |
-| did the DynLen line compile? | UNKNOWN -- the new `Print` is absent in full, so this is not the fallback outcome either | UNKNOWN -- same |
-| what the file IS | byte-identical copy of `el_xaverage_output4.txt` (`cmp` reports no difference) | a real run of the ORIGINAL strategy on a chart starting 200 bars earlier (bar 1 = 1100209, 8,339 bars) |
+| `xa1` on bar 1 | 0.000000000000 | 0.000000000000 |
+| `xa1` on bar 2 | 28.800000000000 (= xa on bar 1) | 17.450000000000 (= xa on bar 1) |
+| `lag1` bars 2..last, non-zero count | 0 of 9,664 | 0 of 8,157 |
+| `xa5` on bars 1..5 | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 |
+| `xa5` on bar 6 | 28.800000000000 (= xa on bar 1) | 17.450000000000 (= xa on bar 1) |
+| `lag5` bars 6..last, non-zero count | 0 of 9,659 | 0 of 8,152 |
 
-| question | answer |
-|---|---|
-| full list of WFSafe_ functions in the library | STILL NOT REPORTED. No listing came back with these outputs and there is no new file in the engine repo carrying one. The six known remain `WFSafe_AvgTrueRange`, `WFSafe_ADX`, `WFSafe_DirMovement`, `WFSafe_RSI`, `WFSafe_SummationFC`, `WFSafe_Xaverage`; the register's catch-all guess stands. |
+So a series function's own history read with `[k]` is bit for bit the value it
+printed k bars earlier: no re-derivation, no different rounding path. Before the
+history exists (`[k]` on bars 1..k) it reads **0.0**, the same zero-filled
+pre-history the `WFSafe_RSI` precedent showed. It is not the seed price and not a
+`-1` sentinel.
 
-## 3. What this leaves open
+**C++ mirror (settles §4 of `XAVERAGE_FINDINGS.md`):** the zero-initialized
+mirrored ring buffer the corpus already builds for EMA history is exact. A rule
+reading `ema[k]` on its first k bars gets 0.0 in both twins, which is why every
+such rule must guard its early bars (`CurrentBar > k` in EL, the bar counter in
+C++) rather than compare against the zero. That guard is the only thing the
+authoring pass adds for lagged reads.
 
-Unchanged from `XAVERAGE_FINDINGS.md` section 5:
+## 2. Length change: `WFSafe_Xaverage` recomputes SF on the same bar; the built-in freezes it
 
-- **(a) The lagged read.** Whether `XAverage(Close, Length)[k]` is exactly the
-  recurrence's own past printed values (so the section-4 ring buffer is exact
-  and needs no separate code path for `k > 0`), and what it returns before that
-  history exists (0, the seed, or something else). **This gates 9 of the 14
-  XAverage-blocked A rules** in `reference/brooks/author/A_QUEUE.json`. They stay
-  blocked; the 5 current-bar-only rules in `XAVERAGE_FINDINGS.md` section 6 are
-  still authorable.
-- **(b) The length change.** Whether `WFSafe_Xaverage` recomputes SF (or
-  re-seeds) when `Length` changes and the built-in does not. `emaLength` stays
-  **pinned** in every grid until this is measured.
-- **(c) The `WFSafe_` library listing.** Asked for twice now, not returned. No
-  code waits on it.
+| question | run 1 (2007) | run 2 (2010) |
+|---|---|---|
+| max abs `ovrd` on bars 1..1999 (before the flip) | 0.0000 | 0.0000 |
+| first bar with `ovrd <> 0` | 2000 (the flip bar itself) | 2000 |
+| `ovrd` on bar 2000 (× 1e-12 = price units) | −0.188432 | +0.062109 |
+| bars 2000..last with `ovrd <> 0` | 7,666 of 7,666 | 6,159 of 6,159 |
+| `ovrd` on the last bar (both charts end 2026-09-17) | +0.455868 | +0.455868 |
+| did `DynLen` (a variable) compile in the `Length` slot? | yes, as written | yes |
 
-## 4. To re-run
+Which side moved was settled by reconstruction from the printed closes. Four
+hypotheses were run and compared with `ovrd / 1e12` on every bar from 2000 on:
 
-The probe text needs no change -- it is correct as written, and its output
-filename (`el_xaverage_lag_output.txt`) is deliberately different from the
-original's so the two cannot be confused. What is needed is that the strategy
-actually compiled from `EL_XAverage_Lag_Probe.txt` (not the older
-`EL_XAverage_Probe.txt`) be applied to the two charts, with the probe's SETUP
-block matched exactly: @OJ 240min, Regular Session, **Max Bars Back 250**,
-apply as STRATEGY, chart starts 01/01/2007 and 01/01/2010.
+| hypothesis | max error, run 1 | max error, run 2 |
+|---|---|---|
+| **Wd = SF recomputed at the flip, state carried; Xd = SF frozen at 20** | **3.6e-15** | **3.6e-15** |
+| Wd frozen, Xd recomputed | 42.4 | 42.4 |
+| Wd re-seeded with the close at the flip, then SF(30); Xd frozen | 5.7 | 1.9 |
+| Wd frozen, Xd re-seeded | 42.4 | 42.4 |
 
-Two checks that make a repeat of this outcome visible in one command, before any
-analysis:
+So `WFSafe_Xaverage` is the `WFSafe_ADX`/`WFSafe_RSI` shape: when `Length`
+changes it recomputes `SF = 2/(Length+1)` on that bar and continues from the
+carried state, with no re-seed. The built-in `XAverage` keeps the SF it computed
+when the study loaded, so after a length change it is silently still a 20-bar EMA.
+The identical last-bar `ovrd` on both charts is the same fact seen another way:
+by 2026 both series have forgotten their seeds and differ only by SF.
 
-```
-grep -c 'ovrd=' <file>          # must be the line count, not 0
-cmp el_xaverage_output4.txt <file>   # must report a difference
-```
+**Consequence for grids.** `emaLength` may now be optimized under MultiWalk: the
+wrapper tracks the new length from the first bar of each walk-forward window,
+carrying state across the boundary exactly as the corpus's C++ mirror does when
+the generator re-instantiates with a new input. The "pin `emaLength`" caveat is
+retired. The C++ mirror (`SF` derived from the input each bar or at construction,
+state carried) already behaves like the wrapper; nothing changes in the code.
 
-The chart-5 rerun's 200-extra-bar history is a second, independent sign that the
-chart setup drifted: if the re-run's `bar=1` date is not `1070703` (run 1) and
-`1100702` (run 2), Max Bars Back or the chart start is not what the probe asked
-for, and the run is not comparable to the first probe's evidence.
+## 3. Register rows
 
-## 5. The C++ mirror for `ema(...)[k]` reads -- UNCHANGED, and still gated
+`xaverage` and `wfsafe_xaverage` stay VERIFIED; the in-row "STILL UNMEASURED"
+caveats for the lagged read and the length change are replaced with §1 and §2.
+Rows applied by the orchestrator on 2026-09-17.
 
-No measurement arrived, so the mirror in `XAVERAGE_FINDINGS.md` section 4 stands
-exactly as written, including its `!! UNMEASURED !!` banner. Restated here in
-the style of `rules/BarRangeAboveStd.json`'s mirrored-history comment, which is
-the same shape and the same justification -- a ring buffer of *the recurrence's
-own past values*, zero-initialised, because the value cannot be recomputed from
-price:
+## 4. What this unblocks
 
-```cpp
-// classMembersHook
-static constexpr int kEmaHistLen = 64;   // >= the largest lag the rule reads + 1
-double emaHist_[kEmaHistLen] = {0.0};
-int    emaPos_ = 0;
+- The 9 A-list EMA rules held back for lagged reads: `BarsBeyondEmaCount`,
+  `ConsecutiveClosesBeyondEmaRun`, `EmaGapBarBreakoutEntry`, `CloseCrossesEma`,
+  `NoTwoConsecutiveClosesBeyondEma`, `PullbackDepthBeyondEma`, `EmaSlope`,
+  `EmaFlat`, `BuyLimitBelowRisingMA`.
+- The 3 B-list rules in `B_QUEUE.json` `xaverage_lag`:
+  `CounterColorTrendBarClosingBelowEma`, `SecondEmaGapBarEntry`, `BarsSinceEmaCross`.
+- Grid design: `emaLength` is a legitimate optimization axis.
 
-// EL: XAverage() is a RECURRENCE, so unlike a window function (average(),
-// stddev(), highest()) a lagged read cannot be recomputed from price -- it has
-// to be remembered. ema(close, n)[k] is mirrored the way BarRangeAboveStd
-// mirrors rrange's history: a ring buffer that starts ZEROED and is fed one
-// value per bar from the recurrence itself, so the mirror's history is the
-// mirror's own past output and never touches warm-up bars EasyLanguage did not
-// evaluate. For k < CurrentBar this is exact BY CONSTRUCTION -- provided EL's
-// XAverage(...)[k] is likewise its own past printed values, which is
-// !! STILL UNMEASURED !!: EL_XAverage_Lag_Probe.txt was written to settle it
-// and its 2026-09-13 run came back in the ORIGINAL probe's format with no
-// xa1/lag1/xa5/lag5/ovrd columns at all (chart 4's file is a byte-identical
-// copy of el_xaverage_output4.txt). See XAVERAGE_LAG_FINDINGS.md.
-//
-// !! ALSO UNMEASURED !! For k >= CurrentBar (the first k evaluated bars of a
-// run) this returns the pre-seed 0.0, following the one measured precedent for
-// a function's own series history -- WFSafe_RSI(...)[1] reads 0 on bar 1
-// (EL_WFSafeRsi_Probe.txt) -- but that was measured for RSI, not XAverage, and
-// extrapolating across functions is what this register does not do.
-//
-// Until both are measured, NO RULE THAT READS A LAG SHIPS. If a length change
-// is ever mirrored, the ring is re-seeded on it the way BarRangeAboveStd
-// re-assigns rangeHistory when lookback changes -- but the length-change
-// behaviour is unmeasured too, so emaLength stays PINNED in the grid.
-double emaAt(int k) const {
-    return emaHist_[(emaPos_ - 1 - k + 2 * kEmaHistLen) % kEmaHistLen];
-}
+## 5. Still open
 
-// ... end of preConditionHook, immediately after emaVal is updated:
-emaHist_[emaPos_] = emaVal;
-emaPos_ = (emaPos_ + 1) % kEmaHistLen;
-```
-
-The current-bar half of the mirror (`XAVERAGE_FINDINGS.md` section 4: price
-seed on `ctx.CurrentBar() == 1`, `emaVal + emaSf * (close[0] - emaVal)` as one
-statement, no warm-up guard) is measured and unaffected by this null result.
+Only the `WFSafe_` library listing (asked three times; blocks nothing). Seven
+functions are now known to exist: `WFSafe_AvgTrueRange`, `WFSafe_ADX`,
+`WFSafe_DirMovement`, `WFSafe_RSI`, `WFSafe_SummationFC`, `WFSafe_Xaverage`, and
+no `WFSafe_SwingHigh`/`WFSafe_SwingLow` (Brian, 2026-09-13).

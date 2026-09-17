@@ -209,6 +209,7 @@ saying how it was measured:
 | `MaxPositionProfit` | `ctx.MaxPositionProfit()` — never emulate it |
 | `BarsSinceEntry` / `CurrentBar` | `ctx.BarsSinceEntry()` / `ctx.CurrentBar()` |
 | `EntryPrice` / `BigPointValue` | `ctx.EntryPrice()` / `ctx.BigPointValue()` |
+| `MinMove` / `PriceScale` | `ctx.MinMove()` / `ctx.PriceScale()` — write "N ticks" division-first, `n * (ctx.MinMove() / ctx.PriceScale())`, matching EL's `n * (MinMove / PriceScale)`. `ctx.TickSize()` is that same division and the same double; the paired form is what the corpus writes |
 | `Month(Date)` | `civil_from_days(day_of(ctx.Time(0))).month` |
 
 **The `=` trap.** EasyLanguage `Close = Highest(Close, lookback)` becomes

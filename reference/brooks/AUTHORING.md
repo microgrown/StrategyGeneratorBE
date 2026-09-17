@@ -108,21 +108,30 @@ so the duplicate check is against `rules/CATALOG.md`, `rules/` on disk,
   the rule file.
 - EMA: `rules/EmaGapBar.json` carries the `WFSafe_Xaverage` mirror (price seed on
   the first calculated bar, `X = X[1] + SF*(P - X[1])`, `SF = 2/(Length+1)`).
-  `emaLength` stays an input and the row says it must be pinned in grids.
-  **Lagged reads `ema(...)[k]`, k > 0: read the `xaverage` row in
-  `rules/EL_FEATURES.md` when you start.** If it still says lagged reads are
-  unmeasured, a rule that needs one is blocked; report it. If the row has been
-  updated with the measured behaviour, follow what it says.
+  `emaLength` stays an input; since 2026-09-17 it MAY be optimized in grids
+  (`WFSafe_Xaverage` recomputes SF on a length change, state carried; measured).
+  **Lagged reads `ema(...)[k]`, k > 0, are MEASURED (2026-09-17):** the EL
+  function's `[k]` history is exactly its own past values, and reads before the
+  history exists (bars 1..k) return 0.0, not the seed. The C++ zero-initialized
+  mirrored ring buffer is exact; every rule reading `ema[k]` guards its first k
+  bars (`CurrentBar > k` in EL, the bar counter in C++) instead of comparing
+  against that zero. See `reference/brooks/probes/XAVERAGE_LAG_FINDINGS.md`.
 - Trend line: `TLValue` is a first-anchor two-point interpolation,
   `slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * slope`, older
   anchor first (zero-drift spelling), free extrapolation, and the equal-bar case
   returns 0.0 instead of halting, so every rule guards `B1 <> B2`. Details in
   `reference/brooks/probes/TLVALUE_FINDINGS.md` §4. Anchors are the two most
   recent CONFIRMED pivots at `strength`, per the merge decision.
-- Tick size: `MinMove`/`PriceScale` are VERIFIED, but the engine exposes no tick
-  size to strategies yet, so rules fundamentally stated in ticks were kept out
-  of these slices. If one slipped in, express the threshold in price points or
-  ATR fractions as before and say so in the row.
+- Tick size: the accessors exist. `MinMove`/`PriceScale` are VERIFIED and the
+  engine now exposes `ctx.MinMove()`, `ctx.PriceScale()` and `ctx.TickSize()`
+  (as of 2026-09-17), so a rule may be stated in ticks directly. Write the
+  margin division-first in both twins:
+  EL `ticks * (MinMove / PriceScale)`, C++
+  `ticks * (ctx.MinMove() / ctx.PriceScale())` — `ctx.TickSize()` is that same
+  division and the same double, but the paired form is what the corpus writes,
+  so the C++ reads token for token against its EasyLanguage. A `ticks` input
+  keeps its Brooks default; do not rescale it into price points or ATR
+  fractions.
 
 **Settled design decisions (apply, do not re-deliberate; cite the decision in
 the row):**

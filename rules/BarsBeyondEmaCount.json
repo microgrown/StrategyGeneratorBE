@@ -1,0 +1,50 @@
+{
+    "name": "BarsBeyondEmaCount",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "minBarsBeyond": "7",
+        "emaLength": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "beyondUpCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "beyondDownCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "countReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// At least minBarsBeyond of the last lookback bars closed above the EMA\n// (long) / below it (short) -- the stateless stand-in for Brooks's always-in\n// direction. It re-reads the window every bar rather than latching a\n// direction, so it drifts at the edges of a trend where the state machine\n// would hold, and it needs nothing the corpus cannot already build.\n//\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar (the EMA reference, which carries the full\n// measurements). MEASURED, EL_XAverage_Probe.txt (@OJ 240min, chart starts\n// 2007 and 2010):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole, so no bar-count guard returning 0 on the\n//     CURRENT value;\n//   * an EMA NEVER FORGETS ITS SEED -- it only decays at (1 - sf)^n, ~330\n//     bars -- so Max Bars Back and the chart start are part of this rule's\n//     specification.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, with no\n// re-seed (reconstruction error 3.6e-15; the three rival hypotheses were off\n// by 1.9 to 42 price units). emaLength MAY therefore be optimized in grids --\n// the \"pin emaLength\" caveat is retired, and this mirror, which derives sf\n// from the raw input every bar and carries emaVal, already behaves that way.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// LAGGED EMA READS, MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the\n// function's own [k] history is bit for bit the value it printed k bars\n// earlier -- the lag1 and lag5 columns were exactly 0 on every bar past the\n// lag on both charts (9,664 + 8,157 and 9,659 + 8,152 bars) -- and BEFORE\n// that history exists ([k] on bars 1..k) the read returns 0.0, not the seed\n// and not a -1 sentinel. So the zero-initialized mirrored ring buffer below\n// is EXACT, and the rule GUARDS its own first k bars on the bar counter\n// instead of comparing against that zero.\n// EL's CountIF counts bars 0..N-1 INCLUDING the current bar and its counted\n// condition is a TRUE SERIES (VERIFIED): at position i it tests\n// close[i] > ema[i], so every counted bar reads the EMA at its own offset.\n// That is what this buffer supplies. Both counts are accumulated in ONE\n// pass, and neither test is short-circuited away, so the loop runs the same\n// number of times as EasyLanguage's.\n// Re-seeded if the depth ever changes, the way BarRangeAboveStd's\n// mirrored history is.\nemaDepth = (int)lookback;\nif (emaDepth < 1) {\n    emaDepth = 1;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nbeyondUpCount = 0;\nbeyondDownCount = 0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    double lagged = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)(i)) % emaHistory.size()];\n    if (el_gt(close[i], lagged)) {\n        beyondUpCount = beyondUpCount + 1;\n    }\n    if (el_lt(close[i], lagged)) {\n        beyondDownCount = beyondDownCount + 1;\n    }\n}\nemaCursor = (emaCursor + 1) % emaHistory.size();\n// The deepest lagged read is ema[lookback - 1], which is 0.0 until the\n// history exists. Guard rather than compare against that zero: the rule is\n// silent for its first lookback - 1 bars in BOTH twins.\ncountReady = ctx.CurrentBar() > (int)lookback - 1;",
+    "longCondition": "countReady && el_ge((double)beyondUpCount, minBarsBeyond)",
+    "shortCondition": "countReady && el_ge((double)beyondDownCount, minBarsBeyond)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

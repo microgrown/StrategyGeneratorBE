@@ -251,3 +251,34 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
   ProfitProtectorRatio and TieredProfitProtector spell fractional defaults `.5` in EL and `0.5`
   in C++ -- numerically identical, pre-dates this batch, and changing it would move committed
   EL text for no behavioural gain.
+
+## 2026-09-17: lag probe, ratio exits, tick accessor
+
+- `EL_XAverage_Lag_Probe.txt` finally ran (the 2026-09-13 copy was one unclosed
+  brace comment; fixed in engine 6b88d09). Measured: `XAverage(...)[k]` is the
+  function's own printed history exactly, 0.0 before it exists; `WFSafe_Xaverage`
+  recomputes SF on the flip bar with state carried, the built-in freezes SF.
+  `emaLength` may be optimized. Rows `xaverage`/`wfsafe_xaverage` updated; the
+  "pin emaLength" clauses in CATALOG rows replaced. Slice 15 (`15_ema_lagged`,
+  12 rules: the 9 A `xaverage` keys not yet on disk + the 3 B `xaverage_lag`
+  keys) dispatched. Findings: `probes/XAVERAGE_LAG_FINDINGS.md`.
+- Brian's decision: `StopAtInitialRiskMultiple` and `ProfitTargetAtInitialRiskMultiple`
+  are superseded by two new exits that take the stop size directly plus a
+  reward:risk ratio — `StopLossTakeProfitDollar(stopDollars, rewardRisk)` and
+  `StopLossTakeProfitATR(atrLength, stopAtrMultiple, rewardRisk)`, the ATR risk
+  frozen on the fill bar. Noted: the dollar form is `TakeProfitWithRatioStop`
+  re-parameterized stop-first; authored anyway at Brian's request because the
+  grid axes differ. Rows file `rows/X1_ratio_exits.md`.
+- Brian's decision: add the tick-size accessor to the engine ctx now
+  (`ctx.MinMove()`, `ctx.PriceScale()`, `ctx.TickSize()`, read once per symbol),
+  so the 79 tick-unit rules (32 A in `A_QUEUE_2.json` `tick`, 47 B in
+  `B_QUEUE.json` `tick`) can be authored with `ticks * (MinMove / PriceScale)`
+  in EL and `ticks * (ctx.MinMove() / ctx.PriceScale())` in C++.
+- Slice 15 outcome: 10 of 12 written. `CounterColorTrendBarClosingBelowEma` NOT
+  written: it is `CloseCrossesEma` flipped AND `StrongTrendBar(lag 0, tailFraction 1)`
+  flipped, and flip is per-placement, so the merge note's premise fails; duplicate by
+  composition. `SecondEmaGapBarEntry` NOT written: `EmaGapBarBreakoutEntry` AND
+  `SecondSignal`, both at bar 0. `CloseCrossesEma` is the TWO-BAR event test
+  (`close[1]` vs `ema[1]`, `close[0]` vs `ema[0]`), not EL `crosses above` (a state
+  machine bridging equality runs, a different bar set); `BarsSinceEmaCross` inlines
+  the same test. Ratified by the orchestrator 2026-09-17; Brian may overturn.

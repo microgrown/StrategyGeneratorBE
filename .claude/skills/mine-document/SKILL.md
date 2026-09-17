@@ -396,3 +396,15 @@ everything that is not A already.
   would not apply and showed no inputs: its header brace was never closed before
   the code, so the study was one comment. Fixed (engine 6b88d09); brace check added
   to §7.
+- **2026-09-17, Brooks lag probe results + engine accessor.** Lag probe run: `[k]`
+  reads are the function's own history exactly, 0.0 before it exists; `WFSafe_Xaverage`
+  recomputes SF on a length change (state carried), the built-in freezes it, so
+  `emaLength` may be optimized. Analysis done by the orchestrator in two short Python
+  passes (reconstruct the series from printed closes, test each hypothesis against the
+  printed difference to 1e-15) rather than an agent: when the probe's rubric is a table
+  of arithmetic questions, a script is cheaper and more exact than a Sonnet analyst.
+  Brian replaced the two initial-risk exits with `StopLossTakeProfitDollar` /
+  `StopLossTakeProfitATR` (stop size + reward:risk) and had the engine gain
+  `ctx.MinMove()/PriceScale()/TickSize()` (engine 7d8d6db) to unblock the 79 tick-unit
+  rules; one Opus agent did the engine plumbing, tests, and the generator-side docs and
+  lint whitelist in one pass. Three Opus agents at once again held.

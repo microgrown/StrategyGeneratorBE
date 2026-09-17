@@ -1,0 +1,63 @@
+{
+    "name": "EmaSlope",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20",
+        "slopeLookback": "5",
+        "slopeAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "emaLag": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slopeBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slopeReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A STEEPLY SLOPING MOVING AVERAGE: the EMA has risen by at least slopeAtr\n// ATRs over the last slopeLookback bars (long), fallen by as much (short).\n//\n// Not Momentum, which compares the closing price with the close N bars\n// ago: this compares the EMA with ITS OWN value N bars ago and adds a\n// threshold, so it is smoother and fires on different bars. Kept apart from\n// EmaFlat -- |slope| <= T and slope >= T are not each other's negation, so\n// the per-placement negate toggle cannot produce one from the other.\n//\n// The source's 20-tick threshold is restated in ATRs: MinMove/PriceScale\n// are unregistered and the engine exposes no tick size, the substitution\n// CloseBeyondEma and PriorSessionLevelTest make. Brooks gives no number\n// for 'steeply up' at all, so slopeAtr is an optimizer input. The source's\n// priorSessionEndOffset (measure yesterday's slope, trade today) is\n// dropped: a session-anchored offset for no stated benefit, and the slope\n// is persistent enough that reading it on the current bar is the same\n// information.\n//\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar (the EMA reference, which carries the full\n// measurements). MEASURED, EL_XAverage_Probe.txt (@OJ 240min, chart starts\n// 2007 and 2010):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole, so no bar-count guard returning 0 on the\n//     CURRENT value;\n//   * an EMA NEVER FORGETS ITS SEED -- it only decays at (1 - sf)^n, ~330\n//     bars -- so Max Bars Back and the chart start are part of this rule's\n//     specification.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, with no\n// re-seed (reconstruction error 3.6e-15; the three rival hypotheses were off\n// by 1.9 to 42 price units). emaLength MAY therefore be optimized in grids --\n// the \"pin emaLength\" caveat is retired, and this mirror, which derives sf\n// from the raw input every bar and carries emaVal, already behaves that way.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently (@OJ 2015-02-20).\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nslopeBand = slopeAtr * atr;\n// LAGGED EMA READS, MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the\n// function's own [k] history is bit for bit the value it printed k bars\n// earlier -- the lag1 and lag5 columns were exactly 0 on every bar past the\n// lag on both charts (9,664 + 8,157 and 9,659 + 8,152 bars) -- and BEFORE\n// that history exists ([k] on bars 1..k) the read returns 0.0, not the seed\n// and not a -1 sentinel. So the zero-initialized mirrored ring buffer below\n// is EXACT, and the rule GUARDS its own first k bars on the bar counter\n// instead of comparing against that zero.\n// Depth slopeLookback + 1 so that lag 0 and lag slopeLookback both live in\n// the buffer; at slopeLookback = 0 the read collapses to the current value,\n// as EL's ema[0] does.\n// Re-seeded if the depth ever changes, the way BarRangeAboveStd's\n// mirrored history is.\nemaDepth = (int)slopeLookback + 1;\nif (emaDepth < 1) {\n    emaDepth = 1;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nemaLag = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)((int)slopeLookback)) % emaHistory.size()];\nemaCursor = (emaCursor + 1) % emaHistory.size();\n// Deepest lagged read: ema[slopeLookback].\nslopeReady = ctx.CurrentBar() > (int)slopeLookback;",
+    "longCondition": "slopeReady && el_ge(emaVal - emaLag, slopeBand)",
+    "shortCondition": "slopeReady && el_ge(emaLag - emaVal, slopeBand)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

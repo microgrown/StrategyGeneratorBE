@@ -1,0 +1,59 @@
+{
+    "name": "BuyLimitBelowRisingMA",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20",
+        "maSlopeLookback": "10",
+        "minMaSlopePerBar": "0.5",
+        "intervalDistance": "1"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "emaLag": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slopeFloor": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "buyLimitPrice": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sellLimitPrice": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "limitReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A BUY LIMIT A FIXED DISTANCE BELOW A STEEPLY RISING MOVING AVERAGE: the\n// EMA is rising at least minMaSlopePerBar price points per bar over the\n// last maSlopeLookback bars, and this bar trades down to intervalDistance\n// points below it. Short is the mirror above a falling average.\n//\n// THE LIMIT ORDER under the corpus's standing signal-bar-close /\n// next-bar-open convention: an order resting at a level is taken as filled\n// on the bar that trades to the level, which is why the test is low[0]\n// against a level read from the SAME bar's EMA. The merged pseudocode\n// paired low[1] with the current bar's average -- yesterday's low against\n// today's level -- a lag with no stated purpose; TrendLineTouch made the\n// same substitution for R28-38's limit order at the line.\n//\n// THE LADDER IS DROPPED. The source places numScaleInLevels buy limits at\n// successive intervals below the average, a multi-unit scale-in the engine\n// cannot hold as one position; this is that ladder at one level, and\n// intervalDistance is the offset of the sole order.\n//\n// EQUALS TWO PANES, recorded rather than hidden: EmaSlope ANDed with the\n// limit touch, up to the unit change -- EmaSlope's threshold is a TOTAL\n// move in ATRs, this one a PER-BAR slope in price points, which is the\n// source's own statement. Carried whole on the EecBooksCanBeGreat\n// precedent: a single named order placement stated by one source.\n//\n// A PRODUCT, NEVER A QUOTIENT. The source divides the EMA's move by\n// maSlopeLookback; EasyLanguage raises a runtime divide-by-zero, so the\n// per-bar slope floor is multiplied back out instead.\n//\n// intervalDistance is in PRICE POINTS, not ticks: MinMove/PriceScale are\n// unregistered and the engine exposes no tick size to a strategy.\n//\n// emaLength is not in the merged parameter list at all -- the source says\n// only 'the moving average' -- so it is added here at the corpus default\n// of 20, the length every other EMA rule carries.\n//\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar (the EMA reference, which carries the full\n// measurements). MEASURED, EL_XAverage_Probe.txt (@OJ 240min, chart starts\n// 2007 and 2010):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole, so no bar-count guard returning 0 on the\n//     CURRENT value;\n//   * an EMA NEVER FORGETS ITS SEED -- it only decays at (1 - sf)^n, ~330\n//     bars -- so Max Bars Back and the chart start are part of this rule's\n//     specification.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, with no\n// re-seed (reconstruction error 3.6e-15; the three rival hypotheses were off\n// by 1.9 to 42 price units). emaLength MAY therefore be optimized in grids --\n// the \"pin emaLength\" caveat is retired, and this mirror, which derives sf\n// from the raw input every bar and carries emaVal, already behaves that way.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// LAGGED EMA READS, MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the\n// function's own [k] history is bit for bit the value it printed k bars\n// earlier -- the lag1 and lag5 columns were exactly 0 on every bar past the\n// lag on both charts (9,664 + 8,157 and 9,659 + 8,152 bars) -- and BEFORE\n// that history exists ([k] on bars 1..k) the read returns 0.0, not the seed\n// and not a -1 sentinel. So the zero-initialized mirrored ring buffer below\n// is EXACT, and the rule GUARDS its own first k bars on the bar counter\n// instead of comparing against that zero.\n// Re-seeded if the depth ever changes, the way BarRangeAboveStd's\n// mirrored history is.\nemaDepth = (int)maSlopeLookback + 1;\nif (emaDepth < 1) {\n    emaDepth = 1;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nemaLag = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)((int)maSlopeLookback)) % emaHistory.size()];\nemaCursor = (emaCursor + 1) % emaHistory.size();\nslopeFloor = minMaSlopePerBar * maSlopeLookback;\nbuyLimitPrice = emaVal - intervalDistance;\nsellLimitPrice = emaVal + intervalDistance;\n// Deepest lagged read: ema[maSlopeLookback].\nlimitReady = ctx.CurrentBar() > (int)maSlopeLookback;",
+    "longCondition": "limitReady && el_ge(emaVal - emaLag, slopeFloor) && el_le(low[0], buyLimitPrice)",
+    "shortCondition": "limitReady && el_ge(emaLag - emaVal, slopeFloor) && el_ge(high[0], sellLimitPrice)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

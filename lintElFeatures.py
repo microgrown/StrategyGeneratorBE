@@ -77,6 +77,14 @@ EL_KEYWORDS = frozenset("""
 # EntryPrice(lot) addressable, so there is nothing about EL for a row to record.
 ENGINE_ONLY = frozenset({"lotcount"})
 
+# ctx accessors that are DEFINED as a combination of EasyLanguage words, mapped
+# to the words they stand for. `ctx.TickSize()` is exactly `ctx.MinMove() /
+# ctx.PriceScale()` (BacktestEngine src/bt/sim/strategy.cpp), and EasyLanguage
+# has no `TickSize` word -- its twin writes `MinMove / PriceScale`. Registering
+# both keeps the gate honest: a C++ rule that reaches for the tick still has to
+# have measured rows for the two EL words its EasyLanguage twin will use.
+CTX_ALIASES = {"ticksize": ("minmove", "pricescale")}
+
 # C++ helpers that implement an EL word, mapped to the word they implement.
 CPP_HELPERS = {"civil_from_days": "month", "day_of": "month", "day_of_week": "dayofweek"}
 
@@ -238,6 +246,10 @@ def elFeaturesOfBeRule(rule):
     found |= {m.lower() for m in _CTX_SERIES.findall(blob)}
     found |= {m.lower() for m in _PRICE_ALIAS.findall(blob)}
     found |= {CPP_HELPERS[m] for m in _CPP_HELPER.findall(blob)}
+    for alias, words in CTX_ALIASES.items():
+        if alias in found:
+            found.discard(alias)
+            found.update(words)
     found -= ENGINE_ONLY
     if _EL_HELPER.search(blob):
         found.add(">")

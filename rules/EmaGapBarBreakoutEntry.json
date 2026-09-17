@@ -1,0 +1,32 @@
+{
+    "name": "EmaGapBarBreakoutEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MOVING-AVERAGE GAP BAR BREAKOUT: the PREVIOUS bar never touched the\n// average -- its whole range sat below it -- and this bar closes above that\n// bar's high. Brooks's moving-average-gap-bar fade, bought with the trend;\n// short is the mirror. Eight restatements across the three volumes.\n//\n// CARRIED WHOLE. CloseAbovePriorHigh(lookback = 1) is exactly the breakout\n// half, but the gap-bar half CANNOT be supplied by a second pane: EmaGapBar\n// evaluates at bar 0 and this needs it at bar 1, and the panes AND\n// same-bar conditions only. Everything else the sources wrap around it IS a\n// separate pane and is left out -- the strong-trend precondition is\n// BarsBeyondEmaCount or EmaGapBarRun, the bear-body requirement on the gap\n// bar is StrongTrendBar at lag 1. The 'FIRST gap bar since the trend began'\n// qualifier is dropped as unmechanizable without a trend origin.\n//\n// emaPrev is captured at the TOP of the hook, before the update, so it\n// holds the value the EMA had at the end of the previous bar -- the plain\n// TwentyGapBarPullbackEntry capture, and exactly what EL's ema[1] reads.\n// On bar 1 it is still its initializer, 0.0, which is what EL returns\n// there too.\n//\n// LAGGED EMA READS, MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the\n// function's own [k] history is bit for bit the value it printed k bars\n// earlier -- the lag1 and lag5 columns were exactly 0 on every bar past the\n// lag on both charts (9,664 + 8,157 and 9,659 + 8,152 bars) -- and BEFORE\n// that history exists ([k] on bars 1..k) the read returns 0.0, not the seed\n// and not a -1 sentinel. So the zero-initialized mirrored ring buffer below\n// is EXACT, and the rule GUARDS its own first k bars on the bar counter\n// instead of comparing against that zero.\nemaPrev = emaVal;\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar (the EMA reference, which carries the full\n// measurements). MEASURED, EL_XAverage_Probe.txt (@OJ 240min, chart starts\n// 2007 and 2010):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole, so no bar-count guard returning 0 on the\n//     CURRENT value;\n//   * an EMA NEVER FORGETS ITS SEED -- it only decays at (1 - sf)^n, ~330\n//     bars -- so Max Bars Back and the chart start are part of this rule's\n//     specification.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, with no\n// re-seed (reconstruction error 3.6e-15; the three rival hypotheses were off\n// by 1.9 to 42 price units). emaLength MAY therefore be optimized in grids --\n// the \"pin emaLength\" caveat is retired, and this mirror, which derives sf\n// from the raw input every bar and carries emaVal, already behaves that way.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// Guard the one bar on which emaPrev is the pre-history zero.\ngapReady = ctx.CurrentBar() > 1;",
+    "longCondition": "gapReady && el_lt(high[1], emaPrev) && el_gt(close[0], high[1])",
+    "shortCondition": "gapReady && el_gt(low[1], emaPrev) && el_lt(close[0], low[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

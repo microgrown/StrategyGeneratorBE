@@ -124,6 +124,8 @@ known | Evidence |`.)
 
 ## 4. Engine implication
 
+**Landed 2026-09-17 (engine 7d8d6db):** `ctx.MinMove()`, `ctx.PriceScale()`, `ctx.TickSize()` on the strategy Context, read once per symbol; the C++ idiom is `ticks * (ctx.MinMove() / ctx.PriceScale())`. The rows files that recorded ticks-to-points conversions made before this (`rows/02_bar.md`, `05_bar.md`, `14_misc.md`) stay as history; the affected rules were authored in price/ATR units and were not re-decided.
+
 The measurements answer the accessor-shape question the probe was gating:
 on all three futures charts run -- including two back-adjusted continuous
 contracts (@ES, @HO) spanning 11-19 years, which necessarily cross multiple
