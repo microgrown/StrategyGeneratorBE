@@ -1,0 +1,60 @@
+{
+    "name": "GapReversalBar",
+    "type": "Entry",
+    "inputVariables": {
+        "reversalTicks": "1"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "curLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevHigh": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "prevLow": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "sawStart": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstBar": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapUpPrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDnPrev": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE GLOSSARY GAP REVERSAL: \"the current bar extends one tick beyond the prior\n// bar back into the gap\". The PRIOR bar was a session opening gap bar -- the\n// first bar of a session, opening beyond the previous session's extreme -- and\n// THIS bar has traded at least reversalTicks ticks back through that bar's near\n// extreme, into the gap. After a gap UP that is a fade SHORT below the gap\n// bar's low; after a gap DOWN it is the long above its high. The merged\n// pseudocode spelled the gap-up case, which is the SELL setup; the pair is\n// mirrored, so the long side is written first here.\n//\n// SessionOpeningGapBeyondPriorExtreme IS INLINED, not referenced -- rules in\n// this corpus never reference each other -- and carries its comment's\n// substance: a session starts when the wall-clock close date changes\n// (day_of(ctx.Time(0)) > day_of(ctx.Time(1)), the twin's date > date[1]);\n// prevHigh / prevLow ARE HighD(1) / LowD(1), VERIFIED to slice on that same\n// calendar date, to be INCLUSIVE of the current bar at offset 0 and to return a\n// -1 SENTINEL while fewer than that many complete days exist, which is guarded\n// on both sides because -1 as a price sits under every real price. sawStart\n// makes the warm-up honest: a day is published as \"the prior session\" only once\n// its own first bar has been observed, so the mirror is silent through the\n// first partial day and the first fully observed day, and the twins agree\n// exactly from the second date change on. The mirror errs toward no signal.\n//\n// THE ONE-BAR LAG. The EL twin reads gapUp[1] directly, because an EasyLanguage\n// VARIABLE carries its own history; a C++ local is a class member with no\n// history, so the previous bar's value is carried forward explicitly at the top\n// of the hook before it is overwritten. The hook runs every bar in both twins,\n// so the two are the same sequence. Both prev flags start false, as EL's\n// gapUp[1] reads false before any history exists.\n//\n// Not SessionGapFirstBarReversalEntry, which needs the session's FIRST bar to\n// close as a reversal bar and the SECOND to close back through its high -- a\n// close-based two-bar test on a body fraction. This is the glossary's bare\n// one-tick poke back into the gap, with no body test at all. Intraday bars\n// only: on a daily series every bar is its own session.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\ngapUpPrev = gapUp;\ngapDnPrev = gapDn;\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    if (sawStart) {\n        prevHigh = curHigh;\n        prevLow = curLow;\n    }\n    sawStart = true;\n    curHigh = high[0];\n    curLow = low[0];\n    firstBar = true;\n} else {\n    if (el_gt(high[0], curHigh)) curHigh = high[0];\n    if (el_lt(low[0], curLow)) curLow = low[0];\n    firstBar = false;\n}\ngapUp = firstBar && !el_eq(prevHigh, -1.0) && el_gt(open[0], prevHigh);\ngapDn = firstBar && !el_eq(prevLow, -1.0) && el_lt(open[0], prevLow);",
+    "longCondition": "gapDnPrev && el_ge(high[0], high[1] + reversalTicks * tickSz)",
+    "shortCondition": "gapUpPrev && el_le(low[0], low[1] - reversalTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

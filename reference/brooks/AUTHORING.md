@@ -165,3 +165,47 @@ strategy, so its hooks are emitted twice into one class. Never declare C++
 scratch at hook scope (`const int x = ...;`, `double y = ...;` inside a hook);
 every scratch value is a `localVariables` entry. `AdxBelowThreshold` was fixed
 for exactly this; `reference/brooks/compileCheck.py --double` checks it.
+
+## Tick-unit list addendum (2026-09-17)
+
+Slices live in `reference/brooks/author/slicesT/TNN_<family>.json`; the key list is
+`reference/brooks/author/T_KEYS.md`; rows go to `reference/brooks/author/rows/TNN_<family>.md`.
+The catalog now has 394 rules, so the duplicate check is against `rules/CATALOG.md`,
+`rules/` on disk, `author/rows/*.md` and `T_KEYS.md`. Everything above still applies,
+including the B-list addendum (measured primitives, settled decisions, double
+placement). What is specific to this list:
+
+- **These rules were held back only because they are stated in ticks.** The tick
+  is now available in both twins (bullet "Tick size" above). Keep the merged `ticks`
+  parameter names and Brooks defaults; convert at the comparison, never by
+  rescaling the input: EL `high > high[1] + marginTicks * (MinMove / PriceScale)`,
+  C++ `el_gt(high[0], high[1] + marginTicks * (ctx.MinMove() / ctx.PriceScale()))`.
+  "Within N ticks" is `el_le(abs(a − b), n * tick)`; "at least N ticks beyond" is
+  `el_ge(a − b, n * tick)`; "no more than N ticks" pairs `el_gt(…, 0)` with
+  `el_le(…, n * tick)`. Compute the tick once per bar into a local (`tickSize`)
+  in both twins; it is a per-symbol constant, so no history is needed.
+- **Register check:** `minmove` and `pricescale` are VERIFIED; the lint maps
+  `ctx.TickSize()` to those two words but the corpus writes the paired form.
+- **Clusters that may collapse.** `T02_bar_offsets` holds `DipBelowPriorBarLowByTicks`,
+  `DipBelowPriorBarLow`, `ShallowDipBelowPriorBarLow`, `ShallowDipBelowPriorLow`
+  (from different buckets, kept apart by the merge): they are in one slice so
+  the same agent decides which are one rule with a parameter; author the distinct
+  ones, list the rest under "Not written: duplicate of X". `T05_stops` and
+  `T06_targets_swings` share the swing-pivot scan (inline `rules/SwingHigh.json`'s
+  measured form; occurrence 3+ is unmeasured, hand-roll the scan as
+  `SwingPivotTarget` does).
+- **Already on disk from earlier passes,** so compose with or defer to them, not
+  re-author: `ThreePushPattern` (ATR tolerance), `SwingHigh`, `SwingPivotTarget`,
+  `TightChannel`, `StrongTrendBarRun`, `ClimaxBar`, `HighLowBarCount`,
+  `RangeWidthBelowAtrMultiple`, `Barbwire`, `StopLossTakeProfitDollar`,
+  `StopLossTakeProfitATR`, `StopAtSignalBarRangeMultiple`, `SessionBarBreakout`.
+  Trend line and channel construction follow the settled decision recorded in
+  `reference/brooks/author/DECISIONS.md` (search "channel"): trend line through
+  the two latest confirmed swing lows, channel line through the two latest swing
+  highs, not parallel, `TLValue` first-anchor form, guard `B1 <> B2`.
+- **Session rules** (`PremarketExtremeTest`, `SessionCloseStrengthBias`,
+  `SessionOpenPriceTarget`): the session model in the B-list addendum; a premarket
+  window is bars whose `Time` precedes the regular-session open input.
+- `RoundNumberProximity` needs a rounding word: check `rules/EL_FEATURES.md` for
+  `Round`, `IntPortion`, `Floor`, `Mod`; if none is VERIFIED/ACCEPTED, it stays
+  blocked on that word — report it, do not write a probe.

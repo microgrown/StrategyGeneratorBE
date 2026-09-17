@@ -1,0 +1,53 @@
+{
+    "name": "StrongBullReversalBarComposite",
+    "type": "Entry",
+    "inputVariables": {
+        "minQualitiesRequired": "2",
+        "nearTicks": "1",
+        "minTailFraction": "0.33",
+        "maxTailFraction": "0.5",
+        "oppositeTailMax": "0.1",
+        "maxOverlapFraction": "0.5"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prng": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperTail": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ovl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "scoreUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "scoreDn": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S \"BEST\" REVERSAL BAR, and the one place in the corpus where an\n// M-of-N SCORE is the rule rather than a conjunction. The book says \"the best\n// bull reversal bars have MORE THAN ONE of the following\", so the quality\n// terms are counted, not ANDed -- and a count is not reachable by ANDing panes,\n// which is why this composite is carried whole under the named-Brooks-setup\n// exception rather than split into its four parts.\n//\n// THE MINIMUM (T00-39, the catalog's ReversalBarMinimum, inlined): a bull body\n// OR a close above the bar's midpoint. It is a hard gate, not a quality.\n//\n// THE THREE QUALITIES, each worth one point (T00-40, T00-41, T00-42):\n//   1. the open at or below the prior close, with a bull body closing above\n//      that prior close;\n//   2. a lower tail between minTailFraction and maxTailFraction of the bar's\n//      own range, with the upper tail no more than oppositeTailMax of it --\n//      the catalog's ReversalBarTailFraction, inlined at its own defaults;\n//   3. little overlap with the prior bar: the shared span is at most\n//      maxOverlapFraction of the PRIOR bar's range.\n// Source item 5 (the follow-through bar) is DROPPED by the merge pass: it reads\n// the bar AFTER the signal bar and so is a look-ahead condition.\n//\n// TAILS ARE MEASURED FROM THE BODY EDGE, so the same expression is the right\n// tail whichever way the bar closed. MinList / MaxList are ACCEPTED for\n// tick-grid PRICE operands only, and Open / Close / High / Low are raw prices,\n// so the plain ternary stand-in is exact -- the arrangement\n// ReversalBarTailFraction and BarOverlapFraction already use. (<algorithm> is\n// not among the emitted includes, so no std::min / std::max.)\n//\n// EVERY COMPARISON IS MULTIPLIED, never a ratio: EL raises a runtime\n// divide-by-zero on a doji whose High = Low, and on a zero-range PRIOR bar the\n// overlap quality then reduces to \"the shared span is at most zero\".\n//\n// BOTH SIDES ARE SCORED IN THE HOOK rather than in the conditions: EasyLanguage\n// does not short-circuit, so a score computed inside a condition would run on\n// every bar in EL and only on some bars in C++.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage (README \"N ticks\",\n// TICKSIZE_FINDINGS.md). Read once into a local; it needs no history.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nrng = high[0] - low[0];\nprng = high[1] - low[1];\nlowerTail = (open[0] < close[0] ? open[0] : close[0]) - low[0];\nupperTail = high[0] - (open[0] > close[0] ? open[0] : close[0]);\novl = (high[0] < high[1] ? high[0] : high[1]) - (low[0] > low[1] ? low[0] : low[1]);\nscoreUp = 0;\nif (el_le(open[0], close[1] + nearTicks * tickSz) && el_gt(close[0], open[0]) && el_gt(close[0], close[1])) scoreUp = scoreUp + 1;\nif (el_ge(lowerTail, minTailFraction * rng) && el_le(lowerTail, maxTailFraction * rng) && el_le(upperTail, oppositeTailMax * rng)) scoreUp = scoreUp + 1;\nif (el_le(ovl, maxOverlapFraction * prng)) scoreUp = scoreUp + 1;\nscoreDn = 0;\nif (el_ge(open[0], close[1] - nearTicks * tickSz) && el_lt(close[0], open[0]) && el_lt(close[0], close[1])) scoreDn = scoreDn + 1;\nif (el_ge(upperTail, minTailFraction * rng) && el_le(upperTail, maxTailFraction * rng) && el_le(lowerTail, oppositeTailMax * rng)) scoreDn = scoreDn + 1;\nif (el_le(ovl, maxOverlapFraction * prng)) scoreDn = scoreDn + 1;",
+    "longCondition": "(el_gt(close[0], open[0]) || el_gt(close[0], (high[0] + low[0]) / 2)) && el_ge((double)scoreUp, minQualitiesRequired)",
+    "shortCondition": "(el_lt(close[0], open[0]) || el_lt(close[0], (high[0] + low[0]) / 2)) && el_ge((double)scoreDn, minQualitiesRequired)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

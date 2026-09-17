@@ -1,0 +1,29 @@
+{
+    "name": "MarginalBreakoutThenReverse",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "barelyTicks": "2"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loLevel": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MARGINAL BREAKOUT THAT FAILED. The PRIOR bar poked at most barelyTicks\n// ticks beyond the extreme of the bars BEFORE it, and THIS bar has closed back\n// on the other side of that level -- Brooks's \"breaks a resistance level by\n// only a tick or so and then reverses\". The trade is the reversal, so the LONG\n// side is a failed DOWNSIDE breakout and the short side a failed upside one.\n// The merged pseudocode spelled the upside poke, which is the SELL setup; the\n// pair is mirrored, so the long side is written first here.\n//\n// THE LEVEL IS Highest(High, lookback)[2] -- the extreme of the lookback bars\n// ENDING TWO BARS AGO, i.e. the bars BEFORE the poking bar, so the poke cannot\n// define the level it pokes. That two-bar offset is the part of this rule that\n// is easy to get wrong and the reason the merge graded it B.\n//\n// R02-27's second, higher level is DROPPED: it needs a remembered set of\n// resistance levels, and on a fixed-window level \"did not reach the next level\"\n// is implied by having reversed back under the first.\n//\n// NOT SmallBreakoutTrapReversal, which is the ONE-BAR form -- the same bar\n// pokes through and closes back -- with the cap in PRICE POINTS; this needs the\n// poke and the recovery on DIFFERENT bars, so the two never fire together. Not\n// FailedBreakoutReversal, whose poke bar must CLOSE beyond the level (this one\n// need only trade beyond it with its high) and which carries no cap at all. Not\n// ThirdBarConfirmsFailedBreakout, a two-bar body-comparison pattern with no\n// level in it.\n//\n// The window scan mirrors EasyLanguage's Extremes(), which Highest() and\n// Lowest() call: seeded at the window's first bar, scanning the rest, strict\n// comparison, EL SOURCE and so carrying the relational tolerance -- el_gt /\n// el_lt, not raw > and <.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nhiLevel = high[2];\nloLevel = low[2];\nfor (int i = 3; i <= (int)lookback + 1; ++i) {\n    if (el_gt(high[i], hiLevel)) hiLevel = high[i];\n    if (el_lt(low[i], loLevel)) loLevel = low[i];\n}",
+    "longCondition": "el_lt(low[1], loLevel) && el_le(loLevel - low[1], barelyTicks * tickSz) && el_gt(close[0], loLevel)",
+    "shortCondition": "el_gt(high[1], hiLevel) && el_le(high[1] - hiLevel, barelyTicks * tickSz) && el_lt(close[0], hiLevel)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

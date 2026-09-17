@@ -1,0 +1,20 @@
+{
+    "name": "PauseBarNoNewExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "pauseTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MOVE FAILED TO EXTEND. The bar's high is at or below the prior bar's\n// high plus a small tick tolerance -- Brooks's pause bar, \"a bar whose high is\n// at or below the prior bar's high, or only a tick or so higher\" (R00-13).\n// Mirrored: its low is at or above the prior bar's low less that tolerance.\n//\n// EL: high <= high[1] + pauseTicks * tickSize\n//\n// THE TOLERANCE IS THE RULE. At pauseTicks = 0 this is LaggedHigherHigh(0)\n// placed negated, and a negation is a per-placement toggle; LaggedHigherHigh\n// carries only a bar lookback and no price offset, so the tolerance is not\n// reachable from it at any setting, and at the default 1 the rule fires on bars\n// that negation does not -- the marginally higher high that is still a pause.\n//\n// Not SpikePauseBar, which is an OR of this test at zero tolerance with a\n// close-against-the-trend term, and not PauseBarBroad, which ORs an inclusive\n// inside bar, an opposite close and a doji. Both of those are disjunctions the\n// entry panes cannot assemble; this is the single extreme test on its own.\n//\n// Brooks scopes it to a bull trend and to small bars after a strong trend bar;\n// both are separate placements (the always-in read,\n// BarRangeBelowAverageMultiple) and the entry pane ANDs.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_le(high[0], high[1] + pauseTicks * tickSize)",
+    "shortCondition": "el_ge(low[0], low[1] - pauseTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

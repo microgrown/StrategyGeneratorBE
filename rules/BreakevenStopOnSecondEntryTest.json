@@ -1,0 +1,52 @@
+{
+    "name": "BreakevenStopOnSecondEntryTest",
+    "type": "Exit",
+    "inputVariables": {
+        "awayTicks": "4"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atEntryLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atEntryShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchedLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchedShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "awayLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "awayShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "secondTestLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "secondTestShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// LET THE FIRST PULLBACK TO THE ENTRY PRICE GO, EXIT AT BREAKEVEN ON THE SECOND.\n// Once price has touched the entry price, moved away in the trade's favour by\n// awayTicks, and come back to the entry price again, the trade is done: Brooks\n// does not want it coming back a second time.\n//\n// Distinct from BreakevenStop, which arms on a dollar peak profit and exits on the\n// FIRST return to entry, and from BreakevenRetestExit, which is the unarmed first\n// touch. Both fire on the first return; this one cannot fire before the third leg\n// of a touch-recover-touch sequence.\n//\n// THE FILL BAR'S TOUCH DOES NOT COUNT. The fill is at the bar's open, so\n// low[0] <= ctx.EntryPrice() holds on the entry bar by construction (low <= open\n// always) and an ungated rule would count it as the first test, degenerating to\n// \"exit on the first return after moving away\" -- i.e. BreakevenStop. The touch\n// test is therefore gated on ctx.BarsSinceEntry() >= 1.\n//\n// THE TWO FLAGS ARE PER POSITION, reset on ctx.BarsSinceEntry() == 0 -- VERIFIED\n// as 0 on the fill bar and as restarting through a reversal, which a\n// ctx.MarketPosition() == 0 reset would miss because a reversal never passes\n// through flat. ORDER IS PART OF THE SPECIFICATION: the recovery is only recorded\n// once a touch is on the books, the exit flag is computed before this bar's touch\n// is recorded, and a single bar spanning both the entry price and\n// entry + awayTicks therefore records the touch only, never the recovery as well.\n// The exit is a local bool computed here rather than a postConditionHook update,\n// so both twins evaluate the state machine in one place and in one order.\n//\n// The ctx.MarketPosition() guard is load-bearing, not decoration: ctx.EntryPrice()\n// is 0.0 when flat and a back-adjusted price can be negative.\n//\n// V15-13's tick offset wins over T18-24's \"new N-bar high\" as the recovery test:\n// it needs no Highest call site and it measures what Brooks is describing,\n// distance from the stop.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// awayTicks * (ctx.MinMove() / ctx.PriceScale()), into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\n//\n// Deepest bar touched: 0.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (ctx.BarsSinceEntry() == 0) {\n    touchedLong = false;\n    touchedShort = false;\n    awayLong = false;\n    awayShort = false;\n}\natEntryLong = el_gt(ctx.MarketPosition(), 0) && ctx.BarsSinceEntry() >= 1 && el_le(low[0], ctx.EntryPrice());\natEntryShort = el_lt(ctx.MarketPosition(), 0) && ctx.BarsSinceEntry() >= 1 && el_ge(high[0], ctx.EntryPrice());\nif (touchedLong && el_ge(high[0], ctx.EntryPrice() + awayTicks * tickSize)) awayLong = true;\nif (touchedShort && el_le(low[0], ctx.EntryPrice() - awayTicks * tickSize)) awayShort = true;\nsecondTestLong = atEntryLong && touchedLong && awayLong;\nsecondTestShort = atEntryShort && touchedShort && awayShort;\nif (atEntryLong) touchedLong = true;\nif (atEntryShort) touchedShort = true;",
+    "longCondition": "secondTestLong",
+    "shortCondition": "secondTestShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -408,3 +408,15 @@ everything that is not A already.
   `ctx.MinMove()/PriceScale()/TickSize()` (engine 7d8d6db) to unblock the 79 tick-unit
   rules; one Opus agent did the engine plumbing, tests, and the generator-side docs and
   lint whitelist in one pass. Three Opus agents at once again held.
+- **2026-09-17, Brooks tick-unit pass (T list).** 78 keys in 8 family slices
+  (`slicesT/`, `T_KEYS.md`, rows `TNN_*.md`), all Opus, 3 concurrent, launched hardest
+  first so the long poles finished early; ~150–220k tokens per slice. 70 written, 8
+  resolved as duplicates or dropped, 1 still blocked (a rounding word). Lessons: put a
+  suspected duplicate CLUSTER in one slice and say so in the brief (the four dip-below
+  variants collapsed cleanly); when an agent finds a merged key that is an existing rule
+  plus a tolerance, resolve it as a new input on the existing rule with a default that
+  preserves behaviour character for character, and have the same agent do the edit; a
+  rule the agent authored that turns out to be another new rule at a fixed parameter is
+  dropped before the roll-up, not kept "for grids". The trivial slice was still given to
+  Opus because it carried the existing-rule amendment; a pure trivial slice is the place
+  to try Sonnet next time.

@@ -1,0 +1,498 @@
+[
+  {
+    "key": "CloseWithinTicksOfHigh",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar closes at, or within X ticks of, its own high (long) / low (short) \u2014 a shaved close, one of Brooks's spike-quality signs.",
+    "pseudocode": "close[0] >= high[0] - toleranceTicks * (MinMove / PriceScale)",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "single-bar comparison against a tick offset"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseRangePosition",
+      "relation": "variant",
+      "note": "CloseRangePosition measures the close as a FRACTION of the bar's range, so its strictness scales with bar size; this is an ABSOLUTE tick tolerance, so on a big bar it is far stricter and on a one-tick bar far looser. Not reachable by any setting of CloseRangePosition's threshold."
+    },
+    "sources": [
+      "R02-09"
+    ],
+    "merge_notes": "R02-09 states it as an existence scan over the spike window ('one or more bars in the spike'); mechanized as the single-bar test, which is the least machinery and composes with StrongTrendBarRun for the spike context. The miner already flagged CloseRangePosition as the likely existing rule; kept as a distinct rule because Brooks's wording is 'on its high or one tick below', an absolute tolerance, and V02-09 counts these bars by tick tolerance too.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [],
+    "bucket": "breakouts_signal_strength",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "BarLowHoldsPriorClose",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar's low never fell more than X ticks below the prior bar's close (long) / its high never rose more than X ticks above it (short) \u2014 near-zero give-back inside a spike.",
+    "pseudocode": "low[0] >= close[1] - toleranceTicks * (MinMove / PriceScale)",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison against a tick offset"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow compares this bar's CLOSE with the prior bar's LOW plus an offset in price points (E13's spike filter, opposite sense). This compares this bar's LOW with the prior bar's CLOSE, and the offset is in ticks."
+    },
+    "sources": [
+      "R02-07",
+      "V00-45"
+    ],
+    "merge_notes": "Same sign of strength stated in ranges ch2 and reversals front matter. R02-07 wraps it in an existence scan over a 10-bar spike window and adds a lower bound (low[i] <= close[i+1], i.e. the bar DID dip); V00-45's plain one-sided single-bar form won \u2014 the lower bound is what Brooks's 'at or just one tick below' says loosely, but requiring an actual dip excludes the strongest case (a bar whose low is above the prior close), which is the opposite of the intent. Both sources give toleranceTicks = 1.",
+    "variants_kept_separate": [
+      "BarOpensAbovePriorClose"
+    ],
+    "depends_on_keys": [],
+    "bucket": "breakouts_signal_strength",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "HigherHighByTicks",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "This bar's high is at least X ticks above the prior bar's high (long) / its low X ticks below the prior low (short) \u2014 the follow-through bar extending 'many ticks', not 'a few ticks', beyond the breakout bar.",
+    "pseudocode": "high[0] >= high[1] + extensionTicks * (MinMove / PriceScale)",
+    "sides": "mirrored",
+    "parameters": {
+      "extensionTicks": 4
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two-bar comparison against a tick offset"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "LaggedHigherHigh",
+      "relation": "variant",
+      "note": "LaggedHigherHigh(lookback=0) would be high[0] > high[1] with no margin; the tick margin is the whole content here ('a few ticks beyond means a failed breakout; many ticks means a strong trend bar'), and LaggedHigherHigh has no margin input. At extensionTicks = 1 the two nearly coincide on a tick grid."
+    },
+    "sources": [
+      "V15-08"
+    ],
+    "merge_notes": "Brooks gives no number for 'a few' versus 'many'; extensionTicks = 4 is the miner's reading and is the input to optimize. Note the rule is knowable before the bar closes (it reads only highs), which matches the book's framing of judging the follow-through bar in progress.",
+    "variants_kept_separate": [
+      "BreakoutClearsPriorExtremeByMargin"
+    ],
+    "depends_on_keys": [],
+    "bucket": "breakouts_signal_strength",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "BreakoutClearsPriorExtremeByMargin",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar's high clears the highest high of the previous N bars by at least X ticks (long), the low clears the lowest low by X ticks (short) \u2014 a breakout that goes far enough past the level for a stop entry there to be profitable, rather than one that barely pokes through.",
+    "pseudocode": "high[0] >= highest(high, lookback)[1] + marginTicks * (MinMove / PriceScale)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "marginTicks": 4
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "an EL Highest over bars 1..N plus a tick offset"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseAbovePriorHighestHigh",
+      "relation": "variant",
+      "note": "CloseAbovePriorHighestHigh is Highest(High, N)[1] compared with the CLOSE and with no margin. This compares the HIGH and adds a tick margin; the two disagree on every bar that pokes above the level and closes back under it, which is precisely the case Brooks is separating."
+    },
+    "sources": [
+      "R02-06",
+      "V07-11"
+    ],
+    "merge_notes": "R02-06 ('the move above the swing high goes far enough for scalpers to profit', 4 ticks) and V07-11 ('a close several ticks below the bottom of the flag', 3 ticks) are the same margin test against different levels. Chose the fixed-window Highest(High, N)[1] as the level over R02-06's swing-pivot search and V07-11's remembered flag boundary \u2014 the least machinery, and the catalog already uses that construction. Book margins 3 and 4 ticks; default 4. V07-11 uses the close rather than the high against the level; that variant is the catalog's CloseAbovePriorHighestHigh plus this margin, and is worth testing as an input toggle if the authoring pass wants it.",
+    "variants_kept_separate": [
+      "HigherHighByTicks",
+      "MarginalBreakoutThenReverse"
+    ],
+    "depends_on_keys": [],
+    "bucket": "breakouts_signal_strength",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "CountertrendNeedsPriorPush",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The cheap version of the same permission: before a countertrend long, at least one of the last N bars must have pushed its high more than K ticks above the prior bar's high \u2014 evidence the bulls can move price at all. Mirrored for a countertrend short on lows.",
+    "pseudocode": "countIf(i, 1, lookback, (high[i] - high[i+1]) > minPushTicks * tickSize) >= 1",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 5,
+      "minPushTicks": 2
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window scan of adjacent-bar high differences"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "LaggedHigherHigh",
+      "relation": "variant",
+      "note": "LaggedHigherHigh asks whether ONE specific bar (N bars ago) made a higher high than the bar before it; this asks whether ANY of the last N bars did, and by more than a tick margin"
+    },
+    "sources": [
+      "T10-07"
+    ],
+    "merge_notes": "Behaviourally the same permission as CountertrendNeedsPriorTrendLineBreak but with no pivots and no line \u2014 the reason it earns an A while that one sits at B. Worth authoring first and testing as the poor man's substitute.",
+    "variants_kept_separate": [
+      "CountertrendNeedsPriorTrendLineBreak"
+    ],
+    "depends_on_keys": [],
+    "bucket": "context_regime_always_in",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "DipBelowPriorBarLowByTicks",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "Price traded a fixed number of ticks below the prior bar's low (long) / above its high (short) \u2014 the with-trend fade of a countertrend setup bar. In a bull trend the bear signal bar's low is where the countertrend scalpers rest their entries and, a few ticks lower, their targets; buying into that pool is the trade. At offsetTicks = 0 it is simply 'the bar traded at or below the prior bar's low'.",
+    "pseudocode": "low[0] <= low[1] - offsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "offsetTicks": 4
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "one comparison against a fixed tick offset from the prior bar's low"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow tests the CLOSE against the prior low plus an offset (a strong-close spike filter); this tests the LOW against the prior low MINUS an offset (a dip-fill test). Opposite sense, different operand"
+    },
+    "sources": [
+      "R28-25",
+      "R32-03"
+    ],
+    "merge_notes": "R28-25 places the buy limit two or three ticks above where the short scalpers take profit, which is six ticks below the bear signal bar's low \u2014 a net four ticks below that low, the default here. R32-03 buys at the failing setup bar's extreme, the same rule at offsetTicks = 0. One rule with a parameter, per MERGE's threshold clause; both book values recorded. Both candidates also carry a 'strong bull trend' context, which is NOT folded in \u2014 it is AlwaysInDirection or ConsecutiveClosesBeyondEmaRun in a separate pane, and the pane system ANDs entries. That decomposition is what makes this an A instead of a C.",
+    "variants_kept_separate": [
+      "FailedCountertrendScalpReversal"
+    ],
+    "depends_on_keys": [],
+    "bucket": "context_regime_always_in",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "HigherLowStreak",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "None of the last N bars traded below the low of the bar before it (long side) \u2014 an unbroken run of higher lows, Brooks's 'no pullback' sign of strength. Mirrored: no bar traded above the prior bar's high. At N = 1 it is the single-bar form, 'this bar failed to fall below the prior bar's low'.",
+    "pseudocode": "forall i in 0..noPullbackBars-1: low[i] >= low[i+1] - (minTicks - 1) * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "noPullbackBars": 5,
+      "minTicks": 1
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-length loop over one adjacent-bar comparison"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "LaggedHigherHigh",
+      "relation": "variant",
+      "note": "LaggedHigherHigh asks whether ONE bar (N bars ago) made a higher high than the bar before it; this asks whether EVERY bar in a window made a higher low. Different operand and a streak instead of a single test"
+    },
+    "sources": [
+      "R00-55",
+      "V09-02"
+    ],
+    "merge_notes": "R00-55 is 'no PullbackBar (R00-14: low below the prior low by at least minTicks) within the last 5 bars'; V09-02 is 'low[0] > low[1]' as a standalone sign of urgency. Same test, one at a window and one at a single bar, so one rule with noPullbackBars as the parameter \u2014 MERGE's fixed-parameter clause. V09-02 is strict (>) and R00-14 carries a tick tolerance; the tolerance form is kept since it subsumes the strict one at minTicks = 1. Both book readings recorded. Kept apart from context_regime_always_in's NoOppositeBarInLastN, which counts bar BODIES (no bar closed below its open) rather than lows \u2014 the two disagree on any bar that makes a lower low but still closes up, which is most pullback bars in a strong trend.",
+    "variants_kept_separate": [
+      "NoOppositeBarInLastN"
+    ],
+    "depends_on_keys": [],
+    "bucket": "context_regime_trend_strength",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "LowNearPriorClose",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "This bar's low sits at, or no more than a tick or two below, the prior bar's close (long side) \u2014 almost no give-back into the prior bar's body, which is what 'very little overlap of the bodies of consecutive bars' means bar by bar. Mirrored: the high sits at or just above the prior close.",
+    "pseudocode": "low[0] >= close[1] - overlapTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "overlapTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "one comparison against a tick tolerance"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow compares the CLOSE to the prior bar's LOW plus an offset; this compares the LOW to the prior bar's CLOSE minus one. Different pair of operands entirely"
+    },
+    "sources": [
+      "V00-37",
+      "T19-04"
+    ],
+    "merge_notes": "Both volumes state the same sign of strength from the same sentence. V00-37's one-sided form wins: T19-04 adds 'low[0] <= close[1]', which would EXCLUDE the strongest bars \u2014 the ones that never trade back into the prior body at all \u2014 and that is plainly a mining artifact of reading Brooks's illustrative 'many bars have lows at or just one tick below the prior close' as a requirement. overlapTicks is in price ticks and is instrument-specific.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [],
+    "bucket": "context_regime_trend_strength",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "BreakoutFollowThroughTicks",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The market pushed at least `scalpTicks` beyond the prior swing extreme within `confirmBars` bars of breaking it \u2014 enough for the breakout traders to have made a scalper's profit, which is Brooks's test of whether a new extreme found more buyers than sellers. Re-evaluated at every new extreme, so it doubles as a rolling trend-strength gauge.",
+    "pseudocode": "priorExtreme = highest(high, swingLookback)[confirmBars];\nhighest(high, confirmBars) - priorExtreme >= scalpTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "swingLookback": 20,
+      "confirmBars": 3,
+      "scalpTicks": 4
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two Highest windows at different offsets plus a tick margin"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseAbovePriorHighestHigh",
+      "relation": "variant",
+      "note": "CloseAbovePriorHighestHigh tests the current CLOSE against Highest(High, N)[1] with no margin; this tests the best HIGH of the last few bars against the extreme of the window BEFORE them, and requires a minimum tick margin. The margin is the rule's whole content"
+    },
+    "sources": [
+      "R04-01"
+    ],
+    "merge_notes": "The candidate expresses it as a swing high; re-expressed over Highest windows so it needs no pivot detection, which is the cheaper definition and per MERGE the one that wins. The negation is the other half of Brooks's sentence \u2014 a new extreme that reverses within a bar or two marks the trend weakening toward a range \u2014 and is reachable with the per-placement negate toggle rather than a second rule.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [],
+    "bucket": "context_regime_trend_strength",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "ShallowDipBelowPriorBarLow",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The bar dips below the prior bar's low, but by no more than X ticks -- a pullback shallower than the channel's own history, the band form of the dip entry.",
+    "pseudocode": "low[0] < low[1] && low[0] >= low[1] - dipTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "dipTicks": 4
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "two comparisons on fixed offsets"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow tests the CLOSE against low[1] + X with no lower bound; this bounds the LOW on both sides, so it excludes the deep-dip bars CloseNearPriorLow accepts."
+    },
+    "sources": [
+      "T16-05",
+      "R28-18"
+    ],
+    "merge_notes": "Both sources are the same limit order 'one to four ticks below the prior bar's low, in a micro channel, expecting the break to fail'. Kept apart from DipBelowPriorBarLow because the UPPER bound is the whole point: Brooks sizes it from the channel's own largest pullback ('if the biggest pullback has been five ticks, buy any three- or four-tick pullback'), and a deep dip is a different event. Default 4 ticks from T16-05; R28-18 gives no number.",
+    "variants_kept_separate": [
+      "DipBelowPriorBarLow"
+    ],
+    "depends_on_keys": [],
+    "bucket": "lines_channels_channels",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "DipBelowPriorBarLow",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The bar trades below the prior bar's low by at least X ticks -- the mechanized form of the resting limit order Brooks says bulls keep at or below the prior bar's low all through a bull channel.",
+    "pseudocode": "low[0] <= low[1] - dipTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "dipTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "one two-bar comparison"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "LaggedHigherHigh",
+      "relation": "variant",
+      "note": "At dipTicks = 0 with a strict test the long side is LaggedHigherHigh(0)'s SHORT side, i.e. that rule flipped -- the authoring pass should confirm the tick offset and the non-strict form keep them apart before authoring. Also near CloseNearPriorLow (close, not low; no offset in this direction)."
+    },
+    "sources": [
+      "T15-18",
+      "T21-16",
+      "T04-11",
+      "T06-30",
+      "R28-15"
+    ],
+    "merge_notes": "Five statements of one bar test across both books. All five wrap it in a channel context ('in a bull channel', 'all bars in a channel', 'especially in the early stages'); the pane system ANDs entries, so the context belongs in a separate filter (TightChannel, ChannelSlopeSteep, or the always-in read) and only the bar test is carried here. Offsets seen: at or below the low (T04-11, T06-30, T21-16 at 0), one to three ticks below (T15-18 p273), one tick ABOVE the low for some bulls (T15-18 p272) -- one parameter, default 1 tick. R28-15's 'early stage' has no measure anywhere and is dropped from the condition. T15-18's requirePriorBearBody flag is a separate bar-anatomy filter, not carried.",
+    "variants_kept_separate": [
+      "ShallowDipBelowPriorBarLow",
+      "PullbackFromRecentHigh"
+    ],
+    "depends_on_keys": [],
+    "bucket": "lines_channels_channels",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  },
+  {
+    "key": "ShallowDipBelowPriorLow",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The bar dips below the prior bar's low by no more than dipTicks and closes back above it (mirror: pokes above the prior bar's high by no more than dipTicks and closes back below) - the shallow pullback that a with-trend limit order at the prior bar's low would have caught.",
+    "pseudocode": "low[0] < low[1] && low[0] >= low[1] - dipTicks * tickSize && close[0] > low[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "dipTicks": 3
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "three fixed-offset comparisons"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow tests the CLOSE against low[1] + X; this tests the LOW against low[1] - X and requires the close back above, so it fires on rejection rather than on weakness"
+    },
+    "sources": [
+      "TP3-17",
+      "T07-23"
+    ],
+    "merge_notes": "TP3-17 is the bounded form ('the first pullback usually only falls below the low of the prior bar by a few ticks', 3), T07-23 the unbounded one ('if the bulls are especially aggressive they will buy below the low of the prior bar'). One rule; dipTicks large disables the bound. Both attach a context gate (a bull spike / 'a reversal is under way'); T07-23's gate is research-grade and is left to the bucket that owns it, which does not downgrade this rule since the bar test stands alone. Limit fills are mechanized close-then-next-open per the standing convention, so the entry gives up the intrabar fill.",
+    "variants_kept_separate": [
+      "HigherLowBar"
+    ],
+    "depends_on_keys": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T02_bar_offsets"
+  }
+]

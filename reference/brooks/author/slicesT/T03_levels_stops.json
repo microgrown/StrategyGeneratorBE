@@ -1,0 +1,423 @@
+[
+  {
+    "key": "RoundNumberProximity",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The close is within a tick tolerance of a round price level -- a multiple of roundStep. Identical both sides. Brooks's most concrete magnet: price is drawn to the round number and usually overshoots it slightly before pulling back.",
+    "pseudocode": "nearestRound = round(close[0] / roundStep) * roundStep; absValue(close[0] - nearestRound) <= toleranceTicks * tickSize",
+    "sides": "same",
+    "parameters": {
+      "roundStep": 100,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "modular price arithmetic on the current bar; no window, no state"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "Nothing in the catalog tests proximity to a constructed price level."
+    },
+    "sources": [
+      "R10-18",
+      "V22-03"
+    ],
+    "merge_notes": "R10-18's proximity test wins outright -- it is the only trivially mechanizable magnet in the bucket. V22-03 is the same level construction from the Reversals volume with a 5 to 10 percent overshoot target added; the overshoot half is not carried, because Brooks's own two examples sit at wildly different price scales (FCX at 93 heading for 100, AAPL stalling below 300) and picking the scale is a per-instrument judgement, not a computation. roundStep is likewise instrument-specific and must be set per symbol -- 100 suits a three-figure stock, 1000 the Dow, and a futures contract will want something else entirely. This rule sets the touch convention used across this file (see TouchOfRecentExtreme's notes): a level counts as tested only when price actually reaches it.",
+    "variants_kept_separate": [
+      "TouchOfRecentExtreme",
+      "FibonacciRetracementLevel",
+      "DailyPivotProximity"
+    ],
+    "depends_on_keys": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [
+      "absvalue",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "TouchOfRecentExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar trades up to the highest high of the N bars ending one bar ago, within a tick tolerance (mirrored: down to the lowest low). A recent swing extreme is the magnet the market most often comes back to test -- and the level a double top or double bottom forms at.",
+    "pseudocode": "level = highest(high, lookback)[1]; high[0] >= level - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "one offset window extreme and a comparison"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "HighestHighBreakout",
+      "relation": "variant",
+      "note": "At toleranceTicks 0 the two fire on nearly the same bars -- HighestHighBreakout's window includes the current bar, so it means 'this bar made the N-bar high', which is this rule's boundary case. The tolerance band is the difference and it is the whole point: Brooks wants the bars that REACH the level, including those that stop a tick short of taking it out. Also near CloseAbovePriorHighestHigh, which tests the close rather than the high."
+    },
+    "sources": [
+      "R10-06",
+      "V16-02",
+      "R09-03",
+      "TP2-03"
+    ],
+    "merge_notes": "R10-06's window form is taken over any pivot search, per the most-mechanizable rule -- its own miner already proposes highest/lowest as the proxy for a recent swing extreme. V16-02, sent here as a stray from ema_relations, is the general touch requirement ('traders do not feel confident about the test unless the market gets that extra tick and actually touches the magnet') and is absorbed as the convention this whole file follows: every level rule here uses a one-sided reach test against the level with a tick margin, never a two-sided band on the close. Its default marginTicks 0 is the strict reading; 1 is kept here as R10-06's. R09-03, a stray from bar_anatomy_reversal_signal, wants the highest of all FAILED reversal signal bars recorded across the prior leg as the target; that needs a persisted set of levels spanning a whole trend, and the highest high of a long window reaches the same price in practice, so the window form wins and R09-03 is a citation. Note the role split: R09-03 and R10-06 were both mined as Exits (a target), R10-06's text is an entry context. Authored as an Entry the rule can sit in either pane as a level test; if a price-level EXIT is wanted, the pattern is RangeMidpointTarget (context_regime_trading_range).",
+    "variants_kept_separate": [
+      "RoundNumberProximity",
+      "NearAnyLevel",
+      "ReversalShortOfPriorExtreme"
+    ],
+    "depends_on_keys": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "FibonacciRetracementLevel",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar trades down to a Fibonacci retracement of the last N bars' range -- level = windowHigh - ratio * (windowHigh - windowLow) -- within a tick tolerance (mirrored for the short). Mirrored.",
+    "pseudocode": "swingHigh = highest(high, lookback)[1]; swingLow = lowest(low, lookback)[1]; level = swingHigh - fibRatio * (swingHigh - swingLow); low[0] <= level + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "fibRatio": 0.618,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "two offset window extremes, one multiply, one comparison"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "TwoBarRangePosition and CloseRangePosition place the close inside a range as a ratio; this constructs a price from a ratio and tests whether the bar reached it."
+    },
+    "sources": [
+      "RP2-03",
+      "R10-17",
+      "TP1-11"
+    ],
+    "merge_notes": "Three statements, one rule with the ratio as a parameter: RP2-03 gives 0.618 off pivot-anchored swings, R10-17 gives 0.5 off highest/lowest windows, TP1-11 gives 0.62 off the first leg of a new trend. R10-17's window anchoring wins over RP2-03's and TP1-11's swing pivots on the most-mechanizable rule -- and the pivotStrength those two would need is itself an unmade decision. 0.618 is the default because two of the three sources land there and it is the ratio Brooks names first. Brooks is openly sceptical of these levels ('most are just approximations and most fail', TP1-11) and warns against resting a limit order at one; that is a caveat for the authoring pass, not a reason to drop a concrete bar-level test. Fibonacci EXTENSIONS (127%, 161.8%, named by R10-17) are the same arithmetic with the ratio above 1 -- reachable by moving fibRatio, so no second rule.",
+    "variants_kept_separate": [
+      "TouchOfRecentExtreme",
+      "RoundNumberProximity"
+    ],
+    "depends_on_keys": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "ReversalShortOfPriorExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "Price turned back down without ever reaching the resistance above it: the highest high of the last few bars stayed at least X ticks below the prior window's high, and this bar closed down. Brooks reads the failure to even reach the level as strength in the sellers. Mirrored.",
+    "pseudocode": "level = highest(high, levelLookback)[recentLookback + 1]; highest(high, recentLookback)[0] < level - untouchedTicks * tickSize && close[0] < open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "recentLookback": 5,
+      "levelLookback": 20,
+      "untouchedTicks": 2
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "two window extremes, one offset, one bar-direction test"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R02-35"
+    ],
+    "merge_notes": "The exact opposite polarity of the touch convention this file otherwise uses: here the SIGNAL is that the level was NOT reached. The mined form leans on 'a remembered resistance level'; it is mechanized here off the same offset window extreme as TouchOfRecentExtreme, so the two share a level construction and can be compared directly. bar_anatomy_reversal_signal has already merged NearMissLevelReversal from V16-04, which is the same near-miss idea from the Reversals volume -- the roll-up should compare the two and probably keep one; kept here because R02-35 is this bucket's own id and dropping it would lose the Ranges-volume statement.",
+    "variants_kept_separate": [
+      "TouchOfRecentExtreme",
+      "NearMissLevelReversal"
+    ],
+    "depends_on_keys": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "FailedBreakoutBeyondExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "A failed downside breakout: within the last reverseBars bars the low traded below the lowest low of the prior lookback bars, and the current bar closes back above that broken level by at least toleranceTicks (mirror: a failed upside breakout above the highest high). Brooks's 'first failed breakout below a prior swing low is a lower low buy setup'.",
+    "pseudocode": "lvl = lowest(low, lookback)[reverseBars]; exists k in 0..reverseBars-1: low[k] < lvl && close[0] > lvl + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 10,
+      "reverseBars": 1,
+      "toleranceTicks": 0
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "one Lowest window plus fixed-offset comparisons"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "HighestHighBreakout",
+      "relation": "variant",
+      "note": "HighestHighBreakout fires ON the breakout; this fires when the breakout is rejected within the bar and the close comes back inside"
+    },
+    "sources": [
+      "V02-22",
+      "V09-01",
+      "T15-54",
+      "VP1-13",
+      "R20-05",
+      "R12-07"
+    ],
+    "merge_notes": "Four statements of one bar test. V02-22 (lookback 20, plus a bull-body conjunct left to bar_anatomy), V09-01 (5, plus 1 tick), T15-54 (10) differ only in the window - one parameter, default 10, the middle reading. VP1-13 is the multi-bar form ('if this lower low reverses back up within a few bars', reverseBars 3, undercut 4 ticks) and defines the level with a PIVOT rather than a window. WINNER: the N-bar lowest low, per the mechanizability rule - it needs no pivot retention, which drops the grade from hard to simple and the priority from B to A; VP1-13's pivot level is recorded here and reachable by composing SwingPointUndercut instead. reverseBars defaults to 1 (the single-bar rejection all three window sources describe); VP1-13's 3 is the alternative. Kept apart from SwingPointUndercut: that one fires on the undercut itself with no requirement that price come back.",
+    "variants_kept_separate": [
+      "SwingPointUndercut",
+      "SwingPointTestHolds",
+      "DoubleExtremeBreakout"
+    ],
+    "depends_on_keys": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "MicroDoubleExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "Micro double bottom: the current bar's low is within toleranceTicks of the low of the bar `gap` bars earlier (mirror: micro double top on the highs). Brooks: 'consecutive or nearly consecutive bars with identical or nearly identical lows'; 'most small bull reversals come from some type of micro double bottom'.",
+    "pseudocode": "abs(low[0] - low[gap]) <= toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "gap": 1,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "one toleranced comparison of two fixed-offset bars"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "T06-16",
+      "V00-26",
+      "R28-22",
+      "T10-08",
+      "V08-07"
+    ],
+    "merge_notes": "T06-16 and R28-22 state the adjacent-bar form (gap 1); V00-26 and T10-08 state the one-bar-gap form (gap 2), so one rule with a `gap` parameter, default 1. T10-08 adds a V-shape conjunct (low[1] must be above both matching lows, so the pair is a real dip and not two bars of a slide) and a close-up conjunct; the close is bar_anatomy, but the V-shape is a genuine strengthening that only bites at gap >= 2 - recorded here for the authoring pass, which may want it as a second rule rather than as an input. Tolerance stays in TICKS here (1) rather than ATR: Brooks means literally identical or one-tick-apart extremes, and all four sources say ticks. Kept apart from Ledge (any match inside a window, not at a fixed lag) and from DoubleExtreme (a confirmed pivot at a variable distance, ATR tolerance).",
+    "variants_kept_separate": [
+      "Ledge",
+      "DoubleExtreme"
+    ],
+    "depends_on_keys": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "Ledge",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "Bull ledge: at least minMatches of the last `lookback` bars have a low within toleranceTicks of the CURRENT bar's low - a small trading range with a flat floor (mirror: bear ledge, a flat ceiling of matching highs).",
+    "pseudocode": "count over k in 0..lookback-1 of (abs(low[k] - low[0]) <= toleranceTicks * tickSize) >= minMatches",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 5,
+      "minMatches": 2,
+      "toleranceTicks": 0
+    },
+    "complexity": {
+      "grade": "simple",
+      "reason": "a counted comparison over a fixed window"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R00-18",
+      "V00-25",
+      "T00-09",
+      "R28-23"
+    ],
+    "merge_notes": "Brooks's glossary ledge, restated three times, plus its entry (R28-23). TWO definitions: PAIRWISE over the window (R00-18, V00-25 - any two bars in the window match each other, O(n^2) and it can fire on a level price is nowhere near now) and ANCHORED at the current bar (T00-09 - count bars matching low[0]). WINNER: anchored, per the mechanizability rule: one pass, and it only fires while price is AT the ledge, which is what the entry needs. Tolerance 0 in R00-18/T00-09 ('identical lows'), 1 tick in V00-25; default 0, Brooks's literal word. R28-23 adds a limit order a tick or two above the ledge bottom - under the close-then-next-open convention that offset is not representable, so R28-23 collapses into this rule and its ledgeEntryTicks is recorded, not carried. Kept apart from MicroDoubleExtreme: at lookback 2 / minMatches 2 the two coincide, but in general this one accepts a match at any lag inside the window while MicroDoubleExtreme requires it at exactly `gap`.",
+    "variants_kept_separate": [
+      "MicroDoubleExtreme"
+    ],
+    "depends_on_keys": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "countif",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "StopBeyondSignalBar",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "The initial protective stop sits stopOffsetTicks beyond the signal bar's extreme opposite the trade: for a long, below the low of the bar immediately before the entry bar. It stays there for the life of the trade unless a tightening rule replaces it.",
+    "pseudocode": "ctx.MarketPosition() > 0 && close[0] <= low[ctx.BarsSinceEntry() + 1] - stopOffsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "stopOffsetTicks": 1
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the signal bar is located by a runtime index, ctx.BarsSinceEntry() + 1, not a fixed lag; the offset grows every bar the trade stays open"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "StopLoss",
+      "relation": "variant",
+      "note": "StopLoss is a fixed dollar amount; this is a price-action stop anchored to a specific bar, so its dollar risk varies trade by trade."
+    },
+    "sources": [
+      "R27-01",
+      "R29-01",
+      "V24-35",
+      "T21-73",
+      "RP4-23"
+    ],
+    "merge_notes": "Five restatements of the single most-cited Brooks stop. R29-01 and R27-01 both give the BarsSinceEntry()+1 location, which is the winning definition; V24-35 hard-codes signalBarOffset = 1 (only correct on the entry bar itself) and T21-73 states it as low[BarsSinceEntry+1] in its notes. RP4-23 ('stop below the low of the bar immediately preceding the entry bar' for a spike entry taken at the close) is the same level, since that bar IS the signal bar under the close-then-next-open convention. Every source uses one tick. T21-73's 'keep it there until the second leg begins' is guidance about NOT trailing, not an extra condition. Exit tests use close[0] per the standing signal-bar-close convention; intrabar stop fills are not modeled.",
+    "variants_kept_separate": [
+      "StopFractionOfSignalBarRisk",
+      "StopAtSignalBarRangeMultiple",
+      "WiderStopForSmallSignalBarCapped",
+      "TightenStopToEntryBarIfStrong"
+    ],
+    "depends_on_keys": [],
+    "bucket": "exits_stops",
+    "el_words": [
+      "barssinceentry",
+      "marketposition",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  },
+  {
+    "key": "TrailStopBeyondPriorBarExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "The simplest bar-by-bar trail: keep the protective stop just beyond the previous completed bar's extreme, so a long exits when the close falls below the prior bar's low.",
+    "pseudocode": "ctx.MarketPosition() > 0 && close[0] <= low[1] - stopOffsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "stopOffsetTicks": 1
+    },
+    "complexity": {
+      "grade": "trivial",
+      "reason": "one fixed-lag price comparison plus a position-state read"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "TrailingStop",
+      "relation": "variant",
+      "note": "Not the dollar-off-peak-profit trail: the level here is the prior bar's low and it can loosen again after a wide bar."
+    },
+    "sources": [
+      "R25-02",
+      "R30-05"
+    ],
+    "merge_notes": "R30-05 writes it against low[0] and R25-02 against close[0]; the close form wins under the standing signal-bar-close-then-next-open convention, and R25-02's own notes concede the intrabar version is not mechanizable here. Both use one tick (R25-02 states it as 0.25 points, the Emini tick). Neither persists a level, so the stop can move back DOWN after a wide bar; the monotonic ratchet of the same idea is TrailStopBehindStrongBar's mechanism, and the authoring pass may want a monotone variant of this rule as well. Brooks's 'even before the bar closes' is not modeled.",
+    "variants_kept_separate": [
+      "TrailStopBehindStrongBar",
+      "TrailArmedAfterProfitThreshold",
+      "StopBeyondExtremeSinceEntry"
+    ],
+    "depends_on_keys": [],
+    "bucket": "exits_stops",
+    "el_words": [
+      "marketposition",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [
+      "minmove",
+      "pricescale"
+    ],
+    "list": "A",
+    "slice": "T03_levels_stops"
+  }
+]

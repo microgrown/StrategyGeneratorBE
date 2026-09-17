@@ -1,0 +1,94 @@
+{
+    "name": "TrendLineBreak",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "breakTicks": "0"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND LINE AND THE CHANNEL LINE, the one construction shared by the\n// whole lines/channels family (settled in slice B01, recorded in\n// author/DECISIONS.md, carried here unchanged): the BULL channel's trend line\n// runs through the two most recent CONFIRMED swing LOWS and its channel line\n// through the two most recent confirmed swing HIGHS; the BEAR channel is the\n// mirror. The two lines are deliberately NOT parallel, which is what lets the\n// channel converge or diverge.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the EL twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR BEYOND the strength OLDER bars, STRICTLY BEYOND the\n// strength NEWER bars -- so a flat top yields exactly one pivot, the later of\n// the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar, so\n// the strict half is the k < j loop. The confirmation lag is exactly strength\n// bars, which is what makes the scan lookahead-safe; pivotLookback is EL's\n// Length (candidate offsets 0..pivotLookback-1 inclusive) and the\n// neighbourhood test reaches strength bars PAST the window, so the deepest\n// index the scan touches is pivotLookback - 1 + strength; a window with no\n// pivot returns the -1 SENTINEL, guarded below because -1 as a price sits\n// under every real price; Occurrence 3+ is UNMEASURED and is never asked for;\n// the comparisons carry the 2.22e-12 relational tolerance, hence el_gt /\n// el_ge. The low side's tie sense is the mirror of the measured high-side\n// rule. No WFSafe_SwingHigh exists, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt (TLVALUE_FINDINGS.md section 4): TLValue is\n// the pure two-point line Slope = (P2 - P1) / (B2 - B1);\n// value = P1 + (target - B1) * Slope, anchored at the FIRST pair and\n// extrapolating freely past both anchors -- which is what lets the line be\n// read at an OLDER bar inside the loops below. The bar-number convention is\n// the CALLER's; bars-ago is used here, so the OLDER pivot (the LARGER\n// bars-ago) is passed as P1/B1, the zero-drift spelling. Bar1 = Bar2 does NOT\n// halt, it silently returns 0.0, so both twins guard B1 <> B2 instead of\n// relying on that. The slope is hoisted out of the per-target arithmetic here\n// where the EL twin recomputes it inside each TLValue call: identical\n// doubles, so bit-for-bit the same line.\n//\n// THE TICK is EL's own MinMove / PriceScale, VERIFIED and per-symbol constant\n// for the whole run, written DIVISION-FIRST in both twins so the C++ reads\n// token for token against its EasyLanguage (README \"N ticks\", TICKSIZE_FINDINGS).\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.//\n// THIS RULE: the closing price breaks the projected trend line by breakTicks ticks --\n// the break bar itself. A LONG needs the BEAR trend line (drawn through the\n// two most recent confirmed swing HIGHS of the down move) to be closed through\n// from below; a SHORT needs the BULL trend line (through the two most recent\n// swing LOWS) closed through from above. Fourteen sources restate this one\n// test; the break is close-based in every source that states one, and\n// V02-19's \"break by many ticks\" is this rule at breakTicks = 8.\n//\n// THE LINE MUST SLOPE THE RIGHT WAY, which is what separates this from\n// TrendLineBrokenRecently: the newer pivot must be BEYOND the older one in the\n// trend direction (a bear line falls, hiP2 < hiP1), or there is no trend line\n// to break and the rule is false. TrendLineBrokenRecently has no such gate,\n// and is a WINDOW test (minBreaks of the last withinBars bars) where this is\n// the bar-0 test with a tick margin -- the reason this rule was held for the\n// tick list at all.\n//\n// \"Minor\" vs \"major\" is this rule at different parameters, not two rules:\n// swingStrength 1 over ~15 bars is Brooks's minor line, swingStrength 3 over\n// ~50 bars the major one.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\ntickSize = ctx.MinMove() / ctx.PriceScale();\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) loNow = loP1 + (0.0 - loB1) * loSlope;\nif (haveHiLine) hiNow = hiP1 + (0.0 - hiB1) * hiSlope;",
+    "longCondition": "haveHiLine && el_lt(hiP2, hiP1) && el_gt(close[0], hiNow + breakTicks * tickSize)",
+    "shortCondition": "haveLoLine && el_gt(loP2, loP1) && el_lt(close[0], loNow - breakTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

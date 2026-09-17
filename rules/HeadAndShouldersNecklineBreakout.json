@@ -1,0 +1,111 @@
+{
+    "name": "HeadAndShouldersNecklineBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "entryTick": "1",
+        "shoulderSymmetryTicks": "3",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hsTop": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hsBottom": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveNeckDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveNeckUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "neckSlopeDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "neckSlopeUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "neckDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "neckUp": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE LITERAL HEAD-AND-SHOULDERS ENTRY: price closes beyond the NECKLINE,\n// the line through the two pullback extremes that sit between the shoulders\n// and the head. Brooks argues AGAINST this trade ('a breakout below the\n// neckline in a bull market will usually fail'), which is exactly why it is\n// worth testing as stated -- and testable NEGATED, which is the trade he\n// recommends, through the per-placement toggle.\n//\n// THE PATTERN IS INLINED, not referenced: HeadAndShouldersPattern's peaked\n// test, same pivots and same shoulderSymmetryTicks tolerance, per the settled\n// composites decision (named Brooks setups keep depends_on_keys in the row\n// and inline the parts in code). lookbackBars and shoulderSymmetryTicks are\n// promoted to inputs here for that reason; the merged parameters listed only\n// swingStrength and entryTick, but the inlined pattern needs both, and they\n// carry HeadAndShouldersPattern's defaults so the two files agree at default.\n//\n// WHICH PIVOTS THE NECKLINE USES. For a TOP the pattern is the three high-side\n// pivots -- 1 right shoulder, 2 head, 3 left shoulder -- and the two pullback\n// lows BETWEEN them are low-side occurrences 3 (left shoulder to head) and 2 (head\n// to right shoulder), occurrence 1 being the low made after the right\n// shoulder, which is the one this breakout is heading through. The BOTTOM is\n// the mirror: the pattern is the three low-side pivots and the neckline runs\n// through high-side occurrences 3 and 2.\n//\n// THE LINE is TLValue, MEASURED (EL_TLValue_Probe.txt, TLVALUE_FINDINGS.md\n// section 4): a pure two-point interpolation anchored at the FIRST pair,\n// Slope = (Price2-Price1)/(Bar2-Bar1), value = Price1 + (Target-Bar1)*Slope,\n// extrapolating freely past both anchors. The bar convention is the CALLER's;\n// bars-ago is used, so the OLDER pivot (the LARGER bars-ago, occurrence 3) is\n// passed as Price1/Bar1 -- the zero-drift spelling -- and the target bar is\n// 0, the current bar. Bar1 = Bar2 does NOT halt, it silently returns 0.0, so\n// both twins guard it explicitly. The slope is hoisted out of the arithmetic\n// here where the EL twin recomputes it inside TLValue: identical doubles, so\n// bit-for-bit the same line.\n//\n// THE PIVOT SCAN IS INLINED from ThreePushPattern rather than reaching into\n// SwingHigh.json -- rules in this corpus never reference each other, and the\n// register lists occurrence 3 as UNMEASURED while occurrence 3 is both the\n// left shoulder and a neckline anchor. Measured pivot rule\n// (EL_Swing_Probe.txt, @ES 60 min): at-or-beyond the swingStrength OLDER\n// bars, STRICTLY beyond the swingStrength NEWER ones (the strict half is the\n// k < j loop, el_gt/el_lt, bars-ago making the smaller index the newer bar;\n// the at-or-beyond half is the k > j loop, el_ge/el_le); confirmation lag\n// exactly swingStrength bars, hence j from swingStrength; candidate offsets\n// 0..Length-1 inclusive, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; -1 SENTINEL on prices and bars, every use gated on\n// the count reaching 3; the low side's tie sense is the mirror of the\n// measured high-side rule. No WFSafe_SwingHigh exists, so plain EL governs,\n// and no early break is used -- Break is not a registered EasyLanguage word.\n//\n// entryTick (Brooks's one tick) is the margin the close must clear the line\n// by; the tick is ctx.MinMove() / ctx.PriceScale(), division-first, both\n// VERIFIED and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nhiB2 = -1.0;\nhiB3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nloB2 = -1.0;\nloB3 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) { hiPx2 = high[j]; hiB2 = (double)j; }\n        if (nHiPiv == 3) { hiPx3 = high[j]; hiB3 = (double)j; }\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) { loPx2 = low[j]; loB2 = (double)j; }\n        if (nLoPiv == 3) { loPx3 = low[j]; loB3 = (double)j; }\n    }\n}\nhsTop = (nHiPiv == 3) && el_gt(hiPx2, hiPx3) && el_gt(hiPx2, hiPx1) && el_le(std::fabs(hiPx3 - hiPx1), shoulderSymmetryTicks * tickSize);\nhsBottom = (nLoPiv == 3) && el_lt(loPx2, loPx3) && el_lt(loPx2, loPx1) && el_le(std::fabs(loPx3 - loPx1), shoulderSymmetryTicks * tickSize);\nhaveNeckDn = (nLoPiv == 3) && (loB3 != loB2);\nhaveNeckUp = (nHiPiv == 3) && (hiB3 != hiB2);\nneckSlopeDn = 0.0;\nneckSlopeUp = 0.0;\nif (haveNeckDn) neckSlopeDn = (loPx2 - loPx3) / (loB2 - loB3);\nif (haveNeckUp) neckSlopeUp = (hiPx2 - hiPx3) / (hiB2 - hiB3);\nneckDn = 0.0;\nneckUp = 0.0;\nif (haveNeckDn) neckDn = loPx3 + (0.0 - loB3) * neckSlopeDn;\nif (haveNeckUp) neckUp = hiPx3 + (0.0 - hiB3) * neckSlopeUp;",
+    "longCondition": "hsBottom && haveNeckUp && el_gt(close[0], neckUp + entryTick * tickSize)",
+    "shortCondition": "hsTop && haveNeckDn && el_lt(close[0], neckDn - entryTick * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

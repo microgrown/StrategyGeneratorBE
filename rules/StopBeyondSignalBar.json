@@ -1,0 +1,28 @@
+{
+    "name": "StopBeyondSignalBar",
+    "type": "Exit",
+    "inputVariables": {
+        "stopOffsetTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MOST-CITED BROOKS STOP: the initial protective stop sits stopOffsetTicks\n// beyond the SIGNAL bar's extreme opposite the trade -- for a long, below the\n// low of the bar immediately before the entry bar -- and it stays there for the\n// life of the trade unless a tightening rule, a separate placement, replaces it.\n// All five sources use one tick.\n//\n// THE SIGNAL BAR IS CAPTURED ONCE ON THE FILL BAR rather than re-read every bar\n// at low[ctx.BarsSinceEntry() + 1]. The two are the same price -- BarsSinceEntry\n// is VERIFIED as 0 on the bar the entry fills, so the signal bar is bar [1]\n// there -- but the capture holds the deepest subscript at 1 instead of the\n// length of the longest trade, which Max Bars Back would otherwise have to\n// cover. It is the same construction StopAtSignalBarRangeMultiple and\n// StopFractionOfSignalBarRisk use. While flat this re-captures every bar, which\n// is harmless and is exactly what leaves the value correct on the fill bar;\n// BarsSinceEntry restarts through a reversal (VERIFIED), so a reversal\n// re-captures without any MarketPosition == 0 reset.\n//\n// NOT StopLoss (a fixed dollar amount): this is a price-action stop anchored to a\n// specific bar, so its dollar risk varies trade by trade. Not\n// StopFractionOfSignalBarRisk, which sits a fraction of the way from that bar's\n// extreme back toward the entry; this one is BEYOND the bar. Not\n// StopAtSignalBarRangeMultiple, which converts the signal bar's RANGE to dollars.\n//\n// Exit tests use close[0] per the standing signal-bar-close convention; intrabar\n// stop fills are not modelled. Tick division-first into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    sigLow = low[1];\n    sigHigh = high[1];\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le(close[0], sigLow - stopOffsetTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(close[0], sigHigh + stopOffsetTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

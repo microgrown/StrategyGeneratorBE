@@ -1,0 +1,20 @@
+{
+    "name": "DipBelowPriorLowCloseBackAbove",
+    "type": "Entry",
+    "inputVariables": {
+        "dipTicks": "3"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SHALLOW PULLBACK THAT WAS REJECTED. The bar dips below the prior bar's\n// low by no more than dipTicks AND closes back above that low (mirrored: pokes\n// above the prior bar's high by no more than dipTicks and closes back below it).\n// TP3-17's \"the first pullback usually only falls below the low of the prior bar\n// by a few ticks\" (3) merged with T07-23's unbounded \"aggressive bulls buy below\n// the low of the prior bar\" -- one rule, and a large dipTicks disables the\n// bound.\n//\n// THE MERGED KEY WAS ShallowDipBelowPriorLow, RENAMED: one word apart from\n// ShallowDipBelowPriorBarLow, which is a real and different rule in the same\n// slice, and the name has to say what separates them.\n//\n// KEPT WHOLE, not split. Dipped-below and closed-back-above is one event -- a\n// rejection -- in the way a crossing is one event: neither half is the claim.\n// With the close term dropped this is exactly ShallowDipBelowPriorBarLow, and\n// that is the rule to place when only the shallow dip is wanted; with the bound\n// dropped it is DipBelowPriorBarLow. Neither of those, nor any pair of them,\n// reaches this rule -- no rule in the corpus tests the close against the prior\n// bar's low from above.\n//\n// Limit fills are mechanized at the close, filling at the next open, per the\n// standing convention, so the entry gives up the intrabar fill; requiring the close back above is\n// what makes that convention reasonable here. All three terms read bar 1\n// unconditionally, so EL's lack of short-circuiting costs nothing.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_lt(low[0], low[1]) && el_ge(low[0], low[1] - dipTicks * tickSize) && el_gt(close[0], low[1])",
+    "shortCondition": "el_gt(high[0], high[1]) && el_le(high[0], high[1] + dipTicks * tickSize) && el_lt(close[0], high[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

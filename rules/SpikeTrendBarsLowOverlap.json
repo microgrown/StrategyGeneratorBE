@@ -1,0 +1,34 @@
+{
+    "name": "SpikeTrendBarsLowOverlap",
+    "type": "Entry",
+    "inputVariables": {
+        "spikeBars": "3",
+        "bodyFraction": "0.7",
+        "maxOverlapTicks": "2"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "okUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S SPIKE WITH LITTLE OVERLAP: every one of the last spikeBars bars is\n// a bull trend bar whose body is at least bodyFraction of its own range, AND\n// each bar of the run holds its low at or within maxOverlapTicks ticks of the\n// PREVIOUS bar's low. The oldest bar of the run has no predecessor inside the\n// run, so the overlap test is skipped there -- that is what the kk < spikeBars\n// - 1 guard says.\n//\n// THE PAIRWISE TERM IS WHY THIS IS NOT ConsecutiveStrongTrendBars ANDed with\n// ConsecutiveBarsLittleOverlap. Those two measure the overlap as a FRACTION of\n// a bar's range and are direction-agnostic; this is a DIRECTIONAL, TICK-sized\n// test on one extreme only -- a bull bar may overlap the prior bar's body\n// completely and still pass, provided its low did not drop more than a tick or\n// two below the prior low. It is the reason the rule waited for the tick list.\n// It is also not ThinAreaLowBarOverlap, which divides the shared span by the\n// earlier bar's range and asks for a THIN area rather than a held low.\n//\n// V19-03's fixed two-bar first-hour variant is this rule at spikeBars = 2; its\n// session gate is dropped, being TimeWindow in a separate pane. Brooks reads 2\n// bars for a light always-in call and 3-4 for a trend day; 3 is the merged\n// default.\n//\n// BOTH SIDES ARE COMPUTED IN THE HOOK, as flags cleared at the top: EasyLanguage\n// does not short-circuit and has no loop break, so the loop must run to\n// completion in both twins and the twins must fail the same way. The body test\n// is a multiplication, never a ratio, so a zero-range bar cannot raise EL's\n// divide-by-zero -- such a bar fails the strict body-direction test anyway.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage (README \"N ticks\",\n// TICKSIZE_FINDINGS.md). Read once into a local; it needs no history.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nokUp = true;\nokDn = true;\nfor (kk = 0; kk <= (int)spikeBars - 1; ++kk) {\n    if (el_le(close[kk], open[kk]) || el_lt(close[kk] - open[kk], bodyFraction * (high[kk] - low[kk]))) okUp = false;\n    if (el_ge(close[kk], open[kk]) || el_lt(open[kk] - close[kk], bodyFraction * (high[kk] - low[kk]))) okDn = false;\n    if (kk < (int)spikeBars - 1) {\n        if (el_lt(low[kk], low[kk + 1] - maxOverlapTicks * tickSz)) okUp = false;\n        if (el_gt(high[kk], high[kk + 1] + maxOverlapTicks * tickSz)) okDn = false;\n    }\n}",
+    "longCondition": "okUp",
+    "shortCondition": "okDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

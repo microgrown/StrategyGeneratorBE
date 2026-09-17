@@ -1,0 +1,21 @@
+{
+    "name": "OutsideBar",
+    "type": "Entry",
+    "inputVariables": {
+        "lag": "0",
+        "toleranceTicks": "0"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE ATOMIC OUTSIDE BAR. The bar lag bars ago engulfs the bar before it: its\n// high reaches at or beyond the prior high and its low at or beyond the prior\n// low, with an optional tick tolerance that admits Brooks's NEAR-outside bar\n// (V16-06, toleranceTicks = 1).\n//\n// EL: high[lag] >= high[lag + 1] - toleranceTicks * tickSize and\n//     low[lag] <= low[lag + 1] + toleranceTicks * tickSize and\n//     (high[lag] > high[lag + 1] or low[lag] < low[lag + 1])\n//\n// THE STRICT-ON-ONE-SIDE TERM IS LOAD-BEARING. R00-04 and V00-05 state both\n// sides inclusively, which lets a bar with exactly the prior bar's high and low\n// be inside AND outside at the same time; T00-05 and T07-01 require the bar to\n// reach strictly beyond on at least one side, and that reading won the merge.\n// The inclusive-both form is what rows/01_bar.md recorded as the shape an\n// atomic OutsideBar should use; the extra disjunct only removes the degenerate\n// identical-range bar, and at toleranceTicks = 0 nothing else changes.\n//\n// Not LargeOutsideBar, which is this relation ANDed with a range at least\n// largeMultiple x the mean bar range and has no tolerance (its largeMultiple is\n// a size multiple, so 0 is outside any sane grid). Not OutsideBarInMidRange\n// (the same relation plus a position band inside a 20-bar block), not\n// OutsideBarWithoutPriorSignalBar (plus a negated signal bar), not\n// OutsideBarCounterTrend (plus the always-in direction), and not\n// OutsideOutsidePattern (two nested engulfs). Each of those inlines the\n// relation because no atomic rule carried it; this is that rule.\n//\n// DIRECTION comes from the breakout of the pattern and from the body sign the\n// pane supplies, so both sides are identical text -- the merge absorbed the\n// directional variants T07-34, R00-06 and T21-68 for exactly that reason.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local since both are per-symbol constants. Every\n// scratch value is a localVariables entry, never a hook-scope declaration, so\n// the hooks survive a double placement. Deepest bar touched: lag + 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_ge(high[lag], high[lag + 1] - toleranceTicks * tickSize) && el_le(low[lag], low[lag + 1] + toleranceTicks * tickSize) && (el_gt(high[lag], high[lag + 1]) || el_lt(low[lag], low[lag + 1]))",
+    "shortCondition": "el_ge(high[lag], high[lag + 1] - toleranceTicks * tickSize) && el_le(low[lag], low[lag + 1] + toleranceTicks * tickSize) && (el_gt(high[lag], high[lag + 1]) || el_lt(low[lag], low[lag + 1]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

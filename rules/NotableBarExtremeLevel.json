@@ -1,0 +1,63 @@
+{
+    "name": "NotableBarExtremeLevel",
+    "type": "Entry",
+    "inputVariables": {
+        "recentBars": "40",
+        "bodyFraction": "0.6",
+        "testTicks": "2",
+        "runTicks": "3"
+    },
+    "localVariables": {
+        "lvlUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "testUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "testDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A LEVEL REMEMBERED FROM AN EARLIER BAR. The opposite extreme of the most\n// recent NOTABLE bar -- a large trend bar, the bar an earlier setup was\n// entered on -- is support (long) or resistance (short), because the\n// protective stops of the traders who entered there rest just beyond it. A\n// bull trend bar's low is the level the bulls defend; a bear trend bar's high\n// is the bears'.\n//\n// NOTABLE is a strong trend bar in the direction being defended: the body is\n// at least bodyFraction of the bar's own range and points the right way. The\n// threshold is an input rather than a literal, per the authoring brief; 0.6 is\n// the corpus's settled strong-trend-bar body fraction (StrongTrendBarRun,\n// ClimaxBarAtChannelLine).\n//\n// DECISION (the brief settles the level, not its lifetime): \"the level\n// persists until it is tested\" is implemented as the MOST RECENT notable bar\n// within recentBars, re-derived every bar, rather than a latched level with a\n// consumed flag. A latch would need a tested/untested bit that no source\n// defines the reset for, and the scan is expressible identically in both\n// twins. The scan starts at bar 1, so the current bar can never be its own\n// level.\n//\n// TWO TRIGGERS ON ONE LEVEL, exactly as the sources state them, and the rule\n// fires on either:\n//   * the LIMIT TEST -- the low comes down into the band [level,\n//     level + testTicks] without breaking the level, and the close holds above\n//     it;\n//   * the STOP RUN -- the low probes at least runTicks BELOW the level and the\n//     close still holds above it.\n// The test half carries its lower edge (low at or above the level), which the\n// merged pseudocode left implicit: without it the stop run would be a subset\n// of the test and the second trigger would say nothing.\n//\n// Not TouchOfRecentExtreme or LevelTouchCount, whose levels are window\n// extremes; not StopRunReversalBar, whose level is an N-bar extreme rather\n// than one bar's own extreme.\n//\n// THE TICK is EL's own MinMove / PriceScale, VERIFIED and per-symbol constant\n// for the whole run, written DIVISION-FIRST in both twins so the C++ reads\n// token for token against its EasyLanguage.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nhaveUp = false;\nlvlUp = 0.0;\nfor (int i = 1; i <= (int)recentBars; ++i) {\n    if (!haveUp && el_gt(close[i], open[i])\n        && el_ge(close[i] - open[i], bodyFraction * (high[i] - low[i]))) {\n        lvlUp = low[i];\n        haveUp = true;\n    }\n}\nhaveDn = false;\nlvlDn = 0.0;\nfor (int i = 1; i <= (int)recentBars; ++i) {\n    if (!haveDn && el_lt(close[i], open[i])\n        && el_ge(open[i] - close[i], bodyFraction * (high[i] - low[i]))) {\n        lvlDn = high[i];\n        haveDn = true;\n    }\n}\ntestUp = haveUp && el_le(low[0], lvlUp + testTicks * tickSize) && el_ge(low[0], lvlUp);\nrunUp = haveUp && el_lt(low[0], lvlUp - runTicks * tickSize);\ntestDn = haveDn && el_ge(high[0], lvlDn - testTicks * tickSize) && el_le(high[0], lvlDn);\nrunDn = haveDn && el_gt(high[0], lvlDn + runTicks * tickSize);\nokUp = haveUp && (testUp || runUp) && el_gt(close[0], lvlUp);\nokDn = haveDn && (testDn || runDn) && el_lt(close[0], lvlDn);",
+    "longCondition": "okUp",
+    "shortCondition": "okDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

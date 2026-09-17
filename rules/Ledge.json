@@ -1,0 +1,34 @@
+{
+    "name": "Ledge",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "5",
+        "minMatches": "2",
+        "toleranceTicks": "0"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "nMatchLow": {
+            "type": "int",
+            "init": "0"
+        },
+        "nMatchHigh": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BULL LEDGE: at least `minMatches` of the last `lookback` bars have a low\n// within toleranceTicks of THE CURRENT BAR'S low -- a small trading range with a\n// flat floor. Short is the bear ledge, a flat ceiling of matching highs.\n//\n// ANCHORED AT THE CURRENT BAR, NOT PAIRWISE. Two of Brooks's four statements\n// define the ledge pairwise (any two bars in the window matching each other),\n// which is O(n^2) and can fire on a level price is nowhere near now; the third\n// anchors the count at the current bar. The anchored reading wins on\n// mechanizability and because it only fires while price is AT the ledge, which\n// is what an entry needs.\n//\n// THE COUNT INCLUDES THE CURRENT BAR, which trivially matches itself, exactly as\n// CountIF counts bars 0..N-1 inclusive. So minMatches = 2 means one OTHER bar\n// shares the level, and minMatches = 1 is vacuously true.\n//\n// WRITTEN AS A LOOP, NOT CountIF, and this is a specification point rather than\n// a style choice: CountIF's condition is a true SERIES whose offsets shift with\n// the counted bar (measured), so both the price read and any variable holding the anchor\n// would shift too and the test would degenerate to the distance from a bar to itself,\n// which is 0 on every bar. An anchored count cannot be expressed with CountIF.\n//\n// Tolerance 0 is Brooks's literal 'identical lows' and is the default; one\n// source says a tick. Tick division-first into a local. The entry offset of\n// R28-23 (a limit a tick or two above the ledge bottom) is not representable\n// under the signal-bar-close / next-open convention and is not carried.\n//\n// NOT MicroDoubleExtreme, which requires the match at exactly `gap`; this accepts\n// it at any lag inside the window. At lookback 2 / minMatches 2 the two coincide.\n//\n// The count is compared through el_ge against the input, mirroring EL, where\n// every numeric is a float and >= carries the relational tolerance. Every\n// scratch value is a localVariables entry, never a hook-scope declaration, so\n// the hooks survive a double placement.\n//\n// Deepest bar touched: lookback - 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nnMatchLow = 0;\nnMatchHigh = 0;\nfor (ii = 0; ii <= (int)lookback - 1; ++ii) {\n    if (el_le(std::fabs(low[ii] - low[0]), toleranceTicks * tickSize)) nMatchLow = nMatchLow + 1;\n    if (el_le(std::fabs(high[ii] - high[0]), toleranceTicks * tickSize)) nMatchHigh = nMatchHigh + 1;\n}",
+    "longCondition": "el_ge((double)nMatchLow, minMatches)",
+    "shortCondition": "el_ge((double)nMatchHigh, minMatches)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

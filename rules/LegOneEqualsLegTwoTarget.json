@@ -1,0 +1,87 @@
+{
+    "name": "LegOneEqualsLegTwoTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "lookback": "40",
+        "multiple": "1",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "tgtUp": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "tgtDn": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE LEG 1 = LEG 2 MEASURED MOVE (Brooks's AB=CD without the label he\n// rejects). A is the start of the first leg, B its end, C the end of the\n// pullback, and the target is D = C + multiple * (B - A). For a bull leg:\n// A = the swing low before the leg (occurrence 2), B = the swing high that\n// ended it (occurrence 1), C = the swing low the pullback ended at\n// (occurrence 1). The short mirror runs A = swing high occurrence 2,\n// B = swing low occurrence 1, C = swing high occurrence 1, and the SAME\n// formula serves both because B - A is negative on that side.\n//\n// ONLY OCCURRENCES 1 AND 2 ARE READ -- occurrence 3+ is unmeasured in the\n// register, so the three anchors come from the two swing-low occurrences and\n// the two swing-high occurrences rather than from a third-occurrence call.\n//\n// THE ORDERING GUARD IS THIS RULE'S OWN CONSTRUCTION, not the merged\n// pseudocode's: A, B and C must have printed in that order for the legs to be\n// legs at all, so the bars-ago counts must DESCEND, loBar2 > hiBar1 > loBar1\n// on the long side (bars-ago, so the older anchor carries the larger count),\n// and the first leg must actually be up (hiPx1 > loPx2). Without it an\n// interleaved pivot pair would project a target off two unrelated legs. The\n// -1 sentinel is guarded on every bar index too: -1 as a PRICE sits under\n// every real price and would otherwise read as a valid anchor.\n//\n// RE-READ EVERY BAR, not frozen at entry -- SwingPivotTarget's convention for\n// a structural level, and what the merged pseudocode states. A newly confirmed\n// pivot therefore moves the target; PullbackSizedProfitTarget is the rule that\n// freezes instead.\n//\n// toleranceTicks takes the target that many ticks SHORT of D. Ticks are\n// written division-first, toleranceTicks * (ctx.MinMove() / ctx.PriceScale()),\n// with the tick computed once into tickSz: MinMove and PriceScale are\n// per-symbol constants (VERIFIED -- exactly one change print per chart, at\n// bar 1), so no history is needed.\n//\n// PIVOT SCAN inlined from SwingHigh.json per the B-list decision; rules here\n// never reference each other. MEASURED (EL_Swing_Probe.txt, @ES 60 min): the\n// pivot bar is AT OR ABOVE the pivotStrength OLDER bars and STRICTLY ABOVE the\n// pivotStrength NEWER bars -- bars-ago indexing, so the newer bars are the\n// smaller k and take el_gt / el_lt, the older el_ge / el_le. Confirmation lag\n// is exactly pivotStrength bars, candidate offsets pivotStrength..lookback-1,\n// and the neighbourhood reaches pivotStrength bars past the window, so the\n// deepest bar touched is lookback - 1 + pivotStrength. Scanning newest-first\n// and taking the first two hits reproduces occurrences 1 and 2, which is what\n// the twin's SwingHigh / SwingLow calls return. The comparisons carry the\n// 2.22e-12 relational tolerance. The low side's tie sense is the mirror of the\n// measured high-side rule. No WFSafe_SwingHigh exists, so plain EL governs.\n//\n// Not PatternHeightMeasuredMoveTarget, whose height is the breakout window's\n// own span projected off the extreme that broke -- here the height is the\n// PRIOR leg and the projection starts at the PULLBACK extreme, so the two land\n// on different prices whenever the pullback is not shallow. Not\n// GapMidpointMeasuredMoveTarget (a midpoint projection) and not\n// SwingPivotTarget (exits AT a pivot and projects nothing).\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)pivotStrength;\npivW = (int)lookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nhaveUp = (loBar1 != -1.0) && (loBar2 != -1.0) && (hiBar1 != -1.0)\n    && el_gt(loBar2, hiBar1) && el_gt(hiBar1, loBar1) && el_gt(hiPx1, loPx2);\nhaveDn = (hiBar1 != -1.0) && (hiBar2 != -1.0) && (loBar1 != -1.0)\n    && el_gt(hiBar2, loBar1) && el_gt(loBar1, hiBar1) && el_lt(loPx1, hiPx2);\ntgtUp = loPx1 + multiple * (hiPx1 - loPx2);\ntgtDn = hiPx1 + multiple * (loPx1 - hiPx2);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveUp && el_ge(high[0], tgtUp - toleranceTicks * tickSz)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveDn && el_le(low[0], tgtDn + toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

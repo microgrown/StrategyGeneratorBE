@@ -1,0 +1,53 @@
+{
+    "name": "SecondSignalNotBetterPrice",
+    "type": "Entry",
+    "inputVariables": {
+        "withinBars": "10",
+        "toleranceTicks": "0"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "runLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "secondUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "secondDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S TRAP TEST ON A SECOND ENTRY: \"if the second entry is letting you in\n// at a better price than the first, be suspicious. Most good second entries are\n// at the same price or worse.\" A second buy signal whose entry price is BELOW\n// the first one's is the market still going down, not a pullback ending. Figure\n// 10.1's bar 10 is his counter-example -- one tick better than bar 9, and it\n// failed.\n//\n// THE SCAN IS SecondSignal's, INLINED -- rules in this corpus never reference\n// each other -- and carries its comment's substance unchanged: the signal is the\n// GENERIC price trigger, a close above the prior bar's high, and the failure is\n// price trading back beyond that signal bar's opposite extreme. Bar kk is the\n// earlier trigger bar and bar kk + 1 its SIGNAL bar, whose high is the first\n// entry's price; the failure window is the kk - 1 bars ENDING AT THE CURRENT\n// BAR, which is why the outer scan starts at 2 -- at kk = 2 that window is the\n// current bar alone and the inner loop does not execute, in EasyLanguage and\n// here alike. THE LOSS IS REAL AND DELIBERATE: this counts a second GENERIC\n// trigger, not a second instance of whichever pattern the pane is trading.\n//\n// THE PRICE COMPARED IS THIS BAR'S OWN HIGH, per the merged pseudocode and the\n// corpus's signal-bar-close / next-bar-open convention: the bar that fires IS\n// the signal bar, so its high is where a buy stop would go, and the first\n// entry's price is high[kk + 1]. A long passes when this bar's entry price is\n// at or ABOVE the first one's, less toleranceTicks of slack; the short mirrors\n// it at the low.\n//\n// WHICH FIRST SIGNAL. The scan can find several; the one kept is the MOST\n// RECENT, the smallest kk, because kk ascends and the retained price is written\n// only while the flag is still false. The FLAG's meaning is unchanged from\n// SecondSignal -- true if ANY kk qualifies -- so the two rules agree bar for bar\n// on that half.\n//\n// THIS IS A FILTER, so it carries the scan's finding and the price gate but NOT\n// SecondSignal's own bar-0 trigger (close[0] > high[1]): the placement ANDs it\n// with whatever entry it is gating, and SecondSignal supplies the trigger when\n// it is the one being gated. At a very large toleranceTicks the rule degenerates\n// to SecondSignal without its trigger, which is the intended superset relation\n// and the reason Brooks states it as an override rather than a separate setup.\n//\n// Both sides are computed in the hook: EasyLanguage does not short-circuit, so a\n// scan inside a condition would run on every bar in EL and only on some bars in\n// C++.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nsecondUp = false;\nsecondDn = false;\nfirstHigh = 0.0;\nfirstLow = 0.0;\nfor (kk = 2; kk <= (int)withinBars; ++kk) {\n    runLow = low[0];\n    runHigh = high[0];\n    for (jj = 1; jj <= kk - 2; ++jj) {\n        if (el_lt(low[jj], runLow)) runLow = low[jj];\n        if (el_gt(high[jj], runHigh)) runHigh = high[jj];\n    }\n    if (el_gt(close[kk], high[kk + 1]) && el_lt(runLow, low[kk + 1]) && !secondUp) {\n        secondUp = true;\n        firstHigh = high[kk + 1];\n    }\n    if (el_lt(close[kk], low[kk + 1]) && el_gt(runHigh, high[kk + 1]) && !secondDn) {\n        secondDn = true;\n        firstLow = low[kk + 1];\n    }\n}",
+    "longCondition": "secondUp && el_ge(high[0], firstHigh - toleranceTicks * tickSz)",
+    "shortCondition": "secondDn && el_le(low[0], firstLow + toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

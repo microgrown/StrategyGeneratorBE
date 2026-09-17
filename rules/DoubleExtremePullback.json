@@ -1,0 +1,102 @@
+{
+    "name": "DoubleExtremePullback",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "patternWindow": "30",
+        "pivotLookback": "40",
+        "matchTicks": "2",
+        "holdTicks": "0",
+        "testZoneAtr": "0.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveDb": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDt": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dbLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dtLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE DOUBLE BOTTOM PULLBACK -- a NAMED Brooks setup and one of his most\n// reliable buys: a three-push bottom whose third push down did not have\n// strong-enough sellers to make a new low. After a double bottom has formed\n// within the last patternWindow bars, this bar's low holds ABOVE the pattern's\n// level, coming no closer than holdTicks and no further than testZoneAtr ATRs.\n// The short is the double top pullback.\n//\n// CARRIED AS A COMPOSITE on purpose. ANDing a double-bottom rule with a\n// higher-low rule does NOT reproduce it: the pane would not know that the\n// higher low has to sit just above THAT level. The relationship between the\n// third push and the pattern's own price is the setup.\n//\n// THE PATTERN. There is no DoubleExtreme rule on disk, so the pattern is\n// inlined here and in the two DoubleExtreme* rules beside it, all three\n// spelling it the same way: the two most recent CONFIRMED swing lows are\n// within matchTicks of each other, and the more recent of them confirmed no\n// more than patternWindow bars ago. matchTicks and pivotLookback ARE PROMOTED\n// -- the merged parameters name neither the price tolerance that makes two\n// lows \"the same\" nor the window the pivots are sought in. THE PATTERN'S LEVEL\n// IS THE LOWER of the two lows (the higher of the two highs for a double top):\n// it is the price a breakout has to clear, which is what keeps this rule, the\n// breakout rule and the dip rule all reading one level.\n//\n// THE ZONE. holdTicks is the near edge and testZoneAtr the far edge, so the\n// low must sit in a band just above the level. holdTicks IS ALLOWED TO GO\n// NEGATIVE: Brooks treats the third push ending AT the level (a triple bottom)\n// or slightly BELOW it and reversing (a failed breakout) as the same setup, so\n// the near edge moves rather than the zone widening. Zone in ATRs for\n// portability, near edge in ticks because the sources state it in ticks.\n// Ticks division-first, ctx.MinMove() / ctx.PriceScale() computed once into\n// tickSz; both are per-symbol constants (VERIFIED).\n//\n// PIVOT SCAN inlined from SwingHigh.json per the B-list decision, occurrences\n// 1 and 2 only (occurrence 3+ is unmeasured). MEASURED (EL_Swing_Probe.txt,\n// @ES 60 min): the pivot bar is AT OR ABOVE the `strength` OLDER bars and\n// STRICTLY ABOVE the `strength` NEWER bars -- bars-ago indexing, so the newer\n// bars are the smaller k and take el_gt / el_lt, the older el_ge / el_le;\n// confirmation lag exactly `strength`; candidate offsets\n// strength..pivotLookback-1, the neighbourhood reaching `strength` bars past\n// the window, so the deepest bar touched is pivotLookback - 1 + strength. The\n// comparisons carry the 2.22e-12 relational tolerance. A flat run of equal\n// lows is ONE pivot, not N, which is what makes a \"double\" bottom two separate\n// pushes rather than one shelf. The -1 sentinel is guarded on both bar indices.\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget. Seeded with a full sum on the first calculated bar or when\n// the length changes, and updated thereafter as TWO statements -- EL evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently. The local counter is atrLen, not atrLength, which is the input.\n//\n// Not MicroDoubleExtreme, which matches two bar extremes at a fixed small lag;\n// this pattern is two CONFIRMED PIVOTS any distance apart. Not Ledge, which\n// counts bars matching the current bar's extreme inside a window. Not\n// HigherSwingLow, which compares two pivots and knows nothing about a level.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)strength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nhaveDb = (loBar1 != -1.0) && (loBar2 != -1.0) && el_le(loBar1, patternWindow)\n    && el_le(std::fabs(loPx1 - loPx2), matchTicks * tickSz);\nhaveDt = (hiBar1 != -1.0) && (hiBar2 != -1.0) && el_le(hiBar1, patternWindow)\n    && el_le(std::fabs(hiPx1 - hiPx2), matchTicks * tickSz);\ndbLevel = loPx1;\nif (el_lt(loPx2, loPx1)) dbLevel = loPx2;\ndtLevel = hiPx1;\nif (el_gt(hiPx2, hiPx1)) dtLevel = hiPx2;\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "haveDb && el_gt(low[0], dbLevel + holdTicks * tickSz) && el_lt(low[0], dbLevel + testZoneAtr * atrVal)",
+    "shortCondition": "haveDt && el_lt(high[0], dtLevel - holdTicks * tickSz) && el_gt(high[0], dtLevel - testZoneAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

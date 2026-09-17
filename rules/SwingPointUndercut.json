@@ -1,0 +1,46 @@
+{
+    "name": "SwingPointUndercut",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "offsetTicks": "0",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "swLoPx": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "swHiPx": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S UNIVERSAL COUNTERTREND TRIGGER: buy at or below the low of a prior\n// swing low, expecting the breakout of it to fail. The bar's low trades at or\n// below the most recent CONFIRMED swing low, by at least offsetTicks; the\n// short mirrors at the most recent swing high.\n//\n// Eleven mined candidates collapse to this one condition. Seven are the plain\n// limit trigger differing only in the CONTEXT GATE they attach -- range\n// bottom, bull channel, bear channel, pullback in a bull trend, late-stage\n// channel -- every one of which is a rule in another bucket that the entry\n// pane ANDs, so none of them changes this test. Two more are its NEGATION (the\n// test undershoots the old extreme), which is the per-placement negate toggle.\n// The scale-in sizing two of them attach is not expressible and is dropped.\n//\n// offsetTicks DEFAULTS TO 0, not Brooks's \"one tick below\": the standing\n// convention mechanizes a limit fill as a signal-bar close with the fill at\n// the next bar's open, so the extra tick has nowhere to land. Ticks are division-first,\n// ctx.MinMove() / ctx.PriceScale() computed once into tickSz; both are\n// per-symbol constants (VERIFIED, one change print per chart, at bar 1).\n//\n// THE -1 SENTINEL is guarded explicitly: a window with no pivot leaves the\n// level at -1, which as a PRICE sits under every real price, so an unguarded\n// long would read every bar as an undercut.\n//\n// THE PIVOT IS READ AT THE CURRENT BAR, not lagged. The newest pivot the scan\n// can return sits exactly `strength` bars back (confirmation lag MEASURED as\n// exactly Strength, never 0 or 1), so bar 0 can never be the pivot it is\n// compared against, and no lagged read of a swing function -- which has no\n// register row -- is needed.\n//\n// PIVOT SCAN inlined from SwingHigh.json per the B-list decision. MEASURED\n// (EL_Swing_Probe.txt, @ES 60 min): the pivot bar is AT OR ABOVE the `strength`\n// OLDER bars and STRICTLY ABOVE the `strength` NEWER bars -- bars-ago indexing,\n// so the newer bars are the smaller k and take el_gt / el_lt, the older el_ge /\n// el_le; lag exactly `strength`; candidate offsets strength..maxBarsBack-1,\n// with the neighbourhood reaching `strength` bars past the window, so the\n// deepest bar touched is maxBarsBack - 1 + strength. Scanning newest-first\n// with a break reproduces occurrence 1. The comparisons carry the 2.22e-12\n// relational tolerance. The low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingHigh exists, so plain EL governs.\n//\n// Not SwingPointTestHolds, which requires the low to come NEAR the pivot\n// WITHOUT breaking it. Not FailedSwingBreakoutReversal, which is this undercut\n// AND the close back above the pivot -- the whole reversal, where this is the\n// undercut alone and fires on far more bars. Not StopRunReversalBar, whose\n// level is a plain N-bar window extreme.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)strength;\npivW = (int)maxBarsBack;\nswHiPx = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { swHiPx = high[j]; break; }\n}\nswLoPx = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { swLoPx = low[j]; break; }\n}\nhaveHi = (swHiPx != -1.0);\nhaveLo = (swLoPx != -1.0);",
+    "longCondition": "haveLo && el_le(low[0], swLoPx - offsetTicks * tickSz)",
+    "shortCondition": "haveHi && el_ge(high[0], swHiPx + offsetTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

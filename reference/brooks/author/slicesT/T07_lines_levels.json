@@ -1,0 +1,379 @@
+[
+  {
+    "key": "ChannelLineOvershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar's high trades beyond the projected trend channel line (the parallel of the trend line on the far side of the channel) -- the bare penetration, with no reversal requirement.",
+    "pseudocode": "high[0] > channelLine[0] + overshootTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "overshootTicks": 0
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection, the trend line through two same-side pivots, and its parallel through the extreme pivot between them"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R00-43",
+      "R00-44",
+      "V00-59",
+      "TP2-02",
+      "T15-07"
+    ],
+    "merge_notes": "R00-44 and V00-59 are the same one-line test, restated verbatim from the two glossaries. TP2-02 and T15-07 are the LINE CONSTRUCTION rather than a firing condition, kept here as citations because this is the first rule that uses it: the parallel of the trend line anchored at the extreme pivot lying between the trend line's two anchors, pivotStrength 2, identical in both books (T15-07 p269 adds that the anchor should be the swing that 'contained all of the sell-offs', which the highest high between the anchors satisfies). R00-43's 'micro trend channel line' fits a line across the highs of three to five consecutive bars instead -- the same object over a fixed window rather than pivots; recorded in design_decisions as the cheap alternative. Every rule below that names channelLine[0] uses this construction.",
+    "variants_kept_separate": [
+      "ChannelLineUndershoot",
+      "SignificantChannelLineOvershoot",
+      "ChannelLineOvershootReversal"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [
+      "trend channel line construction"
+    ],
+    "bucket": "lines_channels_channels",
+    "el_words": [
+      "swinghigh",
+      "swinglow",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "ChannelLineUndershoot",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The bar approaches the projected trend channel line to within a band but does not reach it -- the market reverses away without touching the line.",
+    "pseudocode": "high[0] < channelLine[0] - undershootTicks * tickSize && high[0] > channelLine[0] - undershootBandTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "undershootTicks": 1,
+      "undershootBandTicks": 5
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "the channel-line projection, plus a two-sided band"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R00-45",
+      "V00-60",
+      "R28-39"
+    ],
+    "merge_notes": "The two glossaries again. Not ChannelLineOvershoot negated: the negation would fire on every bar nowhere near the line, so the band's outer edge is the content. V00-60 gives 5 ticks, R00-45 gives 4; 5 chosen. Neither source states the 'and then reverses' half in any measurable form, so it is left out.",
+    "variants_kept_separate": [
+      "ChannelLineOvershoot"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [
+      "trend channel line construction"
+    ],
+    "bucket": "lines_channels_channels",
+    "el_words": [
+      "swinghigh",
+      "swinglow",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "ChannelBreakoutPullbackEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "After a bar closes beyond a channel's line, do not take that breakout; wait for the pullback that retests the channel's old extreme and enter on the signal bar that forms there.",
+    "pseudocode": "exists b in 2..maxPullbackBars with close[b] > channelLine[b] (breakout bar) && low[1] == lowest(low, b-1) (the pullback low) && close[0] > high[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "maxPullbackBars": 20,
+      "retestTicks": 3
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "the channel line, plus breakout and pullback state tracked over an open-ended window"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "The generic breakout-pullback primitive lives in breakouts_pullback_retest; this is that primitive gated on a channel breakout."
+    },
+    "sources": [
+      "T21-29",
+      "RP3-12",
+      "V24-21"
+    ],
+    "merge_notes": "Three statements of one setup at three scales: T21-29 after a spike-and-channel breaks, RP3-12 after a steep channel's trend-line break ('the test can be a lower high, a double top, or a higher high' -- so which retest shape qualifies is a parameter, not three rules), V24-21 after a micro channel breaks. V24-21's minChannelBars = 4 micro-channel gate is MicroChannelRunLength ANDed in, not part of this rule. The authoring pass should check this against the breakouts_pullback_retest bucket's generic breakout-pullback rule before authoring a second one.",
+    "variants_kept_separate": [
+      "MicroChannelFailedBreakoutEntry",
+      "ChannelLineBreakoutFailure"
+    ],
+    "depends_on_keys": [
+      "MicroChannelRunLength"
+    ],
+    "design_decisions_needed": [
+      "trend channel line construction"
+    ],
+    "bucket": "lines_channels_channels",
+    "el_words": [
+      "highest",
+      "lowest",
+      "swinghigh",
+      "swinglow",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "TrendLineBreak",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The close is beyond the projected trend line: for the long side, above the bear trend line drawn through the two most recent confirmed swing highs of the prior down move (mirrored: below the bull trend line drawn through the two most recent swing lows). Fires on the break bar itself.",
+    "pseudocode": "p1b = swingHighBar(swingStrength, 2); p2b = swingHighBar(swingStrength, 1); require high[p2b] < high[p1b]; bearTl0 = tlValue(high[p1b], p1b, high[p2b], p2b, 0); close[0] > bearTl0 + breakTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2,
+      "breakTicks": 0
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "two confirmed swing pivots plus a projected line value (TLValue); the line only exists once the second pivot is confirmed, swingStrength bars after it prints"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "nothing in the catalog projects a line through pivots"
+    },
+    "sources": [
+      "TP2-01",
+      "T13-02",
+      "T14-02",
+      "T15-06",
+      "V02-10",
+      "V02-19",
+      "V03-01",
+      "V24-13",
+      "R11-13",
+      "R11-18",
+      "T20-05",
+      "T13-12",
+      "T14-10",
+      "T16-10",
+      "V03-02"
+    ],
+    "merge_notes": "Fourteen restatements of one test. The construction decision (see design_decisions 'trend-line construction') is: the two most recent CONFIRMED swing pivots on the trend side, priced at the pivot bar's high/low, projected with TLValue; if the second pivot is not beyond the first in the trend direction the line is undefined and the rule is false. TP2-01/T13-02/T14-02/T15-06 are the identical construction statements from four chapters (citations, not separate rules). 'Minor' vs 'major' is this rule at different parameters, not two rules: R11-13 minor = swingStrength 1 over ~15 bars, R11-18 major = swingStrength 3 over ~50 bars, T16-10 calls a line 'major' once it is ~12 bars old. V02-19's 'break by many ticks' is breakTicks = 8 on the same test (the mining file itself calls it a parameterization of V02-10). T13-12 (anchor on candle bodies, min(open,close), instead of tails) and T14-10 (redraw through the first two pullback lows instead of the trend-channel-line parallel) are construction ALTERNATIVES, recorded in design_decisions; both are strays absorbed here as citations. Break is close-based in every source that states one; a high/low-based break is the recorded alternative.",
+    "variants_kept_separate": [
+      "TrendLineBrokenRecently",
+      "MicroTrendLineFailedBreakout",
+      "TrendChannelLineOvershoot"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "lines_channels_trendlines",
+    "el_words": [
+      "swinghigh",
+      "swinghighbar",
+      "swinglow",
+      "swinglowbar",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "BrokenTrendLineHoldsAsSupport",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "After a bear trend line was broken to the upside, the pullback's lowest low stays at or above the projected old line and the bar closes up -- broken resistance acting as support (the breakout test of the line).",
+    "pseudocode": "lowest(low, pullbackBars) >= oldTlValue(0) - toleranceTicks * tickSize && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "pullbackBars": 5,
+      "toleranceTicks": 2,
+      "swingStrength": 2
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "the broken line must keep being projected after the break, i.e. its anchor pivots are frozen at the break rather than following the newest pivots"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "V02-32"
+    ],
+    "merge_notes": "Kept apart from TrendLineTouch: that one tests an INTACT line from the trend side, this one tests a BROKEN line from the far side, and the two need opposite anchor-freezing behaviour (TrendLineTouch always uses the newest pivots; this one must keep the pre-break pair). The frozen-anchor requirement is the one place where the 'always redraw from the newest pivots' construction decision does not apply, and it is called out in design_decisions.",
+    "variants_kept_separate": [
+      "TrendLineTouch"
+    ],
+    "depends_on_keys": [
+      "TrendLineBreak"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "lines_channels_trendlines",
+    "el_words": [
+      "lowest",
+      "swinghigh",
+      "swinglow",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "ExtremeTestAfterTrendLineBreak",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "A trend-line break happened within the last withinBars bars and price has now come back to within tolTicks of the trend extreme that stood at the time of the break -- the second half of Brooks's break-then-test reversal sequence.",
+    "pseudocode": "barsSince(TrendLineBreak) <= withinBars && abs(high[0] - extremeAtBreak) <= tolTicks * tickSize, where extremeAtBreak = highest(high, withinBars) as of the break bar",
+    "sides": "mirrored",
+    "parameters": {
+      "withinBars": 25,
+      "tolTicks": 4,
+      "matureBars": 20,
+      "swingStrength": 2
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the break event and the pre-break extreme both persisted; the current-bar test is one comparison"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R00-51",
+      "T13-04",
+      "R04-03",
+      "VP1-03",
+      "R08-26"
+    ],
+    "merge_notes": "Kept whole rather than split into TrendLineBrokenRecently AND a level test, because the level tested is the extreme AS IT STOOD AT THE BREAK, which no separate pane can reference. R04-03 is this same condition used NEGATED (block a with-trend breakout buy that is really a post-break retest) -- a per-placement toggle, so the same rule. T13-04 adds the line-age gate (matureBars, 'in effect for dozens of bars'), carried as a parameter. VP1-03 (stray, absorbed) is the cleanest statement of the level test and supplies tolTicks = 2; R00-51 supplies 4. Five further candidates state this AND a reversal-bar-quality term (V02-11, V13-02, T05-07, T17-06, plus the stray TP4-11); they are dropped as compositions since the reversal-bar half belongs to bar_anatomy_reversal_signal and the pane system ANDs entries.",
+    "variants_kept_separate": [
+      "TrendLineBrokenRecently"
+    ],
+    "depends_on_keys": [
+      "TrendLineBreak",
+      "TrendLineBrokenRecently"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "lines_channels_trendlines",
+    "el_words": [
+      "highest",
+      "lowest",
+      "swinghigh",
+      "swinglow",
+      "tlvalue"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "DailyPivotProximity",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The close is within a tick tolerance of the classic floor-trader daily pivot, (priorDayHigh + priorDayLow + priorDayClose) / 3. Identical both sides.",
+    "pseudocode": "pivot = (priorSessionHigh + priorSessionLow + priorSessionClose) / 3; absValue(close[0] - pivot) <= toleranceTicks * tickSize",
+    "sides": "same",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "on an intraday series it needs the prior session's high, low and close carried across the session boundary; on a daily series it is (high[1] + low[1] + close[1]) / 3, which is trivial"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseWithinAtrOfVwap",
+      "relation": "variant",
+      "note": "Both test proximity to a session-derived reference. CloseWithinAtrOfVwap tracks the CURRENT session's volume-weighted price and scales its band by ATR; this reads three fixed values from the COMPLETED prior session and uses a tick band."
+    },
+    "sources": [
+      "RP2-02"
+    ],
+    "merge_notes": "A stray sent here from swing_structure, and it fits: it is another constructed level in a file of constructed levels. Brooks writes only 'daily pivots' and names no formula, so the classic (H + L + C) / 3 is chosen -- the one everyone means by the bare phrase, and the only one of the three families (classic / Woodie / Camarilla) that needs no extra weighting choice. R1/S1 and the wider bands are deliberately not carried; add them as a ratio input if the base level tests out. On a daily (M1440) series this collapses to a prior-bar expression and is priority A work; it is graded B for the intraday case, which needs the session boundary.",
+    "variants_kept_separate": [
+      "RoundNumberProximity",
+      "TouchOfRecentExtreme"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [
+      "absvalue",
+      "date",
+      "minmove",
+      "pricescale",
+      "time"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  },
+  {
+    "key": "NotableBarExtremeLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The opposite extreme of a recent notable bar -- a large trend bar, or the signal/entry bar of an earlier setup -- is remembered as a support/resistance level, because the protective stops of the traders who entered there rest just beyond it. The level persists until it is tested: price either turns at it (limit test) or probes a few ticks past it and closes back on the trend side (a stop run).",
+    "pseudocode": "level = low[k] where bar k is the most recent LargeTrendBar or long signal bar within recentBars; testHolds = low[0] <= level + testTicks * tickSize && close[0] > level; stopRun = low[0] < level - runTicks * tickSize && close[0] > level",
+    "sides": "mirrored",
+    "parameters": {
+      "recentBars": 40,
+      "testTicks": 2,
+      "runTicks": 3
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a persistent level recorded at a notable bar and held across bars until tested"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "no catalog rule remembers a level from an earlier bar"
+    },
+    "sources": [
+      "R10-12",
+      "R10-13",
+      "R28-14"
+    ],
+    "merge_notes": "R10-12 states the level primitive; R10-13 is the stop-run-then-reverse trigger on it; R28-14 is the resting limit a tick or two above the original spike signal-bar high, the same level used as a test. Merged as one rule because the level is the machinery and both triggers are one comparison against it.",
+    "variants_kept_separate": [
+      "SecondOvershootAtLevel"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "support_resistance_levels",
+    "el_words": [],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T07_lines_levels"
+  }
+]

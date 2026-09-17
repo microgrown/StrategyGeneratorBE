@@ -1,0 +1,33 @@
+{
+    "name": "TouchOfRecentExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR REACHES THE RECENT EXTREME. Long: the high trades up to the highest\n// high of the `lookback` bars ENDING ONE BAR AGO, within toleranceTicks. Short:\n// the low trades down to the lowest low of that same window. A recent swing\n// extreme is the magnet the market most often comes back to test, and the level\n// a double top or double bottom forms at.\n//\n// THE WINDOW EXCLUDES THE CURRENT BAR, which is what separates this from\n// HighestHighBreakout, whose window INCLUDES bar 0 and therefore means 'this bar\n// made the N-bar high'. That case is this rule's boundary at toleranceTicks 0.\n// The one-bar-shifted PRICE SERIES is handed to Highest/Lowest in the twin, as\n// StopBeyondRecentRangeExtreme and NearAnyLevel write it, rather than lagging\n// the function's own result.\n//\n// Highest/Lowest bottom out in Extremes(), which is EL SOURCE: seeded at the\n// window's first bar, scanning the rest, strict comparison so a tie keeps the\n// earliest bar, and its comparisons carry the relational tolerance -- hence\n// el_gt / el_lt rather than > and <.\n//\n// THE TOLERANCE IS THE WHOLE POINT: Brooks counts the bars that REACH the level,\n// including the ones that stop a tick short of taking it out, so the test is\n// ONE-SIDED with a tick margin and never a two-sided band on the close. That is\n// the touch convention every level rule in this slice follows. toleranceTicks 0\n// is the strict 'the market has to get that extra tick and actually touch it'\n// reading; 1 is the merged default.\n//\n// Tick division-first, toleranceTicks * (ctx.MinMove() / ctx.PriceScale()),\n// computed once per bar into a local since both are per-symbol constants.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: lookback.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nlevelHigh = high[1];\nlevelLow = low[1];\nfor (ii = 2; ii <= (int)lookback; ++ii) {\n    if (el_gt(high[ii], levelHigh)) levelHigh = high[ii];\n    if (el_lt(low[ii], levelLow)) levelLow = low[ii];\n}",
+    "longCondition": "el_ge(high[0], levelHigh - toleranceTicks * tickSize)",
+    "shortCondition": "el_le(low[0], levelLow + toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

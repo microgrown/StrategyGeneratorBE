@@ -1,0 +1,37 @@
+{
+    "name": "RangeHeightProjectionTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tgtUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tgtDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BROOKS'S STANDARD TRADING-RANGE TARGET: a breakout out of a range tends to\n// run about the range's own HEIGHT beyond it, so a long is closed when the high\n// reaches the top of the rangeLookback-bar range plus that range's height, and a\n// short when the low reaches the bottom less it.\n//\n// THE ROLLING FORM IS DELIBERATE and is the merge pass's decision, taken on the\n// brief's most-mechanizable rule and proposed by R08-13's own notes: the window\n// ends ONE BAR AGO and is re-read every bar, so the projection DRIFTS as the\n// window rolls. That is the cost, and it is the whole distinction from\n// PatternHeightMeasuredMoveTarget, which captures Highest(High[1], refBars) and\n// Lowest(Low[1], refBars) ONCE at entry and never moves the level again. The\n// two therefore fire on different bars on every trade that lasts more than one\n// bar, and neither is the other at any parameter -- the same frozen/rolling\n// distinction that keeps RollingRangeMidpointTarget apart from\n// GapMidpointMeasuredMoveTarget, and the same reason OpeningRangeMeasuredMoveTarget\n// is kept apart from PatternHeightMeasuredMoveTarget. Brooks's own caveat is\n// that the distance is approximate however it is measured.\n//\n// Not RangeMidpointTarget, which exits AT the midpoint of the window -- inside\n// the range rather than a full height beyond its edge. Not AtrProfitTarget,\n// which scales OPEN PROFIT by ATR and never looks at where the range was: this\n// projects a PRICE from the window's own height, so where the position was\n// entered does not enter into it. Not ExitAtPriorRangeExtreme, whose target is\n// the window's far edge itself with no projection beyond it.\n//\n// THE WINDOW ENDS ONE BAR AGO -- Highest(High, rangeLookback)[1] -- so the bar\n// being tested cannot raise the target it is being tested against; without that\n// offset a bar making a new high would push its own target up by two ticks for\n// every one it gained and the rule could never fire. The scans mirror\n// EasyLanguage's Extremes(), which Highest() and Lowest() call: seeded at the\n// window's first bar, scanning the rest, strict comparison, EL SOURCE and so\n// carrying the relational tolerance -- el_gt / el_lt, not raw > and <.\n//\n// The MarketPosition guard is what makes it an Exit: the projection is computed\n// every bar whether or not a position is open.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nrangeHigh = high[1];\nrangeLow = low[1];\nfor (int i = 2; i <= (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\ntgtUp = rangeHigh + (rangeHigh - rangeLow);\ntgtDn = rangeLow - (rangeHigh - rangeLow);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], tgtUp - toleranceTicks * tickSz)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], tgtDn + toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,44 @@
+{
+    "name": "GapLevelRetest",
+    "type": "Exit",
+    "inputVariables": {
+        "toleranceTicks": "2"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "exitUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "exitDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A GAP IS A MAGNET. The empty band a breakout leaves behind draws price back,\n// so its NEAR EDGE is a target for a position taken away from it. A LONG is\n// closed at the near edge of the last DOWN gap left ABOVE the market -- the\n// high of the bar that gapped below its predecessor -- and a SHORT at the near\n// edge of the last UP gap left BELOW it, the low of the bar that gapped above\n// its predecessor. The merged pseudocode spelled the up-gap, which is the\n// SHORT's cover target; the pair is mirrored, so it is written here with the\n// long side first, the same correction ExtremeTestAfterTrendLineBreak needed.\n//\n// THE LEVEL PERSISTS FROM THE BAR THAT MADE THE GAP, which is the whole\n// difference between this and a window scan: a gap ten bars back and a gap\n// eighty bars back are the same magnet. GapFilledExit, the nearest catalog\n// rule, is the OPPOSITE event on the OPPOSITE side -- it exits a long when the\n// close falls BACK BELOW the lower edge of a bull gap, i.e. when the gap fails,\n// and it rescans a bounded window every bar rather than holding the level.\n// BreakoutLevelRetest's level is a swing pivot, not a gap; IslandReversalRetest\n// needs a MATCHED PAIR of gaps with a non-overlap constraint and fires on a\n// subset of these bars.\n//\n// STATEMENT ORDER IS PART OF THE SPECIFICATION, and it is what keeps a gap bar\n// from firing on itself: the exit tests are evaluated against the levels held\n// COMING INTO the bar, a reached level is then disarmed, and only after that is\n// this bar's own gap recorded. A bear-gap bar's high IS its level, so recording\n// first would fire the long unconditionally on every down gap.\n//\n// THE LEVEL IS MARKET STRUCTURE, NOT POSITION STATE, so it survives across\n// trades and is never reset on BarsSinceEntry -- the same call\n// TrailStopToMicroMeasuringGap makes for its gap level. It is disarmed once\n// reached, because a filled gap is no longer a magnet; the arming is a bool\n// rather than a level > 0 test, because a back-adjusted continuous contract can\n// price below zero. The MarketPosition guard is what makes it an Exit: the\n// level is computed every bar whether or not a position is open.\n//\n// The gap tests are STRICT (Low > High[1]), matching TrueGapBar's measured\n// spelling: a bar merely touching the prior bar's extreme leaves no band.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage (README \"N ticks\",\n// TICKSIZE_FINDINGS.md). Read once into a local; it needs no history.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nexitUp = haveBear && el_ge(high[0], bearLevel - toleranceTicks * tickSz);\nexitDn = haveBull && el_le(low[0], bullLevel + toleranceTicks * tickSz);\nif (exitUp) haveBear = false;\nif (exitDn) haveBull = false;\nif (el_gt(low[0], high[1])) {\n    bullLevel = low[0];\n    haveBull = true;\n}\nif (el_lt(high[0], low[1])) {\n    bearLevel = high[0];\n    haveBear = true;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && exitUp",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && exitDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

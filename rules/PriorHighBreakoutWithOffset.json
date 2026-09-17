@@ -1,0 +1,20 @@
+{
+    "name": "PriorHighBreakoutWithOffset",
+    "type": "Entry",
+    "inputVariables": {
+        "offsetTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A BREAKOUT WITH A BUFFER. The close clears the PRIOR bar's high by at least\n// offsetTicks before the entry counts -- Brooks's guard against the one-tick\n// trap, \"a couple of ticks above the high of the prior bar\" (T04-14). Mirrored\n// below the prior low.\n//\n// EL: close > high[1] + offsetTicks * tickSize\n//\n// THE OFFSET IS THE RULE. CloseAbovePriorHigh is this test at offsetTicks = 0;\n// it carries only a bar lookback and no price offset, so the buffer is not\n// reachable from it at any setting. The offset is instrument-specific (Brooks\n// gives a couple of ticks for stocks, one tick generally), which is how\n// CloseNearPriorLow's threshold is already handled in the corpus.\n//\n// Not CloseNearPriorLow, which reads the close against the OPPOSITE extreme of\n// the prior bar and in the opposite sense. Not NoGapThroughSignalBarStop, which\n// caps the *opening price* below the same level and reads the bar's *high*,\n// not its close. Not\n// BreakoutClearsPriorExtremeByMargin, which measures the same margin from a\n// whole Highest window and from the bar's *high* rather than its close.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_gt(close[0], high[1] + offsetTicks * tickSize)",
+    "shortCondition": "el_lt(close[0], low[1] - offsetTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

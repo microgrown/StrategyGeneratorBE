@@ -1,0 +1,511 @@
+[
+  {
+    "key": "StrongBullReversalBarComposite",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "Brooks's 'best bull reversal bar': the minimum reversal-bar test plus at least M of the open/tail/overlap quality sub-tests. An M-of-N score, not an AND.",
+    "pseudocode": "reversalBarMinimum[0] && countTrue(reversalBarOpenNearPriorClose[0], reversalBarTailFraction[0], reversalBarLowOverlap[0]) >= minQualitiesRequired",
+    "sides": "mirrored",
+    "parameters": {
+      "minQualitiesRequired": 2,
+      "nearTicks": 1,
+      "minTailFraction": 0.33,
+      "maxTailFraction": 0.5,
+      "oppositeTailMax": 0.1,
+      "maxOverlapFraction": 0.5
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an M-of-N count over otherwise trivial sub-tests; each sub-test is cheap but the scoring shape is new to the corpus"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "T00-44"
+    ],
+    "merge_notes": "Carried as a composite under the named-Brooks-setup exception: 'the best bull reversal bars have more than one of the following' is the book's own scoring statement, and an M-of-N count is not reachable by ANDing panes. Graded by its hardest part, which is the count itself. The source also folds in a follow-through-bar term; that is dropped with V00-34 as a look-ahead condition.",
+    "variants_kept_separate": [
+      "ReversalBarMinimum",
+      "BullReversalBarShape"
+    ],
+    "depends_on_keys": [
+      "ReversalBarMinimum",
+      "ReversalBarOpenNearPriorClose",
+      "ReversalBarTailFraction",
+      "ReversalBarLowOverlap"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "bar_anatomy_reversal_signal",
+    "el_words": [],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "SpikeTrendBarsLowOverlap",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "Each of the last N bars is a bull trend bar AND barely overlaps the bar before it (each bar's low is no more than X ticks below the previous bar's low): a Brooks spike with little overlap.",
+    "pseudocode": "for k in 0..spikeBars-1: close[k] > open[k] && (close[k] - open[k]) >= bodyFraction * (high[k] - low[k]) && (k == spikeBars-1 || low[k] >= low[k+1] - maxOverlapTicks * tickSize)",
+    "sides": "mirrored",
+    "parameters": {
+      "spikeBars": 3,
+      "bodyFraction": 0.7,
+      "maxOverlapTicks": 2
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a fixed-length loop combining a per-bar classification with a bar-to-bar overlap test inside the run"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "V19-02",
+      "V19-03",
+      "T00-28"
+    ],
+    "merge_notes": "V19-03 is V19-02 with spikeBars fixed at 2 plus a first-hour session gate; merged as a fixed parameter, and the session gate is dropped (it is TimeWindow from the catalog, ANDed in a separate pane). Kept apart from ConsecutiveTrendBars because the pairwise overlap term applies between adjacent bars of the run and cannot be ANDed in from another pane. Brooks's spikeBars: 2 for a light always-in read, 3-4 for a trend-day read; default 3.",
+    "variants_kept_separate": [
+      "ConsecutiveTrendBars",
+      "ConsecutiveStrongTrendBars"
+    ],
+    "depends_on_keys": [
+      "TrendBarBody"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "bar_anatomy_trend_doji",
+    "el_words": [],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "SmallBarNearRecentExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "A small-range bar that closes up and whose low is within X ticks of the lowest low of the last N bars (short: mirrored) - the small bar shows the sellers have stopped at that level.",
+    "pseudocode": "(high[0] - low[0]) <= smallFraction * atr(atrLookback) && low[0] <= lowest(low, extremeLookback)[1] + nearTicks * tickSize && close[0] > open[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "smallFraction": 0.5,
+      "atrLookback": 14,
+      "extremeLookback": 5,
+      "nearTicks": 2
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an ATR window and a Lowest window, plus a proximity test on the current bar"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseNearPriorLow",
+      "relation": "variant",
+      "note": "CloseNearPriorLow measures the CLOSE against the single previous bar's low plus an offset; this measures the LOW against the lowest low of a window. Different bars."
+    },
+    "sources": [
+      "T06-14"
+    ],
+    "merge_notes": "Two of its three terms are carried elsewhere (BarRangeAboveAtrMultiple negated, TrendBarBody at bodyFraction 0), but the proximity-to-a-recent-extreme term is not carried anywhere in this bucket, so the setup is kept whole rather than dropped as a composition. Brooks's actual test is a visual comparison against 'a big bar'; the window low is the mechanizable reading.",
+    "variants_kept_separate": [
+      "BarRangeAboveAtrMultiple",
+      "FadeSmallBarAtTightRangeExtreme"
+    ],
+    "depends_on_keys": [
+      "BarRangeAboveAtrMultiple",
+      "TrendBarBody"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "bar_anatomy_trend_doji",
+    "el_words": [
+      "lowest",
+      "wfsafe_avgtruerange"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "GapLevelRetest",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "A price gap left behind by a breakout is a magnet: the market is drawn back to fill or retest the gap's near edge, which serves as a target for a position taken away from it.",
+    "pseudocode": "gapLevel = low[g] where low[g] > high[g + 1]; low[0] <= gapLevel + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "toleranceTicks": 2
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the gap's boundary must persist from the bar where it formed"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R10-09",
+      "V01-13",
+      "T22-08"
+    ],
+    "merge_notes": "Same level test in three books. R10-09 states the magnet tendency generally (a true bar gap or a moving-average gap bar); V01-13 states it as an intraday context filter on a tracked breakout/measuring gap, so the same rule in the Entry role; T22-08 uses it as the cover target for a fade, with the gap being the two or three trend bars that carried price between two trading ranges (a band rather than a single level, hence the tolerance). Recorded as an Exit because two of three sources use it as a target; the authoring pass can place the same condition as an Entry filter.",
+    "variants_kept_separate": [
+      "BreakoutLevelRetest",
+      "IslandReversalRetest"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "breakouts_pullback_retest",
+    "el_words": [
+      "marketposition"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "IslandReversalRetest",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "A gap up is followed within a few bars by a gap down whose range does not overlap the first gap (an island top); enter or hold short on a retest of the island's bottom.",
+    "pseudocode": "gap1 at i: low[i] > high[i + 1]; gap2 at j (j < i, i - j <= maxIslandBars): high[j] < low[j + 1] && low[j + 1] > high[i]; islandBottom = high[j]; high[0] <= islandBottom + toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "maxIslandBars": 12,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "two remembered gap events plus a non-overlap test between them, persisting across the island's width"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R06-13"
+    ],
+    "merge_notes": "Kept apart from GapLevelRetest: that needs one gap, this needs a matched pair with a non-overlap constraint, so it fires on a small subset of the same bars.",
+    "variants_kept_separate": [
+      "GapLevelRetest"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "breakouts_pullback_retest",
+    "el_words": [
+      "highest",
+      "lowest"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "MarginalBreakoutThenReverse",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The prior bar poked no more than X ticks above the highest high of the bars before it and this bar has closed back below that level \u2014 a failed marginal breakout, traded in the reversal direction.",
+    "pseudocode": "level = highest(high, lookback)[2]; high[1] > level && high[1] - level <= barelyTicks * (MinMove / PriceScale) && close[0] < level",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "barelyTicks": 2
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an EL Highest read at a two-bar offset, plus two comparisons; Max Bars Back must cover lookback + 2"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "No catalog rule tests a failed breakout."
+    },
+    "sources": [
+      "R02-26",
+      "R02-27",
+      "R04-04"
+    ],
+    "merge_notes": "R02-26 ('breaks a resistance level by only a tick or so and then reverses down') and R02-27 ('barely breaks one level but pulls back before reaching the next one that is just a little higher') are one behaviour: the breakout bar cleared the nearest level by almost nothing and price is back under it. R02-27's second, higher level cannot be mechanized without a set of remembered pivots (see the resistance-level design decision) and adds nothing on a fixed-window level, since not reaching a higher level is implied by reversing back under the lower one. Level taken as Highest(High, N)[2] \u2014 the extreme of the bars BEFORE the poking bar. B rather than A: it is a three-way test across three bar offsets and the [2]-offset Highest is easy to get wrong, but the definition itself is unambiguous.",
+    "variants_kept_separate": [
+      "BreakoutClearsPriorExtremeByMargin"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "breakouts_signal_strength",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "GapReversalBar",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "After a session opening gap up, the next bar trades at least one tick below the gap bar's low, back into the gap \u2014 a fade signal; mirrored after a gap down.",
+    "pseudocode": "SessionOpeningGapBeyondPriorExtreme[1] && low[0] <= low[1] - reversalTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "reversalTicks": 1
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "one-tick offset test on top of the session-gap primitive"
+    },
+    "timeframe": "intraday-only",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R00-25",
+      "T00-11",
+      "V00-17"
+    ],
+    "merge_notes": "Three statements of the same glossary definition. T00-11 and V00-17's fixed prior-bar form won over R00-25's 'low of the session's first bar', which would need the first bar remembered across the day. V00-17 arrived as a stray from bar_anatomy_reversal_signal.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [
+      "SessionOpeningGapBeyondPriorExtreme"
+    ],
+    "design_decisions_needed": [
+      "session boundary and prior-session values"
+    ],
+    "bucket": "breakouts_volume_gap",
+    "el_words": [
+      "date",
+      "time"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "MajorTrendReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The book's named major-trend-reversal setup, kept whole because Brian would want to test it as Brooks states it: a strong trend-line break, then a failed test of the trend's extreme, then a strong reversal signal bar on that test.",
+    "pseudocode": "barsSince(TrendLineBreak) <= testWindow && ExtremeTestAfterTrendLineBreak[0] && StrongReversalBar(up)[0]",
+    "sides": "mirrored",
+    "parameters": {
+      "testWindow": 25,
+      "tolTicks": 6,
+      "swingStrength": 2,
+      "bodyFraction": 0.6
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "graded by its hardest part, the trend-line break and projection"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": "the mining files list a likely_existing_rule of MajorTrendReversal, but no such rule is in rules/CATALOG.md -- it does not exist yet"
+    },
+    "sources": [
+      "V24-14",
+      "V03-06"
+    ],
+    "merge_notes": "One of the named Brooks setups MERGE.md keeps as a composite. V24-14 is the mechanizable statement and supplies the parameters; V03-06 is the chapter's four-part definition, whose items 1-3 are the same three parts. V03-06's item 4 ('the second reversal goes far enough for a consensus that the trend has reversed') is DROPPED, not parameterized: Brooks gives no number, the mining file flags it as out of scope for a bar-level test, and inventing a consensus threshold would put the whole setup at C for no gain. With item 4 gone every part is measurable and the rule grades B. Its parts live in lines_channels_trendlines (TrendLineBreak, ExtremeTestAfterTrendLineBreak) and bar_anatomy_reversal_signal (the signal bar).",
+    "variants_kept_separate": [],
+    "depends_on_keys": [
+      "TrendLineBreak",
+      "ExtremeTestAfterTrendLineBreak",
+      "StrongReversalBar"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "climax_reversal",
+    "el_words": [
+      "highest",
+      "lowest",
+      "swinghigh",
+      "swinglow",
+      "tlvalue",
+      "xaverage"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "SmallRangeEntryBarScalpTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "When the bar that produced the entry had a range smaller than K x ATR \u2014 a weak, slow break rather than a decisive one \u2014 cap the trade at a scalp target instead of holding for a swing.",
+    "pseudocode": "entryBarRange = the high-low range of the bar at BarsSinceEntry bars back;\nentryBarRange < minBreakAtrMultiple * atr(atrLookback) && ctx.OpenPositionProfit() >= scalpTicks * tickSize * bigPointValue",
+    "sides": "same",
+    "parameters": {
+      "minBreakAtrMultiple": 1.0,
+      "atrLookback": 14,
+      "scalpTicks": 4
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the entry bar's range carried forward through the trade, then an ATR comparison and a profit test"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "AtrProfitTarget",
+      "relation": "variant",
+      "note": "AtrProfitTarget always exits at K x ATR of profit; this exits at a FIXED tick target but only when the entry bar was small, so it is a conditional target, not a scaled one"
+    },
+    "sources": [
+      "T17-07"
+    ],
+    "merge_notes": "The candidate anchors on 'the trend-line break bar', which would need the line machinery; re-anchored on the ENTRY bar, which the engine already knows and which is the same bar in the setup Brooks describes. That substitution is what makes it authorable at all.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "context_regime_always_in",
+    "el_words": [
+      "barssinceentry",
+      "minmove",
+      "pricescale",
+      "wfsafe_avgtruerange"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "RangeHeightProjectionTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "Exit the long when the high reaches the range-height measured move -- the top of the prior N-bar range plus that range's own height (mirrored for the short). Brooks's standard trading-range target.",
+    "pseudocode": "rangeHigh = highest(high, rangeLookback)[1]; rangeLow = lowest(low, rangeLookback)[1]; target = rangeHigh + (rangeHigh - rangeLow); high[0] >= target - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the stateless rolling form is two window extremes; the book's form freezes the projection at the breakout bar, which would need a persistent variable"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "AtrProfitTarget",
+      "relation": "variant",
+      "note": "Both are computed targets, but AtrProfitTarget scales open profit by ATR and never looks at where the range was; this projects a price from the window's own height."
+    },
+    "sources": [
+      "R08-13"
+    ],
+    "merge_notes": "The stateless rolling form is taken over the book's frozen-at-the-breakout form, on the merge brief's most-mechanizable rule; R08-13's own notes propose exactly that simplification. The rolling target drifts as the window rolls, which is the cost -- flagged for the authoring pass. Brooks's own caveat is that the exact distance is only approximate however it is measured.",
+    "variants_kept_separate": [
+      "RangeMidpointTarget"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "context_regime_trading_range",
+    "el_words": [
+      "highest",
+      "lowest"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "SecondSignalNotBetterPrice",
+    "role": "Entry",
+    "is_filter": true,
+    "description": "The current signal bar's entry price is at or above the first signal bar's (mirror: at or below) - Brooks's trap test on a second entry: 'if the second entry is letting you in at a better price than the first, be suspicious. Most good second entries are at the same price or worse.'",
+    "pseudocode": "high[0] >= high[firstSignalBarIndex] - toleranceTicks * tickSize   // firstSignalBarIndex from the SecondSignal scan",
+    "sides": "mirrored",
+    "parameters": {
+      "withinBars": 10,
+      "toleranceTicks": 0
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses SecondSignal's scan and compares one retained price"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "T10-04"
+    ],
+    "merge_notes": "Single source, kept as its own rule rather than folded into SecondSignal because it is a separate, independently meaningful test and Brooks states it as an override ('good fill, bad trade'); a placement can want the second entry without the price gate. It cannot be authored before SecondSignal, since it reads the same scan's first-signal bar. Figure 10.1's bar 10 is the book's counter-example: one tick better than bar 9, and it failed.",
+    "variants_kept_separate": [
+      "SecondSignal"
+    ],
+    "depends_on_keys": [
+      "SecondSignal"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "leg_counting",
+    "el_words": [
+      "highest",
+      "lowest"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  },
+  {
+    "key": "FailedCountSetupExit",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "Exit a high-N long (low-N short) as soon as price trades back below the count's signal bar low (above its high) before the position has reached a scalper's profit. Brooks: 'if the market reverses and trades below the low of the pattern before reaching at least a scalper's profit, the high 2 buy has failed.'",
+    "pseudocode": "ctx.MarketPosition() > 0 && low[0] < signalLow && ctx.OpenPositionProfit() < scalpProfitTicks * tickSize * bigPointValue",
+    "sides": "mirrored",
+    "parameters": {
+      "resetLookback": 20,
+      "scalpProfitTicks": 4
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads HighLowBarCount's retained signalLow plus open-profit state"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "StopLoss",
+      "relation": "variant",
+      "note": "a stop at a PATTERN price (the signal bar's low) gated on not yet having made a scalper's profit, not a fixed dollar loss"
+    },
+    "sources": [
+      "R17-12"
+    ],
+    "merge_notes": "Single source, and an Exit, so it cannot be reached by placing FailedCountReversal in the exit pane (an Entry cannot sit there - the catalog makes the same call for ConsecutiveCloseExit). Same event as FailedCountReversal, opposite use: that one takes the other side, this one just gets out. R17-12's own note is worth keeping: a failed count usually becomes the next count number, which is simply HighLowBarCount continuing to advance, so no separate rule is needed for 'a failed high 2 becomes a high 3'.",
+    "variants_kept_separate": [
+      "FailedCountReversal",
+      "OpposingCountExit"
+    ],
+    "depends_on_keys": [
+      "HighLowBarCount"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "leg_counting",
+    "el_words": [
+      "entryprice",
+      "highest",
+      "lowest",
+      "marketposition"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T04_setups"
+  }
+]

@@ -1,0 +1,87 @@
+{
+    "name": "ExpandingTrianglePattern",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "minLegs": "5",
+        "lookbackBars": "40",
+        "minExpansionTicks": "0"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiAll": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoAll": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "expHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "expLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "legCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "isExpanding": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE EXPANDING TRIANGLE -- Brooks's broadening formation, read as a\n// three-push pattern in which BOTH sides push further out: each swing high is\n// above the swing high two pivots back AND each swing low is below the swing\n// low two pivots back, over at least minLegs alternating pivots.\n//\n// NOT ThreePushPattern at shapeMode = 2, and this is the whole reason it is a\n// separate file. ThreePushPattern tests ONE side per direction (its long is\n// patDn, three lower swing lows; its short is patUp) and its shapeMode = 2\n// compares the two INCREMENTS -- the later push extending MORE than the\n// earlier one. This rule needs both sides diverging at once, which no single\n// placement of ThreePushPattern can state (the per-placement negate toggle\n// would give !patUp, not patUp itself), and it does not care whether the\n// divergence accelerates. Hence identical sides: a broadening formation is a\n// context, not a direction.\n//\n// THE PIVOT SCAN IS INLINED, verbatim from ThreePushPattern, rather than\n// reaching into SwingHigh.json -- rules in this corpus never reference each\n// other, and the register lists Occurrence 3 and above as UNMEASURED, so the\n// third pivot would otherwise rest on an untested argument. The scan\n// reproduces the MEASURED pivot rule (EL_Swing_Probe.txt /\n// el_swing_output1.txt, @ES 60 min): the pivot bar is AT OR BEYOND the\n// swingStrength OLDER bars and STRICTLY BEYOND the swingStrength NEWER bars\n// (bars-ago indexing makes the SMALLER index the newer bar, so the strict\n// half is the k < j loop, el_gt/el_lt, and the at-or-beyond half the k > j\n// loop, el_ge/el_le); the confirmation lag is exactly swingStrength bars,\n// which is why j starts there and never at 0; candidate offsets run\n// 0..Length-1 inclusive so j stops at lookbackBars - 1, while the\n// neighbourhood test reaches swingStrength bars PAST the window -- the\n// deepest bar touched is lookbackBars - 1 + swingStrength; the comparisons\n// carry the 2.22e-12 relational tolerance; the prices carry the -1 SENTINEL\n// and every use is gated on the count reaching 3; the low side's tie sense is\n// the mirror of the measured high-side rule. There is no WFSafe_SwingHigh in\n// the MultiWalk library, so plain EL governs. Written WITHOUT an early break,\n// matching the EL twin statement for statement -- Break is not a registered\n// EasyLanguage word.\n//\n// nHiAll / nLoAll count EVERY pivot in the window while nHiPiv / nLoPiv cap\n// at three for the price slots, so legCount is the pivot count the source's\n// 'five or more legs' asks for. Counting all pivots in the window is the\n// authoring decision for 'alternating pivots': the mixed pivot test already\n// makes highs and lows interleave, and counting them separately would need an\n// ordering test no source states.\n//\n// minExpansionTicks (Brooks default 0) is the margin by which each push must\n// beat the one before it. It is written as a PAIR -- strictly beyond, AND at\n// least minExpansionTicks ticks beyond -- so the default 0 keeps the strict\n// 'above' the description asks for while a positive value means 'at least N\n// ticks', not 'more than N'. The tick is ctx.MinMove() / ctx.PriceScale(),\n// division-first, both VERIFIED and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nnHiAll = 0;\nnLoAll = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi) {\n        nHiAll = nHiAll + 1;\n        if (nHiPiv < 3) {\n            nHiPiv = nHiPiv + 1;\n            if (nHiPiv == 1) hiPx1 = high[j];\n            if (nHiPiv == 2) hiPx2 = high[j];\n            if (nHiPiv == 3) hiPx3 = high[j];\n        }\n    }\n    if (okLo) {\n        nLoAll = nLoAll + 1;\n        if (nLoPiv < 3) {\n            nLoPiv = nLoPiv + 1;\n            if (nLoPiv == 1) loPx1 = low[j];\n            if (nLoPiv == 2) loPx2 = low[j];\n            if (nLoPiv == 3) loPx3 = low[j];\n        }\n    }\n}\nexpHi = (nHiPiv == 3) && el_gt(hiPx1, hiPx2) && el_gt(hiPx2, hiPx3) && el_ge(hiPx1 - hiPx2, minExpansionTicks * tickSize) && el_ge(hiPx2 - hiPx3, minExpansionTicks * tickSize);\nexpLo = (nLoPiv == 3) && el_lt(loPx1, loPx2) && el_lt(loPx2, loPx3) && el_ge(loPx2 - loPx1, minExpansionTicks * tickSize) && el_ge(loPx3 - loPx2, minExpansionTicks * tickSize);\nlegCount = nHiAll + nLoAll;\nisExpanding = expHi && expLo && ((double)legCount >= minLegs);",
+    "longCondition": "isExpanding",
+    "shortCondition": "isExpanding",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

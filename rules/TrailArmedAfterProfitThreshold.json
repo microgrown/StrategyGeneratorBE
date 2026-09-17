@@ -1,0 +1,25 @@
+{
+    "name": "TrailArmedAfterProfitThreshold",
+    "type": "Exit",
+    "inputVariables": {
+        "armProfitDollars": "100",
+        "stopOffsetTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "armed": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A BAR-BY-BAR TRAIL THAT DOES NOT ARM UNTIL THE TRADE HAS SHOWN A MINIMUM\n// open profit. Before that the wider initial stop (a separate placement) stands\n// alone; after it, a close beyond the PRIOR bar's extreme takes the trade off.\n//\n// R29-14 states this as a GATE on other tightening rules -- \"do not tighten\n// until about four ticks of profit\" -- which the pane system cannot express,\n// since exits are ORed and one exit cannot condition another. The only\n// mechanizable shape is the single armed-trail exit written here, the same\n// recast NumBarsIfProfitable makes for the profit-gated time stop.\n//\n// ARMING IS ctx.MaxPositionProfit(), NOT A HAND-ROLLED FLAG: it is VERIFIED as\n// the INTRABAR peak, net of the entry side's costs, starting at 0 per position\n// and restarting through a reversal, so it is already the once-true-per-position\n// latch this rule needs and nothing has to be reset. armProfitDollars is\n// CURRENCY, not ticks -- the source's four ticks is a per-symbol statement of\n// the same idea, and the dollar form is the corpus's threshold currency.\n//\n// The tick offset IS ticks: MinMove/PriceScale are VERIFIED and the tick is\n// written division-first, stopOffsetTicks * (ctx.MinMove() / ctx.PriceScale()),\n// computed once per bar into a local since both are per-symbol constants.\n//\n// SIDES ARE MIRRORED, correcting the merged `same`: the long reads the prior\n// bar's low and the short the prior bar's high, which is directional. The same\n// correction BreakevenStop and BreakevenExitAfterAdverseExcursion needed.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\narmed = el_ge(ctx.MaxPositionProfit(), armProfitDollars);",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && armed && el_le(close[0], low[1] - stopOffsetTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && armed && el_ge(close[0], high[1] + stopOffsetTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

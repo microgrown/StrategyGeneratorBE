@@ -1,0 +1,45 @@
+{
+    "name": "IslandReversalRetest",
+    "type": "Entry",
+    "inputVariables": {
+        "maxIslandBars": "12",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "islandTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "islandBottom": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "foundTop": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundBot": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE ISLAND TOP AND ISLAND BOTTOM. An island top is a gap UP, a handful of\n// bars, then a gap DOWN whose empty band does not overlap the first one, so the\n// bars between are marooned with air on both sides. Its BOTTOM -- the high of\n// the bar that gapped down -- becomes resistance, and the rule fires on the\n// RETEST of that level; the island bottom is the mirror and fires the long.\n//\n// THE TWO GAPS: bar ii gapped above its predecessor (low[ii] > high[ii + 1]),\n// and a later bar jj (jj < ii) gapped below its predecessor\n// (high[jj] < low[jj + 1]). Both tests are STRICT, TrueGapBar's measured\n// spelling -- a bar merely touching leaves no band.\n//\n// NON-OVERLAP is read as the two BANDS being disjoint: the down gap's floor at\n// or above the up gap's ceiling, el_ge(high[jj], low[ii]). The merged\n// pseudocode spelled it low[jj + 1] > high[ii], which compares one ISLAND bar's\n// low with another ISLAND bar's high and so is not a statement about the gaps\n// at all; the band form is what \"a gap down whose range does not overlap the\n// first gap\" says, and it is what leaves the island isolated. Recorded here as\n// the one construction this slice had to decide.\n//\n// THE RETEST IS A TOUCH, not a one-sided inequality: |high[0] - islandBottom|\n// within toleranceTicks ticks, the tick list's standard \"within N ticks\" form.\n// The merged pseudocode's high[0] <= islandBottom + tol alone would be true on\n// every bar below the island and would make the rule a standing state rather\n// than an event.\n//\n// WINDOW: jj runs over the last maxIslandBars bars and ii over the\n// maxIslandBars bars before jj, so maxIslandBars bounds BOTH the island's own\n// width and how long after the down gap the retest may come. No second input is\n// promoted for the retest window -- Brooks gives one number (\"within a few\n// bars\") and one is what the merge carried. Deepest bar touched is\n// 2 * maxIslandBars + 1.\n//\n// THE SCANS USE A FOUND-FLAG GUARD rather than a break, because EasyLanguage\n// has no loop break and the twins must run the same statements; the first match\n// found is the MOST RECENT island, since jj ascends from 1. Both sides are\n// computed in the hook: EL does not short-circuit.\n//\n// Kept apart from GapLevelRetest, which needs ONE gap and no pairing, and fires\n// on a superset of these bars.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nfoundTop = false;\nislandBottom = 0.0;\nfor (jj = 1; jj <= (int)maxIslandBars; ++jj) {\n    if (!foundTop && el_lt(high[jj], low[jj + 1])) {\n        for (ii = jj + 1; ii <= jj + (int)maxIslandBars; ++ii) {\n            if (!foundTop && el_gt(low[ii], high[ii + 1]) && el_ge(high[jj], low[ii])) {\n                foundTop = true;\n                islandBottom = high[jj];\n            }\n        }\n    }\n}\nfoundBot = false;\nislandTop = 0.0;\nfor (jj = 1; jj <= (int)maxIslandBars; ++jj) {\n    if (!foundBot && el_gt(low[jj], high[jj + 1])) {\n        for (ii = jj + 1; ii <= jj + (int)maxIslandBars; ++ii) {\n            if (!foundBot && el_lt(high[ii], low[ii + 1]) && el_le(low[jj], high[ii])) {\n                foundBot = true;\n                islandTop = low[jj];\n            }\n        }\n    }\n}",
+    "longCondition": "foundBot && el_le(std::fabs(low[0] - islandTop), toleranceTicks * tickSz)",
+    "shortCondition": "foundTop && el_le(std::fabs(high[0] - islandBottom), toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

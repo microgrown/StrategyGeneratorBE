@@ -1,0 +1,21 @@
+{
+    "name": "MicroDoubleExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "gap": "1",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MICRO DOUBLE BOTTOM: this bar's low is within toleranceTicks of the low of\n// the bar `gap` bars earlier. Short is the micro double top on the highs.\n// Brooks: 'consecutive or nearly consecutive bars with identical or nearly\n// identical lows'; 'most small bull reversals come from some type of micro\n// double bottom'.\n//\n// ONE RULE WITH A `gap` PARAMETER: two sources state the adjacent-bar form\n// (gap 1, the default) and two the one-bar-gap form (gap 2).\n//\n// THE TOLERANCE STAYS IN TICKS, not ATR: Brooks means literally identical or\n// one-tick-apart extremes and all four sources say ticks. Tick division-first,\n// toleranceTicks * (ctx.MinMove() / ctx.PriceScale()), computed once per bar\n// into a local since both are per-symbol constants.\n//\n// T10-08's extra V-SHAPE conjunct -- low[1] above both matching lows, so the\n// pair is a real dip rather than two bars of a slide -- is NOT carried: it only\n// bites at gap >= 2 and it is a different rule, not a parameter of this one. Its\n// close-up conjunct belongs to bar anatomy and is a separate placement.\n//\n// NOT Ledge, which counts bars matching the CURRENT bar's extreme anywhere\n// inside a window; this requires the match at exactly `gap`. Not DoubleExtreme /\n// DoubleExtremePullback, which pair CONFIRMED swing pivots at a variable\n// distance with an ATR tolerance. The measured pivot sense (a flat run of equal\n// extremes is ONE pivot) does not reach this rule, which uses no pivots at all.\n//\n// AbsValue is std::fabs per the translation table; <cmath> is already included\n// by the emitter. Every scratch value is a localVariables entry, never a\n// hook-scope declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: gap.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_le(std::fabs(low[0] - low[(int)gap]), toleranceTicks * tickSize)",
+    "shortCondition": "el_le(std::fabs(high[0] - high[(int)gap]), toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,51 @@
+{
+    "name": "CloseBeyondLastSwingPoint",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "marginTicks": "0",
+        "swingPointsCleared": "1",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cntHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "cntLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "needN": {
+            "type": "int",
+            "init": "0"
+        },
+        "longSig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortSig": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CLEARING THE PRIOR SWING POINT. The close is above the most\n// recent CONFIRMED swing high by at least marginTicks; the short mirrors below\n// the most recent swing low. At swingPointsCleared > 1 the close must be\n// beyond that MANY of the recent same-side pivots, which is Brooks's \"it\n// reverses many bars, swing highs and bear flags of the prior trend\" -- a\n// strength reading, not a different pattern, so it is this rule at a larger\n// count and not a second rule. At 1 it degenerates to the plain break of the\n// last pivot.\n//\n// THE SCAN IS HAND-ROLLED IN BOTH TWINS, not a deeper SwingHigh occurrence:\n// the count can exceed two and OCCURRENCE 3+ IS UNMEASURED in the register, so\n// the pivots are found by the scan SwingPivotTarget uses rather than by\n// occurrence calls. MEASURED (EL_Swing_Probe.txt, @ES 60 min): a pivot bar is\n// AT OR ABOVE the `strength` OLDER bars and STRICTLY ABOVE the `strength`\n// NEWER bars -- bars-ago indexing, so the newer bars are the smaller k and\n// take el_gt / el_lt, the older el_ge / el_le; confirmation lag exactly\n// `strength`; candidate offsets strength..maxBarsBack-1, the neighbourhood\n// reaching `strength` bars past the window, so the deepest bar read is\n// maxBarsBack - 1 + strength. No early break: every pivot in the window is\n// counted, matching the twin. The comparisons carry the 2.22e-12 relational\n// tolerance; the low side's tie sense is the mirror of the measured high-side\n// rule. No WFSafe_SwingHigh exists, so plain EL governs.\n//\n// needN CLAMPS swingPointsCleared TO AT LEAST 1, the way SwingPivotTarget\n// clamps its pivotIndex: at 0 the test would be vacuously true on every bar,\n// including bars with no pivot in the window at all.\n//\n// marginTicks (default 0) is V02-18's \"breaks resistance by many ticks\";\n// division-first, ctx.MinMove() / ctx.PriceScale() computed once into tickSz,\n// both per-symbol constants (VERIFIED, one change print per chart, at bar 1).\n//\n// Not CloseAbovePriorHighestHigh, which uses a FIXED N-bar window ending one\n// bar ago rather than a pivot. The pivot level and the N-bar-highest level genuinely\n// differ: after a deep pullback the last swing high can sit far below the\n// N-bar high, so neither rule is the other at any parameter. Not\n// SwingPointUndercut, which asks whether the bar's low traded through the\n// opposite pivot.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)strength;\npivW = (int)maxBarsBack;\nneedN = (int)swingPointsCleared;\nif (needN < 1) needN = 1;\ncntHi = 0;\ncntLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && el_gt(close[0], high[j] + marginTicks * tickSz)) cntHi = cntHi + 1;\n    if (okLo && el_lt(close[0], low[j] - marginTicks * tickSz)) cntLo = cntLo + 1;\n}\nlongSig = (cntHi >= needN);\nshortSig = (cntLo >= needN);",
+    "longCondition": "longSig",
+    "shortCondition": "shortSig",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

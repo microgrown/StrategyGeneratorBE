@@ -1,0 +1,29 @@
+{
+    "name": "MovingAverageTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "emaLength": "20",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MOVING AVERAGE IS THE MINIMUM TARGET OF A COUNTERTREND SCALP. Brooks\n// states it twice (Ranges ch6 on gaps, Trends ch10 on second entries): a\n// countertrend long taken below the average is expected to reach the average,\n// so that is where the scalp comes off. The test is on the bar's high against\n// the EMA, not on the close, and it is position-gated.\n//\n// toleranceTicks takes the exit that many ticks SHORT of the average. Ticks\n// division-first, ctx.MinMove() / ctx.PriceScale() computed once into tickSz;\n// both are per-symbol constants (VERIFIED, one change print per chart, at\n// bar 1).\n//\n// THE PLACEMENT TRAP, recorded by the source and not fixed here: the rule is\n// written for a long entered BELOW the average, so a long entered above it\n// exits on its first bar. A placement concern, not a change to the condition.\n//\n// EMA MIRROR: MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls.\n// MEASURED bit-identical to the plain XAverage built-in at a fixed length\n// (EL_XAverage_Probe.txt, @OJ 240min, 17,785 bars).\n//   * SEED: the PRICE on the study's first calculated bar (ctx.CurrentBar()\n//     == 1), NOT a length-term simple average -- the textbook twin was still\n//     3.4e-05 off at bar 100.\n//   * ONE STATEMENT, IN EL'S FORM: x + sf*(p - x), not sf*p + (1-sf)*x; the\n//     two separate on 67% of bars past 100 and XAverage tracks the first.\n//   * NO WARM-UP HOLE: non-zero from bar 1, so no bar-count guard returning 0.\n//   * LENGTH CHANGE MEASURED (2026-09-17): the wrapper recomputes SF on the\n//     bar the length changes and carries its state, so emaLength MAY be\n//     optimized in grids.\n// This rule reads the CURRENT value only, so no history buffer and no lagged\n// read.\n//\n// Not CloseAboveAverage, an ENTRY comparing the close with its own SIMPLE\n// average. Not EmaTouch, an Entry, direction-agnostic, asking whether the bar\n// STRADDLES the average; this asks, in the exit pane, whether the bar reached\n// it from one side. Not CloseWithinAtrOfEma, a symmetric ATR band.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], emaVal - toleranceTicks * tickSz)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], emaVal + toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

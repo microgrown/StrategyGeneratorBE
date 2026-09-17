@@ -1,0 +1,50 @@
+{
+    "name": "PremarketExtremeTest",
+    "type": "Entry",
+    "inputVariables": {
+        "premarketStart": "300",
+        "premarketEnd": "630",
+        "toleranceTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barSeconds": {
+            "type": "int",
+            "init": "0"
+        },
+        "barHHMM": {
+            "type": "int",
+            "init": "0"
+        },
+        "inPremarket": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pastPremarket": {
+            "type": "bool",
+            "init": "false"
+        },
+        "havePm": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pmHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pmLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PREMARKET EXTREMES AS LEVELS. The high and low made in the overnight /\n// premarket window are carried into the day session and tested there: Brooks\n// treats them as magnets that usually get tested once the day session opens.\n// The LONG is the test of the premarket high (the bar's high reaches to\n// within toleranceTicks of it), the SHORT the mirror at the premarket low,\n// exactly as the merged pseudocode spells the long side.\n//\n// SESSION MODEL per the standing decision: the session starts when the bar's\n// wall-clock close date changes -- EL date > date[1], mirrored as\n// day_of(ctx.Time(0)) > day_of(ctx.Time(1)) as SessionOpenPriceTarget and\n// DailyPivotProximity write it -- and the premarket accumulators reset there.\n// The premarket WINDOW inside that session is a clock-time band: bars whose\n// close Time is after premarketStart and at or before premarketEnd. EL Time\n// is VERIFIED as the bar's closing HHMM on the exchange clock (a midnight bar\n// reads 0, not 2400), and ctx.Time(n) is that same close timestamp, so HHMM\n// is its seconds-of-day repacked -- KeyTimeProximity's derivation, carried\n// here unchanged. The defaults 300 and 630 are the 03:00-06:30 premarket\n// preceding an 06:30 regular open: a band wholly inside one wall-clock date,\n// which is what lets the date-change reset serve it.\n//\n// havePm IS THE WARM-UP AND FEED GUARD, and it carries real content: on a\n// regular-session-only series NO bar falls in the window, havePm never turns\n// true, and the rule is silent rather than testing a zero level (EL variables\n// hold their initial 0 until first assigned, and 0 as a price sits under\n// every real price). The rule needs a feed that includes the Globex /\n// overnight bars.\n//\n// pastPremarket keeps the rule from firing on the premarket bars themselves,\n// where the running extreme IS the current bar's own high and the test would\n// be trivially true on every new extreme.\n//\n// The extremes accumulate with plain comparisons rather than MaxList /\n// MinList so the two twins read statement for statement; the running value is\n// seeded from the window's FIRST bar rather than from 0, which is what makes\n// pmLow meaningful.\n//\n// SAME SHAPE AS PriorSessionLevelTest but a different level: that rule tests\n// the PREVIOUS session's high / low / close within an ATR band, this one a\n// level built inside the CURRENT session's own overnight window within a TICK\n// band -- the tick is why it was held for this list. INTRADAY ONLY: on a\n// daily or 1440-minute series a bar's close time is the session close, no bar\n// lands in the premarket band, and the rule never fires.\n//\n// The tick is ctx.MinMove() / ctx.PriceScale(), division-first, both VERIFIED\n// and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. pmHigh, pmLow\n// and havePm are the cross-bar state and are deliberately NOT reset each bar.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nbarSeconds = seconds_of_day(ctx.Time(0));\nbarHHMM = (barSeconds / 3600) * 100 + (barSeconds % 3600) / 60;\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    pmHigh = 0.0;\n    pmLow = 0.0;\n    havePm = false;\n}\ninPremarket = el_gt((double)barHHMM, premarketStart) && el_le((double)barHHMM, premarketEnd);\nif (inPremarket) {\n    if (havePm) {\n        if (el_gt(high[0], pmHigh)) pmHigh = high[0];\n        if (el_lt(low[0], pmLow)) pmLow = low[0];\n    } else {\n        pmHigh = high[0];\n        pmLow = low[0];\n        havePm = true;\n    }\n}\npastPremarket = el_gt((double)barHHMM, premarketEnd);",
+    "longCondition": "havePm && pastPremarket && el_ge(high[0], pmHigh - toleranceTicks * tickSize)",
+    "shortCondition": "havePm && pastPremarket && el_le(low[0], pmLow + toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

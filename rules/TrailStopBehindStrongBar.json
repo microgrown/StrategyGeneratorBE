@@ -1,0 +1,57 @@
+{
+    "name": "TrailStopBehindStrongBar",
+    "type": "Exit",
+    "inputVariables": {
+        "strongBodyFraction": "0.6",
+        "stopOffsetTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodySize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "strongBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "strongBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "candLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trailLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trailShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveTrailLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveTrailShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RATCHET THE STOP BEHIND THE LAST STRONG TREND BAR. Each time a bar closes as\n// a strong with-trend bar, the protective level moves to just beyond that bar's\n// NEAR extreme -- the low for a long, the high for a short -- and it only ever\n// moves TOWARD the trade. Through a run of weak bars it does not move at all,\n// which is what separates it from the dollar trails.\n//\n// Not TrailingStop / AtrTrailingStop, which measure a distance below the\n// position's PEAK PROFIT: this is a chart level pinned to a particular bar and\n// can sit far from the peak. Not TightenStopToEntryBarIfStrong, which tests the\n// ENTRY bar once and afterwards never moves.\n//\n// THE LEVEL IS PER POSITION and is cleared on ctx.BarsSinceEntry() == 0 --\n// VERIFIED as 0 on the fill bar and as restarting through a reversal, which a\n// ctx.MarketPosition() == 0 reset would miss because a reversal never passes\n// through flat. While flat the clear simply repeats. The fill bar itself can\n// seed the level, and a bar can never take itself out: the seed is that bar's\n// own low minus an offset, and close >= low always.\n//\n// THE RATCHET IS WRITTEN AS AN if, NOT MaxList: the register ACCEPTS MaxList\n// only for tick-grid price operands, and a seeded-or-not level needs the flag\n// test anyway.\n//\n// \"Strong\" is the body-fraction test, body >= strongBodyFraction of the bar's\n// own range, as StrongTrendBarRun writes it. The comparison is a MULTIPLICATION,\n// never a division, so a zero-range bar cannot raise EL's divide-by-zero.\n// R01-02's alternative reading defines strong by RANGE against an ATR; the body\n// test wins because it needs no ATR call site.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// stopOffsetTicks * (ctx.MinMove() / ctx.PriceScale()), computed once per bar\n// into a local because the two are per-symbol constants for the whole run.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: 0.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (ctx.BarsSinceEntry() == 0) {\n    haveTrailLong = false;\n    haveTrailShort = false;\n    trailLong = 0.0;\n    trailShort = 0.0;\n}\nbarRange = high[0] - low[0];\nbodySize = close[0] - open[0];\nstrongBull = el_gt(close[0], open[0]) && el_ge(bodySize, strongBodyFraction * barRange);\nstrongBear = el_lt(close[0], open[0]) && el_ge(-bodySize, strongBodyFraction * barRange);\nif (strongBull) {\n    candLevel = low[0] - stopOffsetTicks * tickSize;\n    if (!haveTrailLong || el_gt(candLevel, trailLong)) {\n        trailLong = candLevel;\n        haveTrailLong = true;\n    }\n}\nif (strongBear) {\n    candLevel = high[0] + stopOffsetTicks * tickSize;\n    if (!haveTrailShort || el_lt(candLevel, trailShort)) {\n        trailShort = candLevel;\n        haveTrailShort = true;\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveTrailLong && el_le(close[0], trailLong)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveTrailShort && el_ge(close[0], trailShort)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

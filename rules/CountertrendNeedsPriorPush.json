@@ -1,0 +1,29 @@
+{
+    "name": "CountertrendNeedsPriorPush",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "5",
+        "minPushTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pushedUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pushedDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// PERMISSION TO TAKE A COUNTERTREND TRADE: the side you are about to join must\n// have shown it can move price at all. At least one of the lookback bars BEFORE\n// this one pushed its high more than minPushTicks above the high of the bar\n// before it (mirrored on lows for a countertrend short). T10-07's cheap version\n// of \"there must have been a prior break of the trend line\" -- no pivots, no\n// line, which is why it is worth testing as the poor man's substitute for\n// CountertrendNeedsPriorTrendLineBreak.\n//\n// AN EXISTENCE TEST OVER BARS 1..lookback, not a count and not the current bar:\n// the permission is evidence that ALREADY EXISTS when this bar's signal appears.\n// Written as an explicit loop in both twins rather than EL CountIF, which counts\n// bars 0..N-1 INCLUDING the current bar -- the wrong window here.\n//\n// STRICT: the source says \"more than\", so a push of exactly minPushTicks does\n// not qualify; el_gt carries the measured 2.22e-12 relational tolerance.\n// Not LaggedHigherHigh, which asks whether ONE specific bar made a higher high,\n// with no margin and no window.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: lookback + 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npushedUp = false;\npushedDn = false;\nfor (int i = 1; i <= (int)lookback; ++i) {\n    if (el_gt(high[i] - high[i + 1], minPushTicks * tickSize)) pushedUp = true;\n    if (el_gt(low[i + 1] - low[i], minPushTicks * tickSize)) pushedDn = true;\n}",
+    "longCondition": "pushedUp",
+    "shortCondition": "pushedDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

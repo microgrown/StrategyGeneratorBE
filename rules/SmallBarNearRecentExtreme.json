@@ -1,0 +1,43 @@
+{
+    "name": "SmallBarNearRecentExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "smallFraction": "0.5",
+        "atrLookback": "14",
+        "extremeLookback": "5",
+        "nearTicks": "2"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "loWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiWin": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SMALL BAR STOPPED AT A RECENT EXTREME: the bar's range is at most\n// smallFraction of the ATR, its LOW sits within nearTicks of the lowest low of\n// the extremeLookback bars ENDING ONE BAR AGO, and it closes up. Brooks reads\n// the small bar at the level as the sellers having quit there. Short is the\n// mirror at the highest high with a down close.\n//\n// Not CloseNearPriorLow, which measures the CLOSE against the SINGLE previous\n// bar's low plus an offset: this measures the LOW against a WINDOW's lowest\n// low, so the two read different prices off different bars. Two of the three\n// terms are carried elsewhere (BarRangeAboveAtrMultiple negated, TrendBarBody\n// at bodyFraction 0), but the proximity-to-a-recent-extreme term is not, and it\n// is what makes the setup; Brooks's own test is a visual comparison with \"a big\n// bar\", and the window low is the mechanizable reading.\n//\n// THE WINDOW ENDS ONE BAR AGO -- Lowest(Low, extremeLookback)[1] -- so the\n// bar's own low cannot define the extreme it is being measured against. The\n// scan mirrors EasyLanguage's Extremes(), which Highest() and Lowest() call:\n// seeded at the window's first bar, scanning the rest, strict comparison, and\n// EL SOURCE, so it carries the relational tolerance and uses el_lt / el_gt\n// rather than raw < and >.\n//\n// ATR is MultiWalk's WFSafe_AvgTrueRange, a ROLLING accumulator seeded with a\n// full sum on the first calculated bar and on a length change, then advanced as\n// TWO statements -- EL evaluates S[1] + in - out left to right and folding it to\n// S += in - out rounds differently (@OJ 2015-02-20). AtrProfitTarget is the\n// reference implementation with the measurements. One call site, here.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage (README \"N ticks\",\n// TICKSIZE_FINDINGS.md). Read once into a local; it needs no history.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLookback;\nloWin = low[1];\nhiWin = high[1];\nfor (int i = 2; i <= (int)extremeLookback; ++i) {\n    if (el_lt(low[i], loWin)) loWin = low[i];\n    if (el_gt(high[i], hiWin)) hiWin = high[i];\n}",
+    "longCondition": "el_le(high[0] - low[0], smallFraction * atrVal) && el_le(low[0], loWin + nearTicks * tickSz) && el_gt(close[0], open[0])",
+    "shortCondition": "el_le(high[0] - low[0], smallFraction * atrVal) && el_ge(high[0], hiWin - nearTicks * tickSz) && el_lt(close[0], open[0])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

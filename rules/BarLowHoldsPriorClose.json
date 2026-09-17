@@ -1,0 +1,20 @@
+{
+    "name": "BarLowHoldsPriorClose",
+    "type": "Entry",
+    "inputVariables": {
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// NEAR-ZERO GIVE-BACK INSIDE A SPIKE. The bar's low never fell more than\n// toleranceTicks below the PRIOR bar's close; mirrored, its high never rose\n// more than that above the prior close. Brooks's \"the lows of the bars are at\n// or just one tick below the prior bar's close\".\n//\n// ONE-SIDED, NOT A BAND. R02-07 adds a lower bound (the bar must actually have\n// dipped, low[0] <= close[1]) and wraps the whole thing in an existence scan\n// over a ten-bar spike window; V00-45's plain single-bar form wins, because the\n// lower bound EXCLUDES the strongest case of all -- a bar whose low never\n// trades back into the prior bar -- which is the opposite of what the sign is\n// for.\n//\n// ONE RULE, TWO MERGED KEYS. LowNearPriorClose (same slice, sources V00-37 and\n// T19-04) is this identical expression with the input spelled overlapTicks and\n// the same default of 1, so it is not authored; both books' readings are the\n// same test. T19-04's extra low[0] <= close[1] term is the same mining artifact\n// R02-07 has, and is dropped for the same reason.\n//\n// Not CloseNearPriorLow, which compares this bar's close against the PRIOR\n// bar's low plus an offset in price points -- a different pair of operands in\n// the opposite sense.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local since both are per-symbol constants. Every\n// scratch value is a localVariables entry, never a hook-scope declaration, so\n// the hooks survive a double placement. Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_ge(low[0], close[1] - toleranceTicks * tickSize)",
+    "shortCondition": "el_le(high[0], close[1] + toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

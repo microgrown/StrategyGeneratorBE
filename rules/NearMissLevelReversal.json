@@ -1,0 +1,29 @@
+{
+    "name": "NearMissLevelReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "marginTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PERFECT TEST THAT MISSES THE STOPS BY A TICK. The bar's low lands inside\n// a marginTicks band around lowest(low, lookback)[1] -- the lowest low of the\n// lookback bars ENDING ONE BAR AGO, so the bar is not in its own benchmark --\n// and the bar closes up. Mirrored at a high.\n//\n// EL: priorLow = lowest(low, lookback)[1];\n//     low >= priorLow - marginTicks * tickSize and\n//     low <= priorLow + marginTicks * tickSize and close > open\n//\n// A BAND, DELIBERATELY: the point of V16-04 is that price came to the level and\n// did NOT trade meaningfully through it, so the lower edge forgives at most\n// marginTicks of overshoot and the upper edge requires the bar to have come that\n// close at all. Both edges inclusive.\n//\n// Not SmallBreakoutTrapReversal, which REQUIRES the break (low strictly below\n// the level) and the close back above it; not StopRunReversalBar, same\n// requirement; not SmallTickFailedBreakoutReversal, the failed poke on two bars.\n// The distinction is exactly whether price went through, which is why the merge\n// kept them apart.\n//\n// THE WINDOW IS WRITTEN OUT as the Extremes loop lowest/highest bottom out in --\n// seeded at the window's first bar (index 1), scanning the rest with a strict\n// comparison; Extremes is EL source, so the comparisons carry the measured\n// 2.22e-12 relational tolerance and only the VALUE is used, so the tie rule\n// cannot show. The construction BreakoutClearsPriorExtremeByMargin uses.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: lookback.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npriorLow = low[1];\npriorHigh = high[1];\nfor (int i = 2; i <= (int)lookback; ++i) {\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n}",
+    "longCondition": "el_ge(low[0], priorLow - marginTicks * tickSize) && el_le(low[0], priorLow + marginTicks * tickSize) && el_gt(close[0], open[0])",
+    "shortCondition": "el_le(high[0], priorHigh + marginTicks * tickSize) && el_ge(high[0], priorHigh - marginTicks * tickSize) && el_lt(close[0], open[0])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,20 @@
+{
+    "name": "DipBelowPriorBarLow",
+    "type": "Entry",
+    "inputVariables": {
+        "dipTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE RESTING LIMIT ORDER UNDER THE PRIOR BAR. Price traded at least\n// dipTicks below the prior bar's low (mirrored: at least that far above the\n// prior bar's high) -- the with-trend buy that bulls keep resting at or below\n// the prior bar's low all through a bull channel, and the same order that fades\n// a countertrend setup bar in a trend.\n//\n// ONE RULE, TWO MERGED KEYS. DipBelowPriorBarLowByTicks (same slice, R28-25 and\n// R32-03) is this identical expression with the input spelled offsetTicks:\n// R28-25 rests the buy four ticks below the bear signal bar's low (two or three\n// ticks above where the short scalpers take profit, six ticks down), R32-03 buys\n// at the failing setup bar's extreme, which is this rule at 0. Seven statements\n// across both books, one parameter. Offsets seen: 0 (T04-11, T06-30, T21-16,\n// R32-03), 1 to 3 (T15-18 p273), 4 (R28-25). Default 1, the most supported\n// reading.\n//\n// NOT STRICT: at dipTicks = 0 the test is low[0] <= low[1], which is\n// LaggedHigherHigh at lookback 0 flipped only if that rule's strict test is\n// loosened -- the two disagree on a bar whose low exactly equals the prior low,\n// and the default of 1 tick separates them outright.\n//\n// Every source wraps this in a channel or strong-trend context (TightChannel,\n// ChannelSlopeSteep, the always-in read); the entry pane ANDs, so the context is\n// a separate placement and only the bar test lives here. Kept apart from\n// ShallowDipBelowPriorBarLow, which bounds the dip from ABOVE instead of below\n// and fires on a disjoint set of bars whenever both bounds bite.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_le(low[0], low[1] - dipTicks * tickSize)",
+    "shortCondition": "el_ge(high[0], high[1] + dipTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

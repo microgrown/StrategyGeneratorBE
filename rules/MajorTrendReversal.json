@@ -1,0 +1,144 @@
+{
+    "name": "MajorTrendReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "testWindow": "25",
+        "tolTicks": "6",
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiNow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barsSinceUp": {
+            "type": "int",
+            "init": "0"
+        },
+        "barsSinceDn": {
+            "type": "int",
+            "init": "0"
+        },
+        "extremeUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "extremeDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveBrkUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveBrkDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MAJOR TREND REVERSAL, one of the named Brooks setups the merge pass keeps\n// WHOLE so Brian can test it as the book states it: a strong trend line break,\n// then a FAILED TEST of the trend's extreme, then a strong reversal signal bar\n// on that test. Its parts live in other rules (TrendLineBreak,\n// ExtremeTestAfterTrendLineBreak, a signal-bar test) and are INLINED here, as\n// the corpus does with every named composite -- rules never reference each\n// other -- but the sequence is not reachable by ANDing panes, because the level\n// being tested is THE TREND EXTREME AS IT STOOD AT THE BREAK and no separate\n// pane can hand that across.\n//\n// V03-06's fourth item, \"the second reversal goes far enough for a consensus\n// that the trend has reversed\", is DROPPED rather than parameterized: Brooks\n// gives no number, and inventing a consensus threshold would put the whole\n// setup out of reach for no gain. With it gone every part is measurable.\n//\n// THE TREND LINE AND ITS PIVOTS, the one construction shared by the whole\n// lines/channels family (settled in slice B01, recorded in author/DECISIONS.md,\n// carried here unchanged): the BULL trend line runs through the two most recent\n// CONFIRMED swing LOWS and the BEAR line through the two most recent confirmed\n// swing HIGHS; the two are deliberately not parallel.\n//\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR BEYOND the strength OLDER bars, STRICTLY BEYOND the\n// strength NEWER bars -- so a flat top yields exactly one pivot, the later of\n// the equal bars; bars-ago indexing makes the SMALLER index the NEWER bar, so\n// the strict half is the k < j loop. The confirmation lag is exactly strength\n// bars, which is what makes the scan lookahead-safe; pivotLookback is EL's\n// Length (candidate offsets 0..pivotLookback-1 inclusive) and the neighbourhood\n// test reaches strength bars PAST the window, so the deepest index the scan\n// touches is pivotLookback - 1 + swingStrength; a window with no pivot returns\n// the -1 SENTINEL, guarded below; Occurrence 3+ is UNMEASURED and is never\n// asked for; the comparisons carry the 2.22e-12 relational tolerance, hence\n// el_gt / el_ge. No WFSafe_SwingHigh exists, so plain EL governs.\n//\n// MEASURED, EL_TLValue_Probe.txt (TLVALUE_FINDINGS.md section 4): TLValue is the\n// pure two-point line Slope = (P2 - P1) / (B2 - B1);\n// value = P1 + (target - B1) * Slope, anchored at the FIRST pair and\n// extrapolating freely past both anchors. Bars-ago is used here, so the OLDER\n// pivot (the LARGER bars-ago) is passed as P1/B1, the zero-drift spelling.\n// Bar1 = Bar2 does NOT halt, it silently returns 0.0, so both twins guard\n// B1 <> B2. The slope is hoisted out of the per-target arithmetic here where\n// the twin recomputes it inside each TLValue call: identical doubles.\n//\n// THE THREE PARTS, in order:\n//   1. THE BREAK. The close crosses the trend line, with the same slope gate\n//      TrendLineBreak carries -- the newer pivot BEYOND the older one in the\n//      trend direction -- so a line that does not slope with the trend cannot\n//      arm the setup. ExtremeTestAfterTrendLineBreak's matureBars line-age gate\n//      is NOT carried: it belongs to T13-04's statement of that rule and the\n//      merged parameters for this setup name no such number.\n//   2. THE FAILED TEST. Price comes back to within tolTicks of the trend\n//      extreme AS IT STOOD AT THE BREAK, within testWindow bars of it.\n//      barsSince >= 1 keeps the break bar itself from firing: on that bar the\n//      extreme was just recorded and the test would be trivially true.\n//   3. THE SIGNAL BAR. The test bar itself closes as a strong reversal bar in\n//      the new direction -- a body of at least bodyFraction of its own range.\n//      Only the BODY term is carried, because bodyFraction is the only signal\n//      bar parameter the merge kept; a tail cap would be a number this setup's\n//      sources do not give. The body test is a multiplication, never a ratio,\n//      so a zero-range bar cannot raise EL's divide-by-zero.\n//\n// A LONG follows the break of a BEAR trend line (across the swing HIGHS) to the\n// upside, and the extreme standing at the break is the bear move's lowest\n// price, so the long side tests low[0] against the lowest low of the testWindow\n// bars as of the break bar; the short side is the mirror at the high.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\ntickSz = ctx.MinMove() / ctx.PriceScale();\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\nloNow = 0.0;\nhiNow = 0.0;\nif (haveLoLine) loNow = loP1 + (0.0 - loB1) * loSlope;\nif (haveHiLine) hiNow = hiP1 + (0.0 - hiB1) * hiSlope;\nif (haveBrkUp) barsSinceUp = barsSinceUp + 1;\nif (haveBrkDn) barsSinceDn = barsSinceDn + 1;\n// The window extremes mirror EasyLanguage's Extremes(), which Highest() and\n// Lowest() call: seeded at bar 0, scanning bars 1..Length-1, strict comparison,\n// the window INCLUSIVE of the current bar.\nloWin = low[0];\nhiWin = high[0];\nfor (int i = 1; i < (int)testWindow; ++i) {\n    if (el_lt(low[i], loWin)) loWin = low[i];\n    if (el_gt(high[i], hiWin)) hiWin = high[i];\n}\nbrokeUp = haveHiLine && el_lt(hiP2, hiP1) && el_gt(close[0], hiNow)\n    && el_le(close[1], hiP1 + (1.0 - hiB1) * hiSlope);\nbrokeDn = haveLoLine && el_gt(loP2, loP1) && el_lt(close[0], loNow)\n    && el_ge(close[1], loP1 + (1.0 - loB1) * loSlope);\nif (brokeUp) {\n    haveBrkUp = true;\n    barsSinceUp = 0;\n    extremeUp = loWin;\n}\nif (brokeDn) {\n    haveBrkDn = true;\n    barsSinceDn = 0;\n    extremeDn = hiWin;\n}\nokUp = haveBrkUp && barsSinceUp >= 1 && el_le((double)barsSinceUp, testWindow)\n    && el_le(std::fabs(low[0] - extremeUp), tolTicks * tickSz);\nokDn = haveBrkDn && barsSinceDn >= 1 && el_le((double)barsSinceDn, testWindow)\n    && el_le(std::fabs(high[0] - extremeDn), tolTicks * tickSz);",
+    "longCondition": "okUp && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0]))",
+    "shortCondition": "okDn && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,20 @@
+{
+    "name": "ReversalBarOpenNearPriorClose",
+    "type": "Entry",
+    "inputVariables": {
+        "nearTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A QUALITY MARKER OF A STRONG BULL REVERSAL BAR: the bar opens at or within\n// nearTicks ABOVE the prior bar's close -- no gap against the reversal -- and\n// closes above both its own open and that prior close, so the whole bar is\n// a move up from where the last one ended. Mirrored at a top.\n//\n// EL: open <= close[1] + nearTicks * tickSize and close > open and\n//     close > close[1]\n//\n// ONE RULE, NOT THREE. The open term alone says nothing (an open near the prior\n// close is the ordinary case); it is the pair \"started where the last bar ended\n// AND finished above it\" that is the claim, the same shape as ProfitProtector's\n// two readings of one history. Split, neither half is meaningful.\n//\n// THE THRESHOLD. V00-31 and T00-40 read \"near\" as one tick, T05-02 as plain\n// at-or-below; nearTicks = 0 recovers T05-02 exactly, and 1 is the default\n// since 0 would make the input pointless.\n//\n// Not LowHoldsPriorClose, which tests this bar's *low* against the prior close\n// with a price-point tolerance and carries no body terms. Not\n// BarLowHoldsPriorClose, the same operands as that one in ticks. Nothing in the\n// corpus reads the *opening price* against the prior close.\n//\n// StrongBullReversalBarComposite inlines this test as quality (1) of its\n// m-of-n score at nearTicks = 1; this is the atomic rule it names in\n// depends_on_keys.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_le(open[0], close[1] + nearTicks * tickSize) && el_gt(close[0], open[0]) && el_gt(close[0], close[1])",
+    "shortCondition": "el_ge(open[0], close[1] - nearTicks * tickSize) && el_lt(close[0], open[0]) && el_lt(close[0], close[1])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

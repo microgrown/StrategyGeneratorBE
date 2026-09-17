@@ -1,0 +1,37 @@
+{
+    "name": "TrailArmedAfterEmaCloseBreak",
+    "type": "Exit",
+    "inputVariables": {
+        "emaLength": "20",
+        "stopOffsetTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brokenLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokenShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HOLD THE WIDE STRUCTURAL STOP WHILE THE TREND HAS NOT ONCE CLOSED ON THE WRONG\n// SIDE OF THE MOVING AVERAGE. Only after the first such close does the bar-by-bar\n// trail arm, and from that point a close beyond the PRIOR bar's extreme takes the\n// trade off.\n//\n// Same recast as TrailArmedAfterProfitThreshold: R12-12 states a GATE (\"do not\n// use a tight stop while there have been no closes below the moving average\"),\n// and the pane system cannot express one exit conditioning another, so it is\n// carried as a single armed trail. Brooks scopes the scan to \"since the current\n// leg began\"; anchored here to SINCE ENTRY, which is mechanizable and avoids the\n// leg-definition dependency. The source's minBars = 10 is an artifact of the\n// chart example, not a stated condition, and is dropped.\n//\n// Not BreakevenStopAfterEmaHoldingRun, which counts N consecutive closes HOLDING\n// on the right side of the average and arms a BREAKEVEN stop: that arms while\n// the trade is going well, this arms on the first close going wrong, and the two\n// arm on disjoint bars.\n//\n// THE FLAGS ARE PER POSITION, reset on ctx.BarsSinceEntry() == 0 -- VERIFIED as 0\n// on the fill bar and as restarting through a reversal, which a\n// ctx.MarketPosition() == 0 reset would miss. While flat the reset simply\n// repeats; the fill bar itself can set the flag.\n//\n// MultiWalk's WFSafe_Xaverage, which the EasyLanguage twin calls. MEASURED\n// (EL_XAverage_Probe.txt, @OJ 240min) bit-identical to the plain XAverage\n// built-in at a fixed length. SEED is the PRICE on the study's first calculated\n// bar (ctx.CurrentBar() == 1), not a length-term simple average; the recurrence\n// is ONE statement in EL's own form, x + sf*(p - x), never sf*p + (1-sf)*x, which\n// separates on 67% of bars past 100. NO WARM-UP HOLE: do not add a CurrentBar()\n// guard returning 0. An EMA never forgets its seed, so the seed bar is part of\n// the specification and moves with Max Bars Back and the chart start. emaLength\n// MAY BE OPTIMIZED: the wrapper recomputes SF on a length change and carries its\n// state (MEASURED 2026-09-17). Only the CURRENT value is read; no lagged read, so\n// no mirrored ring buffer and no first-k-bars guard is needed.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// stopOffsetTicks * (ctx.MinMove() / ctx.PriceScale()), into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\n//\n// Deepest bar touched: 1 (the EMA itself is recursive state, not a window).\ntickSize = ctx.MinMove() / ctx.PriceScale();\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\nif (ctx.BarsSinceEntry() == 0) {\n    brokenLong = false;\n    brokenShort = false;\n}\nif (el_lt(close[0], emaVal)) brokenLong = true;\nif (el_gt(close[0], emaVal)) brokenShort = true;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && brokenLong && el_le(close[0], low[1] - stopOffsetTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && brokenShort && el_ge(close[0], high[1] + stopOffsetTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

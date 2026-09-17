@@ -1,0 +1,42 @@
+{
+    "name": "ReversalShortOfPriorExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "recentLookback": "5",
+        "levelLookback": "20",
+        "untouchedTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MARKET TURNED WITHOUT EVER REACHING THE LEVEL. Long: the lowest low of\n// the last `recentLookback` bars stayed at least `untouchedTicks` ABOVE the\n// lowest low of the `levelLookback` bars ending just before that window, and\n// this bar closed up -- the support below was never even tested, which Brooks\n// reads as strength in the buyers. Short is the mirror: the recent highest high\n// stayed that far BELOW the prior window's high and this bar closed down.\n//\n// THE POLARITY IS THE OPPOSITE OF THE REST OF THIS SLICE. Every other level rule\n// here fires when price REACHES the level; this one fires when it demonstrably\n// did NOT. It is mechanized off the SAME offset window extreme as\n// TouchOfRecentExtreme so the two can be compared directly.\n//\n// SIDES: the merged pseudocode states the SHORT (the failure to reach resistance\n// above, a sell setup). It is written into the short slot here and the long slot\n// carries its mirror, per the corpus convention that longCondition is the\n// bullish read.\n//\n// THE MARGIN IS WRITTEN AS THE PAIR 'strictly short of the level AND at least N\n// ticks short of it', so untouchedTicks = 0 still means the level was genuinely\n// never touched rather than touched-exactly. Default 2.\n//\n// The level window is offset by recentLookback + 1 bars so it cannot overlap the\n// recent window that is being tested against it. The offset is an input, not a\n// loop variable, and it is applied to the price series itself rather than to\n// the result of Highest, which would be a function-history read. Both extremes\n// mirror Extremes(): seeded at the window's first bar, scanning the rest,\n// strict and toleranced (el_gt / el_lt), EL source.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: recentLookback + levelLookback.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nlevelHigh = high[(int)recentLookback + 1];\nlevelLow = low[(int)recentLookback + 1];\nfor (ii = (int)recentLookback + 2; ii <= (int)recentLookback + (int)levelLookback; ++ii) {\n    if (el_gt(high[ii], levelHigh)) levelHigh = high[ii];\n    if (el_lt(low[ii], levelLow)) levelLow = low[ii];\n}\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (ii = 1; ii <= (int)recentLookback - 1; ++ii) {\n    if (el_gt(high[ii], recentHigh)) recentHigh = high[ii];\n    if (el_lt(low[ii], recentLow)) recentLow = low[ii];\n}",
+    "longCondition": "el_gt(recentLow, levelLow) && el_ge(recentLow - levelLow, untouchedTicks * tickSize) && el_gt(close[0], open[0])",
+    "shortCondition": "el_lt(recentHigh, levelHigh) && el_ge(levelHigh - recentHigh, untouchedTicks * tickSize) && el_lt(close[0], open[0])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

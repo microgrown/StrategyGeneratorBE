@@ -1,0 +1,42 @@
+{
+    "name": "FailedBreakoutBeyondExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "reverseBars": "1",
+        "toleranceTicks": "0"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brokeDown": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BREAKOUT BEYOND THE WINDOW EXTREME FAILED. Long: within the last\n// `reverseBars` bars the bar's low traded below the lowest low of the `lookback` bars\n// ending just before that window, and this bar CLOSES back above that broken\n// level by at least `toleranceTicks`. Short is the mirror above the highest\n// high. Brooks's 'the first failed breakout below a prior swing low is a lower\n// low buy setup'.\n//\n// THE LEVEL IS AN N-BAR WINDOW EXTREME, NOT A PIVOT: four of the six sources\n// state it as a window and it needs no pivot retention, which is what drops this\n// from hard to simple. The pivot-anchored statement of the same idea is\n// SwingPointUndercut composed with a reclaim.\n//\n// NOT FailedBreakoutReversal, which is on disk: that rule needs a closing price below\n// the level, re-measures the window per candidate bar, and carries no reclaim\n// margin. This one fires on the intrabar low poking through a level fixed once,\n// which is the far more common bar and the one Brooks is describing. Not\n// StopRunReversalBar either, whose breakout bar is specifically the PRIOR bar\n// and which demands a bull body on the reclaim.\n//\n// reverseBars defaults to 1 -- the single-bar rejection all three window sources\n// describe -- and the loop is what lets the multi-bar reading (3) be reached by\n// the grid. The level window is offset by reverseBars so no bar that is allowed\n// to break it can also help define it. The extremes mirror Extremes(): seeded at\n// the window's first bar, strict and toleranced (el_gt / el_lt), EL source.\n//\n// toleranceTicks defaults to 0, so the reclaim is the plain strict 'closed back\n// above the level'; a positive value demands the close clear it by that much.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: reverseBars + lookback - 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nlevelLow = low[(int)reverseBars];\nlevelHigh = high[(int)reverseBars];\nfor (ii = (int)reverseBars + 1; ii <= (int)reverseBars + (int)lookback - 1; ++ii) {\n    if (el_lt(low[ii], levelLow)) levelLow = low[ii];\n    if (el_gt(high[ii], levelHigh)) levelHigh = high[ii];\n}\nbrokeDown = false;\nbrokeUp = false;\nfor (ii = 0; ii <= (int)reverseBars - 1; ++ii) {\n    if (el_lt(low[ii], levelLow)) brokeDown = true;\n    if (el_gt(high[ii], levelHigh)) brokeUp = true;\n}",
+    "longCondition": "brokeDown && el_gt(close[0], levelLow + toleranceTicks * tickSize)",
+    "shortCondition": "brokeUp && el_lt(close[0], levelHigh - toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

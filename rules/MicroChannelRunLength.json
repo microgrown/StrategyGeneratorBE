@@ -2,9 +2,14 @@
     "name": "MicroChannelRunLength",
     "type": "Entry",
     "inputVariables": {
-        "minBars": "5"
+        "minBars": "5",
+        "minTicks": "1"
     },
     "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
         "chanLow": {
             "type": "bool",
             "init": "false"
@@ -16,7 +21,7 @@
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// A run counted back from the current bar reaches minBars exactly when none of\n// the first minBars pairs broke it, so the counter is written as that bounded\n// all-pairs test -- same firing bars, no persisted state, and the EL twin is\n// the same loop statement for statement.\n// The breaking test is STRICT (an equal low keeps a bull micro channel alive,\n// Brooks's \"no bar with a lower low\"), and it is an ordinary EL relational, so\n// el_lt/el_gt carry the measured 2.22e-12 tolerance.\nchanLow = true;\nchanHigh = true;\nfor (int i = 0; i < (int)minBars; ++i) {\n    if (el_lt(low[i], low[i + 1])) chanLow = false;\n    if (el_gt(high[i], high[i + 1])) chanHigh = false;\n}",
+    "preConditionHook": "// A run counted back from the current bar reaches minBars exactly when none of\n// the first minBars pairs broke it, so the counter is written as that bounded\n// all-pairs test -- same firing bars, no persisted state, and the EL twin is\n// the same loop statement for statement.\n// The breaking test is STRICT (an equal low keeps a bull micro channel alive,\n// Brooks's \"no bar with a lower low\"), and it is an ordinary EL relational, so\n// el_lt/el_gt carry the measured 2.22e-12 tolerance.\n//\n// minTicks (added 2026-09-17, tick-unit list) IS HOW DEEP A PULLBACK HAS TO BE\n// TO BREAK THE RUN: a bar breaks the bull channel only if its low is at least\n// minTicks below the prior bar's low, so a pullback of up to minTicks - 1 ticks\n// is forgiven. AT THE DEFAULT minTicks = 1 the subtracted term is\n// (1 - 1) * tickSize = 0 and the test is character for character the original\n// strict one -- existing behaviour and every existing template are unchanged --\n// and it is simultaneously the merged T02 key HigherLowStreak at ITS default,\n// whose alive-condition is low[i] >= low[i + 1] - (minTicks - 1) * tickSize\n// with noPullbackBars = minBars. The two requirements coincide exactly, so\n// nothing had to be traded off. Sources for the tolerance: R00-55 (no pullback\n// bar within the last 5 bars, a pullback bar being a low below the prior low by\n// at least minTicks) and V09-02 (the strict single-bar form).\n//\n// EL: the same comparison, low[kk] < low[kk + 1] - (minTicks - 1) * tickSize,\n// clearing chanLow.\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local; every scratch value is a localVariables entry,\n// so the hooks survive a double placement.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nchanLow = true;\nchanHigh = true;\nfor (int i = 0; i < (int)minBars; ++i) {\n    if (el_lt(low[i], low[i + 1] - (minTicks - 1) * tickSize)) chanLow = false;\n    if (el_gt(high[i], high[i + 1] + (minTicks - 1) * tickSize)) chanHigh = false;\n}",
     "longCondition": "chanLow",
     "shortCondition": "chanHigh",
     "postConditionHook": "",

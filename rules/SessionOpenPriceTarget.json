@@ -1,0 +1,28 @@
+{
+    "name": "SessionOpenPriceTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "offsetTicks": "0"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveSess": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE DAY'S OPENING PRICE AS THE TARGET. After a trend-from-the-open sell-off\n// reverses, Brooks's measured move up is the open-to-low distance projected\n// from the low -- and since the low IS the projection's anchor, that target\n// resolves exactly to the session's OPENING PRICE. So the mechanized rule is\n// one price held across the session, not a measured move at all: exit the long\n// when the bar's high reaches the day's open, the short when the low reaches\n// it.\n//\n// SESSION MODEL per the standing decision: a session starts when the bar's\n// wall-clock close date changes -- EL's date > date[1], mirrored as\n// day_of(ctx.Time(0)) > day_of(ctx.Time(1)) -- and the session's open is that\n// bar's open, held in a local until the next date change. OpenD(0) is VERIFIED\n// and would give the same number in the twin, but it has no engine\n// counterpart, so both twins carry the session in a variable and stay\n// structurally identical; that is the choice SessionMoveExhaustsDailyRange\n// records.\n//\n// haveSess IS THE WARM-UP GUARD. Before the first date change of the run the\n// variable still holds its initial 0, and 0 as a price sits under every real\n// price, so an unguarded long would exit on its entry bar. EL variables start\n// at 0 and hold it until first assigned, so this mirrors EL's behaviour rather\n// than picking the more defensible number.\n//\n// offsetTicks (default 0, Brooks's literal level) pushes the target that many\n// ticks BEYOND the open -- up for the long, down for the short. Ticks are\n// written division-first, ctx.MinMove() / ctx.PriceScale() computed once into\n// tickSz; both are per-symbol constants (VERIFIED, one change print per chart,\n// at bar 1).\n//\n// THE PLACEMENT TRAP, as with MovingAverageTarget: this is written for a long\n// entered BELOW the day's open, so a long entered above it exits on its first\n// bar. A placement concern, not a change to the condition.\n//\n// INTRADAY ONLY. On a daily or 1440-minute series every bar is its own\n// session, so sessOpen is this bar's own open and the rule degenerates to \"the\n// bar traded back to its own open\".\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessOpen = open[0];\n    haveSess = true;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveSess && el_ge(high[0], sessOpen + offsetTicks * tickSz)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveSess && el_le(low[0], sessOpen - offsetTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

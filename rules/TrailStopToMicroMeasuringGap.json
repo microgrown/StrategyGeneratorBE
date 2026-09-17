@@ -1,0 +1,44 @@
+{
+    "name": "TrailStopToMicroMeasuringGap",
+    "type": "Exit",
+    "inputVariables": {
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapSeenLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapSeenShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "useGapLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "useGapShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TRAIL THE STOP INTO THE MOST RECENT MICRO MEASURING GAP. A bar whose low sits\n// above the high of the bar TWO before it leaves a two-bar-apart gap that Brooks\n// reads as a sign of strength; the stop goes just under it, and moves again each\n// time a new gap prints. Mirrored for shorts on a bar whose high is below the low\n// of two bars ago.\n//\n// The gap test itself is trivial; all the machinery is in HOLDING THE LAST GAP'S\n// LEVEL, which is why the rule is carried whole rather than split -- as a stop it\n// is the level that matters, not the bar.\n//\n// Not MicroMeasuringGap, the Entry: that one also requires the middle bar to be a\n// trend bar of a given body fraction and uses the INCLUSIVE boundary\n// low[0] >= high[2], where this follows its own source's STRICT low[0] > high[2],\n// so the two differ on an exact touch. Not LimitEntryAtMicroGapEdge, which is a\n// limit entry at the gap edge one bar later.\n//\n// A STALE LEVEL CANNOT TAKE A NEW TRADE OFF. The gap is market structure, not\n// position state, so the level survives across trades -- but a bull gap left far\n// above a later entry would fire on the fill bar. At entry the level is therefore\n// armed only if it sits at or below that bar's close (mirrored for shorts), and a\n// gap that prints during the trade arms it unconditionally, since such a level is\n// at or below its own bar's close by construction. Armed with\n// ctx.BarsSinceEntry() == 0, VERIFIED as 0 on the fill bar and as restarting\n// through a reversal, which a ctx.MarketPosition() == 0 reset would miss because a\n// reversal never passes through flat. The arming is a bool rather than the merged\n// pseudocode's gapLevel > 0 test, because a back-adjusted continuous contract can\n// price below zero.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// toleranceTicks * (ctx.MinMove() / ctx.PriceScale()), into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\n//\n// Deepest bar touched: 2.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (ctx.BarsSinceEntry() == 0) {\n    useGapLong = gapSeenLong && el_le(gapLong, close[0]);\n    useGapShort = gapSeenShort && el_ge(gapShort, close[0]);\n}\nif (el_gt(low[0], high[2])) {\n    gapLong = low[0];\n    gapSeenLong = true;\n    useGapLong = true;\n}\nif (el_lt(high[0], low[2])) {\n    gapShort = high[0];\n    gapSeenShort = true;\n    useGapShort = true;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && useGapLong && el_le(close[0], gapLong - toleranceTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && useGapShort && el_ge(close[0], gapShort + toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

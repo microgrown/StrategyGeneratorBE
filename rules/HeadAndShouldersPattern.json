@@ -1,0 +1,70 @@
+{
+    "name": "HeadAndShouldersPattern",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "shoulderSymmetryTicks": "3",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hsTop": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hsBottom": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HEAD AND SHOULDERS, the named Brooks setup: a three-push pattern whose\n// MIDDLE push is the most extreme and whose two outer pushes are roughly\n// equal. Occurrence 1 is the right shoulder, 2 the head, 3 the left shoulder.\n// The TOP is the sell setup, so it is this rule's SHORT side; the inverted\n// bottom is the LONG.\n//\n// NOT ThreePushPattern at a parameter. Its test is MONOTONE -- each push\n// beyond the last, hiPx1 > hiPx2 > hiPx3 -- and this one is PEAKED, hiPx2\n// above BOTH neighbours, which no shapeMode selects: the two fire on\n// different bars, and hiPx2 > hiPx1 is the exact contradiction of\n// ThreePushPattern's first term. Brooks describes it as a wedge whose third\n// push fails to surpass the second, and Brian would want it tested as the\n// book states it.\n//\n// THE SYMMETRY TOLERANCE is the tick-sized quantity that held the rule for\n// the tick list: the shoulders are 'roughly equal', mechanized as their\n// difference being within shoulderSymmetryTicks ticks, std::fabs of the\n// difference against the margin (EL AbsValue, ACCEPTED). Raise it and the\n// rule degrades toward 'any peaked three-push'; at 0 it demands the two\n// shoulders print the same price exactly.\n//\n// THE NECKLINE IS NOT IN THIS RULE -- it is HeadAndShouldersNecklineBreakout,\n// which inlines this same pattern and adds the line through the two pullback\n// extremes. R12-04's head-and-shoulders CONTINUATION variant is this shape\n// plus a double top or bottom around the right shoulder, which is its own\n// pane.\n//\n// THE PIVOT SCAN IS INLINED from ThreePushPattern rather than reaching into\n// SwingHigh.json -- rules in this corpus never reference each other, and the\n// register lists Occurrence 3 and above as UNMEASURED while the left shoulder\n// IS occurrence 3. Measured pivot rule (EL_Swing_Probe.txt /\n// el_swing_output1.txt, @ES 60 min): at-or-beyond the swingStrength OLDER\n// bars, STRICTLY beyond the swingStrength NEWER ones (bars-ago indexing makes\n// the smaller index the newer bar, so the strict half is the k < j loop,\n// el_gt/el_lt, and the at-or-beyond half the k > j loop, el_ge/el_le);\n// confirmation lag exactly swingStrength bars, hence j from swingStrength;\n// candidate offsets 0..Length-1 inclusive, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; -1 SENTINEL on the prices, every use gated on the\n// count reaching 3; the low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingHigh exists, so plain EL governs, and no\n// early break is used -- Break is not a registered EasyLanguage word and the\n// twins stay statement for statement.\n//\n// The tick is ctx.MinMove() / ctx.PriceScale(), division-first, both VERIFIED\n// and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nhsTop = (nHiPiv == 3) && el_gt(hiPx2, hiPx3) && el_gt(hiPx2, hiPx1) && el_le(std::fabs(hiPx3 - hiPx1), shoulderSymmetryTicks * tickSize);\nhsBottom = (nLoPiv == 3) && el_lt(loPx2, loPx3) && el_lt(loPx2, loPx1) && el_le(std::fabs(loPx3 - loPx1), shoulderSymmetryTicks * tickSize);",
+    "longCondition": "hsBottom",
+    "shortCondition": "hsTop",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

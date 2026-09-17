@@ -1,0 +1,28 @@
+{
+    "name": "NoGapThroughSignalBarStop",
+    "type": "Entry",
+    "inputVariables": {
+        "entryTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longStop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortStop": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE STOP ENTRY WAS ACTUALLY TRADED THROUGH, NOT GAPPED THROUGH. A buy stop\n// sits entryTicks above the signal bar's high; take it only if THIS bar OPENED\n// BELOW that level and traded up through it. If the market opened above the\n// level the fill would be at the open, far past the intended price, and Brooks\n// skips the trade (R18-06). Mirrored for shorts.\n//\n// EL: longStop = high[1] + entryTicks * tickSize;\n//     open < longStop and high >= longStop\n//\n// ONE RULE, NOT TWO. The two terms are a single event -- the level was crossed\n// during the bar -- and neither half is the claim: the open term alone says only\n// that price was below a level, the high term alone is the ordinary breakout.\n//\n// Not PriorHighBreakoutWithOffset, which reads the *closing price* against that level\n// and has no cap on the open; the cap on the open is the whole content here.\n// Nothing in the corpus tests the open against the prior bar's extreme.\n//\n// General entry hygiene, not specific to the wedge chapter it was mined from:\n// it applies to any signal-bar stop entry, and the entry pane ANDs it in.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Both stop levels are localVariables entries,\n// never hook-scope declarations, so the hooks survive a double placement.\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nlongStop = high[1] + entryTicks * tickSize;\nshortStop = low[1] - entryTicks * tickSize;",
+    "longCondition": "el_lt(open[0], longStop) && el_ge(high[0], longStop)",
+    "shortCondition": "el_gt(open[0], shortStop) && el_le(low[0], shortStop)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

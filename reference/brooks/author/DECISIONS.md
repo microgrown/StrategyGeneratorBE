@@ -282,3 +282,42 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
   (`close[1]` vs `ema[1]`, `close[0]` vs `ema[0]`), not EL `crosses above` (a state
   machine bridging equality runs, a different bar set); `BarsSinceEmaCross` inlines
   the same test. Ratified by the orchestrator 2026-09-17; Brian may overturn.
+
+## 2026-09-17: tick-unit pass (slices T01–T08, 78 keys; ThreePushPattern already on disk)
+
+- Duplicate calls (T02): `DipBelowPriorBarLowByTicks` = `DipBelowPriorBarLow` (same
+  expression; defaults 1 and 4 both on the row); `LowNearPriorClose` =
+  `BarLowHoldsPriorClose`; `CloseWithinTicksOfHigh` = T01's `CloseNearBarExtreme`
+  (`close >= high − N·tick` is `(high − close) <= N·tick`). `ShallowDipBelowPriorLow`
+  renamed `DipBelowPriorLowCloseBackAbove` (one word from its sibling otherwise).
+  `ShallowDipBelowPriorBarLow` (at most N) and `DipBelowPriorBarLow` (at least N) both kept.
+- Orchestrator decision: `HigherLowStreak` is `MicroChannelRunLength` plus a tick
+  tolerance; resolved by adding `minTicks(1)` to the existing rule (the
+  `VolumeBelowAverage`/`volumeFraction` precedent), templates unchanged. Done by the T01 agent.
+- Kept apart, flagged for Brian: `TrendLineBreak` vs `TrendLineBrokenRecently` (differ
+  only by a slope gate at `breakTicks 0, withinBars 1, minBreaks 1`; if one is to go,
+  drop `TrendLineBreak`); `ChannelLineOvershoot` vs `SignificantChannelLineOvershoot`
+  (tick margin on bar 0 vs ATR magnitude over a window); `RangeHeightProjectionTarget`
+  vs `PatternHeightMeasuredMoveTarget` (rolling vs frozen at entry, the distinction the
+  corpus already draws elsewhere).
+- Constructions settled by agents and recorded in rows: `SwingPointTrailingStop` is NOT
+  ratcheted (pivot re-read each bar); touch/retest tests gated on `BarsSinceEntry >= 1`
+  because the fill is at the open; `StopBeyondSpikeStart` freezes at entry with the
+  always-in numbers promoted to inputs; `TrailStopToMicroMeasuringGap` disarms a stale
+  gap at entry; `DoubleExtreme*` (T06) share one inlined pivot-pair pattern with
+  `matchTicks`, level = the lower of the two lows; `IslandReversalRetest` non-overlap
+  read as disjoint bands; `SessionCloseStrengthBias` uses the date-change session end;
+  H&S neckline anchored on low occurrences 3 and 2 for a top.
+- T03: `TrailStopBeyondPriorBarExtreme` dropped after authoring — it is
+  `TrailArmedAfterProfitThreshold` at `armProfitDollars = 0`; grids use 0 there.
+  `RoundNumberProximity` stays blocked on a rounding word (no register row for
+  `Round`/`IntPortion`/`Floor`; `Mod` UNKNOWN) — a probe is needed; `NearAnyLevel`'s
+  round-number term waits on the same word. `Ledge` is an explicit loop, not `CountIF`
+  (an anchored count is not expressible with CountIF's shifting series).
+- T01: `CloseNearBarExtreme` (and T02's `CloseWithinTicksOfHigh`) NOT written — the
+  existing `ShavedTopBar` is the same test in price points (`shaveOffsetPoints`, authored
+  when the tick was unavailable). Orchestrator left `ShavedTopBar` as is rather than
+  change an existing input's unit under live templates; Brian may restate it in ticks.
+  `ShavedBothEnds` NOT written — `ShavedBothEndsBar` exists. `MicroChannelRunLength`
+  gained `minTicks(1)`: at the default the break test is character for character the
+  original strict one; templates unchanged.

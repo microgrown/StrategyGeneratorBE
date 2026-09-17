@@ -1,0 +1,28 @@
+{
+    "name": "ShavedBodyTop",
+    "type": "Entry",
+    "inputVariables": {
+        "tailTicks": "0"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SHAVED TOP MEASURED FROM THE BODY: the bar has no tail above its body, or\n// at most tailTicks of one -- high is within tailTicks of maxlist(open, close).\n// Mirrored, a shaved bottom: minlist(open, close) is within tailTicks of low.\n//\n// EL: bodyTop = maxlist(open, close); bodyBottom = minlist(open, close);\n//     high - bodyTop <= tailTicks * tickSize\n//\n// MEASURED FROM THE BODY EDGE, NOT THE CLOSING PRICE, the whole difference\n// from the existing ShavedTopBar (high - close <= shaveOffsetPoints). On a bull\n// bar maxlist(open, close) IS the close and the two coincide; on a bear bar the\n// body top is the *opening price*, so this rule is strictly stronger -- a bear bar\n// that closed near its low but opened well under its high passes ShavedTopBar's\n// short side and fails this one's long side. The merge kept the body-based and\n// close-based readings apart for exactly that reason (R00-12 vs V00-46/T06-22).\n//\n// MinList/MaxList are ACCEPTED for tick-grid PRICE operands only\n// (EL_FEATURES.md); the open and the close are raw prices, differing by exactly\n// 0 or by at least one tick -- 1e9-1e11x the 2.22e-12 relational tolerance -- so\n// the plain ternary stand-in is exact, the arrangement ReversalBarTailFraction\n// and SmallTailsBar use. (<algorithm> is not among the emitted includes, so no\n// std::min/std::max.)\n//\n// ABSOLUTE, NOT A FRACTION. Not SmallTailsBar (both tails as a fraction of the\n// bar's own range, direction-free) and not AverageUpperTailFraction (a mean over\n// a window): a tick tolerance is far stricter on a wide bar and far looser on a\n// one-tick bar, so the rules fire on different bars.\n//\n// The book's own value is 0 -- an exact touch on the tick grid, which the\n// relational tolerance handles -- and tailTicks = 1 is the \"or nearly shaved\"\n// reading to optimize.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: 0.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nbodyTop = (open[0] > close[0] ? open[0] : close[0]);\nbodyBottom = (open[0] < close[0] ? open[0] : close[0]);",
+    "longCondition": "el_le(high[0] - bodyTop, tailTicks * tickSize)",
+    "shortCondition": "el_le(bodyBottom - low[0], tailTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

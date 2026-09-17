@@ -1,0 +1,477 @@
+[
+  {
+    "key": "LegOneEqualsLegTwoTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "The leg 1 = leg 2 (AB=CD) measured move: with A the start of the first leg, B its end and C the end of the pullback, the target is D = C + multiple x (B - A). Exit the long there.",
+    "pseudocode": "A = swingLow(pivotStrength)[2]; B = swingHigh(pivotStrength)[1]; C = swingLow(pivotStrength)[0]; target = C + multiple * (B - A); ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotStrength": 2,
+      "lookback": 40,
+      "multiple": 1.0,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "three swing pivots (A, B, C) must be tracked; the arithmetic is trivial once they exist"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R07-07",
+      "R07-08",
+      "R16-03",
+      "R18-08",
+      "VP1-22",
+      "V06-03",
+      "V06-05",
+      "T01-06",
+      "T21-47"
+    ],
+    "merge_notes": "Distinct from PatternHeightMeasuredMoveTarget by anchor pair: the height is the PRIOR leg and the projection starts at the PULLBACK extreme, not at the breakout extreme, so the two land on different prices whenever the pullback is not shallow. R07-07 is the canonical statement and wins the definition. R07-08 (nested legs: treat A-to-D as the new leg 1) is the same rule one scale up -- a pivotStrength/lookback parameterization, not a new rule. R16-03 anchors C at a breakout retest low rather than a pivot low; V06-03/V06-05 use the pattern's last leg as A-B and chain the anchor off a previously reached target; T21-47 uses the spike as leg 1 and the channel start as C. All are the same C + (B - A). Brooks rejects the ABCD/AB=CD labelling (R07-07, T01-06) but uses the construction constantly. R07-07's 'thick area' midpoint restatement resolves to the same price and is not encoded separately.",
+    "variants_kept_separate": [
+      "PatternHeightMeasuredMoveTarget",
+      "GapMidpointMeasuredMoveTarget"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "exits_targets",
+    "el_words": [
+      "marketposition",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "RollingRangeMidpointTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "While a pullback trading range is still forming, re-estimate the target every bar as twice the range's rolling midpoint minus the start of the pullback -- the target moves with the range instead of being frozen at entry.",
+    "pseudocode": "mid = (highest(high, rangeBars)[0] + lowest(low, rangeBars)[0]) / 2; target = 2 * mid - legStartCapturedAtEntry; ctx.MarketPosition() > 0 && high[0] >= target - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeBars": 15,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a rolling Highest/Lowest midpoint recomputed each bar plus one price frozen at entry"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R07-09"
+    ],
+    "merge_notes": "Same arithmetic as GapMidpointMeasuredMoveTarget but the midpoint is re-estimated on every bar as Brooks instructs ('keep adjusting the line'), so the target is a moving level and the two fire on different bars. Kept apart on that behavioural difference alone.",
+    "variants_kept_separate": [
+      "GapMidpointMeasuredMoveTarget"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "exits_targets",
+    "el_words": [
+      "highest",
+      "lowest",
+      "marketposition"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "SessionOpenPriceTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "For a countertrend long taken after a trend-from-the-open sell-off reverses, the measured move up equal to the open-of-day-to-low-of-day distance, projected from the day's low -- which resolves exactly to the session's opening price. Exit the long when the high reaches the day's open.",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= sessionOpen + offsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "offsetTicks": 0
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "one session-anchored price (the day's open) held across the session"
+    },
+    "timeframe": "intraday-only",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "T23-18",
+      "R07-12"
+    ],
+    "merge_notes": "The candidate writes target = reversalLow + (sessionOpen - sessionLow) with the reversal low being the day's low, which collapses to the session open -- so the mechanized rule is far cheaper than the candidate's own pseudocode suggests. The passage's second form ('a measured move up equal to about the height of the entire initial leg down') is LegOneEqualsLegTwoTarget and is not re-encoded here.",
+    "variants_kept_separate": [
+      "LegOneEqualsLegTwoTarget",
+      "SessionMidpointTarget"
+    ],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "exits_targets",
+    "el_words": [
+      "date",
+      "marketposition"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "MovingAverageTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "The moving average is the minimum target of a countertrend scalp: exit the long when the bar's high reaches the N-bar EMA.",
+    "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= xaverage(close, emaLength)[0] - toleranceTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "toleranceTicks": 1
+    },
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an EMA; the comparison is single-bar"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseAboveAverage",
+      "relation": "variant",
+      "note": "CloseAboveAverage is an Entry on a simple N-bar average of close; this is an Exit on the bar's HIGH against an EMA, and an Entry cannot sit in the exit pane."
+    },
+    "sources": [
+      "R06-12",
+      "T10-15"
+    ],
+    "merge_notes": "Two statements of the same scalp target (Ranges ch6 gaps, Trends ch10 second entries). T10-15 wins on precision (high[0] against the EMA, position-gated). Both note the trap T10-15 records: written for a long entered below the EMA, so a long entered above it exits immediately -- a placement concern for the authoring pass, not a change to the condition.",
+    "variants_kept_separate": [],
+    "depends_on_keys": [],
+    "design_decisions_needed": [],
+    "bucket": "exits_targets",
+    "el_words": [
+      "marketposition",
+      "xaverage"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "SwingPointUndercut",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The bar's low trades at or below the most recent confirmed swing low, by at least offsetTicks (mirror: the high trades at or above the most recent swing high). Brooks's universal countertrend/limit trigger: 'buy at or below the low of a prior swing low', 'buy below a swing low expecting the breakout to fail'.",
+    "pseudocode": "low[0] <= lastSwingLow(strength) - offsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "offsetTicks": 0,
+      "maxBarsBack": 60
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the most recent confirmed pivot's price retained across bars; the comparison is trivial once it exists"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R26-14",
+      "R28-21",
+      "T21-18",
+      "T21-22",
+      "R28-40",
+      "T18-20",
+      "V03-03",
+      "V03-04",
+      "R05-20",
+      "R04-05",
+      "R28-16",
+      "VP1-14"
+    ],
+    "merge_notes": "Eleven candidates, one behaviour. Seven are the plain limit trigger at the last swing point (R26-14, R28-21, T21-18, T21-22, R28-40, T18-20, R04-05 on the short side) differing only in the CONTEXT GATE they attach - trading-range bottom, bull channel, bear channel, pullback-inside-a-bull-trend, late-stage channel - every one of which is a rule in another bucket and is ANDed by the pane system, so none of them changes this condition. V03-03 ('the test overshoots the old extreme: low[0] < priorSwingLow') is the same test after a trend-line break. V03-04 and R05-20 are the NEGATION (low[0] > priorSwingLow, the test undershoots / the stairs structure holds), which is the per-placement negate toggle and therefore the same rule. R04-05 and R26-14 attach scale-in sizing (add at each successive swing high, half-size first leg) which the engine cannot express; recorded and dropped. R28-16 places the limit below BOTH the prior bar's low and the swing low - the extra conjunct is a one-bar test that belongs with bar-level pullback rules. Standing convention applies: the limit fill is mechanized as signal-bar close then next-bar open, so offsetTicks defaults to 0 rather than Brooks's 'one tick below'.",
+    "variants_kept_separate": [
+      "FailedBreakoutBeyondExtreme",
+      "SwingPointTestHolds"
+    ],
+    "depends_on_keys": [
+      "SwingHigh"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "CloseBeyondLastSwingPoint",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The close is above the most recent confirmed swing high by at least marginTicks (mirror: below the most recent swing low). At swingPointsCleared > 1 the close must be beyond that many of the recent same-side pivots - Brooks's 'it reverses many bars, swing highs, and bear flags of the prior trend'.",
+    "pseudocode": "count of confirmed swing highs p within maxBarsBack with close[0] > swingHighPrice(p) + marginTicks * tickSize >= swingPointsCleared",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "marginTicks": 0,
+      "swingPointsCleared": 1,
+      "maxBarsBack": 60
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs retained pivot prices; trivial arithmetic once they exist"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "CloseAbovePriorHighestHigh",
+      "relation": "variant",
+      "note": "the catalog rule uses a FIXED N-bar window, Highest(High,N)[1]; this uses the pivot, which is Brooks's stricter reading and fires at a different, structure-dependent level"
+    },
+    "sources": [
+      "R00-35",
+      "VP1-23",
+      "V02-18",
+      "TP3-19",
+      "V02-05",
+      "T18-08"
+    ],
+    "merge_notes": "R00-35, VP1-23 and TP3-19 are identical at the defaults. V02-18 adds a margin ('breaks resistance by many ticks', 4) - a threshold, so a parameter. V02-05 requires the close to clear at least K swing highs of the prior trend (K = 2) - that is this rule at swingPointsCleared = K, and at K = 1 it degenerates to the others, so one rule. Every source flags that a fixed-window proxy exists and IS the catalog's CloseAbovePriorHighestHigh; the four candidates that state ONLY the proxy are collected separately as a D duplicate. Kept apart from that duplicate because the pivot level and the N-bar-highest level genuinely differ: after a deep pullback the last swing high can sit far below the N-bar high.",
+    "variants_kept_separate": [
+      "CloseAbovePriorHighestHigh",
+      "SwingPointUndercut"
+    ],
+    "depends_on_keys": [
+      "SwingHigh"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "SwingHighProfitTarget",
+    "role": "Exit",
+    "is_filter": false,
+    "description": "Take profit when open profit is at least profitThreshold dollars AND price reaches the most recent confirmed swing high plus offsetTicks (mirror: the last swing low minus offsetTicks for a short); a negative offsetTicks takes profit just BELOW the old high, which is what Brooks does once the rally is weakening.",
+    "pseudocode": "ctx.OpenPositionProfit() >= profitThreshold && high[0] >= lastSwingHigh(strength) + offsetTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "profitThreshold": 1000,
+      "offsetTicks": 0
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a retained pivot price; the profit test is trivial"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "TakeProfit",
+      "relation": "variant",
+      "note": "TakeProfit is the dollar leg alone; exits are ORed, so a dollar target AND a price level cannot be composed from two exit rules and must be one rule"
+    },
+    "sources": [
+      "T18-23",
+      "R30-06"
+    ],
+    "merge_notes": "T18-23 takes profit ABOVE the most recent swing high once profit is large enough; R30-06 takes it AT OR SLIGHTLY BELOW that high once the rally is judged to be maturing. One rule with a signed offsetTicks: +1 is T18-23, -3 is R30-06. R30-06's 'maturing/weakening trend' gate is research-grade with no bar-level test in that chapter and is dropped, which is what keeps this rule out of C; the profit threshold is a reasonable stand-in for 'the trend has run far enough'. Both describe PARTIAL profit taking, which the engine's whole-position Exit cannot express - recorded as a full-exit approximation, per T18-23's own note.",
+    "variants_kept_separate": [
+      "CloseBeyondLastSwingPoint"
+    ],
+    "depends_on_keys": [
+      "SwingHigh"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "openpositionprofit",
+      "pricescale",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "DoubleExtremePullback",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The double bottom pullback: after a double bottom formed within the last patternWindow bars and price rallied away from it, a third push down holds ABOVE the double bottom's level, coming no closer than holdTicks and no further than testZoneAtr x ATR (mirror: the double top pullback). Brooks: 'a three-push bottom where the third push down did not have strong-enough sellers to create a new low' - one of his most reliable buy setups.",
+    "pseudocode": "doubleBottomLevel = level of DoubleExtreme fired within patternWindow; low[0] > doubleBottomLevel + holdTicks * tickSize && low[0] < doubleBottomLevel + testZoneAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "patternWindow": 30,
+      "holdTicks": 0,
+      "testZoneAtr": 0.5,
+      "atrLength": 14
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits DoubleExtreme's retained pivots and adds a remembered pattern level plus a zone test"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "V08-02",
+      "T07-47",
+      "V00-29"
+    ],
+    "merge_notes": "Carried as a composite because it is a NAMED Brooks setup (the double bottom pullback / double top pullback) that Brian would want tested as the book states it, and because the third push's relationship to the pattern LEVEL is not expressible by ANDing DoubleExtreme with HigherSwingLow - the pane would not know the higher low has to sit just above the double bottom specifically. V08-02 gives the zone reading (hold margin 0, test zone 5 ticks), T07-47 the pivot-pair reading, V00-29 the loosest ('a double bottom followed by a deep pullback that forms a higher low'). Zone expressed in ATR for portability. V08-02's own note is important: Brooks treats the third push ending AT the level (a triple bottom) or slightly BELOW it and reversing (a failed breakout) as the same setup, so holdTicks should be allowed to go negative rather than the zone being widened. Graded by its hardest part, DoubleExtreme.",
+    "variants_kept_separate": [
+      "DoubleExtreme",
+      "HigherSwingLow",
+      "DoubleExtremeBreakout"
+    ],
+    "depends_on_keys": [
+      "DoubleExtreme",
+      "HigherSwingLow"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "swinghigh",
+      "swinglow",
+      "wfsafe_avgtruerange"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "DoubleExtremeBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The double bottom fails: after a double bottom formed within the last patternWindow bars, the low breaks breakTicks below its level (mirror: price breaks above a double top). Brooks: 'if a double bottom bull flag sets up but the market immediately reverses and falls below the double bottom, there might be a downside measured move' - traders enter on a stop one tick below.",
+    "pseudocode": "doubleBottomLevel = level of DoubleExtreme fired within patternWindow; low[0] < doubleBottomLevel - breakTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "patternWindow": 5,
+      "breakTicks": 1
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits DoubleExtreme's retained pivots plus a remembered level and a failure window"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R12-05",
+      "V05-13"
+    ],
+    "merge_notes": "R12-05 is the pattern breaking in the direction of the break (the double bottom fails, sell below it), stated with a failure window of 3 bars. V05-13 is the OTHER failure - price breaks ABOVE the double top and then closes back below it within a few bars, which Brooks reads as the third push of a wedge top - and that shape is FailedBreakoutBeyondExtreme applied to the double-top level rather than to an N-bar extreme; it is merged here as a citation and listed in variants_kept_separate on both, because whether the entry is with the break or against it is the whole difference between the two trades. The note on this rule for the authoring pass: author the with-the-break form (R12-05) first; the against-the-break form composes DoubleExtreme with FailedBreakoutBeyondExtreme once that rule can take a supplied level.",
+    "variants_kept_separate": [
+      "DoubleExtreme",
+      "FailedBreakoutBeyondExtreme",
+      "DoubleExtremeDipBreakout"
+    ],
+    "depends_on_keys": [
+      "DoubleExtreme"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  },
+  {
+    "key": "DoubleExtremeDipBreakout",
+    "role": "Entry",
+    "is_filter": false,
+    "description": "The book's literal double-top entry: after a double top, sell when price breaks entryTicks below the LOW OF THE DIP between the two tops (mirror: buy above the high of the bounce between the two bottoms of a double bottom).",
+    "pseudocode": "dipLow = lowest low between the two swing highs forming the double top; low[0] <= dipLow - entryTicks * tickSize",
+    "sides": "mirrored",
+    "parameters": {
+      "strength": 2,
+      "patternWindow": 30,
+      "entryTicks": 1
+    },
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits DoubleExtreme's pivots and additionally needs the extreme BETWEEN the two pivots retained"
+    },
+    "timeframe": "any",
+    "catalog_match": {
+      "rule": "",
+      "relation": "none",
+      "note": ""
+    },
+    "sources": [
+      "R20-02"
+    ],
+    "merge_notes": "Single source, kept apart from DoubleExtremeBreakout because the level is different: this one triggers at the DIP between the two extremes (much further away) rather than at the pattern's own level. Worth authoring precisely because Brooks says it fails: 'that is rarely successful because 80 percent of breakouts fail' - which under the per-placement negate toggle is a testable claim in both directions. Needs the between-pivots extreme, which is one more piece of retained state than any other rule in this bucket.",
+    "variants_kept_separate": [
+      "DoubleExtremeBreakout"
+    ],
+    "depends_on_keys": [
+      "DoubleExtreme"
+    ],
+    "design_decisions_needed": [],
+    "bucket": "swing_structure",
+    "el_words": [
+      "highest",
+      "lowest",
+      "minmove",
+      "pricescale",
+      "swinghigh",
+      "swinglow"
+    ],
+    "blocking_words": [],
+    "list": "B",
+    "slice": "T06_targets_swings"
+  }
+]

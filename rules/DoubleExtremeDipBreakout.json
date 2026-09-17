@@ -1,0 +1,88 @@
+{
+    "name": "DoubleExtremeDipBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "patternWindow": "30",
+        "pivotLookback": "40",
+        "matchTicks": "2",
+        "entryTicks": "1"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveDb": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDt": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bounceHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dipLo": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BOOK'S LITERAL DOUBLE-TOP ENTRY: after a double top, sell when price\n// breaks entryTicks below THE LOWEST POINT OF THE DIP between the two tops.\n// The long\n// mirror buys above the high of the bounce between the two bottoms of a double\n// bottom.\n//\n// Kept apart from DoubleExtremeBreakout because THE LEVEL IS DIFFERENT: that\n// rule triggers at the pattern's own level, this one at the extreme BETWEEN\n// the two pivots, which sits much further away. Worth authoring precisely\n// because Brooks says it usually fails -- \"that is rarely successful because\n// 80 percent of breakouts fail\" -- which under the per-placement negate toggle\n// is a testable claim in both directions.\n//\n// THE PATTERN is spelled exactly as in DoubleExtremePullback and\n// DoubleExtremeBreakout: the two most recent CONFIRMED swing lows within\n// matchTicks of each other, the more recent confirmed no more than\n// patternWindow bars ago. matchTicks and pivotLookback ARE PROMOTED, the\n// merged parameters naming neither. Ticks division-first,\n// ctx.MinMove() / ctx.PriceScale() computed once into tickSz; both are\n// per-symbol constants (VERIFIED). entryTicks keeps Brooks's one tick.\n//\n// THE BETWEEN-PIVOTS EXTREME is one more piece of retained state than any\n// other rule in this bucket: the highest high over the bars from the newer\n// pivot back to the older one, inclusive, scanned with the pivots' own\n// bars-ago counts as the loop bounds -- the shape ChannelBounceFractionTarget\n// uses when a span is defined by a pivot rather than by an input. The scan is\n// INSIDE the pattern guard because an unguarded loop would run from a -1 bar\n// index, which is a future bar. The guard costs nothing in Max Bars Back: the\n// pivot scan above already reaches pivotLookback - 1 + strength every bar.\n//\n// PIVOT SCAN inlined from SwingHigh.json per the B-list decision, occurrences\n// 1 and 2 only (occurrence 3+ is unmeasured). MEASURED (EL_Swing_Probe.txt,\n// @ES 60 min): the pivot bar is AT OR ABOVE the `strength` OLDER bars and\n// STRICTLY ABOVE the `strength` NEWER bars -- bars-ago indexing, so the newer\n// bars are the smaller k and take el_gt / el_lt, the older el_ge / el_le;\n// confirmation lag exactly `strength`; candidate offsets\n// strength..pivotLookback-1, the neighbourhood reaching `strength` bars past\n// the window. The comparisons carry the 2.22e-12 relational tolerance. A flat\n// run of equal lows is ONE pivot, not N. The -1 sentinel is guarded on both\n// bar indices.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)strength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nhaveDb = (loBar1 != -1.0) && (loBar2 != -1.0) && el_le(loBar1, patternWindow)\n    && el_le(std::fabs(loPx1 - loPx2), matchTicks * tickSz);\nhaveDt = (hiBar1 != -1.0) && (hiBar2 != -1.0) && el_le(hiBar1, patternWindow)\n    && el_le(std::fabs(hiPx1 - hiPx2), matchTicks * tickSz);\nbounceHi = 0.0;\nif (haveDb) {\n    bounceHi = high[(int)loBar1];\n    for (int k = (int)loBar1 + 1; k <= (int)loBar2; ++k) {\n        if (el_gt(high[k], bounceHi)) bounceHi = high[k];\n    }\n}\ndipLo = 0.0;\nif (haveDt) {\n    dipLo = low[(int)hiBar1];\n    for (int k = (int)hiBar1 + 1; k <= (int)hiBar2; ++k) {\n        if (el_lt(low[k], dipLo)) dipLo = low[k];\n    }\n}",
+    "longCondition": "haveDb && el_ge(high[0], bounceHi + entryTicks * tickSz)",
+    "shortCondition": "haveDt && el_le(low[0], dipLo - entryTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

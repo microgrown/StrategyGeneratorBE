@@ -1,0 +1,20 @@
+{
+    "name": "SmallTickFailedBreakoutReversal",
+    "type": "Entry",
+    "inputVariables": {
+        "failTicks": "5"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SMALL FAILED BREAKOUT. The PRIOR bar poked at least failTicks BELOW the low\n// of the bar before it, and THIS bar trades back up through that level -- the\n// five-or-nine-tick failed extension Brooks reports at the end of a protracted\n// move, and a signal in the opposite direction. Written on the LONG side as the\n// failed DOWNSIDE poke (the merged pseudocode states the short case); the short\n// side is its mirror, a failed upside poke.\n//\n// EL: low[1] <= low[2] - failTicks * tickSize and high > low[2]\n//\n// THE REFERENCE LEVEL IS A FIXED BAR OFFSET, high[2] / low[2], not a remembered\n// signal bar carried forward -- the mechanizable reading the merge chose.\n//\n// Not SmallBreakoutTrapReversal, which measures the poke against a 20-bar\n// Lowest window in price points and requires the *closing price* back above it on\n// the SAME bar; here the break and the recovery are on two DIFFERENT bars and\n// the recovery is read from the high, so the two fire on different bars. Not\n// StopRunReversalBar, which uses the same 20-bar level and a close term. Not\n// NearMissLevelReversal, which is the deliberate opposite: price did NOT trade\n// through the level.\n//\n// V00-24 gives 5 ticks and R24-01 gives 9 with a \"near the end of a protracted\n// trend\" gate; the gate is dropped (it is the always-in / trend-duration read,\n// a separate placement). failTicks is instrument-specific, like\n// CloseNearPriorLow's threshold.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: 2.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_le(low[1], low[2] - failTicks * tickSize) && el_gt(high[0], low[2])",
+    "shortCondition": "el_ge(high[1], high[2] + failTicks * tickSize) && el_lt(low[0], high[2])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

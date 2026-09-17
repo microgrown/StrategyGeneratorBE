@@ -1,0 +1,29 @@
+{
+    "name": "TwoBarReversalAtNewExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "swingLookback": "20",
+        "overlapTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A TWO-BAR REVERSAL AT A LEG EXTREME. The PRIOR bar made a new swingLookback-\n// bar low -- its low is at or below lowest(low, swingLookback)[2], the window\n// ending just before it, so the bar is not in its own benchmark -- and THIS bar\n// is a bull bar closing above the prior close while still reaching back into the\n// prior bar's low, within overlapTicks of it. Mirrored at a top.\n//\n// EL: priorLow = lowest(low, swingLookback)[2];\n//     low[1] <= priorLow and close > open and close > close[1] and\n//     low <= low[1] + overlapTicks * tickSize\n//\n// NOT TwoBarReversal, which asks for a bear bar followed by a bull bar closing above\n// the two-bar midpoint with a size ratio, and fires ANYWHERE. The new-extreme\n// requirement is a different rule, not a threshold: this one fires only at the\n// end of a leg. Not BullReversalBarAtNewLow either -- that is a SINGLE bar at\n// the new low judged by its close position in its own range; here the extreme\n// belongs to the bar BEFORE the signal, which is what makes it two-bar.\n//\n// THE OVERLAP TERM is what keeps the pair a reversal rather than a gap-up\n// continuation: the bull bar must still trade at or near the prior bar's low,\n// overlapTicks above it at most.\n//\n// The swing-pivot language of V01-07 and V24-06 is mechanized as a plain\n// lowest/highest window, per the merge (least machinery, no confirmation lag).\n// V01-07 uses 10 bars and V24-06 20; default 20.\n//\n// THE WINDOW IS WRITTEN OUT as the Extremes loop lowest/highest bottom out in --\n// seeded at the window's first bar (index 2), scanning the rest with a strict\n// comparison. Extremes is EL source, so its comparisons carry the measured\n// 2.22e-12 relational tolerance, hence el_lt/el_gt rather than raw < and >;\n// only the VALUE is read, so the tie rule (an equal extreme keeps the earliest\n// bar) cannot show. The same construction BreakoutClearsPriorExtremeByMargin\n// uses, shifted one bar further back.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables\n// entry, never a hook-scope declaration, so the hooks survive a double\n// placement. Deepest bar touched: swingLookback + 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npriorLow = low[2];\npriorHigh = high[2];\nfor (int i = 3; i <= (int)swingLookback + 1; ++i) {\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n}",
+    "longCondition": "el_le(low[1], priorLow) && el_gt(close[0], open[0]) && el_gt(close[0], close[1]) && el_le(low[0], low[1] + overlapTicks * tickSize)",
+    "shortCondition": "el_ge(high[1], priorHigh) && el_lt(close[0], open[0]) && el_lt(close[0], close[1]) && el_ge(high[0], high[1] - overlapTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

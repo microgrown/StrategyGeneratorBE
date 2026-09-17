@@ -1,0 +1,70 @@
+{
+    "name": "MarginalThreePushBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "maxMinorBreakoutTicks": "2",
+        "lookbackBars": "40"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "marUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "marDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MARGINAL THREE-PUSH THAT BREAKS OUT WITH THE PUSHES. Each new extreme\n// beats the one before it by only a tick or two -- a wedge made of minor\n// breakouts -- and the bar CLOSES beyond the last push's extreme rather\n// than reversing out of it. The long is three pushes UP followed by a close\n// above the newest swing high; the short is the mirror on the lows.\n//\n// THE OPPOSITE TRADE to ThreePushSwingBreakoutEntry, which takes three pushes\n// DOWN and buys the close through the newest swing high -- the break of the\n// wedge's other side, against the pushes. This one goes WITH them. Same\n// primitive, different bars, so both are kept.\n//\n// NOT ThreePushPattern at shapeMode = 1: that mode compares the two\n// increments with each other (the later push extending LESS than the earlier\n// one), a converging shape at any size. This caps EACH increment in TICKS,\n// which is what makes the breakouts 'marginal' and is why the rule was held\n// for the tick list. Written as the addendum's 'no more than N ticks' pair:\n// strictly beyond (a flat push is not a push) AND within\n// maxMinorBreakoutTicks ticks.\n//\n// The source's 3-to-20-bar pullback between the marginal breakouts is exactly\n// what a confirmed pivot at swingStrength already enforces, so it is not\n// carried as a second parameter.\n//\n// THE PIVOT SCAN IS INLINED from ThreePushPattern rather than reaching into\n// SwingHigh.json -- rules in this corpus never reference each other, and the\n// register lists Occurrence 3 and above as UNMEASURED while the third push is\n// the point of the pattern. Measured pivot rule (EL_Swing_Probe.txt /\n// el_swing_output1.txt, @ES 60 min): at-or-beyond the swingStrength OLDER\n// bars, STRICTLY beyond the swingStrength NEWER ones (bars-ago indexing makes\n// the smaller index the newer bar, so the strict half is the k < j loop,\n// el_gt/el_lt, and the at-or-beyond half the k > j loop, el_ge/el_le);\n// confirmation lag exactly swingStrength bars, hence j from swingStrength;\n// candidate offsets 0..Length-1 inclusive, so the deepest bar touched is\n// lookbackBars - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; -1 SENTINEL on the prices, every use gated on the\n// count reaching 3; the low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingHigh exists, so plain EL governs, and no\n// early break is used -- Break is not a registered EasyLanguage word and the\n// twins stay statement for statement.\n//\n// The tick is ctx.MinMove() / ctx.PriceScale(), division-first, both VERIFIED\n// and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[j];\n        if (nHiPiv == 2) hiPx2 = high[j];\n        if (nHiPiv == 3) hiPx3 = high[j];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[j];\n        if (nLoPiv == 2) loPx2 = low[j];\n        if (nLoPiv == 3) loPx3 = low[j];\n    }\n}\nmarUp = (nHiPiv == 3) && el_gt(hiPx1 - hiPx2, 0.0) && el_le(hiPx1 - hiPx2, maxMinorBreakoutTicks * tickSize) && el_gt(hiPx2 - hiPx3, 0.0) && el_le(hiPx2 - hiPx3, maxMinorBreakoutTicks * tickSize);\nmarDn = (nLoPiv == 3) && el_gt(loPx2 - loPx1, 0.0) && el_le(loPx2 - loPx1, maxMinorBreakoutTicks * tickSize) && el_gt(loPx3 - loPx2, 0.0) && el_le(loPx3 - loPx2, maxMinorBreakoutTicks * tickSize);",
+    "longCondition": "marUp && el_gt(close[0], hiPx1)",
+    "shortCondition": "marDn && el_lt(close[0], loPx1)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

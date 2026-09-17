@@ -1,0 +1,20 @@
+{
+    "name": "ShallowDipBelowPriorBarLow",
+    "type": "Entry",
+    "inputVariables": {
+        "dipTicks": "4"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A PULLBACK NO DEEPER THAN THE CHANNEL'S OWN HISTORY. The bar dips below the\n// prior bar's low, but by no more than dipTicks (mirrored: pokes above the\n// prior bar's high by no more than that). T16-05 and R28-18 are the same limit\n// order one to four ticks below the prior bar's low inside a micro channel,\n// sized from the channel's largest pullback so far: \"if the biggest pullback has\n// been five ticks, buy any three- or four-tick pullback\". Default 4 from T16-05;\n// R28-18 gives no number.\n//\n// A BAND, so it is NOT DipBelowPriorBarLow at a parameter and not that rule\n// negated: the UPPER bound is the whole point. DipBelowPriorBarLow asks for AT\n// LEAST dipTicks of dip and gets deeper as its input rises; this one asks for a\n// dip of AT MOST dipTicks and gets looser as its input rises, and the two fire\n// on disjoint sets of bars whenever both bounds bite. A deep dip is a different\n// event, which is why the merge kept them apart.\n//\n// The lower edge is STRICT (the bar must actually have dipped), the upper edge\n// is not, matching the sources' \"one to four ticks below\". Both terms read bar 1\n// unconditionally, so EL's lack of short-circuiting costs nothing here.\n//\n// Not CloseNearPriorLow, which tests the close against low[1] plus an offset\n// with no lower bound.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();",
+    "longCondition": "el_lt(low[0], low[1]) && el_ge(low[0], low[1] - dipTicks * tickSize)",
+    "shortCondition": "el_gt(high[0], high[1]) && el_le(high[0], high[1] + dipTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

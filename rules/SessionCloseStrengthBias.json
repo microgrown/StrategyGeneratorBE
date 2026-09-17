@@ -1,0 +1,41 @@
+{
+    "name": "SessionCloseStrengthBias",
+    "type": "Entry",
+    "inputVariables": {
+        "closingWindowBars": "9",
+        "toleranceTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "closedStrong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "closedWeak": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveBias": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE PRIOR SESSION CLOSED STRONG, so the next one opens with a bull bias.\n// Brooks's point is about the shape of the DAILY bar: a rally into the close\n// makes the day a bull trend bar and biases the following day. Mechanized as\n// a flag computed once, at the session boundary, and consulted on every bar\n// of the session that follows: the prior session's last close sat within\n// toleranceTicks of the highest high of its final closingWindowBars bars. The\n// SHORT is the mirror -- a close at the low of that window.\n//\n// WHEN THE FLAG IS COMPUTED. The last bar of a session cannot be recognised\n// while it is printing; it is identifiable exactly one bar LATE, when the\n// wall-clock close date changes. That is not a cost here, because the flag is\n// not consulted until the next session anyway: on the FIRST bar of the new\n// session, close[1] IS the prior session's closing print and bars\n// 1..closingWindowBars are its final bars. The merged note offered a\n// session-close CLOCK TIME input as the cheaper alternative; the date-change\n// form is used instead because it is the standing session model for this\n// corpus (EL date > date[1], mirrored as\n// day_of(ctx.Time(0)) > day_of(ctx.Time(1)), as SessionOpenPriceTarget writes\n// it) and needs no symbol-specific time constant -- an authoring decision;\n// the two agree whenever the clock input matches the feed's actual session\n// end.\n//\n// closingWindowMinutes 45 in the book is 9 five-minute bars, hence the\n// default 9; the bar-count form survives a change of bar interval where a\n// minute count would not. If the prior session was shorter than\n// closingWindowBars the window reaches back into the session before it --\n// accepted, as the corpus's other bar-count windows do, rather than carrying\n// a session-length counter no source asks for.\n//\n// The window extremes mirror EL's own Extremes(): seeded at the window's\n// FIRST (newest) bar, scanned strictly with the tolerance-carrying\n// comparison, so a tie keeps the newest bar. Written as a loop rather than\n// an EL Highest call offset one bar so the twins read statement for\n// statement.\n//\n// haveBias is the warm-up guard: before the first date change of the run the\n// flags still hold their initial false, which is EL's behaviour mirrored, not\n// a numerical choice.\n//\n// NOT CloseRangePosition, which places a close inside its OWN bar's range on\n// every bar. This is one reading per session, over a MULTI-BAR window, held\n// constant through the next session -- no setting of that rule reproduces it.\n// The tick tolerance is the quantity that held the rule for this list; the\n// tick is ctx.MinMove() / ctx.PriceScale(), division-first, both VERIFIED and\n// per-symbol constant. Intraday bars: on a daily or 1440-minute series the\n// date changes every bar and the rule degenerates to 'yesterday closed at the\n// high of the last closingWindowBars days'.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. The flags and\n// the window extremes are the cross-session state and are deliberately NOT\n// reset each bar.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    windowHigh = high[1];\n    windowLow = low[1];\n    for (int i = 2; i <= (int)closingWindowBars; ++i) {\n        if (el_gt(high[i], windowHigh)) windowHigh = high[i];\n        if (el_lt(low[i], windowLow)) windowLow = low[i];\n    }\n    closedStrong = el_ge(close[1], windowHigh - toleranceTicks * tickSize);\n    closedWeak = el_le(close[1], windowLow + toleranceTicks * tickSize);\n    haveBias = true;\n}",
+    "longCondition": "haveBias && closedStrong",
+    "shortCondition": "haveBias && closedWeak",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

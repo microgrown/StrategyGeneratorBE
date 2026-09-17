@@ -1,0 +1,29 @@
+{
+    "name": "BreakoutClearsPriorExtremeByMargin",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "marginTicks": "4"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A BREAKOUT THAT GOES FAR ENOUGH PAST THE LEVEL TO PAY. The bar's high clears\n// the highest high of the lookback bars ENDING ONE BAR AGO by at least\n// marginTicks (mirrored on the lows), rather than poking one tick through it.\n// Brooks's test of whether a stop entry at the level could have been scalped\n// out for a profit: R02-06 four ticks above a swing high, V07-11 three ticks\n// beyond a flag boundary -- the same margin test against different levels,\n// default 4.\n//\n// THE LEVEL IS the EL twin's highest(high, lookback)[1], the merge's choice over\n// a swing-pivot search: the least machinery, and the construction\n// CloseAbovePriorHighestHigh already uses. The window is open-coded here as the\n// Extremes loop it bottoms out in -- seeded at the window's first bar, scanning\n// the rest with a strict comparison, and since only the VALUE is used the tie\n// rule (an equal extreme keeps the earliest bar) cannot show. Extremes is EL\n// source, so its comparisons carry the measured 2.22e-12 relational tolerance,\n// hence el_gt / el_lt rather than raw > and <.\n//\n// Not CloseAbovePriorHighestHigh, which reads the close against that same level\n// with no margin: the two disagree on every bar that pokes above and closes back\n// under, which is precisely the case Brooks is separating.\n//\n// Distinct from HigherHighByTicks (one prior bar, no window) except at\n// lookback = 1, where the window collapses to high[1] and the two coincide;\n// both are authored and the default window is 20.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: lookback.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)lookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}",
+    "longCondition": "el_ge(high[0], priorHigh + marginTicks * tickSize)",
+    "shortCondition": "el_le(low[0], priorLow - marginTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

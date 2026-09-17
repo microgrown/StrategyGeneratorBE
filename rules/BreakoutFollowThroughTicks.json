@@ -1,0 +1,38 @@
+{
+    "name": "BreakoutFollowThroughTicks",
+    "type": "Entry",
+    "inputVariables": {
+        "swingLookback": "20",
+        "confirmBars": "3",
+        "scalpTicks": "4"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// DID THE NEW EXTREME FIND MORE BUYERS THAN SELLERS? The best high of the last\n// confirmBars bars is at least scalpTicks above the highest high of the\n// swingLookback bars that came BEFORE them -- enough follow-through for the\n// breakout traders to have taken a scalper's profit, which is R04-01's test of\n// trend strength. Mirrored on the lows for the short side. Re-evaluated every\n// bar, so it doubles as a rolling strength gauge.\n//\n// LEVELS ARE highest/lowest WINDOWS, not swing pivots: the candidate says swing\n// high, and the merge re-expressed it over fixed windows because that needs no\n// pivot detection and is the cheaper definition.\n//\n// BOTH WINDOWS ARE WRITTEN OUT in both twins as the Extremes scan that\n// highest/lowest bottom out in -- seeded at the window's FIRST bar, the rest\n// scanned with a strict comparison -- because the older window is\n// highest(high, swingLookback)[confirmBars], a history reference at an INPUT\n// offset; the same open-coding FailedBreakoutReversal uses. Extremes is EL\n// source, so its comparisons carry the measured 2.22e-12 relational tolerance,\n// hence el_gt / el_lt rather than raw > and <. Only the value is read, so the\n// tie rule (an equal extreme keeps the earliest bar) cannot show. Seeding at the\n// first bar also keeps each loop's start at or below its end for every input of\n// 1 or more, so the EL twin's loops can never run backwards.\n//\n// The negation -- a new extreme that reverses within a bar or two -- is the\n// other half of Brooks's sentence and is reached with the per-placement negate\n// toggle, not a second rule.\n//\n// The tick is written division-first, mirroring EL's MinMove / PriceScale, and\n// read once per bar into a local. Every scratch value is a localVariables entry,\n// never a hook-scope declaration, so the hooks survive a double placement.\n// Deepest bar touched: confirmBars + swingLookback - 1.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nrecentHigh = high[0];\nrecentLow = low[0];\nfor (int i = 0; i <= (int)confirmBars - 1; ++i) {\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n}\npriorHigh = high[(int)confirmBars];\npriorLow = low[(int)confirmBars];\nfor (int i = (int)confirmBars; i <= (int)confirmBars + (int)swingLookback - 1; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}",
+    "longCondition": "el_ge(recentHigh - priorHigh, scalpTicks * tickSize)",
+    "shortCondition": "el_ge(priorLow - recentLow, scalpTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

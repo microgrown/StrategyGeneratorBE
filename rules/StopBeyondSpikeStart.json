@@ -1,0 +1,87 @@
+{
+    "name": "StopBeyondSpikeStart",
+    "type": "Exit",
+    "inputVariables": {
+        "stopBufferTicks": "1",
+        "strongBodyFraction": "0.6",
+        "maxTailFraction": "0.2",
+        "consecutiveBars": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodySize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "strongBull": {
+            "type": "bool",
+            "init": "false"
+        },
+        "strongBear": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bullRunLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "bearRunLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "bullRunLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearRunHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "spikeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "spikeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveSpikeLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveSpikeHigh": {
+            "type": "bool",
+            "init": "false"
+        },
+        "stopLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveStopLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveStopShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// STOP BEYOND THE START OF THE SPIKE, not beyond the signal or entry bar. For a\n// trade taken during a spike the reference bar is the FIRST bar of the run of\n// strong trend bars, which can be several bars before the entry, so this stop is\n// deliberately wider than StopBeyondSignalBar.\n//\n// THE SPIKE'S START COMES FROM THE SETTLED ALWAYS-IN DECISION: a strong trend bar\n// has a body of at least strongBodyFraction of its own range with BOTH tails no\n// more than maxTailFraction of it, and consecutiveBars (default 2) of them in a\n// row is the flip. The run's first bar's low is carried in a local while the run\n// extends, so no bar index grows with the spike's length -- the deepest bar this\n// rule touches is 0. Both body and tail tests are MULTIPLICATIONS, never\n// divisions, so a zero-range bar cannot raise EL's divide-by-zero.\n//\n// THE LEVEL IS FROZEN AT ENTRY. The spike level is market state that keeps\n// updating as new spikes print, but the stop is the spike the trade was ENTERED\n// in, so it is captured on the fill bar and never moved -- which is what makes\n// this an initial stop rather than another trail, and it is the at-entry capture\n// convention StopAtSignalBarRangeMultiple uses. A trade entered before any spike\n// has printed never fires this exit, which the have-flags carry.\n//\n// ctx.BarsSinceEntry() == 0 is the per-position boundary: VERIFIED as 0 on the\n// fill bar and as restarting through a reversal, which a ctx.MarketPosition() == 0\n// reset would miss because a reversal never passes through flat.\n//\n// The run counters are ints compared against a double input, so the cast is\n// explicit, as BreakevenStopAfterEmaHoldingRun writes it.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// stopBufferTicks * (ctx.MinMove() / ctx.PriceScale()), into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\n//\n// Deepest bar touched: 0.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nbarRange = high[0] - low[0];\nbodySize = close[0] - open[0];\nstrongBull = el_gt(close[0], open[0]) && el_ge(bodySize, strongBodyFraction * barRange) && el_le(high[0] - close[0], maxTailFraction * barRange) && el_le(open[0] - low[0], maxTailFraction * barRange);\nstrongBear = el_lt(close[0], open[0]) && el_ge(-bodySize, strongBodyFraction * barRange) && el_le(high[0] - open[0], maxTailFraction * barRange) && el_le(close[0] - low[0], maxTailFraction * barRange);\nif (strongBull) {\n    if (bullRunLen == 0) bullRunLow = low[0];\n    bullRunLen = bullRunLen + 1;\n} else {\n    bullRunLen = 0;\n}\nif (strongBear) {\n    if (bearRunLen == 0) bearRunHigh = high[0];\n    bearRunLen = bearRunLen + 1;\n} else {\n    bearRunLen = 0;\n}\nif (el_ge((double)bullRunLen, consecutiveBars)) {\n    spikeLow = bullRunLow;\n    haveSpikeLow = true;\n}\nif (el_ge((double)bearRunLen, consecutiveBars)) {\n    spikeHigh = bearRunHigh;\n    haveSpikeHigh = true;\n}\nif (ctx.BarsSinceEntry() == 0) {\n    haveStopLong = haveSpikeLow;\n    stopLong = spikeLow;\n    haveStopShort = haveSpikeHigh;\n    stopShort = spikeHigh;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveStopLong && el_le(close[0], stopLong - stopBufferTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveStopShort && el_ge(close[0], stopShort + stopBufferTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

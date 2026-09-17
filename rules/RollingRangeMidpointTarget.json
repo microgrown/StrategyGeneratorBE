@@ -1,0 +1,66 @@
+{
+    "name": "RollingRangeMidpointTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "rangeBars": "15",
+        "legLookback": "20",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rmHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rmLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rmMid": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legStartUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legStartDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "tgtUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tgtDn": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MEASURED MOVE OFF A RANGE THAT IS STILL FORMING. While the pullback\n// trading range builds, Brooks re-estimates the target every bar -- \"keep\n// adjusting the line\" -- so the projection 2 * mid - legStart is recomputed\n// from a ROLLING midpoint rather than frozen at the breakout. mid is the\n// midpoint of the last rangeBars bars, current bar INCLUSIVE, and it moves\n// with every new bar of the range.\n//\n// Same arithmetic as GapMidpointMeasuredMoveTarget, different behaviour: that\n// rule freezes the whole level at entry, this one freezes only legStart and\n// lets the midpoint walk, so the two fire on different bars. That is the only\n// thing keeping them apart and it is the merge's stated reason.\n//\n// legLookback IS PROMOTED -- the merged parameters name no window for \"the\n// start of the pullback\", and GapMidpointMeasuredMoveTarget's convention is a\n// Lowest/Highest window, so legStart is the lowest low of legLookback bars for\n// a long and the highest high for a short. It is captured ONCE, on the fill\n// bar (ctx.BarsSinceEntry() == 0, VERIFIED 0 on the fill bar, 0 while flat,\n// restarting through a reversal); a leg start recomputed every bar would slide\n// with the market and take the target with it. Both windows are scanned\n// UNCONDITIONALLY every bar -- only the freeze is conditional -- so Max Bars\n// Back must cover them regardless, matching the twin's unconditional calls.\n//\n// THE GUARD: a leg start on the wrong side of the midpoint projects a target\n// BEHIND the market, which a long would reach on its entry bar. haveUp /\n// haveDn record, at the freeze, that legStart sat below (long) / above (short)\n// the midpoint. At the defaults legLookback > rangeBars and the relation holds\n// by construction, but the grid may invert them.\n//\n// Ticks division-first, ctx.MinMove() / ctx.PriceScale() computed once into\n// tickSz: both are per-symbol constants (VERIFIED, exactly one change print\n// per chart, at bar 1), so no history is needed.\n//\n// THE WINDOW SCANS mirror EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at bar 0, scanning bars 1..Length-1, and its comparison is an\n// ordinary EL relational operator, so el_gt / el_lt rather than > and <.\n//\n// Not RangeMidpointTarget, which exits AT the midpoint of a window ending one\n// bar ago; this projects THROUGH the midpoint to twice it less the leg start.\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nrmHi = high[0];\nrmLo = low[0];\nfor (int i = 1; i < (int)rangeBars; ++i) {\n    if (el_gt(high[i], rmHi)) rmHi = high[i];\n    if (el_lt(low[i], rmLo)) rmLo = low[i];\n}\nrmMid = (rmHi + rmLo) / 2;\nlegUp = low[0];\nlegDn = high[0];\nfor (int i = 1; i < (int)legLookback; ++i) {\n    if (el_lt(low[i], legUp)) legUp = low[i];\n    if (el_gt(high[i], legDn)) legDn = high[i];\n}\nif (ctx.BarsSinceEntry() == 0) {\n    legStartUp = legUp;\n    legStartDn = legDn;\n    haveUp = el_lt(legUp, rmMid);\n    haveDn = el_gt(legDn, rmMid);\n}\ntgtUp = 2 * rmMid - legStartUp;\ntgtDn = 2 * rmMid - legStartDn;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveUp && el_ge(high[0], tgtUp - toleranceTicks * tickSz)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveDn && el_le(low[0], tgtDn + toleranceTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

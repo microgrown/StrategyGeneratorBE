@@ -1,0 +1,61 @@
+{
+    "name": "FailedCountSetupExit",
+    "type": "Exit",
+    "inputVariables": {
+        "resetLookback": "20",
+        "scalpProfitTicks": "4"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveSigLow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveSigHigh": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE COUNT THAT FAILED, TAKEN AS AN EXIT. Brooks: \"if the market reverses and\n// trades below the low of the pattern before reaching at least a scalper's\n// profit, the high 2 buy has failed.\" So a long is closed the moment price\n// trades back below the COUNT'S SIGNAL BAR LOW while the trade is still short of\n// scalpProfitTicks of profit; the short mirrors it above the signal bar's high.\n//\n// AN EXIT, NOT AN ENTRY, and that is why it cannot be reached by placing\n// FailedCountReversal in the exit pane -- an Entry cannot sit there, the same\n// call the catalog makes for ConsecutiveCloseExit. FailedCountReversal is the\n// same EVENT put to the opposite use: it takes the other side, this one just\n// gets out, and it carries a countTarget and a bars-since window that this rule\n// does not. Not StopLoss, whose level is a fixed dollar loss rather than a\n// PATTERN price, and not OpposingCountExit, which reads the OTHER side's\n// counter reaching a target rather than this side's signal bar failing.\n//\n// THE COUNTER IS THE SETTLED ONE of Ranges ch17 (R17-01), inlined verbatim as\n// every leg-counting rule in this corpus does rather than referencing\n// HighLowBarCount: a bar whose high exceeds the PRIOR bar's high advances the\n// count, but only once a new low has formed since the last counted bar; the\n// count RESETS to 0 when the close makes a fresh resetLookback-bar high; it\n// SATURATES at 4. The reset window is Highest(high, resetLookback)[1], the bars\n// ENDING ONE BAR AGO, so the current bar's own high cannot defeat its own reset.\n// Highest / Lowest bottom out in EL's Extremes(), which is EL SOURCE and carries\n// the relational tolerance, hence el_gt / el_lt in the scan.\n//\n// NO countTarget INPUT. R17-12 is about a failed count of ANY number -- and its\n// own note, that a failed high 2 usually becomes a high 3, is simply the counter\n// continuing to advance -- so the level tested is whatever signal bar the\n// counter last produced, at any count. The merged parameters name no target and\n// none is invented.\n//\n// THE HAVE-FLAGS are the one addition to the settled block: signalLow and\n// signalHigh start at 0 like every EL variable, and on positive prices a 0 level\n// can never be traded through, but a back-adjusted continuous contract can price\n// below zero, so the flags say explicitly that a signal bar has been counted --\n// the same guard FailedCountReversal adds for the same reason. They are MARKET\n// state, not position state, so they are never reset at entry.\n//\n// OpenPositionProfit is NET of the entry side's costs (VERIFIED), which is what\n// every threshold in this corpus measures, and BigPointValue converts the tick\n// target to the same currency. The MarketPosition guard is what makes the rule\n// an exit; the counter runs every bar whether or not a position is open.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        haveSigLow = true;\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        haveSigHigh = true;\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveSigLow && el_lt(low[0], signalLow) && el_lt(ctx.OpenPositionProfit(), scalpProfitTicks * tickSz * ctx.BigPointValue())",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveSigHigh && el_gt(high[0], signalHigh) && el_lt(ctx.OpenPositionProfit(), scalpProfitTicks * tickSz * ctx.BigPointValue())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

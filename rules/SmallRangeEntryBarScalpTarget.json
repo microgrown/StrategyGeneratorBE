@@ -1,0 +1,38 @@
+{
+    "name": "SmallRangeEntryBarScalpTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "minBreakAtrMultiple": "1.0",
+        "atrLookback": "14",
+        "scalpTicks": "4"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "entryRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SCALP TARGET, BUT ONLY ON A WEAK BREAK. When the bar the trade was entered\n// on had a range smaller than minBreakAtrMultiple ATRs -- a slow, unconvincing\n// break rather than a decisive one -- Brooks caps the trade at a scalper's\n// profit instead of holding for a swing. On any other trade the rule never\n// fires and whatever swing target is placed alongside it stands alone.\n//\n// THE ANCHOR IS THE ENTRY BAR, not T17-07's \"trend-line break bar\", which would\n// drag the whole trend-line machinery into an exit. The merge pass made that\n// substitution deliberately -- in the setup Brooks describes they are the same\n// bar -- and it is what makes the rule authorable at all.\n//\n// THE RANGE IS FROZEN ON THE FILL BAR, where ctx.BarsSinceEntry() == 0\n// (VERIFIED: 0 on the fill bar, 0 while flat, restarting through a reversal\n// without passing through flat). Reading high[ctx.BarsSinceEntry()] every bar\n// instead, as the merged pseudocode spells it, would make the deepest bar index\n// the length of the longest trade and so make Max Bars Back unknowable. While\n// flat the capture simply repeats on the current bar, which is harmless: the\n// last capture before a position runs IS the fill bar's, and the MarketPosition\n// guard in the conditions is what makes the rule an exit.\n//\n// NOT AtrProfitTarget, which always exits at a multiple of ATR in profit: this\n// exits at a FIXED TICK target and only when the entry bar was small, so it is\n// a conditional target rather than a scaled one, and the two fire on disjoint\n// sets of trades whenever the entry bar was large. Not BreakoutMissesScalpTarget,\n// which is about failing to reach a target rather than taking one.\n//\n// SIDES ARE IDENTICAL: every term is phrased in profit, in a bar's own range,\n// or in ATR, so there is nothing to mirror -- the StopLoss convention.\n//\n// ATR is MultiWalk's WFSafe_AvgTrueRange, the ROLLING accumulator: seeded with a\n// full sum on the first calculated bar and on a length change, then advanced as\n// TWO statements, because EL evaluates S[1] + in - out left to right and folding\n// it to S += in - out rounds differently (@OJ 2015-02-20). AtrProfitTarget is\n// the reference with the measurements; one call site, here.\n//\n// OpenPositionProfit is NET of the entry side's costs (VERIFIED), which is what\n// every target in this corpus thresholds on, and BigPointValue converts the tick\n// target to the same currency.\n// THE TICK is EL's own MinMove / PriceScale, both VERIFIED and per-symbol\n// constants for the whole run, written DIVISION-FIRST in both twins so the C++\n// reads token for token against its EasyLanguage. Read once into a local.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLookback;\nif (ctx.BarsSinceEntry() == 0) {\n    entryRange = high[0] - low[0];\n}",
+    "longCondition": "!el_eq((double)ctx.MarketPosition(), 0) && el_lt(entryRange, minBreakAtrMultiple * atrVal) && el_ge(ctx.OpenPositionProfit(), scalpTicks * tickSz * ctx.BigPointValue())",
+    "shortCondition": "!el_eq((double)ctx.MarketPosition(), 0) && el_lt(entryRange, minBreakAtrMultiple * atrVal) && el_ge(ctx.OpenPositionProfit(), scalpTicks * tickSz * ctx.BigPointValue())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

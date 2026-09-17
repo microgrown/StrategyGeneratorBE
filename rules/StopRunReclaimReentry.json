@@ -1,0 +1,46 @@
+{
+    "name": "StopRunReclaimReentry",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "20",
+        "entryTick": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "swLo": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "swHi": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE STOP RUN THAT IS RECLAIMED, entered on a stop. The PRIOR bar traded\n// below the most recent confirmed swing low -- running the protective stops\n// that rest there -- but CLOSED back above it, and this bar now takes out\n// that prior bar's high by entryTick ticks. The short is the mirror above a\n// swing high.\n//\n// THE STOP TRIGGER IS THE POINT. The breach-and-reclaim half alone is\n// FailedSwingBreakoutReversal, which tests the CURRENT bar; this rule tests\n// it on bar 1 and adds the entry trigger Brooks always attaches -- a stop one\n// tick beyond the signal bar's extreme. No pane-AND reproduces that, because\n// every entry pane evaluates its rules on the SAME bar: a placement of\n// FailedSwingBreakoutReversal AND a prior-bar-high breakout would test the\n// reclaim on bar 0, not bar 1. The one-bar offset and the tick trigger are\n// the content, and the tick is why the rule was held for this list.\n//\n// Not StopRunReversalBar either: its level is a WINDOW extreme\n// read one bar before the breaking bar, with no pivot-confirmation lag, and it has no\n// entry trigger.\n//\n// THE SOURCE FRAMES THIS as adding to, or re-entering, a swing position\n// (multi-unit language). The mechanism -- breach, reclaim, stop entry --\n// needs no second unit, so it is mechanized as an ordinary single-position\n// Entry and the 'add to an already-open position' framing is dropped.\n//\n// THE PIVOT SCAN IS INLINED from rules/SwingHigh.json, the corpus's measured\n// primitive, exactly as the B-list decision says to (inline it; do not\n// reference the rule file). The twin reads the same pivot as a PRICE through\n// SwingLow / SwingHigh at occurrence 1, which IS measured. Measured pivot\n// rule (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar\n// is AT OR BEYOND the swingStrength OLDER bars and STRICTLY BEYOND the\n// swingStrength NEWER ones -- bars-ago indexing makes the smaller index the\n// newer bar, so the strict half is the k < j loop (el_lt / el_gt) and the\n// at-or-beyond half the k > j loop (el_le / el_ge); the confirmation lag is\n// exactly swingStrength bars, so the pivot is always at least swingStrength\n// bars old and can never be bar 1 itself -- the rule is lookahead-safe and\n// the pivot the breach refers to already existed; candidate offsets run\n// 0..Length-1 inclusive so j stops at lookbackBars - 1, while the\n// neighbourhood test reaches swingStrength bars PAST the window, making\n// lookbackBars - 1 + swingStrength the deepest bar touched; the -1 SENTINEL\n// is guarded through haveLo / haveHi because -1 as a price sits under every\n// real price; the comparisons carry the 2.22e-12 relational tolerance; the\n// low side's tie sense is the mirror of the measured high-side rule. No\n// WFSafe_SwingHigh exists, so plain EL governs.\n//\n// The tick is ctx.MinMove() / ctx.PriceScale(), division-first, both VERIFIED\n// and per-symbol constant for the run.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy. Every one is\n// fully assigned each bar before it is read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nswLo = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { swLo = low[j]; break; }\n}\nswHi = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) { swHi = high[j]; break; }\n}\nhaveLo = (swLo != -1.0);\nhaveHi = (swHi != -1.0);",
+    "longCondition": "haveLo && el_lt(low[1], swLo) && el_gt(close[1], swLo) && el_ge(high[0], high[1] + entryTick * tickSize)",
+    "shortCondition": "haveHi && el_gt(high[1], swHi) && el_lt(close[1], swHi) && el_le(low[0], low[1] - entryTick * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

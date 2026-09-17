@@ -1,0 +1,88 @@
+{
+    "name": "DoubleExtremeBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "patternWindow": "5",
+        "pivotLookback": "40",
+        "matchTicks": "2",
+        "breakTicks": "1"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveDb": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDt": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dbLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dtLevel": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE DOUBLE BOTTOM FAILS -- entry WITH the break. A double bottom bull flag\n// sets up, the market immediately reverses instead, and price falls breakTicks\n// below the pattern's level: traders sell on a stop one tick below, looking\n// for a downside measured move. The long mirror is the break ABOVE a double\n// top.\n//\n// SIDES. The book states the setup as a SELL (the bull pattern failing), so\n// the bullish reading -- the break above a double top -- is this rule's LONG\n// side and the passage's own trade is the short. That is the corpus's\n// mirroring convention, not a change of meaning.\n//\n// patternWindow IS THE FAILURE WINDOW, not the pivot window: the pattern's\n// second pivot must have confirmed no more than patternWindow bars ago, which\n// is R12-05's \"immediately reverses\" (stated as three bars, carried at five).\n// pivotLookback is the window the pivots themselves are sought in, and\n// matchTicks the tolerance that makes two extremes \"the same price\"; both ARE\n// PROMOTED, as the merged parameters name neither. The pattern and its level\n// are spelled exactly as in DoubleExtremePullback and DoubleExtremeDipBreakout\n// -- the two most recent confirmed swing lows within matchTicks of each other,\n// the LEVEL being the LOWER of them (the higher of the two highs for a double\n// top), which is the price a breakout has to clear. Ticks division-first,\n// ctx.MinMove() / ctx.PriceScale() computed once into tickSz; both are\n// per-symbol constants (VERIFIED).\n//\n// ONLY THE WITH-THE-BREAK FORM IS WRITTEN. The other failure Brooks describes\n// -- price breaks beyond the pattern and closes back inside within a few\n// bars, the third push of a wedge -- is FailedBreakoutBeyondExtreme applied to\n// this level, and composes once that rule can take a supplied level. Whether\n// the entry is with the break or against it is the whole difference between\n// the two trades, so they stay apart.\n//\n// PIVOT SCAN inlined from SwingHigh.json per the B-list decision, occurrences\n// 1 and 2 only (occurrence 3+ is unmeasured). MEASURED (EL_Swing_Probe.txt,\n// @ES 60 min): the pivot bar is AT OR ABOVE the `strength` OLDER bars and\n// STRICTLY ABOVE the `strength` NEWER bars -- bars-ago indexing, so the newer\n// bars are the smaller k and take el_gt / el_lt, the older el_ge / el_le;\n// confirmation lag exactly `strength`; candidate offsets\n// strength..pivotLookback-1, the neighbourhood reaching `strength` bars past\n// the window, so the deepest bar touched is pivotLookback - 1 + strength. The\n// comparisons carry the 2.22e-12 relational tolerance. A flat run of equal\n// lows is ONE pivot, not N. The -1 sentinel is guarded on both bar indices.\n//\n// Not DoubleExtremeDipBreakout, whose trigger is the extreme BETWEEN the two\n// pivots -- a much further price -- rather than the pattern's own level. Not\n// MicroDoubleExtreme (two bar extremes at a fixed small lag) and not Ledge\n// (bars matching the current bar's extreme inside a window).\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// Every one is fully assigned each bar before it is read.\ntickSz = ctx.MinMove() / ctx.PriceScale();\npivS = (int)strength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nhaveDb = (loBar1 != -1.0) && (loBar2 != -1.0) && el_le(loBar1, patternWindow)\n    && el_le(std::fabs(loPx1 - loPx2), matchTicks * tickSz);\nhaveDt = (hiBar1 != -1.0) && (hiBar2 != -1.0) && el_le(hiBar1, patternWindow)\n    && el_le(std::fabs(hiPx1 - hiPx2), matchTicks * tickSz);\ndbLevel = loPx1;\nif (el_lt(loPx2, loPx1)) dbLevel = loPx2;\ndtLevel = hiPx1;\nif (el_gt(hiPx2, hiPx1)) dtLevel = hiPx2;",
+    "longCondition": "haveDt && el_gt(high[0], dtLevel + breakTicks * tickSz)",
+    "shortCondition": "haveDb && el_lt(low[0], dbLevel - breakTicks * tickSz)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

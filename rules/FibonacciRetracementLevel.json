@@ -1,0 +1,42 @@
+{
+    "name": "FibonacciRetracementLevel",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "fibRatio": "0.618",
+        "toleranceTicks": "1"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fibLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fibShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR REACHES A FIBONACCI RETRACEMENT of the last `lookback` bars' range.\n// The range is anchored on the window ENDING ONE BAR AGO, so the current bar\n// cannot move the level it is being tested against. Long: the retracement is\n// measured DOWN from the window high, windowHigh - fibRatio * (windowHigh -\n// windowLow), and the bar's low has to trade down to it within toleranceTicks.\n// Short: measured UP from the window low, and the bar's high has to reach it.\n//\n// WINDOW ANCHORING, NOT PIVOTS: two of the three merged sources anchor on swing\n// pivots and one on highest/lowest windows; the window wins on mechanizability\n// (it needs no pivot retention and no pivotStrength decision, which is itself an\n// unmade choice at this level).\n//\n// ONE RULE, RATIO AS THE PARAMETER: 0.618, 0.5 and 0.62 are the three sources'\n// levels and 0.618 is the default (two of three land there, and it is the ratio\n// Brooks names first). Fibonacci EXTENSIONS -- 127%, 161.8% -- are the same\n// arithmetic with fibRatio above 1, so there is no second rule.\n//\n// The window extremes mirror Extremes(), which is EL source: seeded at the\n// window's first bar, scanning the rest, strict and toleranced (el_gt / el_lt).\n//\n// Touch convention as in TouchOfRecentExtreme: one-sided reach with a tick\n// margin, never a two-sided band. Tick division-first into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: lookback.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nwindowHigh = high[1];\nwindowLow = low[1];\nfor (ii = 2; ii <= (int)lookback; ++ii) {\n    if (el_gt(high[ii], windowHigh)) windowHigh = high[ii];\n    if (el_lt(low[ii], windowLow)) windowLow = low[ii];\n}\nfibLong = windowHigh - fibRatio * (windowHigh - windowLow);\nfibShort = windowLow + fibRatio * (windowHigh - windowLow);",
+    "longCondition": "el_le(low[0], fibLong + toleranceTicks * tickSize)",
+    "shortCondition": "el_ge(high[0], fibShort - toleranceTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
