@@ -115,7 +115,10 @@ Things the brief must say, because miners got them wrong when it did not:
   walk-throughs that only reapply known primitives may be summarized, not re-mined
   bar by bar.
 - Reject only: data the engine cannot have, randomness or wall clock, future bars,
-  pure discretion with no bar-level test. Record rejects with page and reason.
+  pure discretion with no bar-level test, and conditions on the price LEVEL rather
+  than on price differences (round numbers, percent-of-price, price x volume) —
+  the data are back-adjusted, so the level is arbitrary and can be negative.
+  Record rejects with page and reason.
 - Validate the JSON with `json.load` before finishing.
 - Report under 25 lines, no JSON pasted.
 

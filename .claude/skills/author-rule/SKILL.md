@@ -51,6 +51,38 @@ Reject, with the reason stated plainly:
 - Needs randomness or the wall clock. Strategies must be deterministic
   (`README.md:191`).
 - References a future bar.
+- **Depends on the price level rather than on price differences.** The data
+  are back-adjusted continuous futures: every price in the series carries an
+  arbitrary offset (the accumulated roll gaps), it differs between snapshots,
+  and it can be negative or zero. See the shift test below.
+
+**The shift test.** Add a constant to every `open`/`high`/`low`/`close` in
+the series (and so to `EntryPrice`). A rule must fire on exactly the same bars
+and produce the same trades. Differences, ranges, ATR, ticks, dollars of
+profit, bar counts, and ranks all pass. Things that fail, and are rejected:
+
+- A fixed price level or a round number — `close > 100`, "nearest whole
+  dollar", `Mod(close, step)`, `Round(close)`.
+- A percentage of a price — `EntryPrice * (1 + pct)`, `(close - close[n]) /
+  close[n]`, `high[1] / high[0]`, log returns. Rewrite the target in ticks,
+  points, or ATRs (`CountertrendScalpPercentTarget` was removed for this on
+  2026-09-17 and replaced by `CountertrendScalpAtrTarget`).
+- A price multiplied by volume or ticks — money flow, notional value. A
+  weighted *mean* of prices (VWAP) passes; a *sum* or ratio of such products
+  (`MoneyFlowCross`, removed 2026-09-17) does not.
+- A sign test on a price used as an "armed" flag — `level > 0`,
+  `EntryPrice != 0`. Prices can be negative, and `0.0` and `-1.0` are
+  legitimate prices, so a `-1.0` sentinel on a price local is also unsafe.
+  Arm with a separate `bool` (`GapLevelRetest`, `FailedCountSetupExit`); an
+  index local can keep a `-1` sentinel because bar numbers are not prices.
+  In the EasyLanguage twin, guard a swing on `SwingLowBar`/`SwingHighBar
+  <> -1` (a bar index), never on `SwingLow`/`SwingHigh <> -1`, and guard
+  the xxxD family with a flag set on `date <> date[1]` (`SwingPointUndercut`
+  and `GapHoldsAbovePriorSessionClose` are the references).
+
+The EasyLanguage twin does not excuse any of these — MultiWalk runs the same
+back-adjusted data, so a twin that matches bit for bit is consistently wrong
+on both sides.
 
 **Role sanity check.** An Entry that reads `ctx.OpenPositionProfit()`,
 `ctx.BarsSinceEntry()`, or `ctx.EntryPrice()` is almost certainly an Exit. An
@@ -264,6 +296,7 @@ Then update `rules/CATALOG.md` with a row per rule added, and report:
   the probe written for it.
 - Any `ASSUMED` register row a new rule now leans on.
 - Anything outside the EasyLanguage table.
+- Anything that fails the shift test (§1) and was kept anyway, with why.
 - **Deepest bar index reached**, as an expression over inputs (e.g. `lookback + 1`).
   Max Bars Back is the strategy author's job (`README.md:275`) and this is its input.
 

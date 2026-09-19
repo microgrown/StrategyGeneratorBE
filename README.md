@@ -328,6 +328,15 @@ editor warns about it.
 One fresh strategy object per optimizer iteration, run in parallel. No statics,
 no globals, no clock, no RNG.
 
+### Prices are back-adjusted
+
+The series are back-adjusted continuous futures. Every price carries an
+arbitrary offset that changes with each roll and each data snapshot, and prices
+can be zero or negative. A rule must behave identically if a constant is added
+to every price: compare differences, ranges, ticks, and dollars, never a price
+against a fixed level, a round number, a percentage of itself, or zero. Arm a
+remembered level with a `bool`, not with `level > 0` or a `-1.0` sentinel.
+
 ---
 
 ## The `ctx` API

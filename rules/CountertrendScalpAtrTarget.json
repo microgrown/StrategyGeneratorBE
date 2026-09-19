@@ -1,0 +1,37 @@
+{
+    "name": "CountertrendScalpAtrTarget",
+    "type": "Exit",
+    "inputVariables": {
+        "atrLookback": "14",
+        "scalpAtr": "1"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "targetLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "targetShort": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A COUNTERTREND TRADE IS A SCALP: the target is a FIXED PRICE LEVEL set on the\n// fill bar, EntryPrice + scalpAtr x ATR (short: minus), and the trade comes off\n// when a close reaches it. Replaces CountertrendScalpPercentTarget (removed\n// 2026-09-17): a percentage of the entry PRICE fails the shift test on\n// back-adjusted continuous futures, whose price level is an arbitrary roll\n// offset; K ATRs is the same scale-adaptive idea (the book's point on weekly\n// and monthly charts) spelled as a difference.\n//\n// NOT AtrProfitTarget, which re-reads the LIVE ATR every bar and tests the\n// dollar OpenPositionProfit (net of the entry side's costs, VERIFIED); this is\n// the limit order Brooks places at entry -- the level is frozen on the fill bar\n// and the test is on the closing price against a level, costs not included. Not\n// StopLossTakeProfitATR, which also freezes the ATR at entry but carries a stop\n// leg and tests dollars through a reward/risk multiple.\n//\n// BarsSinceEntry is 0 on the fill bar and 0 while flat (VERIFIED); the capture\n// therefore also runs while flat with EntryPrice = 0.0, which is harmless\n// behind the MarketPosition guard and is overwritten on the fill bar with the\n// real entry price, exactly as StopLossTakeProfitATR captures its risk.\n//\n// The ATR is MultiWalk's WFSafe_AvgTrueRange in the ROLLING form of\n// AtrProfitTarget: two accumulator statements and a re-seed on a length\n// change. Every scratch value is a localVariables entry so the hooks survive a\n// double placement. Deepest bar touched: atrLookback + 1.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    // TWO statements, not one. EasyLanguage writes\n    //     Summation = Summation[1] + Price - Price[Length]\n    // which evaluates left to right as (S + in) - out. Folding it to\n    // S + (in - out) is a different rounding and lands on the other side of the\n    // threshold at @OJ 2015-02-20: (S+in)-out gives 1722.4999999999977 and\n    // fires, S+(in-out) gives 1722.5000000000066 and does not.\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nif (ctx.BarsSinceEntry() == 0) {\n    targetLong = ctx.EntryPrice() + scalpAtr * atr;\n    targetShort = ctx.EntryPrice() - scalpAtr * atr;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(close[0], targetLong)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(close[0], targetShort)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
