@@ -185,6 +185,25 @@ class TestCloneFamilies(unittest.TestCase):
         with self.assertRaises(GenerationError):
             self.clone(["s_202608_bas_99"])
 
+    def testListPrintsOnlyTheClonesThatExist(self):
+        import io
+        from contextlib import redirect_stdout
+        self.writeFamily("s_202608_bas_13", 2)
+        self.writeFamily("s_202606_bas_1", 1)
+        self.clone(["s_202608_bas_13"])
+        self.assertEqual(ccs.cloneStems(["s_202606_bas_1", "s_202608_bas_13"], self.cfg),
+                         ["s_202608_bas_13_cal"])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = ccs.main(["--engine-dir", self.engineDir, "--list"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.getvalue(), "s_202608_bas_13_cal\n")
+        self.clone(["s_202606_bas_1"])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ccs.main(["--engine-dir", self.engineDir, "--list"])
+        self.assertEqual(out.getvalue().split(), ["s_202606_bas_1_cal", "s_202608_bas_13_cal"])
+
     def testMainAcceptsTheFamilyNameFormAndDiscoversByDefault(self):
         self.writeFamily("s_202608_bas_13", 1)
         self.writeFamily("s_202606_bas_1", 1)

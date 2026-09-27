@@ -6,6 +6,7 @@ MultiWalk's calendar periods (and the calendar_alignment those need).
     python cloneCalendarSpecs.py                       every s_<yyyymm>_bas_<n> family
     python cloneCalendarSpecs.py s_202608_bas_13       one family (name or stem)
     python cloneCalendarSpecs.py --dry-run             print the plan, write nothing
+    python cloneCalendarSpecs.py --list                one clone stem per line, nothing else
 
 Why: TradeStation's historical corrections add and remove whole sessions, and a
 trading-day schedule counts sessions, so one correction shifts every later
@@ -30,7 +31,9 @@ with the same content is left alone (the tool is idempotent, which is what lets
 the second test machine produce byte-identical clones from the same script);
 one that exists with different content is an error unless --force. Original
 specs are never modified. specs/generated is gitignored, so the clones are not
-committed -- each machine runs this script.
+committed -- each machine runs this script. runCalendarFamilies.cmd runs it
+first and then loops over `--list`, so nothing about the family set is written
+down anywhere but specs/generated itself.
 
 Exit 0 on success, 2 on an error (one line on stderr).
 """
@@ -112,6 +115,13 @@ def calendarSpec(spec, stem, version, suffix=DEFAULT_SUFFIX, alignment=DEFAULT_A
         else:
             out[key] = value
     return out
+
+
+def cloneStems(stems, cfg, suffix=DEFAULT_SUFFIX):
+    """The clone stems of `stems` whose v1 clone spec exists, in order."""
+    specDir = specOutputDir(cfg)
+    return [f"{stem}{suffix}" for stem in stems
+            if os.path.isfile(os.path.join(specDir, f"{stem}{suffix}_v1.json"))]
 
 
 def discoverFamilies(specDir):
@@ -215,6 +225,9 @@ def main(argv=None):
                         help=f"calendar_alignment for the clones (default {DEFAULT_ALIGNMENT})")
     parser.add_argument("--dry-run", dest="dryRun", action="store_true",
                         help="print the plan, write nothing")
+    parser.add_argument("--list", dest="listStems", action="store_true",
+                        help="print the clone stems that exist (one per line) and exit; "
+                             "what runCalendarFamilies.cmd loops over")
     parser.add_argument("--force", action="store_true",
                         help="overwrite clones whose content differs")
     parser.add_argument("--engine-dir", dest="engineDir",
@@ -230,6 +243,10 @@ def main(argv=None):
         return 2
     try:
         stems = [resolveStem(s) for s in args.stems] or discoverFamilies(specOutputDir(cfg))
+        if args.listStems:
+            for cloneStem in cloneStems(stems, cfg, args.suffix):
+                print(cloneStem)
+            return 0
         results = cloneFamilies(stems, cfg, args.suffix, args.alignment,
                                 dryRun=args.dryRun, force=args.force)
     except (GenerationError, OSError) as exc:
