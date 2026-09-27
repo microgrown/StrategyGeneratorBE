@@ -201,6 +201,34 @@ bars (`snapshotData.py --snapshot <symbols>` after the re-ingest). A format-2
 narrowed report is downgraded into a format-1 family. The tradeable delta per
 family is printed at the end — that is the number to look at.
 
+## Calendar-period twins of a family
+
+TradeStation's history corrections add and remove whole sessions, and a
+trading-day schedule counts sessions, so one correction shifts every later
+window. Calendar periods (`1Y/6M`, MultiWalk's D/W/M/Y suffixes) anchor on
+dates instead. `cloneCalendarSpecs.py` copies a finished family into a new one,
+`<stem>_cal`, whose specs differ only in the schedules — 126/252/504/756
+trading days become `6M`/`1Y`/`2Y`/`3Y`, so the six standard pairs become
+`3Y/2Y, 3Y/1Y, 3Y/6M, 2Y/1Y, 2Y/6M, 1Y/6M` — plus `calendar_alignment:
+"month_start"`. Strategy, symbols, timeframes, dates, criterion, Max Bars Back
+and the selection chain are copied verbatim, and the original specs and runs
+are never touched. A length outside the table is an error, not a guess.
+
+```
+python cloneCalendarSpecs.py --dry-run          # every s_<yyyymm>_bas_<n> family
+python cloneCalendarSpecs.py                    # write specs/generated/<stem>_cal_v<n>.json
+python cloneCalendarSpecs.py s_202608_bas_13    # one family (name or stem)
+runCalendarFamilies.cmd                         # runBatch --prune over the twelve _cal families
+```
+
+Everything is validated before anything is written; a clone that already
+exists with the same content is left alone, one that differs needs `--force`.
+`specs/generated` is gitignored, so each machine runs the script — the
+idempotence is what makes both machines' clones identical. The twins are new
+families to `runBatch.py`, `pruneRuns.py` and `rerunSymbols.py`, and
+`makeMWValidation.py "<name>" --stem <stem>_cal` validates one against
+MultiWalk.
+
 ---
 
 ## Writing rules
