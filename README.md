@@ -226,8 +226,8 @@ exists with the same content is left alone, one that differs needs `--force`.
 `specs/generated` is gitignored, so each machine runs the script — the
 idempotence is what makes both machines' clones identical. The twins are new
 families to `runBatch.py`, `pruneRuns.py` and `rerunSymbols.py`, and
-`makeMWValidation.py "<name>" --stem <stem>_cal` validates one against
-MultiWalk.
+`makeMWValidation.py "<name>" --variant cal` (in StrategyGeneratorTS)
+validates one against MultiWalk under the family's own TDE strategy.
 
 ---
 
