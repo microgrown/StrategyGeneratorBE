@@ -1,0 +1,6429 @@
+{
+  "study": "Brooks platinum validation: rule selection and pools",
+  "version": 1,
+  "seed": 20261105,
+  "maxBarsBack": "250",
+  "dates": {
+    "wf_start": "2007-01-01",
+    "wf_end": "2019-04-01",
+    "incubation_end": "2020-01-01",
+    "oos_end": "2023-01-01"
+  },
+  "timeframes": {
+    "any": [
+      30,
+      60,
+      120,
+      180,
+      240,
+      360,
+      480,
+      720,
+      1440
+    ],
+    "intraday-only": [
+      30,
+      60,
+      120,
+      180,
+      240,
+      360,
+      480,
+      720,
+      1440
+    ]
+  },
+  "paneStructure": [
+    {
+      "pane": 1,
+      "ruleType": "Entry",
+      "role": "setup",
+      "groups": [
+        "setup",
+        "reverse"
+      ],
+      "note": "reverse = every setup placement with flipped toggled"
+    },
+    {
+      "pane": 2,
+      "ruleType": "Entry",
+      "role": "context",
+      "groups": [
+        "empty",
+        "pane2[0]",
+        "pane2[1]",
+        "pane2[2]"
+      ]
+    },
+    {
+      "pane": 3,
+      "ruleType": "Exit",
+      "role": "protective stop",
+      "groups": [
+        "empty",
+        "stops[0]",
+        "stops[1]"
+      ]
+    },
+    {
+      "pane": 4,
+      "ruleType": "Exit",
+      "role": "target / trail / time / structural",
+      "groups": [
+        "empty",
+        "exits[0]",
+        "exits[1]",
+        "exits[2]",
+        "exits[3]"
+      ]
+    },
+    {
+      "pane": 5,
+      "ruleType": "Switch",
+      "role": "switch",
+      "groups": [
+        "empty",
+        "switches[0]",
+        "switches[1]"
+      ]
+    }
+  ],
+  "versionsPerTemplate": 360,
+  "budget": {
+    "maxOptimizedInputs": 3,
+    "maxIterations": 100,
+    "rule": "setup <= 2 optimized inputs and <= 25 iterations; pane 2, stops and switches pinned; each pane-4 exit <= 1 optimized input and <= 4 values; only one pane-4 group per version, so worst = setup x 4"
+  },
+  "pane2Fill": {
+    "fromTypePool": 2,
+    "fromSignalBarPool": 1,
+    "typePool": {
+      "with-trend": "trend",
+      "breakout": "trend",
+      "reversal": "reversal",
+      "range": "range"
+    }
+  },
+  "drawConstraints": {
+    "noDuplicateWithinFamily": true,
+    "pane2NotInSetup": "a pane-2 condition may not use a rule already placed in the family's pane 1",
+    "stopPane": "one stop-money/volatility + one stop-structural",
+    "exitPane": "4 distinct exits from >= 3 distinct categories",
+    "intradayCapForAnyFamilies": "at most 1 intraday-only member across panes 3+4, and at most 1 intraday-effective switch, for families tagged 'any'; no cap for intraday-only families",
+    "switchKinds": "at most one equity-profit and at most one equity-loss switch per family",
+    "switchBySetupType": {
+      "reversal": [
+        "TrendFilterSwitch"
+      ],
+      "range": [
+        "LowAdxSwitch",
+        "TightRangeBlocksEntries"
+      ]
+    },
+    "balance": "least-used-first per pool with seeded random tie-breaks; the best of 200 seeded attempts by total count spread is kept"
+  },
+  "families": [
+    {
+      "label": "Bull/bear reversal bar at a new N-bar extreme",
+      "bucket": "signal & reversal bars",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30 bars/side",
+      "tradeCountRisk": "low",
+      "reason": "Brooks's reversal bar that actually reverses something: a new low plus a strong close, not a shape anywhere.",
+      "note": "",
+      "setup": [
+        {
+          "name": "BullReversalBarAtNewLow",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "5",
+              "stop": "20",
+              "step": "5"
+            },
+            "closeFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-01",
+      "setupIterations": 12,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "BullReversalBarAtNewLow",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "5",
+              "stop": "20",
+              "step": "5"
+            },
+            "closeFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Three-bar reversal",
+      "bucket": "signal & reversal bars",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "Named Brooks setup (two-bar reversal around a small middle bar); no Davey analogue.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ThreeBarReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "sizeRatio": {
+              "start": "0.5",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "middleBarMaxFraction": {
+              "start": "0.4",
+              "stop": "0.8",
+              "step": "0.2"
+            },
+            "rangeLookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-02",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ThreeBarReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "sizeRatio": {
+              "start": "0.5",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "middleBarMaxFraction": {
+              "start": "0.4",
+              "stop": "0.8",
+              "step": "0.2"
+            },
+            "rangeLookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed reversal bar (trapped traders)",
+      "bucket": "signal & reversal bars",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/35",
+      "tradeCountRisk": "low",
+      "reason": "Brooks's trap logic: a bear reversal bar that is immediately taken out traps the shorts.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ReversalBarFailure",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "closePositionMin": {
+              "start": "0.6",
+              "stop": "0.8",
+              "step": "0.1"
+            },
+            "lowerTailMin": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-03",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ReversalBarFailure",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "closePositionMin": {
+              "start": "0.6",
+              "stop": "0.8",
+              "step": "0.1"
+            },
+            "lowerTailMin": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Strong reversal bar ending a pullback",
+      "bucket": "signal & reversal bars",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "With-trend pullback entry on a strong signal bar (high-1 proxy without the counter).",
+      "note": "",
+      "setup": [
+        {
+          "name": "PullbackEndReversalBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "pullbackLookback": {
+              "start": "10",
+              "stop": "40",
+              "step": "10"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            },
+            "tailFraction": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-04",
+      "setupIterations": 8,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "PullbackEndReversalBar",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "pullbackLookback": {
+              "start": "10",
+              "stop": "40",
+              "step": "10"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            },
+            "tailFraction": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Exhaustion bar after a trend bar",
+      "bucket": "signal & reversal bars",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/25",
+      "tradeCountRisk": "low",
+      "reason": "Shrinking body plus a rejection tail after a trend bar: Brooks's exhaustion read.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ExhaustionBarAfterLargeTrendBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyShrink": {
+              "start": "0.3",
+              "stop": "0.7",
+              "step": "0.2"
+            },
+            "tailFraction": {
+              "start": "0.3",
+              "stop": "0.5",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-05",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ExhaustionBarAfterLargeTrendBar",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "bodyShrink": {
+              "start": "0.3",
+              "stop": "0.7",
+              "step": "0.2"
+            },
+            "tailFraction": {
+              "start": "0.3",
+              "stop": "0.5",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Two-bar reversal, entered beyond both bars",
+      "bucket": "signal & reversal bars",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "Two-bar reversal with Brooks's entry beyond both bars (avoids the one-tick trap).",
+      "note": "",
+      "setup": [
+        {
+          "name": "TwoBarReversalBreakoutEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.3",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-06",
+      "setupIterations": 5,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TwoBarReversalBreakoutEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.3",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Outside bar closing beyond the prior bar",
+      "bucket": "bar anatomy (inside/outside)",
+      "setupType": "breakout",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "Outside-bar breakout bar; the inside-bar variants are BAS-23 duplicates, the outside bar is not.",
+      "note": "",
+      "setup": [
+        {
+          "name": "OutsideBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lag": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "toleranceTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "ClosePositionInPriorBarRange",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "threshold": {
+              "start": "0.6",
+              "stop": "1.0",
+              "step": "0.2"
+            },
+            "epsilon": {
+              "start": "0.000001",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-07",
+      "setupIterations": 3,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "OutsideBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lag": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "toleranceTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "ClosePositionInPriorBarRange",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "threshold": {
+              "start": "0.6",
+              "stop": "1.0",
+              "step": "0.2"
+            },
+            "epsilon": {
+              "start": "0.000001",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Doji after a large opposite trend bar",
+      "bucket": "bar anatomy (trend/doji)",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30 at 1.0 ATR",
+      "tradeCountRisk": "moderate",
+      "reason": "Possible sell climax: a big bear trend bar met by a doji (Brooks's 'no follow-through').",
+      "note": "Grid pulled below the 2.0-ATR default: at 2.0 x ATR the M1440 rate is ~1/160 per side. Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "DojiAfterLargeOppositeTrendBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "bigBarMultiple": {
+              "start": "0.75",
+              "stop": "1.25",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "dojiFraction": {
+              "start": "0.2",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-08",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "DojiAfterLargeOppositeTrendBar",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "bigBarMultiple": {
+              "start": "0.75",
+              "stop": "1.25",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "dojiFraction": {
+              "start": "0.2",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Micro measuring gap",
+      "bucket": "bar anatomy (gaps)",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "Brooks-specific strength sign: the bar after a trend bar does not overlap the bar before it.",
+      "note": "",
+      "setup": [
+        {
+          "name": "MicroMeasuringGap",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.8",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-09",
+      "setupIterations": 4,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "MicroMeasuringGap",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.8",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "First pullback after a spike (high 1)",
+      "bucket": "leg counting",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40 at 2 bars",
+      "tradeCountRisk": "moderate",
+      "reason": "Named Brooks setup: the high 1 of a strong spike.",
+      "note": "spikeBars 3 is the selective corner (~1/120 daily bars per side). Original grid restored 2026-11-05 by Brian: a low daily trade count (trials: spikeBars 2 = 3 median M1440 trades) is accepted to keep the 2-3 bar spike.",
+      "setup": [
+        {
+          "name": "FirstPullbackAfterSpike",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "2",
+              "stop": "3",
+              "step": "1"
+            },
+            "maxWaitBars": {
+              "start": "2",
+              "stop": "6",
+              "step": "2"
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-10",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FirstPullbackAfterSpike",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "2",
+              "stop": "3",
+              "step": "1"
+            },
+            "maxWaitBars": {
+              "start": "2",
+              "stop": "6",
+              "step": "2"
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Limit buy below a spike bar",
+      "bucket": "bar anatomy (spikes)",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's 'buy below the low of a bull spike bar' limit-order fade of the first dip.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "SpikePullbackLimitFade",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-11",
+      "setupIterations": 3,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SpikePullbackLimitFade",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed breakout of a micro channel",
+      "bucket": "trend lines & channels",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks: the first break of a micro channel usually fails and the channel resumes.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "MicroChannelFailedBreakoutEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "minBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "maxWaitBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-12",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "MicroChannelFailedBreakoutEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "minBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "maxWaitBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Pullback in a tight channel",
+      "bucket": "trend lines & channels",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/25",
+      "tradeCountRisk": "low",
+      "reason": "Buy the first meaningful dip of a tight channel (net progress, shallow pullbacks).",
+      "note": "",
+      "setup": [
+        {
+          "name": "TightChannel",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "windowBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "netAtr": {
+              "start": "1.5",
+              "stop": "2.5",
+              "step": "0.5"
+            },
+            "pullbackAtr": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "PullbackFromRecentHigh",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "pullbackAtr": {
+              "start": "0.5",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-13",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TightChannel",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "windowBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "netAtr": {
+              "start": "1.5",
+              "stop": "2.5",
+              "step": "0.5"
+            },
+            "pullbackAtr": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "PullbackFromRecentHigh",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "pullbackAtr": {
+              "start": "0.5",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Largest trend bar of the run (faded)",
+      "bucket": "climaxes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's 'biggest bull bar of the trend' exhaustion read; the setup is the fade, so it is placed flipped.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "LargestTrendBarOfTheRun",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "runBars": {
+              "start": "10",
+              "stop": "20",
+              "step": "5"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-14",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": true,
+      "reverse": [
+        {
+          "name": "LargestTrendBarOfTheRun",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "runBars": {
+              "start": "10",
+              "stop": "20",
+              "step": "5"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "End of a trend-bar run (faded)",
+      "bucket": "climaxes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40",
+      "tradeCountRisk": "low",
+      "reason": "Fade the bar that ends a climactic run of trend bars; placed flipped (authored long = bull run ended).",
+      "note": "",
+      "setup": [
+        {
+          "name": "TrendBarRunEnded",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "runBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-15",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": true,
+      "reverse": [
+        {
+          "name": "TrendBarRunEnded",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "runBars": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Consecutive climaxes (faded)",
+      "bucket": "climaxes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50 at 1.5 ATR",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks: two or three separated buy climaxes bring a two-legged correction; placed flipped.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "ConsecutiveClimaxBarCount",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "windowBars": {
+              "start": "30",
+              "stop": "40",
+              "step": "10"
+            },
+            "minClimaxes": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "maxGapBars": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "climaxMultiple": {
+              "start": "1.5",
+              "stop": "1.75",
+              "step": "0.125"
+            },
+            "atrLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-16",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": true,
+      "reverse": [
+        {
+          "name": "ConsecutiveClimaxBarCount",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "windowBars": {
+              "start": "30",
+              "stop": "40",
+              "step": "10"
+            },
+            "minClimaxes": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "maxGapBars": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "climaxMultiple": {
+              "start": "1.5",
+              "stop": "1.75",
+              "step": "0.125"
+            },
+            "atrLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Single climax bar (faded)",
+      "bucket": "climaxes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/70",
+      "tradeCountRisk": "moderate",
+      "reason": "A huge strong trend bar as a buy/sell climax; placed flipped. Grid sits below the 2-ATR default for daily counts.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "ClimaxBar",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "climaxMultiple": {
+              "start": "1.25",
+              "stop": "1.75",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-17",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": true,
+      "reverse": [
+        {
+          "name": "ClimaxBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "climaxMultiple": {
+              "start": "1.25",
+              "stop": "1.75",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.7",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Spike reversed by an opposite spike",
+      "bucket": "climaxes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/80",
+      "tradeCountRisk": "moderate",
+      "reason": "Spike-and-opposite-spike reversal; authored orientation kept as the setup (see judgement calls).",
+      "note": "",
+      "setup": [
+        {
+          "name": "SpikeReversedBySpike",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "gapBars": {
+              "start": "0",
+              "stop": "2",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-18",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SpikeReversedBySpike",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "spikeBars": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "gapBars": {
+              "start": "0",
+              "stop": "2",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed breakout of the N-bar range",
+      "bucket": "breakouts & failed breakouts",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40",
+      "tradeCountRisk": "low",
+      "reason": "Brooks's most-stated idea: most breakouts fail; take the reversal back inside.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FailedBreakoutReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "rangeBars": {
+              "start": "10",
+              "stop": "40",
+              "step": "10"
+            },
+            "failBars": {
+              "start": "1",
+              "stop": "5",
+              "step": "2"
+            }
+          }
+        }
+      ],
+      "id": "BRK-19",
+      "setupIterations": 12,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FailedBreakoutReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "rangeBars": {
+              "start": "10",
+              "stop": "40",
+              "step": "10"
+            },
+            "failBars": {
+              "start": "1",
+              "stop": "5",
+              "step": "2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Breakout pullback",
+      "bucket": "breakouts & failed breakouts",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50",
+      "tradeCountRisk": "moderate",
+      "reason": "Three-stage breakout, pullback, resumption entry; not a Donchian breakout.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "BreakoutPullbackEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "breakoutLookback": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "maxBarsSinceBreakout": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "minPullbackBars": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "maxPullbackBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-20",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "BreakoutPullbackEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "breakoutLookback": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "maxBarsSinceBreakout": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "minPullbackBars": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "maxPullbackBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Breakout test of the swing level",
+      "bucket": "breakouts & failed breakouts",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/70",
+      "tradeCountRisk": "moderate",
+      "reason": "The pullback that tests a broken swing high and holds; ATR tolerance widened for daily bars.",
+      "note": "",
+      "setup": [
+        {
+          "name": "BreakoutLevelRetest",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "lookback": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "maxWaitBars": {
+              "start": "3",
+              "stop": "9",
+              "step": "3"
+            },
+            "toleranceAtr": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            },
+            "maxOvershootAtr": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-21",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "BreakoutLevelRetest",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "lookback": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "maxWaitBars": {
+              "start": "3",
+              "stop": "9",
+              "step": "3"
+            },
+            "toleranceAtr": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            },
+            "maxOvershootAtr": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Second failed breakout attempt",
+      "bucket": "trading ranges",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's second-attempt principle applied to range breakouts.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "TwiceFailedBreakoutAttempt",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "minFailedAttempts": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "attemptLookback": {
+              "start": "40",
+              "stop": "60",
+              "step": "10"
+            },
+            "rangeBars": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "failBars": {
+              "start": "3",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-22",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TwiceFailedBreakoutAttempt",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "minFailedAttempts": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "attemptLookback": {
+              "start": "40",
+              "stop": "60",
+              "step": "10"
+            },
+            "rangeBars": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "failBars": {
+              "start": "3",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Delayed first pullback after a breakout",
+      "bucket": "leg counting",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's leading strength sign: the first pullback comes only after several bars.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FirstPullbackDelay",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "breakoutLookback": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "minBarsBeforePullback": {
+              "start": "2",
+              "stop": "6",
+              "step": "2"
+            }
+          }
+        }
+      ],
+      "id": "BRK-23",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FirstPullbackDelay",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "breakoutLookback": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "minBarsBeforePullback": {
+              "start": "2",
+              "stop": "6",
+              "step": "2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "High 2 / low 2",
+      "bucket": "leg counting",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/25",
+      "tradeCountRisk": "low",
+      "reason": "The core Brooks setup, on the settled leg counter.",
+      "note": "",
+      "setup": [
+        {
+          "name": "HighLowBarCount",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "resetLookback": {
+              "start": "10",
+              "stop": "50",
+              "step": "10"
+            },
+            "countTarget": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-24",
+      "setupIterations": 5,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "HighLowBarCount",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "resetLookback": {
+              "start": "10",
+              "stop": "50",
+              "step": "10"
+            },
+            "countTarget": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Second signal (second entry)",
+      "bucket": "leg counting",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/15",
+      "tradeCountRisk": "low",
+      "reason": "Brooks's second-entry principle as a generic trigger.",
+      "note": "",
+      "setup": [
+        {
+          "name": "SecondSignal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "withinBars": {
+              "start": "5",
+              "stop": "20",
+              "step": "5"
+            }
+          }
+        }
+      ],
+      "id": "BRK-25",
+      "setupIterations": 4,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SecondSignal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "withinBars": {
+              "start": "5",
+              "stop": "20",
+              "step": "5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed high/low count reverses",
+      "bucket": "leg counting",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "A failed high 2/3/4 hands control to the other side.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FailedCountReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "resetLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "countTarget": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "maxBarsSince": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            }
+          }
+        }
+      ],
+      "id": "BRK-26",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FailedCountReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "resetLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "countTarget": {
+              "start": "2",
+              "stop": "4",
+              "step": "1"
+            },
+            "maxBarsSince": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Three-push (wedge) reversal",
+      "bucket": "wedges & three pushes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's wedge reversal on confirmed pivots.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ThreePushReversalEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "lookbackBars": {
+              "start": "30",
+              "stop": "60",
+              "step": "15"
+            }
+          }
+        }
+      ],
+      "id": "BRK-27",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ThreePushReversalEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "lookbackBars": {
+              "start": "30",
+              "stop": "60",
+              "step": "15"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Three-push breakout of the far side",
+      "bucket": "wedges & three pushes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "The wedge entry on the break of the opposite swing.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "ThreePushSwingBreakoutEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "lookbackBars": {
+              "start": "45",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-28",
+      "setupIterations": 1,
+      "setupOptimizedInputs": 0,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ThreePushSwingBreakoutEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "lookbackBars": {
+              "start": "45",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Three-push extreme retest faded",
+      "bucket": "wedges & three pushes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/90",
+      "tradeCountRisk": "high",
+      "reason": "Double-top/bottom test of a wedge extreme; kept for the bucket despite the count risk.",
+      "note": "Row says keep swingStrength >= 2. Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "ThreePushExtremeRetestFade",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "tolAtr": {
+              "start": "0.5",
+              "stop": "0.9",
+              "step": "0.2"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "lookbackBars": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-29",
+      "setupIterations": 3,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ThreePushExtremeRetestFade",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "tolAtr": {
+              "start": "0.5",
+              "stop": "0.9",
+              "step": "0.2"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "lookbackBars": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Final-flag reversal",
+      "bucket": "wedges & three pushes",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/90",
+      "tradeCountRisk": "high",
+      "reason": "Named Brooks setup: the last flag of a mature trend breaks the wrong way.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FinalFlagReversalBreakoutEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "flagBars": {
+              "start": "5",
+              "stop": "10",
+              "step": "5"
+            },
+            "requirePriorBreakout": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "priorBreakoutWindow": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "overlapThreshold": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "minOverlapFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "minTrendBars": {
+              "start": "20",
+              "stop": "40",
+              "step": "10"
+            },
+            "consecutiveBars": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "tailFraction": {
+              "start": "0.2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-30",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FinalFlagReversalBreakoutEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "flagBars": {
+              "start": "5",
+              "stop": "10",
+              "step": "5"
+            },
+            "requirePriorBreakout": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "priorBreakoutWindow": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "overlapThreshold": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "minOverlapFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "minTrendBars": {
+              "start": "20",
+              "stop": "40",
+              "step": "10"
+            },
+            "consecutiveBars": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "tailFraction": {
+              "start": "0.2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Twenty-gap-bar pullback to the EMA",
+      "bucket": "EMA relations",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60 at 10 bars",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's '20 gap bar' first touch of the average; grid pulled down from 20 for daily counts.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "TwentyGapBarPullbackEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "gapBarsRequired": {
+              "start": "3",
+              "stop": "9",
+              "step": "2"
+            }
+          }
+        }
+      ],
+      "id": "BRK-31",
+      "setupIterations": 4,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TwentyGapBarPullbackEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "gapBarsRequired": {
+              "start": "3",
+              "stop": "9",
+              "step": "2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Pullback to a sloping EMA",
+      "bucket": "EMA relations",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/25",
+      "tradeCountRisk": "low",
+      "reason": "Touch and close back above a steep EMA; not an MA cross or MA-side rule.",
+      "note": "",
+      "setup": [
+        {
+          "name": "EmaTouchRecovery",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "EmaSlope",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "slopeLookback": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "slopeAtr": {
+              "start": "0.25",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-32",
+      "setupIterations": 4,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "EmaTouchRecovery",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        {
+          "name": "EmaSlope",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "slopeLookback": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "slopeAtr": {
+              "start": "0.25",
+              "stop": "1.0",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Moving-average gap-bar breakout",
+      "bucket": "EMA relations",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/20",
+      "tradeCountRisk": "low",
+      "reason": "Brooks's MA gap bar: the bar beyond the EMA, then a break of its far extreme.",
+      "note": "",
+      "setup": [
+        {
+          "name": "EmaGapBarBreakoutEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "10",
+              "stop": "30",
+              "step": "5"
+            }
+          }
+        }
+      ],
+      "id": "BRK-33",
+      "setupIterations": 5,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "EmaGapBarBreakoutEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "10",
+              "stop": "30",
+              "step": "5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Trend-line touch",
+      "bucket": "trend lines & channels",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40",
+      "tradeCountRisk": "low",
+      "reason": "With-trend buy at the bull trend line drawn through confirmed swing lows.",
+      "note": "",
+      "setup": [
+        {
+          "name": "TrendLineTouch",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "touchTolAtr": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-34",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TrendLineTouch",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "touchTolAtr": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Second trend-line test",
+      "bucket": "trend lines & channels",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/80",
+      "tradeCountRisk": "moderate",
+      "reason": "Second-entry principle applied to a line test.",
+      "note": "",
+      "setup": [
+        {
+          "name": "SecondTrendLineTest",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBetween": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "touchTolAtr": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-35",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SecondTrendLineTest",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBetween": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "touchTolAtr": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Trend-line break",
+      "bucket": "trend lines & channels",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "First close through the opposite trend line; the first step of every Brooks reversal.",
+      "note": "",
+      "setup": [
+        {
+          "name": "TrendLineBreak",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "breakTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-36",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "TrendLineBreak",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "breakTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Major trend reversal",
+      "bucket": "trend lines & channels",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/100",
+      "tradeCountRisk": "high",
+      "reason": "The named Brooks MTR (line break, test of the extreme, reversal bar). Tick tolerance gridded wide.",
+      "note": "tolTicks 5/45/85 spans intraday to daily scale; the walkforward picks per unit. Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "MajorTrendReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "testWindow": {
+              "start": "25",
+              "stop": "",
+              "step": ""
+            },
+            "tolTicks": {
+              "start": "5",
+              "stop": "165",
+              "step": "80"
+            },
+            "swingStrength": {
+              "start": "1",
+              "stop": "2",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-37",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "MajorTrendReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "testWindow": {
+              "start": "25",
+              "stop": "",
+              "step": ""
+            },
+            "tolTicks": {
+              "start": "5",
+              "stop": "165",
+              "step": "80"
+            },
+            "swingStrength": {
+              "start": "1",
+              "stop": "2",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed break of a micro trend line",
+      "bucket": "trend lines & channels",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/50",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks: micro trend line breaks usually fail and become with-trend entries.",
+      "note": "",
+      "setup": [
+        {
+          "name": "MicroTrendLineFailedBreakout",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "microSwingStrength": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "microLineBars": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "failureWindowBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-38",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "MicroTrendLineFailedBreakout",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "microSwingStrength": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "microLineBars": {
+              "start": "5",
+              "stop": "15",
+              "step": "5"
+            },
+            "failureWindowBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Channel-line overshoot reversal",
+      "bucket": "trend lines & channels",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's most-repeated channel trade: fade an overshoot of the channel line.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ChannelLineOvershootReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "overshootBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-39",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ChannelLineOvershootReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "overshootBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "bodyFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed channel breakout",
+      "bucket": "trend lines & channels",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/60",
+      "tradeCountRisk": "moderate",
+      "reason": "A close beyond a channel line that closes back inside runs to the opposite side.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ChannelLineBreakoutFailure",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "failBars": {
+              "start": "3",
+              "stop": "7",
+              "step": "2"
+            }
+          }
+        }
+      ],
+      "id": "BRK-40",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ChannelLineBreakoutFailure",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "failBars": {
+              "start": "3",
+              "stop": "7",
+              "step": "2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Retest of the channel start",
+      "bucket": "trend lines & channels",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/70",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks: a channel is commonly retraced to its start, which then holds.",
+      "note": "",
+      "setup": [
+        {
+          "name": "ChannelStartRetestEntry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "tolAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "maxUndershootAtr": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-41",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "ChannelStartRetestEntry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "tolAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "maxUndershootAtr": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Fade the extreme of a trading range",
+      "bucket": "trading ranges",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/30",
+      "tradeCountRisk": "low",
+      "reason": "Buy low, sell high only inside a range; the range gate separates it from Davey's range-position rules.",
+      "note": "",
+      "setup": [
+        {
+          "name": "CloseInRangePosition",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "bottomFraction": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        },
+        {
+          "name": "RangeWidthBelowAtrMultiple",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "rangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "rangeAtrMultiple": {
+              "start": "4",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-42",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "CloseInRangePosition",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "bottomFraction": {
+              "start": "0.1",
+              "stop": "0.3",
+              "step": "0.1"
+            }
+          }
+        },
+        {
+          "name": "RangeWidthBelowAtrMultiple",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "rangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "rangeAtrMultiple": {
+              "start": "4",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Swing-point test that holds",
+      "bucket": "swing structure",
+      "setupType": "range",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40",
+      "tradeCountRisk": "low",
+      "reason": "A test of the last swing low that does not trade through: Brooks's higher-low / double-bottom test.",
+      "note": "",
+      "setup": [
+        {
+          "name": "SwingPointTestHolds",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "toleranceAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBack": {
+              "start": "60",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-43",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SwingPointTestHolds",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "toleranceAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBack": {
+              "start": "60",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Double-bottom bull flag / double-top bear flag",
+      "bucket": "swing structure",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/80",
+      "tradeCountRisk": "moderate",
+      "reason": "Brooks's double-bottom pullback; the tick match gridded wide so daily pivots can qualify.",
+      "note": "matchTicks 4/44/84 for the same scale reason as MajorTrendReversal.",
+      "setup": [
+        {
+          "name": "DoubleExtremePullback",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "1",
+              "stop": "2",
+              "step": "1"
+            },
+            "patternWindow": {
+              "start": "30",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "matchTicks": {
+              "start": "4",
+              "stop": "84",
+              "step": "40"
+            },
+            "holdTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "testZoneAtr": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-44",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "DoubleExtremePullback",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "1",
+              "stop": "2",
+              "step": "1"
+            },
+            "patternWindow": {
+              "start": "30",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "40",
+              "stop": "",
+              "step": ""
+            },
+            "matchTicks": {
+              "start": "4",
+              "stop": "84",
+              "step": "40"
+            },
+            "holdTicks": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            },
+            "testZoneAtr": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Stop run reclaimed, re-entered on a stop",
+      "bucket": "swing structure",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/80",
+      "tradeCountRisk": "moderate",
+      "reason": "Swing-low stop run that closes back above, entered above the reclaim bar.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "StopRunReclaimReentry",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "3",
+              "step": "1"
+            },
+            "lookbackBars": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "entryTick": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-45",
+      "setupIterations": 6,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "StopRunReclaimReentry",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "3",
+              "step": "1"
+            },
+            "lookbackBars": {
+              "start": "20",
+              "stop": "60",
+              "step": "20"
+            },
+            "entryTick": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed countertrend scalp",
+      "bucket": "always-in / failed signals",
+      "setupType": "with-trend",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/40",
+      "tradeCountRisk": "low",
+      "reason": "Three-bar trap: the countertrend signal triggers and immediately fails.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FailedCountertrendScalpReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {}
+        }
+      ],
+      "id": "BRK-46",
+      "setupIterations": 1,
+      "setupOptimizedInputs": 0,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FailedCountertrendScalpReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {}
+        }
+      ]
+    },
+    {
+      "label": "Fade at the measured-move target",
+      "bucket": "measured moves",
+      "setupType": "reversal",
+      "timeframeTag": "any",
+      "m1440SignalEstimate": "~1/20",
+      "tradeCountRisk": "low",
+      "reason": "Measured-move targets as magnets; the setup is the fade at the target, so it is placed flipped.",
+      "note": "",
+      "setup": [
+        {
+          "name": "NearMeasuredMoveTargetFilter",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "refBars": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "refOffset": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "multiple": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "nearTargetAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ],
+      "id": "BRK-47",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": true,
+      "reverse": [
+        {
+          "name": "NearMeasuredMoveTargetFilter",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "refBars": {
+              "start": "10",
+              "stop": "30",
+              "step": "10"
+            },
+            "refOffset": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "multiple": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "nearTargetAtr": {
+              "start": "0.25",
+              "stop": "0.75",
+              "step": "0.25"
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Failed breakout of the prior session's extreme",
+      "bucket": "session & time",
+      "setupType": "range",
+      "timeframeTag": "intraday-only",
+      "m1440SignalEstimate": "n/a (intraday)",
+      "tradeCountRisk": "n/a",
+      "reason": "Brooks's failed breakout of yesterday's high/low early in the day.",
+      "note": "",
+      "setup": [
+        {
+          "name": "FailedBreakoutOfPriorSessionExtreme",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "maxBarsIntoSession": {
+              "start": "4",
+              "stop": "16",
+              "step": "4"
+            }
+          }
+        }
+      ],
+      "id": "BRK-48",
+      "setupIterations": 4,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FailedBreakoutOfPriorSessionExtreme",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "maxBarsIntoSession": {
+              "start": "4",
+              "stop": "16",
+              "step": "4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Breakout of the session's first bar",
+      "bucket": "session & time",
+      "setupType": "breakout",
+      "timeframeTag": "intraday-only",
+      "m1440SignalEstimate": "n/a (intraday)",
+      "tradeCountRisk": "n/a",
+      "reason": "Brooks's first-bar breakout (second or third bar of the day through bar 1).",
+      "note": "",
+      "setup": [
+        {
+          "name": "SessionBarBreakout",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "offsetBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "windowBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-49",
+      "setupIterations": 9,
+      "setupOptimizedInputs": 2,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "SessionBarBreakout",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "offsetBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            },
+            "windowBars": {
+              "start": "1",
+              "stop": "3",
+              "step": "1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Opening trend bar reversed by bar 2",
+      "bucket": "session & time",
+      "setupType": "reversal",
+      "timeframeTag": "intraday-only",
+      "m1440SignalEstimate": "n/a (intraday)",
+      "tradeCountRisk": "n/a",
+      "reason": "Brooks's opening reversal: bar 2 reverses a strong first bar beyond its open.",
+      "note": "Grid changed by the 2026-11-05 trial runs (SELECTION.md).",
+      "setup": [
+        {
+          "name": "FirstBarSessionTrendBarFailureReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.4",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ],
+      "id": "BRK-50",
+      "setupIterations": 3,
+      "setupOptimizedInputs": 1,
+      "setupFlipped": false,
+      "reverse": [
+        {
+          "name": "FirstBarSessionTrendBarFailureReversal",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.4",
+              "stop": "0.6",
+              "step": "0.1"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pane2Pools": {
+    "trend": [
+      {
+        "id": "AlwaysInByEma",
+        "placement": {
+          "name": "BarsBeyondEmaCount",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "minBarsBeyond": {
+              "start": "7",
+              "stop": "",
+              "step": ""
+            },
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "always-in stand-in: 7 of the last 10 closes beyond the 20 EMA"
+      },
+      {
+        "id": "EmaSloping",
+        "placement": {
+          "name": "EmaSlope",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "slopeLookback": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "slopeAtr": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "EMA rose >= 0.5 ATR in 5 bars"
+      },
+      {
+        "id": "InTightChannel",
+        "placement": {
+          "name": "TightChannel",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "windowBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "netAtr": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "pullbackAtr": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "tight channel: 2 ATR progress, pullbacks <= 1 ATR"
+      },
+      {
+        "id": "HigherSwingLow",
+        "placement": {
+          "name": "HigherSwingLow",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBack": {
+              "start": "60",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "last confirmed swing low above the one before"
+      },
+      {
+        "id": "TrendBarsDominate",
+        "placement": {
+          "name": "TrendBarCountDominanceInWindow",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "dominance": {
+              "start": "3",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "bull trend bars outnumber bear by >= 3 in 20"
+      },
+      {
+        "id": "NoTwoClosesBeyondEma",
+        "placement": {
+          "name": "NoTwoConsecutiveClosesBeyondEma",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "no two consecutive closes on the wrong side of the EMA in 10 bars"
+      },
+      {
+        "id": "ShallowPullbacksVsEma",
+        "placement": {
+          "name": "PullbackDepthBeyondEma",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "lookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "maxDepthAtr": {
+              "start": "1.0",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "no close more than 1 ATR through the EMA in 20 bars"
+      },
+      {
+        "id": "TrendLineIntact",
+        "placement": {
+          "name": "TrendLineBrokenRecently",
+          "flipped": true,
+          "negated": true,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "withinBars": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "minBreaks": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "the with-trend line has not been closed through in 20 bars (flipped + negated)"
+      },
+      {
+        "id": "NotInTradingRange",
+        "placement": {
+          "name": "RangeWidthBelowAtrMultiple",
+          "flipped": false,
+          "negated": true,
+          "params": {
+            "rangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "rangeAtrMultiple": {
+              "start": "4",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "20-bar height above 4 ATR (negated range test)"
+      }
+    ],
+    "reversal": [
+      {
+        "id": "TrendLineBroken",
+        "placement": {
+          "name": "TrendLineBrokenRecently",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "swingStrength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "withinBars": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "minBreaks": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "Brooks's permission: the opposing trend line closed through in the last 20 bars"
+      },
+      {
+        "id": "NotTightOpposingChannel",
+        "placement": {
+          "name": "TightChannel",
+          "flipped": true,
+          "negated": true,
+          "params": {
+            "windowBars": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "netAtr": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "pullbackAtr": {
+              "start": "1",
+              "stop": "",
+              "step": ""
+            },
+            "atrLength": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "never fade a tight channel (flipped + negated)"
+      },
+      {
+        "id": "NotStrongOpposingTrend",
+        "placement": {
+          "name": "ConsecutiveClosesBeyondEmaRun",
+          "flipped": true,
+          "negated": true,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "strongBars": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "not 20 straight closes on the other side of the EMA"
+      },
+      {
+        "id": "LateTrend",
+        "placement": {
+          "name": "TrendDurationBars",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "minTrendBars": {
+              "start": "30",
+              "stop": "",
+              "step": ""
+            },
+            "consecutiveBars": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "tailFraction": {
+              "start": "0.2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "always-in direction has held >= 30 bars"
+      },
+      {
+        "id": "OpposingStairsShrinking",
+        "placement": {
+          "name": "ShrinkingStairs",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "pivotStrength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "pivotLookback": {
+              "start": "50",
+              "stop": "",
+              "step": ""
+            },
+            "shrinkLegs": {
+              "start": "3",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "the opposing trend's swings are shrinking"
+      },
+      {
+        "id": "PriorMoveAgainst",
+        "placement": {
+          "name": "BarsBeyondEmaCount",
+          "flipped": true,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "minBarsBeyond": {
+              "start": "7",
+              "stop": "",
+              "step": ""
+            },
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "the move being reversed: 7 of 10 closes on the other side of the EMA"
+      },
+      {
+        "id": "HigherLowAfterExtreme",
+        "placement": {
+          "name": "HigherSwingLow",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "strength": {
+              "start": "2",
+              "stop": "",
+              "step": ""
+            },
+            "maxBarsBack": {
+              "start": "60",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "MTR's higher low"
+      }
+    ],
+    "range": [
+      {
+        "id": "InTradingRange",
+        "placement": {
+          "name": "RangeWidthBelowAtrMultiple",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "rangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "rangeAtrMultiple": {
+              "start": "4",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "20-bar height within 4 ATR"
+      },
+      {
+        "id": "EmaFlat",
+        "placement": {
+          "name": "EmaFlat",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "emaLength": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "slopeLookback": {
+              "start": "5",
+              "stop": "",
+              "step": ""
+            },
+            "flatAtr": {
+              "start": "0.25",
+              "stop": "",
+              "step": ""
+            },
+            "atrLookback": {
+              "start": "14",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "EMA moved < 0.25 ATR in 5 bars"
+      },
+      {
+        "id": "OverlappingBars",
+        "placement": {
+          "name": "OverlappingBarRun",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "overlapBars": {
+              "start": "4",
+              "stop": "",
+              "step": ""
+            },
+            "overlapFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "4 bar pairs overlapping >= 50%"
+      },
+      {
+        "id": "NotMidRange",
+        "placement": {
+          "name": "RangeMidpointZone",
+          "flipped": false,
+          "negated": true,
+          "params": {
+            "rangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "midpointFraction": {
+              "start": "0.17",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "not in the middle third of the 20-bar range"
+      },
+      {
+        "id": "NotBarbwire",
+        "placement": {
+          "name": "Barbwire",
+          "flipped": false,
+          "negated": true,
+          "params": {
+            "barbwireOverlapFraction": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "dojiBodyFraction": {
+              "start": "0.2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "not barbwire"
+      },
+      {
+        "id": "TwoSidedDojis",
+        "placement": {
+          "name": "DojiCountInWindow",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "minCount": {
+              "start": "3",
+              "stop": "",
+              "step": ""
+            },
+            "dojiFraction": {
+              "start": "0.2",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": ">= 3 dojis in 10 bars"
+      },
+      {
+        "id": "HighBarOverlap",
+        "placement": {
+          "name": "AverageBarOverlap",
+          "flipped": false,
+          "negated": true,
+          "params": {
+            "lookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "maxAvgOverlap": {
+              "start": "0.5",
+              "stop": "",
+              "step": ""
+            },
+            "epsilon": {
+              "start": "0.000001",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "mean pairwise overlap above 50% (negated)"
+      }
+    ],
+    "signalBar": [
+      {
+        "id": "SignalBarMinimum",
+        "placement": {
+          "name": "ReversalBarMinimum",
+          "flipped": false,
+          "negated": false,
+          "params": {}
+        },
+        "note": "signal bar closes in the trade direction or beyond its midpoint"
+      },
+      {
+        "id": "StrongSignalBar",
+        "placement": {
+          "name": "StrongTrendBar",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "bodyFraction": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "tailFraction": {
+              "start": "0.15",
+              "stop": "",
+              "step": ""
+            },
+            "lag": {
+              "start": "0",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "signal bar is a strong trend bar in the trade direction"
+      },
+      {
+        "id": "NotSmallWeakSignalBar",
+        "placement": {
+          "name": "SmallWeakSignalBarBlock",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "smallRangeMultiple": {
+              "start": "0.6",
+              "stop": "",
+              "step": ""
+            },
+            "rangeLookback": {
+              "start": "10",
+              "stop": "",
+              "step": ""
+            },
+            "smallBodyFraction": {
+              "start": "0.4",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "blocks small, weak-bodied signal bars"
+      },
+      {
+        "id": "SignalBarNotOversized",
+        "placement": {
+          "name": "BarRangeBelowAverageMultiple",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "avgRangeLookback": {
+              "start": "20",
+              "stop": "",
+              "step": ""
+            },
+            "maxRangeMultiple": {
+              "start": "1.5",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "signal bar range <= 1.5 x the 20-bar mean"
+      },
+      {
+        "id": "NoLargeOpposingTail",
+        "placement": {
+          "name": "LargeOppositeTailWeakensReversal",
+          "flipped": false,
+          "negated": false,
+          "params": {
+            "largeTailFraction": {
+              "start": "0.35",
+              "stop": "",
+              "step": ""
+            },
+            "minBodyOverride": {
+              "start": "0.4",
+              "stop": "",
+              "step": ""
+            }
+          }
+        },
+        "note": "no large tail against the trade unless the body is strong"
+      }
+    ]
+  },
+  "stopPool": [
+    {
+      "id": "StopLoss5000",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": false,
+      "placement": {
+        "name": "StopLoss",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopLoss": {
+            "start": "5000",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "the Davey families' catastrophic stop, same value"
+    },
+    {
+      "id": "SignalBarRange2x",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopAtSignalBarRangeMultiple",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopRangeMult": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "RecentRangeStop",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopSizedToRecentRange",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "runLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "runFraction": {
+            "start": "1.0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "AdrFractionStop",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "AvgDailyRangeFractionStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "adrFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          },
+          "dayLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "maxScanBars": {
+            "start": "499",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "daily-ok: on M1440 the ADR is the mean bar range; reach is maxScanBars + 1, so maxScanBars 499 fits Max Bars Back 500, which every family drawing this stop gets (Brian, 2026-11-05)",
+      "maxBarsBack": 500
+    },
+    {
+      "id": "BracketAtr2R",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopLossTakeProfitATR",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "atrLength": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "stopAtrMultiple": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "rewardRisk": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "bracket: 2 ATR stop, 2R target"
+    },
+    {
+      "id": "BracketDollar2R",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopLossTakeProfitDollar",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopDollars": {
+            "start": "2000",
+            "stop": "",
+            "step": ""
+          },
+          "rewardRisk": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "bracket: $2000 stop, 2R target"
+    },
+    {
+      "id": "BracketRatioStop",
+      "category": "stop-money/volatility",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": false,
+      "placement": {
+        "name": "TakeProfitWithRatioStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "target": {
+            "start": "3000",
+            "stop": "",
+            "step": ""
+          },
+          "stopRatio": {
+            "start": "0.5",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "bracket: $3000 target, $1500 stop"
+    },
+    {
+      "id": "SessionAvgBarStop",
+      "category": "stop-money/volatility",
+      "intradayOnly": true,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "SessionAvgBarRangeStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopMultiple": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "degenerates to one bar's range on M1440"
+    },
+    {
+      "id": "BeyondSignalBar",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopBeyondSignalBar",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BeyondSwingAtEntry",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "InitialStopBeyondSwingAtEntry",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "pivotStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "stopTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "stopLookback": {
+            "start": "10",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BeyondExtremeSinceEntry",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopBeyondExtremeSinceEntry",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "ratchetOffset": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "price-point offset pinned 0 (portable)"
+    },
+    {
+      "id": "BeyondRecentRange",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopBeyondRecentRangeExtreme",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "rangeLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "stopBuffer": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "price-point buffer pinned 0 (portable)"
+    },
+    {
+      "id": "FractionOfSignalRisk",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopFractionOfSignalBarRisk",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopFraction": {
+            "start": "0.3",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BeyondSpikeStart",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "StopBeyondSpikeStart",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "stopBufferTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "strongBodyFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          },
+          "maxTailFraction": {
+            "start": "0.2",
+            "stop": "",
+            "step": ""
+          },
+          "consecutiveBars": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TightenToStrongEntryBar",
+      "category": "stop-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "TightenStopToEntryBarIfStrong",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "strongBodyFrac": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          },
+          "stopOffset": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "price-point offset pinned 0"
+    }
+  ],
+  "exitPool": [
+    {
+      "id": "TakeProfit",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "TakeProfit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "takeProfit": {
+            "start": "1500",
+            "stop": "3000",
+            "step": "500"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "AtrProfitTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "AtrProfitTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "lookback": {
+            "start": "15",
+            "stop": "",
+            "step": ""
+          },
+          "multiple": {
+            "start": "3",
+            "stop": "6",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "CountertrendScalpAtr",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "CountertrendScalpAtrTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "atrLookback": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "scalpAtr": {
+            "start": "0.5",
+            "stop": "2.0",
+            "step": "0.5"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BarHeightMM",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "BarHeightMeasuredMoveTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "refBar": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "multiple": {
+            "start": "1",
+            "stop": "2",
+            "step": "0.5"
+          },
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "PatternHeightMM",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "PatternHeightMeasuredMoveTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "refBars": {
+            "start": "10",
+            "stop": "40",
+            "step": "10"
+          },
+          "multiple": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "startFromOpen": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "endAtClose": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "LegOneEqualsLegTwo",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "LegOneEqualsLegTwoTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "pivotStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "lookback": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          },
+          "multiple": {
+            "start": "0.5",
+            "stop": "1.5",
+            "step": "0.5"
+          },
+          "toleranceTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "RangeHeightProjection",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "RangeHeightProjectionTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "rangeLookback": {
+            "start": "10",
+            "stop": "40",
+            "step": "10"
+          },
+          "toleranceTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "SwingPivotTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "SwingPivotTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "swingStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "pivotIndex": {
+            "start": "1",
+            "stop": "3",
+            "step": "1"
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          },
+          "toleranceAtr": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "atrLength": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "PriorRangeExtreme",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ExitAtPriorRangeExtreme",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "channelBars": {
+            "start": "10",
+            "stop": "40",
+            "step": "10"
+          },
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ChannelLineTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ChannelLineTargetExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "pivotStrength": {
+            "start": "1",
+            "stop": "3",
+            "step": "1"
+          },
+          "pivotLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "touchTolAtr": {
+            "start": "0.0",
+            "stop": "",
+            "step": ""
+          },
+          "atrLength": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "RangeMidpoint",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "RangeMidpointTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "rangeLookback": {
+            "start": "20",
+            "stop": "60",
+            "step": "20"
+          },
+          "toleranceFraction": {
+            "start": "0.01",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "MovingAverageTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "MovingAverageTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "emaLength": {
+            "start": "10",
+            "stop": "30",
+            "step": "10"
+          },
+          "toleranceTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "PullbackSizedTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "PullbackSizedProfitTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "swingStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          },
+          "profitFraction": {
+            "start": "0.6",
+            "stop": "1.2",
+            "step": "0.2"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "SwingHighProfitTarget",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "SwingHighProfitTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "strength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "profitThreshold": {
+            "start": "500",
+            "stop": "2000",
+            "step": "500"
+          },
+          "offsetTicks": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "maxBarsBack": {
+            "start": "60",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ChannelBounceFraction",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ChannelBounceFractionTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "pivotStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "pivotLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "bounceFraction": {
+            "start": "0.25",
+            "stop": "0.75",
+            "step": "0.25"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "EntryBarExtreme",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "EntryBarExtremeTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "scalp to the signal bar's far extreme"
+    },
+    {
+      "id": "GapMidpointMM",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "GapMidpointMeasuredMoveTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "legLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "useGap": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "multiple": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "daily-ok"
+    },
+    {
+      "id": "RollingRangeMidpointMM",
+      "category": "target",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "RollingRangeMidpointTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "rangeBars": {
+            "start": "15",
+            "stop": "",
+            "step": ""
+          },
+          "legLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "toleranceTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "SessionOpenPrice",
+      "category": "target",
+      "intradayOnly": true,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "SessionOpenPriceTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "offsetTicks": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "SessionMidpoint",
+      "category": "target",
+      "intradayOnly": true,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "SessionMidpointTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "midpointFraction": {
+            "start": "0.5",
+            "stop": "",
+            "step": ""
+          },
+          "minSessionBars": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "AtrTrailingStop",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "AtrTrailingStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "lookback": {
+            "start": "15",
+            "stop": "",
+            "step": ""
+          },
+          "multiple": {
+            "start": "3",
+            "stop": "6",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrailingStop",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "TrailingStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "trailStop": {
+            "start": "1000",
+            "stop": "2500",
+            "step": "500"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ProfitProtector",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "ProfitProtector",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "maxProfit": {
+            "start": "1500",
+            "stop": "3000",
+            "step": "500"
+          },
+          "retracement": {
+            "start": ".5",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ProfitProtectorRatio",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "ProfitProtectorRatio",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "profitFloor": {
+            "start": "1500",
+            "stop": "3000",
+            "step": "500"
+          },
+          "keepRatio": {
+            "start": ".6",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TieredProfitProtector",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": false,
+      "placement": {
+        "name": "TieredProfitProtector",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "floor1": {
+            "start": "1000",
+            "stop": "",
+            "step": ""
+          },
+          "floor2": {
+            "start": "2000",
+            "stop": "",
+            "step": ""
+          },
+          "floor3": {
+            "start": "3000",
+            "stop": "",
+            "step": ""
+          },
+          "ratio1": {
+            "start": ".6",
+            "stop": "",
+            "step": ""
+          },
+          "ratio2": {
+            "start": ".75",
+            "stop": "",
+            "step": ""
+          },
+          "ratio3": {
+            "start": ".9",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BreakevenStop",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "BreakevenStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "activationProfit": {
+            "start": "500",
+            "stop": "2000",
+            "step": "500"
+          },
+          "breakevenBuffer": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BreakevenAfterEmaRun",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "BreakevenStopAfterEmaHoldingRun",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "emaLength": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "barsAboveEma": {
+            "start": "2",
+            "stop": "8",
+            "step": "2"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BreakevenAfterAdverse",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "BreakevenExitAfterAdverseExcursion",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "adverseDollars": {
+            "start": "250",
+            "stop": "1000",
+            "step": "250"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BreakevenSecondTest",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "BreakevenStopOnSecondEntryTest",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "awayTicks": {
+            "start": "4",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "BreakevenRetest",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "BreakevenRetestExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "tolerancePoints": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "exits on any return to the entry price: short trades"
+    },
+    {
+      "id": "SwingPointTrail",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "SwingPointTrailingStop",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "pivotStrength": {
+            "start": "1",
+            "stop": "3",
+            "step": "1"
+          },
+          "trailOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrailAfterProfit",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "TrailArmedAfterProfitThreshold",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "armProfitDollars": {
+            "start": "500",
+            "stop": "2000",
+            "step": "500"
+          },
+          "stopOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrailAfterEmaBreak",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "TrailArmedAfterEmaCloseBreak",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "emaLength": {
+            "start": "10",
+            "stop": "30",
+            "step": "10"
+          },
+          "stopOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrailBehindStrongBar",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "TrailStopBehindStrongBar",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "strongBodyFraction": {
+            "start": "0.5",
+            "stop": "0.7",
+            "step": "0.1"
+          },
+          "stopOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrailToMicroGap",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "TrailStopToMicroMeasuringGap",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "toleranceTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "DelayedSwingTrail",
+      "category": "trail/breakeven/protect",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "DelaySwingTrailUntilRetestAndNewExtreme",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "signalBarAreaAtr": {
+            "start": "0.25",
+            "stop": "",
+            "step": ""
+          },
+          "atrLookback": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "pivotStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "trailOffsetTicks": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "NumBars",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "NumBars",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "numBarsExit": {
+            "start": "5",
+            "stop": "20",
+            "step": "5"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "NumBarsIfProfitable",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "NumBarsIfProfitable",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "numBars": {
+            "start": "5",
+            "stop": "20",
+            "step": "5"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "NumBarsIfLosing",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "NumBarsIfLosing",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "numBars": {
+            "start": "5",
+            "stop": "20",
+            "step": "5"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TimeOfDayExit",
+      "category": "time",
+      "intradayOnly": true,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": false,
+      "placement": {
+        "name": "TimeOfDayExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "exitTime": {
+            "start": "1600",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "fires every bar on M1440 (bar close = session close), as in the Davey families"
+    },
+    {
+      "id": "WeakEntryBarScratch",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "WeakEntryBarScratchExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "weakBodyFrac": {
+            "start": "0.2",
+            "stop": "0.4",
+            "step": "0.1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "WeakEntryBarExit",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "WeakEntryBarExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "strongBodyFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          },
+          "maxBars": {
+            "start": "1",
+            "stop": "3",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "FailedScalp",
+      "category": "time",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "FailedScalpExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "failureDollars": {
+            "start": "250",
+            "stop": "1000",
+            "step": "250"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ConsecutiveCloseExit",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": false,
+      "placement": {
+        "name": "ConsecutiveCloseExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "consecutiveBars": {
+            "start": "2",
+            "stop": "4",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "AdverseBodyCount",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "AdverseBodyCountExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "adverseBars": {
+            "start": "2",
+            "stop": "4",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "OppositeStrongTrendBar",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ExitOnOppositeStrongTrendBar",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "bodyFraction": {
+            "start": "0.5",
+            "stop": "0.7",
+            "step": "0.1"
+          },
+          "tailFraction": {
+            "start": "0.2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "FirstOppositeBodyAfterRun",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ExitOnFirstOppositeBodyAfterRun",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "runBars": {
+            "start": "2",
+            "stop": "5",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "MicroChannelBreakout",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ExitOnMicroChannelBreakout",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "minBars": {
+            "start": "3",
+            "stop": "6",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrendBarFails",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "TrendBarFailsExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "bodyFraction": {
+            "start": "0.5",
+            "stop": "0.7",
+            "step": "0.1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ClimaxAfterTrendRun",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ClimaxBarAfterTrendRunExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "bodyFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          },
+          "bigBarMultiple": {
+            "start": "1.5",
+            "stop": "2.5",
+            "step": "0.5"
+          },
+          "atrLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "lookback": {
+            "start": "10",
+            "stop": "",
+            "step": ""
+          },
+          "minTrendBars": {
+            "start": "5",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ConsecutiveTrendBarsClimax",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ConsecutiveTrendBarsClimaxExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "climaxBars": {
+            "start": "3",
+            "stop": "6",
+            "step": "1"
+          },
+          "bodyFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "daily-ok"
+    },
+    {
+      "id": "ConsecutiveClimax",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "ExitOnConsecutiveClimax",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "minClimaxes": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "windowBars": {
+            "start": "15",
+            "stop": "",
+            "step": ""
+          },
+          "exitOnClimaxClose": {
+            "start": "0",
+            "stop": "",
+            "step": ""
+          },
+          "maxGapBars": {
+            "start": "5",
+            "stop": "",
+            "step": ""
+          },
+          "climaxMultiple": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "atrLength": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "bodyFraction": {
+            "start": "0.6",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ParabolicAcceleration",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ParabolicAccelerationExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "legBars": {
+            "start": "3",
+            "stop": "6",
+            "step": "1"
+          },
+          "accelMultiple": {
+            "start": "1.5",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ShrinkingSwingIncrements",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ShrinkingSwingIncrementsExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "swingStrength": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          },
+          "shrinkFraction": {
+            "start": "0.5",
+            "stop": "1.0",
+            "step": "0.25"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "ThreePushCompletion",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "ThreePushCompletionExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "swingStrength": {
+            "start": "1",
+            "stop": "3",
+            "step": "1"
+          },
+          "lookbackBars": {
+            "start": "40",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "OpposingCount",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 2,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "OpposingCountExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "resetLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "countTarget": {
+            "start": "1",
+            "stop": "2",
+            "step": "1"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "FailedCountSetup",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "FailedCountSetupExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "resetLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "scalpProfitTicks": {
+            "start": "4",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "GapFilled",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 3,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "GapFilledExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "gapLookback": {
+            "start": "10",
+            "stop": "30",
+            "step": "10"
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "WeakFollowThrough",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 1,
+      "optimizedInputs": 0,
+      "brooks": true,
+      "placement": {
+        "name": "ExitOnWeakFollowThrough",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "largeBodyFraction": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "rangeLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          },
+          "weakBodyFraction": {
+            "start": "0.3",
+            "stop": "",
+            "step": ""
+          },
+          "maxBarsAfterSpike": {
+            "start": "2",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "FailedTargetReversal",
+      "category": "pattern-structural",
+      "intradayOnly": false,
+      "iterations": 4,
+      "optimizedInputs": 1,
+      "brooks": true,
+      "placement": {
+        "name": "FailedTargetReversalExit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "targetDollars": {
+            "start": "500",
+            "stop": "2000",
+            "step": "500"
+          },
+          "toleranceDollars": {
+            "start": "50",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    }
+  ],
+  "switchPool": [
+    {
+      "id": "MaxTradesPerSession",
+      "kind": "session",
+      "intradayEffective": true,
+      "placement": {
+        "name": "MaxTradesPerSession",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "maxTradesPerDay": {
+            "start": "3",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "cap 3 trades/session (book 3-5); inert on M1440 where a session is one bar"
+    },
+    {
+      "id": "MonthlyProfitTarget",
+      "kind": "equity-profit",
+      "intradayEffective": false,
+      "placement": {
+        "name": "MonthlyProfitTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "ProfitTarget": {
+            "start": "3000",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TightRangeBlocksEntries",
+      "kind": "regime-range",
+      "intradayEffective": false,
+      "placement": {
+        "name": "TightRangeBlocksEntries",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "rangeLookback": {
+            "start": "15",
+            "stop": "",
+            "step": ""
+          },
+          "tightAtrMultiple": {
+            "start": "1.2",
+            "stop": "",
+            "step": ""
+          },
+          "atrLookback": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "also forces flat (generator Switch semantics)"
+    },
+    {
+      "id": "MonthlyLossLimit",
+      "kind": "equity-loss",
+      "intradayEffective": false,
+      "placement": {
+        "name": "MonthlyLossLimit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "LossLimit": {
+            "start": "3000",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "WeeklyProfitTarget",
+      "kind": "equity-profit",
+      "intradayEffective": false,
+      "placement": {
+        "name": "WeeklyProfitTarget",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "ProfitTarget": {
+            "start": "2000",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "WeeklyLossLimit",
+      "kind": "equity-loss",
+      "intradayEffective": false,
+      "placement": {
+        "name": "WeeklyLossLimit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "LossLimit": {
+            "start": "1500",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "DailyLossLimit",
+      "kind": "equity-loss",
+      "intradayEffective": true,
+      "placement": {
+        "name": "DailyLossLimit",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "LossLimit": {
+            "start": "1000",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "a one-bar loss stop on M1440"
+    },
+    {
+      "id": "LowAdxSwitch",
+      "kind": "regime-range",
+      "intradayEffective": false,
+      "placement": {
+        "name": "LowAdxSwitch",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "lookback": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "threshold": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "forces flat when ADX < 20"
+    },
+    {
+      "id": "HighVolatilitySwitch",
+      "kind": "regime-volatility",
+      "intradayEffective": false,
+      "placement": {
+        "name": "HighVolatilitySwitch",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "atrLookback": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "avgLookback": {
+            "start": "100",
+            "stop": "",
+            "step": ""
+          },
+          "volMultiple": {
+            "start": "1.5",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "DayOfWeekSwitch",
+      "kind": "calendar",
+      "intradayEffective": false,
+      "placement": {
+        "name": "DayOfWeekSwitch",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "blockDay": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "blockDay pinned at Monday (default)"
+    },
+    {
+      "id": "LosingStreakCooldown",
+      "kind": "equity-streak",
+      "intradayEffective": false,
+      "placement": {
+        "name": "LosingStreakCooldown",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "lossCount": {
+            "start": "3",
+            "stop": "",
+            "step": ""
+          },
+          "cooldownBars": {
+            "start": "20",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "TrendFilterSwitch",
+      "kind": "regime-trend",
+      "intradayEffective": false,
+      "placement": {
+        "name": "TrendFilterSwitch",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "maLength": {
+            "start": "100",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": "directional: blocks and flattens counter-MA trades"
+    },
+    {
+      "id": "GapBarSwitch",
+      "kind": "regime-gap",
+      "intradayEffective": false,
+      "placement": {
+        "name": "GapBarSwitch",
+        "flipped": false,
+        "negated": false,
+        "params": {
+          "gapAtrMultiple": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          },
+          "atrLookback": {
+            "start": "14",
+            "stop": "",
+            "step": ""
+          },
+          "holdBars": {
+            "start": "1",
+            "stop": "",
+            "step": ""
+          }
+        }
+      },
+      "note": ""
+    }
+  ]
+}
