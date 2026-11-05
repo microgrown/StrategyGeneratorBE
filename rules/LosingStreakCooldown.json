@@ -1,0 +1,21 @@
+{
+    "name": "LosingStreakCooldown",
+    "type": "Switch",
+    "inputVariables": {
+        "lossCount": "3",
+        "cooldownBars": "20"
+    },
+    "localVariables": {
+        "lossStreak": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// After N consecutive losing closed trades, stand down for M bars from the\n// last exit. Measured accessors only (positionprofit/totaltrades and\n// barssinceexit rows): PositionProfit(k) is the k-th most recently closed\n// position net of the full round turn and 0.0 when fewer than k have closed\n// (so a short history can never count as a streak); BarsSinceExit(1) is 0 on\n// the exit's fill bar and counts up. The streak is \"all of the last N closed\n// positions lost\", counted with a loop because EL has no streak word.\n//\n// NOT A LATCH: the cooldown runs off BarsSinceExit, which keeps counting\n// while the Switch holds the strategy flat, so trading resumes after M bars.\n// A further loss re-arms it; a win breaks the streak. lossCount must be >= 1:\n// at 0 the streak test is always true and, before any exit, BarsSinceExit\n// stays 0, which would block the strategy for good. A reversal that closes\n// the N-th loser re-opens a position on the same fill; the Switch afterwards\n// flattens it at the next open, in both twins.\nlossStreak = 0;\nfor (int k = 1; k <= (int)lossCount; ++k) {\n    if (el_lt(ctx.PositionProfit(k), 0.0)) lossStreak = lossStreak + 1;\n}",
+    "longCondition": "el_ge((double)lossStreak, lossCount) && el_lt((double)ctx.BarsSinceExit(), cooldownBars)",
+    "shortCondition": "el_ge((double)lossStreak, lossCount) && el_lt((double)ctx.BarsSinceExit(), cooldownBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

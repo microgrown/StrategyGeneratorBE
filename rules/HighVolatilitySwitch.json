@@ -1,0 +1,42 @@
+{
+    "name": "HighVolatilitySwitch",
+    "type": "Switch",
+    "inputVariables": {
+        "atrLookback": "14",
+        "avgLookback": "100",
+        "volMultiple": "1.5"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Volatility-regime switch: off while the ATR is above K x its own N-bar\n// average. NEGATE the placement for the opposite regime (off while volatility\n// is compressed) -- Negate applies to Switch placements like any other.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator: seeded with a\n// full N-term sum on the study's first calculated bar, thereafter\n// S += TrueRange; S -= TrueRange[Length], re-seeding when the length changes.\n// AtrProfitTarget is the reference and carries the measurement notes; the\n// re-seed and the TWO-statement update are both load-bearing.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\n// EL: Average(atrValue, avgLookback) reads the atrValue VARIABLE's own\n// history, which holds 0 before the strategy's first evaluated bar. So for\n// roughly the first avgLookback bars the average is diluted by zeros and the\n// ratio is inflated -- with K = 1.5 the switch is ON (blocking) for about\n// the first avgLookback / K evaluated bars (ratio ~ N/k at bar k). That is EL's behaviour,\n// mirrored with a zero-seeded ring buffer (BarRangeAboveStd), re-seeded if\n// the length changes. Average() is Summation()/Length and Summation adds\n// NEWEST-FIRST ([0] .. [N-1], the bollingerband row), so the ring is read\n// newest-first rather than in storage order.\nif (atrHistory.size() != (std::size_t)(int)avgLookback) {\n    atrHistory.assign((std::size_t)(int)avgLookback, 0.0);\n    atrCursor = 0;\n}\natrHistory[atrCursor] = atr;\natrCursor = (atrCursor + 1) % atrHistory.size();\natrMean = 0.0;\nfor (std::size_t k = 0; k < atrHistory.size(); ++k) {\n    atrMean += atrHistory[(atrCursor + atrHistory.size() - 1 - k) % atrHistory.size()];\n}\natrMean /= (int)avgLookback;",
+    "longCondition": "el_gt(atr, volMultiple * atrMean)",
+    "shortCondition": "el_gt(atr, volMultiple * atrMean)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,36 @@
+{
+    "name": "DailyLossLimit",
+    "type": "Switch",
+    "inputVariables": {
+        "LossLimit": "1000"
+    },
+    "localVariables": {
+        "CurrentEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "CurrentPeriod": {
+            "type": "std::int64_t",
+            "init": "0"
+        },
+        "DayStartEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "PrevPeriod": {
+            "type": "std::int64_t",
+            "init": "0"
+        },
+        "PrevEquity": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Daily loss limit, for intraday series: off for the rest of the calendar\n// day once the day's equity change falls below -X. MonthlyProfitTarget is the reference for the shape, statement for\n// statement: equity = NetProfit + OpenPositionProfit (close-marked, net of the\n// entry side's costs), snapshotted as the PRIOR bar's equity on the first bar\n// of each new day. PrevPeriod/PrevEquity mirror the twin's\n// CurrentPeriod[1]/CurrentEquity[1] -- an EL variable's own history, 0 before\n// the strategy's first evaluated bar -- advanced in endOfFileHook so the value\n// read here is always the previous bar's.\n//\n// PERIOD: the bar's wall-clock closing date, the standing session model\n// (MaxTradesPerSession; EL_Date_Probe.txt). day_of() serial in C++, EL's\n// YYYMMDD Date in the twin -- different encodings, but only inequality is\n// tested. @HO's evening bars 1900-2300 carry the prior calendar date, so\n// the 'day' there is the calendar day, not the 18:00 session. On a daily\n// series every bar is a new day and this is a one-bar loss stop.\n//\n// LATCH CHECK: once the day's loss passes X the Switch forces flat and blocks entries, so\n// equity stops moving; the next day boundary re-snapshots the start\n// equity, the difference returns to 0, and trading resumes. It cannot disable\n// the strategy for good. Direction-agnostic: both sides are identical text.\nCurrentEquity = ctx.NetProfit() + ctx.OpenPositionProfit();\nCurrentPeriod = day_of(ctx.Time(0));\nif (el_ne((double)CurrentPeriod, (double)PrevPeriod)) {\n    DayStartEquity = PrevEquity;\n}",
+    "longCondition": "el_lt(CurrentEquity - DayStartEquity, -LossLimit)",
+    "shortCondition": "el_lt(CurrentEquity - DayStartEquity, -LossLimit)",
+    "postConditionHook": "",
+    "endOfFileHook": "PrevPeriod = CurrentPeriod;\nPrevEquity = CurrentEquity;"
+}

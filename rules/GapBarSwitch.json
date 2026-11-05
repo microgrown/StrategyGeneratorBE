@@ -1,0 +1,38 @@
+{
+    "name": "GapBarSwitch",
+    "type": "Switch",
+    "inputVariables": {
+        "gapAtrMultiple": "1",
+        "atrLookback": "14",
+        "holdBars": "1"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "gapSeen": {
+            "type": "bool",
+            "init": "false"
+        },
+        "barsSinceGap": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Off for holdBars bars starting with any bar that OPENED more than K x ATR\n// away from the prior close (either direction). Bar-local, so it needs no\n// session model: on intraday series a gap of that size essentially only\n// occurs at a session open, on daily bars it is the overnight gap.\n// holdBars = 1 blocks the gap bar's own signals (and flattens at the next\n// open); raise it to cover a session's bars. The ATR includes the gap bar's\n// own true range. Armed with a bool, not a sentinel; barsSinceGap counts\n// every bar so the switch always expires.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator: seeded with a\n// full N-term sum on the study's first calculated bar, thereafter\n// S += TrueRange; S -= TrueRange[Length], re-seeding when the length changes.\n// AtrProfitTarget is the reference and carries the measurement notes; the\n// re-seed and the TWO-statement update are both load-bearing.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nif (el_gt(std::fabs(open[0] - close[1]), gapAtrMultiple * atr)) {\n    gapSeen = true;\n    barsSinceGap = 0;\n} else {\n    barsSinceGap = barsSinceGap + 1;\n}",
+    "longCondition": "gapSeen && el_lt((double)barsSinceGap, holdBars)",
+    "shortCondition": "gapSeen && el_lt((double)barsSinceGap, holdBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

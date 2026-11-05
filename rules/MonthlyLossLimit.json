@@ -1,0 +1,36 @@
+{
+    "name": "MonthlyLossLimit",
+    "type": "Switch",
+    "inputVariables": {
+        "LossLimit": "3000"
+    },
+    "localVariables": {
+        "CurrentEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "CurrentPeriod": {
+            "type": "int",
+            "init": "0"
+        },
+        "MonthStartEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "PrevPeriod": {
+            "type": "int",
+            "init": "0"
+        },
+        "PrevEquity": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Monthly loss limit, the mirror of MonthlyProfitTarget: off for the rest\n// of the calendar month once the month's equity change falls below -X. MonthlyProfitTarget is the reference for the shape, statement for\n// statement: equity = NetProfit + OpenPositionProfit (close-marked, net of the\n// entry side's costs), snapshotted as the PRIOR bar's equity on the first bar\n// of each new month. PrevPeriod/PrevEquity mirror the twin's\n// CurrentPeriod[1]/CurrentEquity[1] -- an EL variable's own history, 0 before\n// the strategy's first evaluated bar -- advanced in endOfFileHook so the value\n// read here is always the previous bar's.\n//\n// PERIOD: Month(Date) of the bar's wall-clock close date (EL_Date_Probe.txt), the month\n// test MonthlyProfitTarget already uses.\n//\n// LATCH CHECK: once the month's loss passes X the Switch forces flat and blocks entries, so\n// equity stops moving; the next month boundary re-snapshots the start\n// equity, the difference returns to 0, and trading resumes. It cannot disable\n// the strategy for good. Direction-agnostic: both sides are identical text.\nCurrentEquity = ctx.NetProfit() + ctx.OpenPositionProfit();\nCurrentPeriod = civil_from_days(day_of(ctx.Time(0))).month;\nif (el_ne(CurrentPeriod, PrevPeriod)) {\n    MonthStartEquity = PrevEquity;\n}",
+    "longCondition": "el_lt(CurrentEquity - MonthStartEquity, -LossLimit)",
+    "shortCondition": "el_lt(CurrentEquity - MonthStartEquity, -LossLimit)",
+    "postConditionHook": "",
+    "endOfFileHook": "PrevPeriod = CurrentPeriod;\nPrevEquity = CurrentEquity;"
+}

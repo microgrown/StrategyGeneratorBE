@@ -1,0 +1,36 @@
+{
+    "name": "WeeklyProfitTarget",
+    "type": "Switch",
+    "inputVariables": {
+        "ProfitTarget": "2000"
+    },
+    "localVariables": {
+        "CurrentEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "CurrentPeriod": {
+            "type": "int",
+            "init": "0"
+        },
+        "WeekStartEquity": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "PrevPeriod": {
+            "type": "int",
+            "init": "0"
+        },
+        "PrevEquity": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Weekly profit target: off for the rest of the week once equity gained\n// since the week's first bar exceeds X. MonthlyProfitTarget is the reference for the shape, statement for\n// statement: equity = NetProfit + OpenPositionProfit (close-marked, net of the\n// entry side's costs), snapshotted as the PRIOR bar's equity on the first bar\n// of each new week. PrevPeriod/PrevEquity mirror the twin's\n// CurrentPeriod[1]/CurrentEquity[1] -- an EL variable's own history, 0 before\n// the strategy's first evaluated bar -- advanced in endOfFileHook so the value\n// read here is always the previous bar's.\n//\n// PERIOD: a new week starts on the first bar whose DayOfWeek(Date) is LOWER\n// than the previous bar's (0 = Sunday .. 6 = Saturday, wall-clock close\n// date, EL_Date_Probe.txt). A holiday Monday is absorbed (Fri -> Tue still\n// decreases); Sunday-evening bars (@HO 18:00 open) start the week. Blind\n// spot, identical in both twins: a data hole of 7+ days that resumes on a\n// later weekday is not seen as a new week.\n//\n// LATCH CHECK: once the week's gain passes X the Switch forces flat and blocks entries, so\n// equity stops moving; the next week boundary re-snapshots the start\n// equity, the difference returns to 0, and trading resumes. It cannot disable\n// the strategy for good. Direction-agnostic: both sides are identical text.\nCurrentEquity = ctx.NetProfit() + ctx.OpenPositionProfit();\nCurrentPeriod = day_of_week(day_of(ctx.Time(0)));\nif (el_lt(CurrentPeriod, PrevPeriod)) {\n    WeekStartEquity = PrevEquity;\n}",
+    "longCondition": "el_gt(CurrentEquity - WeekStartEquity, ProfitTarget)",
+    "shortCondition": "el_gt(CurrentEquity - WeekStartEquity, ProfitTarget)",
+    "postConditionHook": "",
+    "endOfFileHook": "PrevPeriod = CurrentPeriod;\nPrevEquity = CurrentEquity;"
+}
