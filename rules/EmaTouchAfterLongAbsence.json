@@ -1,0 +1,71 @@
+{
+    "name": "EmaTouchAfterLongAbsence",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "200",
+        "gapMultiple": "3",
+        "priorGaps": "5",
+        "maxScanBars": "500"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "scanTo": {
+            "type": "int",
+            "init": "0"
+        },
+        "nTouch": {
+            "type": "int",
+            "init": "0"
+        },
+        "newestTouch": {
+            "type": "int",
+            "init": "0"
+        },
+        "oldestTouch": {
+            "type": "int",
+            "init": "0"
+        },
+        "meanGap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevEma": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "isTouch": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveGaps": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EMA TOUCH AFTER LONG ABSENCE (Brian's notes ON-85-a, #85): a touch of the\n// long EMA whose gap since the previous touch is >= gapMultiple x the mean\n// of the priorGaps gaps before it; long when the prior bar was wholly below\n// the EMA, short when wholly above. The touch history is a bounded scan\n// (EL has no registered arrays); the mean telescopes to\n// (oldestTouch - newestTouch) / priorGaps.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// LAGGED EMA READS (MEASURED, XAVERAGE_LAG_FINDINGS.md): ema[k] is bit for\n// bit the value k bars earlier and reads 0.0 before that history exists, so\n// the zero-initialized ring buffer below is exact and the rule guards its\n// first k bars on the bar counter instead of comparing against the zero.\n// Re-seeded if the depth changes.\n// Depth maxScanBars + 1 (at least 2, for the ema[1] read). The scan stops at\n// CurrentBar - 1, so the zero pre-history is never compared against.\nemaDepth = (int)maxScanBars + 1;\nif (emaDepth < 2) {\n    emaDepth = 2;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nnTouch = 0;\nnewestTouch = 0;\noldestTouch = 0;\nscanTo = (int)maxScanBars;\nif (scanTo > ctx.CurrentBar() - 1) {\n    scanTo = ctx.CurrentBar() - 1;\n}\nfor (int ii = 1; ii <= scanTo; ++ii) {\n    double lagged = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)(ii)) % emaHistory.size()];\n    if (el_le(low[ii], lagged) && el_ge(high[ii], lagged) && el_lt((double)nTouch, priorGaps + 1.0)) {\n        nTouch = nTouch + 1;\n        if (nTouch == 1) {\n            newestTouch = ii;\n        }\n        oldestTouch = ii;\n    }\n}\nprevEma = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)(1)) % emaHistory.size()];\nemaCursor = (emaCursor + 1) % emaHistory.size();\nisTouch = el_le(low[0], emaVal) && el_ge(high[0], emaVal);\nhaveGaps = el_ge(priorGaps, 1.0) && el_ge((double)nTouch, priorGaps + 1.0);\nmeanGap = 0.0;\nif (haveGaps) {\n    meanGap = (double)(oldestTouch - newestTouch) / priorGaps;\n}",
+    "longCondition": "isTouch && haveGaps && el_ge((double)newestTouch, gapMultiple * meanGap) && el_lt(high[1], prevEma)",
+    "shortCondition": "isTouch && haveGaps && el_ge((double)newestTouch, gapMultiple * meanGap) && el_gt(low[1], prevEma)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,24 @@
+{
+    "name": "ExitOnReturnThroughBreakoutPoint",
+    "type": "Exit",
+    "inputVariables": {
+        "zoneBars": "20"
+    },
+    "localVariables": {
+        "bpHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bpLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EXIT ON RETURN THROUGH THE BREAKOUT POINT (Brian's notes ON-31, #31), the\n// exit for a fade of a breakout. The breakout point is the prior zoneBars-bar\n// extreme as it stood before the SIGNAL bar: EL's Highest(...)[2] on\n// the bar the entry fills, where the signal bar is [1]. BarsSinceEntry() is 0\n// on the fill bar (and while flat; VERIFIED), so the level is captured on\n// that bar and held for the life of the position -- StopAtSignalBarRangeMultiple's\n// arrangement, which keeps the deepest subscript fixed at zoneBars + 1 instead\n// of growing with the trade. A short exits on the first bar whose low trades\n// back below the zone high; a long on the first bar whose high trades back\n// above the zone low. Fills at the next open.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    bpHigh = high[2];\n    bpLow = low[2];\n    for (int i = 1; i < (int)zoneBars; ++i) {\n        if (el_gt(high[2 + i], bpHigh)) bpHigh = high[2 + i];\n        if (el_lt(low[2 + i], bpLow)) bpLow = low[2 + i];\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_gt(high[0], bpLow)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_lt(low[0], bpHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

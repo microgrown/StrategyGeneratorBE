@@ -1,0 +1,200 @@
+{
+    "name": "FractalMovePullbackContraction",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "3",
+        "Q": "4",
+        "R": "0.5",
+        "maxPullbackBars": "15",
+        "pivotLookback": "150"
+    },
+    "localVariables": {
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "pushA": {
+            "type": "int",
+            "init": "0"
+        },
+        "pushB": {
+            "type": "int",
+            "init": "0"
+        },
+        "curT": {
+            "type": "int",
+            "init": "0"
+        },
+        "curV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivN": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT1": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT2": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT3": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT4": {
+            "type": "int",
+            "init": "0"
+        },
+        "pV1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV3": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV4": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pB1": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB2": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB3": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB4": {
+            "type": "int",
+            "init": "0"
+        },
+        "upHiN": {
+            "type": "int",
+            "init": "0"
+        },
+        "upNotTop": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upTopV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upTopBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "upHaveBase": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upBaseV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBaseBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnLoN": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnNotBot": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnBotV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnBotBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnHaveBase": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnBaseV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnBaseBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "upOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upFire": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upPbSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upMvSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upPbMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upMvMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnFire": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnPbSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnMvSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnPbMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnMvMean": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// FRACTAL MOVE, PULLBACK CONTRACTION (Brian's notes P6, pp.14-16). Short as\n// written: the latest swing low of `strength` (3, Brian 2026-11-05: three bars\n// each side) is the lowest of the last Q swing lows; the move runs down to it\n// from the latest swing high before it in the pivot sequence. The bars since\n// that low are the pullback: at least `strength` of them (the resolution's\n// three bars), at most maxPullbackBars, every one inside the move's range, and\n// their mean bar range (high - low) at most R times the move's mean bar range\n// (move bars from its high's bar to its low's bar, inclusive). Long mirrors:\n// the latest swing high is the highest of the last Q swing highs, the move\n// runs up to it from the latest swing low before it. \"Highest/lowest\" allows a\n// tie; fewer than Q pivots of that side in the window means no signal. Fires\n// on every bar the conditions hold through the pullback, not once. Ranges are\n// summed newest-first.\n// PIVOT SEQUENCE -- one inlined form, copied verbatim into every rule of the\n// own-rules slice 02 (FractalBoxBreakout, LateFractalFade,\n// FractalOrderLowHighHigh, FractalLegSlopeDecay, FractalMovePullbackContraction).\n// The merged, NEWEST-FIRST list of the confirmed swing pivots of `strength`\n// whose bars lie in the last `pivotLookback` bars, highs and lows in one sequence and\n// NON-ALTERNATING (two highs may follow each other). Slot 1 is the newest:\n// pT = +1 swing high / -1 swing low, pV = its price, pB = its bars-ago. Only\n// the newest four are kept in slots; pivN counts every pivot found, and a\n// rule needing m pivots tests pivN >= m -- prices are never trusted through a\n// sentinel.\n//\n// Pivot test hand-rolled as in SwingPivotTarget, because the register lists\n// SwingHigh's Occurrence 3+ as unmeasured. MEASURED (EL_Swing_Probe.txt): the\n// pivot bar is AT OR ABOVE the `strength` OLDER bars and STRICTLY ABOVE the\n// `strength` NEWER bars -- the newer bars are the smaller k and take el_gt /\n// el_lt, the older el_ge / el_le; confirmation lag exactly `strength` bars, so\n// the newest possible pivot has bars-ago `strength`; candidate offsets\n// strength .. pivotLookback - 1, the neighbourhood reaching `strength` bars past the\n// window, so the deepest bar touched is pivotLookback - 1 + strength. The low side's tie\n// sense mirrors the measured high side.\n//\n// A bar that is BOTH a swing high and a swing low counts as both (Brian\n// 2026-11-05), ordered by the bar's colour: a green bar (close > open) made its\n// low first and its high second, so in this newest-first list its high is\n// pushed first; any other bar is read as red, high followed by low, so its low is\n// pushed first. Both entries carry the same bars-ago. No early break,\n// matching the twin. Scratch is declared in localVariables (double placement);\n// the loop counters are block-scoped.\npivStrength = (int)strength;\npivWindow = (int)pivotLookback;\npivN = 0;\npT1 = 0;\npT2 = 0;\npT3 = 0;\npT4 = 0;\npV1 = 0.0;\npV2 = 0.0;\npV3 = 0.0;\npV4 = 0.0;\npB1 = 0;\npB2 = 0;\npB3 = 0;\npB4 = 0;\nupHiN = 0;\nupNotTop = false;\nupTopV = 0.0;\nupTopBar = 0;\nupHaveBase = false;\nupBaseV = 0.0;\nupBaseBar = 0;\ndnLoN = 0;\ndnNotBot = false;\ndnBotV = 0.0;\ndnBotBar = 0;\ndnHaveBase = false;\ndnBaseV = 0.0;\ndnBaseBar = 0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    pushA = 0;\n    pushB = 0;\n    if (okHi && okLo) {\n        if (el_gt(close[j], open[j])) {\n            pushA = 1;\n            pushB = -1;\n        }\n        else {\n            pushA = -1;\n            pushB = 1;\n        }\n    }\n    else if (okHi)\n        pushA = 1;\n    else if (okLo)\n        pushA = -1;\n    for (int m = 1; m <= 2; ++m) {\n        if (m == 1)\n            curT = pushA;\n        else\n            curT = pushB;\n        if (curT != 0) {\n            if (curT == 1)\n                curV = high[j];\n            else\n                curV = low[j];\n            pivN = pivN + 1;\n            if (pivN == 1) { pT1 = curT; pV1 = curV; pB1 = j; }\n            if (pivN == 2) { pT2 = curT; pV2 = curV; pB2 = j; }\n            if (pivN == 3) { pT3 = curT; pV3 = curV; pB3 = j; }\n            if (pivN == 4) { pT4 = curT; pV4 = curV; pB4 = j; }\n            if (curT == 1) {\n                upHiN = upHiN + 1;\n                if (upHiN == 1) {\n                    upTopV = curV;\n                    upTopBar = j;\n                }\n                if (upHiN >= 2 && upHiN <= Q && el_gt(curV, upTopV)) upNotTop = true;\n                if (dnLoN >= 1 && !dnHaveBase) {\n                    dnHaveBase = true;\n                    dnBaseV = curV;\n                    dnBaseBar = j;\n                }\n            }\n            if (curT == -1) {\n                dnLoN = dnLoN + 1;\n                if (dnLoN == 1) {\n                    dnBotV = curV;\n                    dnBotBar = j;\n                }\n                if (dnLoN >= 2 && dnLoN <= Q && el_lt(curV, dnBotV)) dnNotBot = true;\n                if (upHiN >= 1 && !upHaveBase) {\n                    upHaveBase = true;\n                    upBaseV = curV;\n                    upBaseBar = j;\n                }\n            }\n        }\n    }\n}\nupFire = false;\nupPbSum = 0.0;\nupMvSum = 0.0;\nupPbMean = 0.0;\nupMvMean = 0.0;\nupOk = upHiN >= Q && !upNotTop && upHaveBase && upTopBar >= strength && upTopBar <= maxPullbackBars;\nif (upOk) {\n    for (int i = 0; i <= upTopBar - 1; ++i) {\n        if (el_gt(high[i], upTopV) || el_lt(low[i], upBaseV)) upOk = false;\n        upPbSum = upPbSum + (high[i] - low[i]);\n    }\n    for (int i = upTopBar; i <= upBaseBar; ++i) {\n        upMvSum = upMvSum + (high[i] - low[i]);\n    }\n    upPbMean = upPbSum / upTopBar;\n    upMvMean = upMvSum / (upBaseBar - upTopBar + 1);\n    upFire = upOk && el_le(upPbMean, R * upMvMean);\n}\ndnFire = false;\ndnPbSum = 0.0;\ndnMvSum = 0.0;\ndnPbMean = 0.0;\ndnMvMean = 0.0;\ndnOk = dnLoN >= Q && !dnNotBot && dnHaveBase && dnBotBar >= strength && dnBotBar <= maxPullbackBars;\nif (dnOk) {\n    for (int i = 0; i <= dnBotBar - 1; ++i) {\n        if (el_gt(high[i], dnBaseV) || el_lt(low[i], dnBotV)) dnOk = false;\n        dnPbSum = dnPbSum + (high[i] - low[i]);\n    }\n    for (int i = dnBotBar; i <= dnBaseBar; ++i) {\n        dnMvSum = dnMvSum + (high[i] - low[i]);\n    }\n    dnPbMean = dnPbSum / dnBotBar;\n    dnMvMean = dnMvSum / (dnBaseBar - dnBotBar + 1);\n    dnFire = dnOk && el_le(dnPbMean, R * dnMvMean);\n}",
+    "longCondition": "upFire",
+    "shortCondition": "dnFire",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

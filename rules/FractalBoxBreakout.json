@@ -1,0 +1,109 @@
+{
+    "name": "FractalBoxBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "lookback": "100"
+    },
+    "localVariables": {
+        "pivStrength": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivWindow": {
+            "type": "int",
+            "init": "0"
+        },
+        "pushA": {
+            "type": "int",
+            "init": "0"
+        },
+        "pushB": {
+            "type": "int",
+            "init": "0"
+        },
+        "curT": {
+            "type": "int",
+            "init": "0"
+        },
+        "curV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivN": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT1": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT2": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT3": {
+            "type": "int",
+            "init": "0"
+        },
+        "pT4": {
+            "type": "int",
+            "init": "0"
+        },
+        "pV1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV3": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pV4": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pB1": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB2": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB3": {
+            "type": "int",
+            "init": "0"
+        },
+        "pB4": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxPat": {
+            "type": "bool",
+            "init": "false"
+        },
+        "boxHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstOut": {
+            "type": "bool",
+            "init": "true"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// FRACTAL BOX BREAKOUT (Brian's notes ON-50, pp.59-60). The four most recent\n// pivots, oldest to newest, are low, high, low, high with the last two inside\n// the range of the first two (inclusive): a contracting box whose edges are\n// the last two pivots. Long on the FIRST close above the box since its newest\n// pivot printed, short on the first close below. The mirror order high, low,\n// high, low with the same containment also counts (Brian 2026-11-05). A newer\n// pivot replaces the pattern, since it must be the four most recent. The p.60\n// fade is this rule with the per-placement flip.\n// PIVOT SEQUENCE -- one inlined form, copied verbatim into every rule of the\n// own-rules slice 02 (FractalBoxBreakout, LateFractalFade,\n// FractalOrderLowHighHigh, FractalLegSlopeDecay, FractalMovePullbackContraction).\n// The merged, NEWEST-FIRST list of the confirmed swing pivots of `strength`\n// whose bars lie in the last `lookback` bars, highs and lows in one sequence and\n// NON-ALTERNATING (two highs may follow each other). Slot 1 is the newest:\n// pT = +1 swing high / -1 swing low, pV = its price, pB = its bars-ago. Only\n// the newest four are kept in slots; pivN counts every pivot found, and a\n// rule needing m pivots tests pivN >= m -- prices are never trusted through a\n// sentinel.\n//\n// Pivot test hand-rolled as in SwingPivotTarget, because the register lists\n// SwingHigh's Occurrence 3+ as unmeasured. MEASURED (EL_Swing_Probe.txt): the\n// pivot bar is AT OR ABOVE the `strength` OLDER bars and STRICTLY ABOVE the\n// `strength` NEWER bars -- the newer bars are the smaller k and take el_gt /\n// el_lt, the older el_ge / el_le; confirmation lag exactly `strength` bars, so\n// the newest possible pivot has bars-ago `strength`; candidate offsets\n// strength .. lookback - 1, the neighbourhood reaching `strength` bars past the\n// window, so the deepest bar touched is lookback - 1 + strength. The low side's tie\n// sense mirrors the measured high side.\n//\n// A bar that is BOTH a swing high and a swing low counts as both (Brian\n// 2026-11-05), ordered by the bar's colour: a green bar (close > open) made its\n// low first and its high second, so in this newest-first list its high is\n// pushed first; any other bar is read as red, high followed by low, so its low is\n// pushed first. Both entries carry the same bars-ago. No early break,\n// matching the twin. Scratch is declared in localVariables (double placement);\n// the loop counters are block-scoped.\npivStrength = (int)strength;\npivWindow = (int)lookback;\npivN = 0;\npT1 = 0;\npT2 = 0;\npT3 = 0;\npT4 = 0;\npV1 = 0.0;\npV2 = 0.0;\npV3 = 0.0;\npV4 = 0.0;\npB1 = 0;\npB2 = 0;\npB3 = 0;\npB4 = 0;\nfor (int j = pivStrength; j <= pivWindow - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    pushA = 0;\n    pushB = 0;\n    if (okHi && okLo) {\n        if (el_gt(close[j], open[j])) {\n            pushA = 1;\n            pushB = -1;\n        }\n        else {\n            pushA = -1;\n            pushB = 1;\n        }\n    }\n    else if (okHi)\n        pushA = 1;\n    else if (okLo)\n        pushA = -1;\n    for (int m = 1; m <= 2; ++m) {\n        if (m == 1)\n            curT = pushA;\n        else\n            curT = pushB;\n        if (curT != 0) {\n            if (curT == 1)\n                curV = high[j];\n            else\n                curV = low[j];\n            pivN = pivN + 1;\n            if (pivN == 1) { pT1 = curT; pV1 = curV; pB1 = j; }\n            if (pivN == 2) { pT2 = curT; pV2 = curV; pB2 = j; }\n            if (pivN == 3) { pT3 = curT; pV3 = curV; pB3 = j; }\n            if (pivN == 4) { pT4 = curT; pV4 = curV; pB4 = j; }\n        }\n    }\n}\nboxPat = false;\nboxHi = 0.0;\nboxLo = 0.0;\nif (pivN >= 4) {\n    if (pT4 == -1 && pT3 == 1 && pT2 == -1 && pT1 == 1) {\n        boxPat = el_ge(pV2, pV4) && el_le(pV2, pV3) && el_ge(pV1, pV4) && el_le(pV1, pV3);\n        boxHi = pV1;\n        boxLo = pV2;\n    }\n    if (pT4 == 1 && pT3 == -1 && pT2 == 1 && pT1 == -1) {\n        boxPat = el_ge(pV2, pV3) && el_le(pV2, pV4) && el_ge(pV1, pV3) && el_le(pV1, pV4);\n        boxHi = pV2;\n        boxLo = pV1;\n    }\n}\n// FIRST close outside: no close since the newest pivot's bar (bars 1 ..\n// pB1 - 1) has left the box.\nfirstOut = true;\nif (boxPat) {\n    for (int i = 1; i <= pB1 - 1; ++i) {\n        if (el_gt(close[i], boxHi) || el_lt(close[i], boxLo)) firstOut = false;\n    }\n}",
+    "longCondition": "boxPat && firstOut && el_gt(close[0], boxHi)",
+    "shortCondition": "boxPat && firstOut && el_lt(close[0], boxLo)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

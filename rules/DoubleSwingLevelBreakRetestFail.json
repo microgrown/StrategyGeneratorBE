@@ -1,0 +1,96 @@
+{
+    "name": "DoubleSwingLevelBreakRetestFail",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "7",
+        "pivotLookback": "100",
+        "levelTolAtr": "0.25",
+        "atrLength": "14",
+        "maxBarsAfterBreak": "5"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nH": {
+            "type": "int",
+            "init": "0"
+        },
+        "nL": {
+            "type": "int",
+            "init": "0"
+        },
+        "hPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hBar1": {
+            "type": "int",
+            "init": "0"
+        },
+        "lPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lBar1": {
+            "type": "int",
+            "init": "0"
+        },
+        "okH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lvl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "okBrk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "okSet": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// DOUBLE SWING LEVEL BREAK, RETEST, CONTINUE (Brian's notes ON-4, #4, p.3).\n// The note's case is the short: support from the two most recent\n// swingStrength-bar swing lows at a similar price (within levelTolAtr ATRs of\n// each other), level S = the LOWER of the two, not yet closed below. A close\n// below S is the break bar. The very first later bar whose high comes back\n// above S is the setup bar. The first RED bar closing below S, at or after the\n// setup bar (the setup bar may itself be the signal) and no later than the\n// maxBarsAfterBreak-th bar after the break, is the signal: short at its close\n// (next open). A close back above S by any bar after the setup bar, before\n// the signal, invalidates. The long is the mirror: resistance R = the higher\n// of the two most recent swing highs, a close above, a low back below R, and\n// a GREEN close above R. \"high or close that re-enters\" collapses to the high\n// (long: the low), since a close back across implies it.\n//\n// Each break bar bb = 1 .. maxBarsAfterBreak is tried in turn. The two pivots\n// are read AS OF the break bar -- candidates at bars-ago bb + swingStrength ..\n// bb + pivotLookback - 1, SwingHighBar's window shifted by bb -- so pivots\n// confirmed after the break cannot move the level. \"Not yet broken\" means no\n// close beyond the level since the NEWER pivot, so bb is the first break.\n// \"Similar\" reads the CURRENT ATR, as the spec writes it.\n//\n//\n// Pivot scan hand-rolled as in SwingPivotTarget (the register lists SwingHigh's\n// Occurrence 3+ as unmeasured, and a lagged SwingHigh read is unregistered).\n// MEASURED (EL_Swing_Probe.txt): the pivot bar is AT OR ABOVE the swingStrength\n// OLDER bars and STRICTLY ABOVE the swingStrength NEWER bars -- bars-ago\n// indexing, so the newer bars are the smaller kk; lag exactly swingStrength;\n// the low side's tie sense mirrors the measured high side. No Break -- not a\n// registered word.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently. The local counter is\n// atrLen, not the input.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\nfireL = false;\nfireS = false;\nfor (int bb = 1; bb <= (int)maxBarsAfterBreak; ++bb) {\n    nH = 0;\n    nL = 0;\n    hPx1 = 0.0;\n    hPx2 = 0.0;\n    hBar1 = 0;\n    lPx1 = 0.0;\n    lPx2 = 0.0;\n    lBar1 = 0;\n    for (int jj = bb + (int)swingStrength; jj <= bb + (int)pivotLookback - 1; ++jj) {\n        okH = true;\n        okL = true;\n        for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n            if (el_le(high[jj], high[kk])) okH = false;\n            if (el_ge(low[jj], low[kk])) okL = false;\n        }\n        for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n            if (el_lt(high[jj], high[kk])) okH = false;\n            if (el_gt(low[jj], low[kk])) okL = false;\n        }\n        if (okH && nH < 2) {\n            nH = nH + 1;\n            if (nH == 1) {\n                hPx1 = high[jj];\n                hBar1 = jj;\n            }\n            if (nH == 2) hPx2 = high[jj];\n        }\n        if (okL && nL < 2) {\n            nL = nL + 1;\n            if (nL == 1) {\n                lPx1 = low[jj];\n                lBar1 = jj;\n            }\n            if (nL == 2) lPx2 = low[jj];\n        }\n    }\n    // long: resistance from the two swing highs\n    if (nH == 2 && !fireL) {\n        if (el_le(std::fabs(hPx1 - hPx2), levelTolAtr * atrVal)) {\n            lvl = hPx1;\n            if (el_gt(hPx2, lvl)) lvl = hPx2;\n            okBrk = el_gt(close[bb], lvl);\n            for (int kk = bb + 1; kk <= hBar1 - 1; ++kk) {\n                if (el_gt(close[kk], lvl)) okBrk = false;\n            }\n            if (okBrk) {\n                sBar = -1;\n                for (int kk = bb - 1; kk >= 0; --kk) {\n                    if (sBar == -1 && el_lt(low[kk], lvl)) sBar = kk;\n                }\n                if (sBar != -1) {\n                    okSet = true;\n                    for (int kk = 1; kk <= sBar - 1; ++kk) {\n                        if (el_lt(close[kk], lvl)) okSet = false;\n                    }\n                    for (int kk = 1; kk <= sBar; ++kk) {\n                        if (el_gt(close[kk], open[kk]) && el_gt(close[kk], lvl)) okSet = false;\n                    }\n                    if (okSet && el_gt(close[0], open[0]) && el_gt(close[0], lvl)) fireL = true;\n                }\n            }\n        }\n    }\n    // short: support from the two swing lows -- the note's own case\n    if (nL == 2 && !fireS) {\n        if (el_le(std::fabs(lPx1 - lPx2), levelTolAtr * atrVal)) {\n            lvl = lPx1;\n            if (el_lt(lPx2, lvl)) lvl = lPx2;\n            okBrk = el_lt(close[bb], lvl);\n            for (int kk = bb + 1; kk <= lBar1 - 1; ++kk) {\n                if (el_lt(close[kk], lvl)) okBrk = false;\n            }\n            if (okBrk) {\n                sBar = -1;\n                for (int kk = bb - 1; kk >= 0; --kk) {\n                    if (sBar == -1 && el_gt(high[kk], lvl)) sBar = kk;\n                }\n                if (sBar != -1) {\n                    okSet = true;\n                    for (int kk = 1; kk <= sBar - 1; ++kk) {\n                        if (el_gt(close[kk], lvl)) okSet = false;\n                    }\n                    for (int kk = 1; kk <= sBar; ++kk) {\n                        if (el_lt(close[kk], open[kk]) && el_lt(close[kk], lvl)) okSet = false;\n                    }\n                    if (okSet && el_lt(close[0], open[0]) && el_lt(close[0], lvl)) fireS = true;\n                }\n            }\n        }\n    }\n}\n",
+    "longCondition": "fireL",
+    "shortCondition": "fireS",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

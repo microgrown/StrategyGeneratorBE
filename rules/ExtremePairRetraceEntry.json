@@ -1,0 +1,78 @@
+{
+    "name": "ExtremePairRetraceEntry",
+    "type": "Entry",
+    "inputVariables": {
+        "X": "7",
+        "Y": "0.5",
+        "maxWaitBars": "10"
+    },
+    "localVariables": {
+        "bb": {
+            "type": "int",
+            "init": "0"
+        },
+        "ab": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "sig2Hi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sig2Lo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sig1Hi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sig1Lo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "zoneTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zoneBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "firstShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Extreme pair, retrace into signal bar 2 (Brian's phone notes P12, pp. 31-33).\n// As written the SHORT: signal bar 1 (ab ago) the highest high of its X-bar\n// window with none higher since; signal bar 2 (bb ago, 1..X bars after ab,\n// bb <= maxWaitBars) the lowest low of its X-bar window with none lower since;\n// this the FIRST close inside the top Y of bar 2's range (mechanized limit\n// entry). LONG mirrors. Any qualifying pair fires. Highest/Lowest written as\n// direct strict scans in both twins. Not FibonacciRetracementLevel.\nfireLong = false;\nfireShort = false;\nfor (bb = 1; bb <= (int)maxWaitBars; ++bb) {\n    sig2Hi = true;\n    sig2Lo = true;\n    for (ii = bb + 1; ii <= bb + (int)X - 1; ++ii) {\n        if (el_gt(high[ii], high[bb])) sig2Hi = false;\n        if (el_lt(low[ii], low[bb])) sig2Lo = false;\n    }\n    for (ii = 0; ii <= bb - 1; ++ii) {\n        if (el_gt(high[ii], high[bb])) sig2Hi = false;\n        if (el_lt(low[ii], low[bb])) sig2Lo = false;\n    }\n    sig1Hi = false;\n    sig1Lo = false;\n    for (ab = bb + 1; ab <= bb + (int)X; ++ab) {\n        okHi = true;\n        okLo = true;\n        for (ii = ab + 1; ii <= ab + (int)X - 1; ++ii) {\n            if (el_gt(high[ii], high[ab])) okHi = false;\n            if (el_lt(low[ii], low[ab])) okLo = false;\n        }\n        for (ii = 0; ii <= ab - 1; ++ii) {\n            if (el_gt(high[ii], high[ab])) okHi = false;\n            if (el_lt(low[ii], low[ab])) okLo = false;\n        }\n        if (okHi) sig1Hi = true;\n        if (okLo) sig1Lo = true;\n    }\n    zoneTop = low[bb] + Y * (high[bb] - low[bb]);\n    zoneBot = high[bb] - Y * (high[bb] - low[bb]);\n    firstLong = true;\n    firstShort = true;\n    for (ii = 1; ii <= bb - 1; ++ii) {\n        if (el_le(close[ii], zoneTop) && el_ge(close[ii], low[bb])) firstLong = false;\n        if (el_ge(close[ii], zoneBot) && el_le(close[ii], high[bb])) firstShort = false;\n    }\n    if (sig1Lo && sig2Hi && firstLong && el_le(close[0], zoneTop) && el_ge(close[0], low[bb])) fireLong = true;\n    if (sig1Hi && sig2Lo && firstShort && el_ge(close[0], zoneBot) && el_le(close[0], high[bb])) fireShort = true;\n}",
+    "longCondition": "fireLong",
+    "shortCondition": "fireShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

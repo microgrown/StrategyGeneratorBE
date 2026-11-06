@@ -1,0 +1,394 @@
+{
+  "slice": "08_price_visits",
+  "rules": [
+    {
+      "id": "P1a",
+      "name": "LevelRejectedFromAbove",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Mostly wicks or bodies?",
+      "description": "Of the visits, at least a fraction F were upper-wick visits (the current close lies between the visit's body top and its high): short. Mirror: lower-wick visits (between its low and body bottom): long.",
+      "pseudocode": "// long (mirror): lower-wick visits\nif (visit && el_lt(close[0], minlist(open[i], close[i]))) lw = lw + 1;\nlong = enough && el_ge(lw, F * nv);",
+      "sides": "mirrored",
+      "parameters": {
+        "F": 0.6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule classifies past bars at the current price level."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1b",
+      "name": "LevelForwardDrift",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "What is typical of previous times this price was reached?",
+      "description": "Over visits at least H bars old, the mean H-bar move after the visit (close[i - H] - close[i]), divided by the current ATR, is at least +D: long; at most -D: short. No look-ahead because i >= H.",
+      "pseudocode": "if (visit && i >= H) { s = s + (close[i - H] - close[i]); nf = nf + 1; }\nlong = nf >= minVisits && el_ge(s / nf, D * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "H": 10,
+        "D": 0.5,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule measures what price did after earlier visits to the current level."
+      },
+      "confidence": "high",
+      "notes": [
+        "The move is measured from the visit bar's close; measuring from the current close (the level) is the other reading.",
+        "M >= H keeps every visit's forward window strictly in the past."
+      ]
+    },
+    {
+      "id": "P1c",
+      "name": "LevelThinAir",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Pair with signals for direction (price relative to ma, momentum, candlestick patterns)",
+      "description": "At most Kthin visits in the window (price is in thin air), entered in the direction of the last J-bar move: long when close > close[J].",
+      "pseudocode": "long = nv <= maxVisits && el_gt(close[0], close[J]);",
+      "sides": "mirrored (the visit count is identical both sides)",
+      "parameters": {
+        "maxVisits": 2,
+        "J": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "Momentum",
+      "library_check": {
+        "verdict": "near",
+        "rule": "Momentum",
+        "origin": "original corpus (Davey momentum)",
+        "evidence": "The direction half is Momentum(J); the thin-air count has no library match. Kept as TRIAGE's pane-1 rule; it could equally be authored as a same-sided pane-2 count plus a Momentum placement."
+      },
+      "confidence": "high",
+      "notes": [
+        "Also covers 20250524.1's 'vertical roadmap' (TRIAGE)."
+      ]
+    },
+    {
+      "id": "P1d",
+      "name": "LevelBodyDominated",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Mostly wicks or bodies?",
+      "description": "At least a fraction F of the visits had the current close inside the visit's body.",
+      "pseudocode": "if (visit && el_ge(close[0], minlist(open[i], close[i])) && el_le(close[0], maxlist(open[i], close[i]))) nb = nb + 1;\npass = enough && el_ge(nb, F * nv);",
+      "sides": "same",
+      "parameters": {
+        "F": 0.6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule classifies past bars at the current price level by body versus wick."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1e",
+      "name": "LevelWasTrending",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Trending or not (adx?)?",
+      "description": "The mean ADX(14) on the visit bars is at least T; negate for at most.",
+      "pseudocode": "if (visit) sa = sa + adx[i];\npass = enough && el_ge(sa / nv, T);",
+      "sides": "same",
+      "parameters": {
+        "adxLength": 14,
+        "T": 25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's history at arbitrary depth"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "AdxBelowThreshold reads the current ADX only."
+      },
+      "confidence": "high",
+      "notes": [
+        "adx[i] needs a mirrored ADX buffer N deep; zero-filled before the first evaluated bar (CLAUDE.md convention), so early visits read 0."
+      ]
+    },
+    {
+      "id": "P1f-a",
+      "name": "LevelBigBars",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Big candles or small candles?",
+      "description": "The mean range of the visit bars divided by the current ATR is at least R; negate for small.",
+      "pseudocode": "if (visit) sr = sr + (high[i] - low[i]);\npass = enough && el_ge(sr / nv, R * atr);",
+      "sides": "same",
+      "parameters": {
+        "R": 1.2,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "BarRangeAtrMultiple / LargeBarCountInWindow test recent bars against ATR; nothing averages the bars at the current price level."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1f-b",
+      "name": "LevelHighVolume",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Volume?",
+      "description": "The mean total ticks of the visit bars is at least R x the mean ticks over the last L bars; negate for low.",
+      "pseudocode": "if (visit) sv = sv + (double)ticks[i];\npass = enough && el_ge(sv / nv, R * average((double)ticks, L));",
+      "sides": "same",
+      "parameters": {
+        "R": 1.2,
+        "volumeLookback": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "Ticks",
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "VolumeAboveAverageMultiple compares the current bar's ticks with their average; nothing averages ticks over the visit set."
+      },
+      "confidence": "high",
+      "notes": [
+        "Total ticks, not the up-tick `volume` series (EL_FEATURES: Volume is UpTicks); TRIAGE's 'same rule on volume'. Split from P1f-a to keep one measure per candidate."
+      ]
+    }
+  ],
+  "primitives_to_inline": [
+    {
+      "id": "P1",
+      "name": "PriceVisitScan",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        1
+      ],
+      "quote": "What is typical of previous times this price was reached? Mostly wicks or bodies? Volume? Trending or not (adx?)? Big candles or small candles?",
+      "description": "A VISIT is a past bar i in M..N bars ago whose high-low range contains the current close. The scan returns the visit count and per-visit statistics for P1a-P1f; every rule needs at least K visits. A difference test, so back-adjustment does not affect it.",
+      "pseudocode": "nv = 0;\nfor (i = M; i <= N; ++i) {\n    if (el_le(low[i], close[0]) && el_ge(high[i], close[0])) {\n        nv = nv + 1;\n        // accumulate per rule: upper/lower wick hit, in-body hit, adx[i], high[i]-low[i], ticks[i], forward move\n    }\n}\nenough = nv >= minVisits;",
+      "sides": "same",
+      "parameters": {
+        "M": 20,
+        "N": 500,
+        "minVisits": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a long window loop with per-visit accumulation"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "NearAnyLevel",
+      "library_check": {
+        "verdict": "near",
+        "rule": "NearAnyLevel",
+        "origin": "Brooks",
+        "evidence": "No rule scans history for bars containing the current price; NearAnyLevel tests three magnets, LevelTouchCount one pivot level."
+      },
+      "confidence": "high",
+      "notes": [
+        "Reaches back N (plus H for P1b, plus ADX history for P1e); Max Bars Back must cover it.",
+        "Definition confirmed by Brian (TRIAGE 'P1 rules')."
+      ]
+    }
+  ],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+    "name": "LevelBigBars",
+    "type": "Entry",
+    "inputVariables": {
+        "minGap": "20",
+        "lookback": "500",
+        "minVisits": "5",
+        "rangeAtr": "1.2",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "visitCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "meanRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "enoughVisits": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Level big bars (Brian's notes P1f, triage row P1). Pane 2. The P1 visit scan:\n// a VISIT is a bar kk bars ago, minGap <= kk <= lookback, whose low..high range\n// contains the current close (inclusive, el_le/el_ge). At least minVisits\n// visits. Passes when the mean high - low of the visit bars is at least\n// rangeAtr x the CURRENT ATR; negate for small bars. Identical both sides.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nvisitCount = 0;\nrangeSum = 0.0;\nfor (kk = (int)minGap; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], close[0]) && el_ge(high[kk], close[0])) {\n        visitCount = visitCount + 1;\n        rangeSum = rangeSum + (high[kk] - low[kk]);\n    }\n}\nmeanRange = 0.0;\nif (visitCount > 0) meanRange = rangeSum / visitCount;\nenoughVisits = el_ge(visitCount, minVisits) && el_gt(visitCount, 0);",
+    "longCondition": "enoughVisits && el_ge(meanRange, rangeAtr * atrValue)",
+    "shortCondition": "enoughVisits && el_ge(meanRange, rangeAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

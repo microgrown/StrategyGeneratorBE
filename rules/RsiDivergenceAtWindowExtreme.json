@@ -1,0 +1,53 @@
+{
+    "name": "RsiDivergenceAtWindowExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "10",
+        "rsiLength": "14"
+    },
+    "localVariables": {
+        "netChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "totChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sfRsi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgRatio": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "windowLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RsiDivergenceAtWindowExtreme (Brian's notes ON-41, #41). Long (bullish\n// divergence): the previous bar's low is the lowest low of the lookback bars\n// ending at it (EL low[1] <= Lowest(low, lookback)[1]) while RSI now is above\n// RSI lookback bars ago. Short (the note's .1): high[1] is the highest high and\n// RSI is below RSI lookback bars ago.\n// MultiWalk's WFSafe_RSI (el_wf_safe_rsi.txt in the engine repo) -- TS's RSI\n// with SF = 1/Length recomputed every bar so a walkforward length change takes\n// effect; NO re-seed on a length change, the averages carry over (same shape\n// as WFSafe_ADX). Seeded at the study's first calculated bar (function\n// CurrentBar == study CurrentBar, as measured for WFSafe_ADX):\n//   NetChgAvg = (Price - Price[Length]) / Length\n//   TotChgAvg = Average(AbsValue(Price - Price[1]), Length)   -- fresh mean\n// then EMA-form updates Avg = Avg[1] + SF * (X - Avg[1]).\n// `TotChgAvg <> 0` is an EL relational, so it carries the 2.22e-12 tolerance.\n// VERIFIED with EL_WFSafeRsi_Probe.txt on @OJ 240min, two chart starts:\n// drift 0 on 9,834/9,834 and 8,327/8,327 bars against an open-coded twin,\n// RSI[1] == 0 on bar 1 and the prior value after, WFSafe_RSI == plain RSI at\n// a fixed length (ovr 0 everywhere). scripts/rsi_replica.py replays this hook\n// from the store: 9,794/9,794 and 8,287/8,287 at print precision.\n// sfRsi and chgRatio are declared locals, not hook temporaries: hooks share\n// one function scope and only declared names get the placement prefix, so two\n// RSI rules in one strategy would otherwise redefine them.\nsfRsi = 1 / rsiLength;\nif (ctx.CurrentBar() == 1) {\n    netChgAvg = (close[0] - close[(int)rsiLength]) / rsiLength;\n    double totChg = 0.0;\n    for (int i = 0; i < (int)rsiLength; ++i) {\n        totChg += std::fabs(close[i] - close[i + 1]);\n    }\n    totChgAvg = totChg / rsiLength;\n} else {\n    double change = close[0] - close[1];\n    netChgAvg = netChgAvg + sfRsi * (change - netChgAvg);\n    totChgAvg = totChgAvg + sfRsi * (std::fabs(change) - totChgAvg);\n}\nchgRatio = 0.0;\nif (el_ne(totChgAvg, 0.0)) chgRatio = netChgAvg / totChgAvg;\nrsiVal = 50 * (chgRatio + 1);\n// EL: rsiVal = WFSafe_RSI(close, rsiLength), read as rsiVal[k]: a read of the\n// rsiVal VARIABLE's own history, which holds its initial 0 for every bar\n// before the strategy's first evaluated one (WFSafe_RSI(...)[1] reads 0 on\n// bar 1, measured). Mirrored as a zero-seeded history kept NEWEST-FIRST --\n// rsiHist[k] is EL's rsiVal[k] -- of depth lookback + 1, re-seeded if the depth\n// changes.\nif (rsiHist.size() != (std::size_t)((int)lookback + 1)) {\n    rsiHist.assign((std::size_t)((int)lookback + 1), 0.0);\n}\nfor (std::size_t k = rsiHist.size() - 1; k > 0; --k) {\n    rsiHist[k] = rsiHist[k - 1];\n}\nrsiHist[0] = rsiVal;\n// Lowest/Highest(..)[1] open-coded as EL's Extremes: seeded at bar 1, scanning\n// 2 .. lookback, strict toleranced comparison.\nwindowLow = low[1];\nwindowHigh = high[1];\nfor (int ii = 2; ii <= (int)lookback; ++ii) {\n    if (el_lt(low[ii], windowLow)) windowLow = low[ii];\n    if (el_gt(high[ii], windowHigh)) windowHigh = high[ii];\n}\n// rsiVal[lookback] is the zero fill until bar lookback + 1, so both twins wait\n// (the EMA-lag convention of the B-list addendum).\nrsiReady = ctx.CurrentBar() > (int)lookback;",
+    "longCondition": "rsiReady && el_le(low[1], windowLow) && el_gt(rsiVal, rsiHist[(int)lookback])",
+    "shortCondition": "rsiReady && el_ge(high[1], windowHigh) && el_lt(rsiVal, rsiHist[(int)lookback])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

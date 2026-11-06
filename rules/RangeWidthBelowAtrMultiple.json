@@ -4,7 +4,8 @@
     "inputVariables": {
         "rangeLookback": "20",
         "rangeAtrMultiple": "4",
-        "atrLookback": "14"
+        "atrLookback": "14",
+        "lag": "0"
     },
     "localVariables": {
         "rangeHigh": {
@@ -26,13 +27,25 @@
         "atrLength": {
             "type": "int",
             "init": "0"
+        },
+        "atrLagged": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrCursor": {
+            "type": "std::size_t",
+            "init": "0"
         }
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// The canonical trading-range classification: the height of the last N bars is\n// no more than K times the N-bar ATR. At the loose default (20 bars, 4.0 ATR)\n// this is \"the market is in a trading range\"; negate the placement for \"the\n// market is trending\", and pin it tight (15 bars, ~1.2 ATR) for a tight range.\n//\n// The window extremes mirror EasyLanguage's Extremes(), which Highest()/\n// Lowest() call: seeded at bar 0, scanning bars 1..Length-1, strict\n// comparison. Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the measurement\n// notes; the two details that are load-bearing are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;",
-    "longCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atr)",
-    "shortCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atr)",
+    "preConditionHook": "// The canonical trading-range classification: the height of the last N bars is\n// no more than K times the N-bar ATR. At the loose default (20 bars, 4.0 ATR)\n// this is \"the market is in a trading range\"; negate the placement for \"the\n// market is trending\", and pin it tight (15 bars, ~1.2 ATR) for a tight range.\n//\n// The window extremes mirror EasyLanguage's Extremes(), which Highest()/\n// Lowest() call: seeded at bar 0, scanning bars 1..Length-1, strict\n// comparison. Extremes is EL SOURCE, so its comparison carries the EL\n// tolerance -- el_gt/el_lt, as in Breakout (the reference).\n//\n// `lag` (default 0, own-rules ON-30-a, 2026-11-05) reads the whole test `lag`\n// bars ago: the window is bars lag .. lag + rangeLookback - 1 and the ATR is\n// the value it had on bar [lag] -- EL's Highest(...)[lag] and atrVal[lag]. At\n// lag 0 every number below is the one the rule computed before the input\n// existed: the window starts at bar 0 and the one-slot history returns this\n// bar's ATR unchanged. lag 1 is the consolidation zone BEFORE a breakout bar,\n// so the breakout bar's own range does not inflate the zone's benchmark.\nrangeHigh = high[(int)lag];\nrangeLow = low[(int)lag];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[(int)lag + i], rangeHigh)) rangeHigh = high[(int)lag + i];\n    if (el_lt(low[(int)lag + i], rangeLow)) rangeLow = low[(int)lag + i];\n}\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the measurement\n// notes; the two details that are load-bearing are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\n// EL: atrVal = WFSafe_AvgTrueRange(atrLookback); ... atrVal[lag]. A read of the\n// atrVal VARIABLE's own history, which holds its initial 0 for every bar before\n// the strategy's first evaluated one -- mirrored as a zero-seeded ring buffer\n// of lags 0..lag (AtrRising is the reference), re-seeded if the depth changes.\nif (atrHistory.size() != (std::size_t)((int)lag + 1)) {\n    atrHistory.assign((std::size_t)((int)lag + 1), 0.0);\n    atrCursor = 0;\n}\natrHistory[atrCursor] = atr;\natrCursor = (atrCursor + 1) % atrHistory.size();\natrLagged = atrHistory[(atrCursor + atrHistory.size() - 1 - (std::size_t)(int)lag) % atrHistory.size()];",
+    "longCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atrLagged)",
+    "shortCondition": "el_le(rangeHigh - rangeLow, rangeAtrMultiple * atrLagged)",
     "postConditionHook": "",
     "endOfFileHook": ""
 }

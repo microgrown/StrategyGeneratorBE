@@ -1,0 +1,115 @@
+{
+    "name": "LargeBarHoldThenCloseThroughMidpoint",
+    "type": "Entry",
+    "inputVariables": {
+        "minHoldBars": "5",
+        "maxBars": "30",
+        "extFraction": "0.5",
+        "minRangeAtr": "2.0",
+        "maxRangeAtr": "100.0",
+        "openFraction": "0.25",
+        "closeFraction": "0.25",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "bigR": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigA": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sizeOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bullBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "midV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "extV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "holdOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Large bar hold and a close through its midpoint (Brian's notes ON-13, TRIAGE\n// #13, p. 14). As written the SHORT: a large bull bar kk bars ago, every close\n// since (1..kk-1, at least minHoldBars) between its midpoint and its 50%\n// extension above the high, and this the first close below the midpoint. LONG\n// mirrors on a large bear bar (closes between the extension below the low and\n// the midpoint; this close above it). Midpoint = low + 0.5 x range either\n// colour; holding read on closes; kk scans minHoldBars+1..maxBars, any anchor\n// fires. Not DeepPullbackRetracementFilter (window leg, no hold band).\n// The large shaped bar is the shared primitive ON-12-a (LargeShapedBarAtLag),\n// inlined in one form: range strictly between minRangeAtr and maxRangeAtr x the\n// ATR AS OF THAT BAR (atrValue[lag]), open in the bottom openFraction, close in\n// the top closeFraction (bear: open top, close bottom). During warm-up the\n// lagged ATR reads 0, so `r < maxRangeAtr * 0` fails and nothing fires -- as in EL.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nfireLong = false;\nfireShort = false;\nfor (kk = (int)minHoldBars + 1; kk <= (int)maxBars; ++kk) {\n    bigR = high[kk] - low[kk];\n    atrIdx = (int)atrHist.size() - 1 - (kk);\n    bigA = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\n    sizeOk = el_gt(bigR, minRangeAtr * bigA) && el_lt(bigR, maxRangeAtr * bigA);\n    bullBig = sizeOk && el_le(open[kk] - low[kk], openFraction * bigR) && el_le(high[kk] - close[kk], closeFraction * bigR);\n    bearBig = sizeOk && el_le(high[kk] - open[kk], openFraction * bigR) && el_le(close[kk] - low[kk], closeFraction * bigR);\n    midV = low[kk] + 0.5 * bigR;\n    if (bearBig) {\n        extV = low[kk] - extFraction * bigR;\n        holdOk = true;\n        for (jj = 1; jj <= kk - 1; ++jj) {\n            if (el_gt(close[jj], midV) || el_lt(close[jj], extV)) holdOk = false;\n        }\n        if (holdOk && el_gt(close[0], midV)) fireLong = true;\n    }\n    if (bullBig) {\n        extV = high[kk] + extFraction * bigR;\n        holdOk = true;\n        for (jj = 1; jj <= kk - 1; ++jj) {\n            if (el_lt(close[jj], midV) || el_gt(close[jj], extV)) holdOk = false;\n        }\n        if (holdOk && el_lt(close[0], midV)) fireShort = true;\n    }\n}",
+    "longCondition": "fireLong",
+    "shortCondition": "fireShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

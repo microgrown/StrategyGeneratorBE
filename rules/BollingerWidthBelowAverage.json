@@ -1,0 +1,37 @@
+{
+    "name": "BollingerWidthBelowAverage",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "20",
+        "widthLookback": "50"
+    },
+    "localVariables": {
+        "sdMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sdVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sdAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sdHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "sdCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BollingerWidthBelowAverage (Brian's notes ON-64-c, #64): the band width\n// (upper - lower = 2 x numDevs x StdDev) is below its own widthLookback-bar\n// average -- a low-volatility filter. numDevs cancels, so the test is\n// StdDev(close, length) below its widthLookback-bar average.\n// StdDev(close, length): the bands' POPULATION deviation, fresh, its mean and\n// squares summed NEWEST-FIRST (BollingerBandCross's construction).\nsdMean = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    sdMean += close[i];\n}\nsdMean /= (int)length;\nsdVal = 0.0;\nfor (int i = 0; i < (int)length; ++i) {\n    double dev = close[i] - sdMean;\n    sdVal += dev * dev;\n}\nsdVal = std::sqrt(sdVal / (int)length);\n// EL: average(sdVal, widthLookback) reads the sdVal VARIABLE's own history,\n// 0 for every bar before the first evaluated one -- mirrored as a zero-seeded\n// ring buffer, re-seeded if the length changes, read NEWEST-FIRST\n// (BarRangeAboveStd / AtrAboveAverage are the reference).\nif (sdHistory.size() != (std::size_t)(int)widthLookback) {\n    sdHistory.assign((std::size_t)(int)widthLookback, 0.0);\n    sdCursor = 0;\n}\nsdHistory[sdCursor] = sdVal;\nsdCursor = (sdCursor + 1) % sdHistory.size();\nsdAvg = 0.0;\nfor (std::size_t k = 0; k < sdHistory.size(); ++k) {\n    sdAvg += sdHistory[(sdCursor + sdHistory.size() - 1 - k) % sdHistory.size()];\n}\nsdAvg /= (int)widthLookback;",
+    "longCondition": "el_lt(sdVal, sdAvg)",
+    "shortCondition": "el_lt(sdVal, sdAvg)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

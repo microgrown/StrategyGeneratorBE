@@ -1,0 +1,95 @@
+{
+    "name": "ConsolidationBreakoutFirstRetest",
+    "type": "Entry",
+    "inputVariables": {
+        "zoneBars": "20",
+        "zoneAtrMultiple": "3",
+        "breakoutAtr": "0.5",
+        "maxWaitBars": "10"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "histLen": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "atrK": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zl": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullK": {
+            "type": "int",
+            "init": "0"
+        },
+        "bearK": {
+            "type": "int",
+            "init": "0"
+        },
+        "bullHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullBarHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bearBarLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bullFirst": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearFirst": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CONSOLIDATION BREAKOUT FIRST RETEST (Brian's notes ON-32, #32). After the\n// most recent bull breakout bar [bullK], no bar since (1 .. bullK - 1) has\n// traded back to the zone high; this bar's low is INSIDE the zone (zone low\n// <= low <= zone high) and it closes above the zone high: long. The first\n// bar back is the only chance -- if it fails to close above, or its low goes\n// straight through the zone, the setup is spent. Short mirrors.\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// S += TrueRange - TrueRange[Length] as TWO statements (EL evaluates\n// S[1] + in - out left to right; folding it rounds differently), re-seeding\n// when the length changes. Same block as RangeWidthBelowAtrMultiple and\n// AtrProfitTarget (the reference).\nif (atrLength != (int)zoneBars) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)zoneBars; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)zoneBars;\n} else {\n    const int out = (int)zoneBars;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)zoneBars;\n// CONSOLIDATION BREAKOUT SCAN -- one inlined form, copied verbatim into\n// ConsolidationBreakoutFirstRetest and ConsolidationBreakoutBarHighClose\n// (Brian's notes ON-32/ON-33, built on ON-30-a/ON-30-b). For kk = 1 ..\n// maxWaitBars, bar [kk] is a breakout bar when the zoneBars bars ending at\n// [kk + 1] are a consolidation zone (Highest - Lowest <= zoneAtrMultiple x\n// ATR(zoneBars) read at [kk + 1], RangeWidthBelowAtrMultiple at lag kk + 1)\n// and bar [kk] opened inside the zone and closed at least breakoutAtr x the\n// same ATR beyond it. The first hit walking back is the most recent; bull and\n// bear tracked separately.\n//\n// EL reads atrVal[kk + 1], the VARIABLE's own history, zero before the first\n// evaluated bar: mirrored as a zero-seeded ring buffer of lags\n// 0 .. maxWaitBars + 1 (AtrAtExtreme / AtrRising are the reference),\n// re-seeded if the depth changes. This bar's value goes in first, so lag L\n// sits L slots behind the newest slot.\nif (atrHistory.size() != (std::size_t)((int)maxWaitBars + 2)) {\n    atrHistory.assign((std::size_t)((int)maxWaitBars + 2), 0.0);\n    atrCursor = 0;\n}\nhistLen = atrHistory.size();\natrHistory[atrCursor] = atr;\natrCursor = (atrCursor + 1) % histLen;\nbullK = 0;\nbearK = 0;\nbullHi = 0.0;\nbullLo = 0.0;\nbearHi = 0.0;\nbearLo = 0.0;\nbullBarHigh = 0.0;\nbearBarLow = 0.0;\nfor (int kk = 1; kk <= (int)maxWaitBars; ++kk) {\n    zh = high[kk + 1];\n    zl = low[kk + 1];\n    for (int ii = 1; ii <= (int)zoneBars - 1; ++ii) {\n        if (el_gt(high[kk + 1 + ii], zh)) zh = high[kk + 1 + ii];\n        if (el_lt(low[kk + 1 + ii], zl)) zl = low[kk + 1 + ii];\n    }\n    atrK = atrHistory[(atrCursor + histLen - 1 - (std::size_t)(kk + 1)) % histLen];\n    if (el_le(zh - zl, zoneAtrMultiple * atrK) && el_ge(open[kk], zl) && el_le(open[kk], zh)) {\n        if (bullK == 0 && el_ge(close[kk], zh + breakoutAtr * atrK)) {\n            bullK = kk;\n            bullHi = zh;\n            bullLo = zl;\n            bullBarHigh = high[kk];\n        }\n        if (bearK == 0 && el_le(close[kk], zl - breakoutAtr * atrK)) {\n            bearK = kk;\n            bearHi = zh;\n            bearLo = zl;\n            bearBarLow = low[kk];\n        }\n    }\n}\nbullFirst = bullK > 0;\nfor (int jj = 1; jj < bullK; ++jj) {\n    if (el_le(low[jj], bullHi)) bullFirst = false;\n}\nbearFirst = bearK > 0;\nfor (int jj = 1; jj < bearK; ++jj) {\n    if (el_ge(high[jj], bearLo)) bearFirst = false;\n}",
+    "longCondition": "bullFirst && el_le(low[0], bullHi) && el_ge(low[0], bullLo) && el_gt(close[0], bullHi)",
+    "shortCondition": "bearFirst && el_ge(high[0], bearLo) && el_le(high[0], bearHi) && el_lt(close[0], bearLo)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,70 @@
+{
+    "name": "DonchianOutsizedBreakoutFade",
+    "type": "Entry",
+    "inputVariables": {
+        "N": "20",
+        "minRangeAtr": "0.0",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "chTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chMid": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Donchian outsized breakout fade (Brian's phone notes P16, pp. 45-46). As\n// written the SHORT: high above the N-bar channel top (bars 1..N) while the low\n// is below its midline. LONG mirrors. minRangeAtr (0, off) is an explicit size\n// floor against the current ATR. Not AtrBandBreakout or the Donchian breakout\n// family, which trade with the break. Highest/Lowest(..)[1] as the Extremes loop.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nchTop = high[1];\nchBot = low[1];\nfor (ii = 2; ii <= (int)N; ++ii) {\n    if (el_gt(high[ii], chTop)) chTop = high[ii];\n    if (el_lt(low[ii], chBot)) chBot = low[ii];\n}\nchMid = (chTop + chBot) / 2;",
+    "longCondition": "el_lt(low[0], chBot) && el_gt(high[0], chMid) && el_ge(high[0] - low[0], minRangeAtr * atrValue)",
+    "shortCondition": "el_gt(high[0], chTop) && el_lt(low[0], chMid) && el_ge(high[0] - low[0], minRangeAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

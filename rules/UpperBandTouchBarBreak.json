@@ -1,0 +1,70 @@
+{
+    "name": "UpperBandTouchBarBreak",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "20",
+        "numDevs": "2",
+        "maxWaitBars": "10"
+    },
+    "localVariables": {
+        "bbAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbSd": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbDev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "touchUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchUp0": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchDn0": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upT": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnT": {
+            "type": "int",
+            "init": "0"
+        },
+        "longOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortOk": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// UpperBandTouchBarBreak (Brian's notes ON-64-b, #64). upT is the most\n// recent bar in 1 .. maxWaitBars whose high touched the upper band (el_ge).\n// Long on the FIRST close above high[upT] since that bar, provided no bar since\n// (1 .. upT - 1, and this bar) touched the lower band. Short mirrors: the most\n// recent lower-band touch dnT, the first close below low[dnT], invalidated by\n// an upper-band touch. A lower touch ON bar upT itself does not invalidate;\n// a bar touching both bands at bar 0 fires neither side.\n// The bands are BollingerBandCross's construction, open-coded at each offset\n// ii so a past bar's band is computed from price as it stood on that bar (EL's\n// BollingerBand is fresh per bar; reading a stored band variable at [ii]\n// would compare against its zero fill during warm-up): Average(close, length)\n// summed NEWEST-FIRST, POPULATION StdDev, upper = avg + numDevs x sd, lower =\n// avg + (-numDevs) x sd. `bollingerband` VERIFIED; do not reorder the loops.\nupT = 0;\ndnT = 0;\ntouchUp0 = false;\ntouchDn0 = false;\nfor (int ii = 0; ii <= (int)maxWaitBars; ++ii) {\n    bbAvg = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbAvg += close[ii + jj];\n    }\n    bbAvg /= (int)length;\n    bbSd = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbDev = close[ii + jj] - bbAvg;\n        bbSd += bbDev * bbDev;\n    }\n    bbSd = std::sqrt(bbSd / (int)length);\n    upperBand = bbAvg + numDevs * bbSd;\n    lowerBand = bbAvg + (-numDevs) * bbSd;\n    touchUp = el_ge(high[ii], upperBand);\n    touchDn = el_le(low[ii], lowerBand);\n    if (ii == 0) {\n        touchUp0 = touchUp;\n        touchDn0 = touchDn;\n    } else {\n        if (upT == 0 && touchUp) upT = ii;\n        if (dnT == 0 && touchDn) dnT = ii;\n    }\n}\n// The most recent opposite touch is the only one that can lie in 1 .. T - 1.\nlongOk = upT > 0 && (dnT == 0 || dnT >= upT) && !touchDn0;\nfor (int jj = 1; jj < upT; ++jj) {\n    if (el_gt(close[jj], high[upT])) longOk = false;\n}\nshortOk = dnT > 0 && (upT == 0 || upT >= dnT) && !touchUp0;\nfor (int jj = 1; jj < dnT; ++jj) {\n    if (el_lt(close[jj], low[dnT])) shortOk = false;\n}",
+    "longCondition": "longOk && el_gt(close[0], high[upT])",
+    "shortCondition": "shortOk && el_lt(close[0], low[dnT])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

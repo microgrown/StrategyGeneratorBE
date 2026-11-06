@@ -1,0 +1,41 @@
+{
+    "name": "ConsolidationBreakoutBar",
+    "type": "Entry",
+    "inputVariables": {
+        "zoneBars": "20",
+        "breakoutAtr": "0.5"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "atrPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zl": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CONSOLIDATION BREAKOUT BAR (Brian's notes ON-30-b, #30). This bar OPENS\n// inside the range of the prior zoneBars bars and closes at least breakoutAtr\n// x ATR(zoneBars) beyond it. The zone and the ATR are both read one bar ago,\n// at the zone's last bar, so the breakout bar's own true range does not\n// inflate its benchmark. Pair it in pane 2 with RangeWidthBelowAtrMultiple at\n// lag 1 (rangeLookback = atrLookback = zoneBars) for the consolidation test.\n//\n// EL: atrVal = WFSafe_AvgTrueRange(zoneBars); ... atrVal[1]. A read of the\n// VARIABLE's history, 0 on the first evaluated bar: mirrored by keeping last\n// bar's atr (zero-initialised) before this bar's update.\natrPrev = atr;\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar, thereafter\n// S += TrueRange - TrueRange[Length] as TWO statements (EL evaluates\n// S[1] + in - out left to right; folding it rounds differently), re-seeding\n// when the length changes. Same block as RangeWidthBelowAtrMultiple and\n// AtrProfitTarget (the reference).\nif (atrLength != (int)zoneBars) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)zoneBars; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)zoneBars;\n} else {\n    const int out = (int)zoneBars;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)zoneBars;\n// EL: Highest(...)[1] / Lowest(...)[1] on the zone -- Extremes over\n// bars 1 .. zoneBars, seeded at bar 1, strict toleranced comparison.\nzh = high[1];\nzl = low[1];\nfor (int i = 1; i < (int)zoneBars; ++i) {\n    if (el_gt(high[1 + i], zh)) zh = high[1 + i];\n    if (el_lt(low[1 + i], zl)) zl = low[1 + i];\n}",
+    "longCondition": "el_ge(open[0], zl) && el_le(open[0], zh) && el_ge(close[0], zh + breakoutAtr * atrPrev)",
+    "shortCondition": "el_ge(open[0], zl) && el_le(open[0], zh) && el_le(close[0], zl - breakoutAtr * atrPrev)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

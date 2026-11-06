@@ -1,0 +1,81 @@
+{
+    "name": "LevelForwardDrift",
+    "type": "Entry",
+    "inputVariables": {
+        "minGap": "20",
+        "lookback": "500",
+        "minVisits": "5",
+        "horizon": "10",
+        "driftAtr": "0.5",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "hh": {
+            "type": "int",
+            "init": "0"
+        },
+        "forwardCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "forwardSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "meanMove": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "enoughVisits": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Level forward drift (Brian's notes P1b, triage row P1). The P1 visit scan: a\n// VISIT is a bar kk bars ago, minGap <= kk <= lookback, whose low..high range\n// contains the current close (inclusive, el_le/el_ge). Only visits with a\n// complete, strictly past forward window count (kk > horizon). Forward move =\n// close[kk - horizon] - close[kk], from the visit bar's close. LONG when at\n// least minVisits such visits exist and their mean move is at least driftAtr x\n// the CURRENT ATR; SHORT when at most -driftAtr x it. Mean guarded on a zero\n// count, as the EL twin must be (EL raises on a zero denominator).\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nhh = (int)horizon;\nforwardCount = 0;\nforwardSum = 0.0;\nfor (kk = (int)minGap; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], close[0]) && el_ge(high[kk], close[0])) {\n        if (kk > hh) {\n            forwardCount = forwardCount + 1;\n            forwardSum = forwardSum + (close[kk - hh] - close[kk]);\n        }\n    }\n}\nmeanMove = 0.0;\nif (forwardCount > 0) meanMove = forwardSum / forwardCount;\nenoughVisits = el_ge(forwardCount, minVisits) && el_gt(forwardCount, 0);",
+    "longCondition": "enoughVisits && el_ge(meanMove, driftAtr * atrValue)",
+    "shortCondition": "enoughVisits && el_le(meanMove, -driftAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

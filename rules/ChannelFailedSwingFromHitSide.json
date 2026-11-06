@@ -1,0 +1,165 @@
+{
+    "name": "ChannelFailedSwingFromHitSide",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "5",
+        "anchorLookback": "30",
+        "maxLookback": "150",
+        "innerStrength": "2",
+        "touchTolAtr": "0",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxLive": {
+            "type": "bool",
+            "init": "false"
+        },
+        "boxNew": {
+            "type": "bool",
+            "init": "false"
+        },
+        "boxLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxOrder": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxBarA": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxBarB": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxIsH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxIsL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxEv1": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxEv2": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxT": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxNextT": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxNextBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxRunLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bxRunHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tolPx": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hitB": {
+            "type": "int",
+            "init": "-1"
+        },
+        "hitT": {
+            "type": "int",
+            "init": "-1"
+        },
+        "stL": {
+            "type": "int",
+            "init": "0"
+        },
+        "stS": {
+            "type": "int",
+            "init": "0"
+        },
+        "inFrom": {
+            "type": "int",
+            "init": "0"
+        },
+        "inIsH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inIsL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inEv1": {
+            "type": "int",
+            "init": "0"
+        },
+        "inEv2": {
+            "type": "int",
+            "init": "0"
+        },
+        "inT": {
+            "type": "int",
+            "init": "0"
+        },
+        "bottomLast": {
+            "type": "bool",
+            "init": "false"
+        },
+        "topLast": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CHANNEL FAILED SWING FROM THE HIT SIDE (Brian's notes ON-1-b, #1, pp.1-2).\n// Inside a live swing box (below), the side hit MOST RECENTLY is the bottom.\n// After that hit, the first innerStrength-bar swing high forms (h2), after that the\n// first innerStrength-bar swing low after it (l2); on the bar that CONFIRMS l2,\n// if l2 holds above the box bottom (a swing that fails short of the hit side),\n// buy. The short is the note's own case, mirrored: top hit most recently, the\n// first small swing low, after that the first small swing high after it failing\n// short of the top. Fires once per hit -- a new hit of that side restarts it.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently. The local counter is\n// atrLen, not the input.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\n// SWING BOX (ON-1-a) -- one inlined form, copied verbatim into\n// ChannelFailedSwingFromHitSide, ChannelInnerSwingBreakFade and\n// InnerBoxFalseBreakReclaim. A horizontal box from an anchor pair of confirmed\n// swingStrength-bar pivots, in either ordering (Brian 2026-11-05): anchor A is\n// a swing low that is also the lowest low of the anchorLookback bars ENDING AT\n// it, and B is the very next pivot in time and is a swing high (boxOrder 1,\n// \"LH\": boxLow = low[A], boxHigh = high[B]); or the mirror, A a swing high that\n// is the anchorLookback-bar highest high and B the next pivot, a swing low\n// (boxOrder 2, \"HL\"). The box is live while no bar since A has traded below\n// boxLow or above boxHigh; a bar AT a side is a hit, not a break. LATCHED:\n// while live, a newer qualifying pair does not replace it; on the bar it\n// breaks, the scan looks again for the most recent qualifying pair. boxBarA /\n// boxBarB are bars-ago and advance one per bar while latched; boxNew marks the\n// bar a box latched. The candidate pivots lie in bars swingStrength ..\n// maxLookback - 1.\n//\n// Pivots are NON-ALTERNATING and use the measured SwingHigh test, hand-rolled\n// as in SwingPivotTarget because the pair scan needs both types in time order\n// (EL_Swing_Probe.txt): AT OR ABOVE the swingStrength OLDER bars, STRICTLY\n// ABOVE the swingStrength NEWER bars (the smaller bxK), lag exactly\n// swingStrength; the low side mirrors. A bar that is both a swing high and a\n// swing low counts as both (Brian 2026-11-05): a green bar (close > open) made\n// its low first, any other bar its high first. The scan runs NEWEST-FIRST, so\n// the event examined as A sees the event immediately newer than it\n// (bxNextT / bxNextBar) as its B. bxRunLo / bxRunHi are the lowest low and\n// highest high of bars 0 .. A: the \"nothing since A took either side out\"\n// test. No Break -- not a registered word.\nboxNew = false;\nif (boxLive) {\n    boxBarA = boxBarA + 1;\n    boxBarB = boxBarB + 1;\n    if (el_lt(low[0], boxLow) || el_gt(high[0], boxHigh)) boxLive = false;\n}\nif (!boxLive) {\n    bxFound = false;\n    bxNextT = 0;\n    bxNextBar = -1;\n    bxRunLo = low[0];\n    bxRunHi = high[0];\n    for (int j = 0; j <= (int)maxLookback - 1; ++j) {\n        if (el_lt(low[j], bxRunLo)) bxRunLo = low[j];\n        if (el_gt(high[j], bxRunHi)) bxRunHi = high[j];\n        if (j >= (int)swingStrength) {\n            bxIsH = true;\n            bxIsL = true;\n            for (int k = j - (int)swingStrength; k <= j - 1; ++k) {\n                if (el_le(high[j], high[k])) bxIsH = false;\n                if (el_ge(low[j], low[k])) bxIsL = false;\n            }\n            for (int k = j + 1; k <= j + (int)swingStrength; ++k) {\n                if (el_lt(high[j], high[k])) bxIsH = false;\n                if (el_gt(low[j], low[k])) bxIsL = false;\n            }\n            bxEv1 = 0;\n            bxEv2 = 0;\n            if (bxIsH) bxEv1 = 1;\n            if (bxIsL) bxEv1 = -1;\n            if (bxIsH && bxIsL) {\n                bxEv1 = -1;\n                bxEv2 = 1;\n                if (el_gt(close[j], open[j])) {\n                    bxEv1 = 1;\n                    bxEv2 = -1;\n                }\n            }\n            for (int e = 1; e <= 2; ++e) {\n                bxT = bxEv1;\n                if (e == 2) bxT = bxEv2;\n                if (bxT != 0) {\n                    if (!bxFound && bxNextT == -bxT) {\n                        bxOk = true;\n                        if (bxT == -1) {\n                            for (int k = j + 1; k <= j + (int)anchorLookback - 1; ++k) {\n                                if (el_gt(low[j], low[k])) bxOk = false;\n                            }\n                            if (bxOk && el_ge(bxRunLo, low[j]) && el_le(bxRunHi, high[bxNextBar])) {\n                                bxFound = true;\n                                boxOrder = 1;\n                                boxLow = low[j];\n                                boxHigh = high[bxNextBar];\n                                boxBarA = j;\n                                boxBarB = bxNextBar;\n                            }\n                        }\n                        if (bxT == 1) {\n                            for (int k = j + 1; k <= j + (int)anchorLookback - 1; ++k) {\n                                if (el_lt(high[j], high[k])) bxOk = false;\n                            }\n                            if (bxOk && el_le(bxRunHi, high[j]) && el_ge(bxRunLo, low[bxNextBar])) {\n                                bxFound = true;\n                                boxOrder = 2;\n                                boxHigh = high[j];\n                                boxLow = low[bxNextBar];\n                                boxBarA = j;\n                                boxBarB = bxNextBar;\n                            }\n                        }\n                    }\n                    bxNextT = bxT;\n                    bxNextBar = j;\n                }\n            }\n        }\n    }\n    if (bxFound) {\n        boxLive = true;\n        boxNew = true;\n    }\n}\n// HIT TRACKING AND INNER SWINGS. A hit is a bar reaching a side within\n// touchTolAtr ATRs (default 0: an exact touch, which on tick-grid data is an\n// extreme equal to the side, since a live box cannot be exceeded). hitB /\n// hitT are bars-ago of the most recent hit of each side. On the bar a box\n// latches they are found by scanning bars 0 .. A, and the inner swings since\n// each hit are REPLAYED oldest-first; on every later bar the hits advance by\n// one, bar 0 is tested, and only the pivot newly confirmed at bars-ago\n// innerStrength is processed. That keeps every read inside maxLookback however\n// long the box lives. The tolerance is the ATR as of the bar the box first\n// sees each bar (identical at the default 0). Inner pivots: the measured\n// SwingHigh test at innerStrength, hand-rolled; events in TIME order (a bar\n// that is both: green low-after that-high, otherwise high-after that-low, Brian\n// 2026-11-05). stL: 0 waiting for h2, 1 waiting for l2, 2 done; stS mirrors.\ntolPx = touchTolAtr * atrVal;\nfireL = false;\nfireS = false;\nif (boxLive) {\n    inFrom = (int)innerStrength;\n    if (boxNew) {\n        hitB = -1;\n        hitT = -1;\n        for (int j = 0; j <= boxBarA; ++j) {\n            if (hitB == -1 && el_le(low[j], boxLow + tolPx)) hitB = j;\n            if (hitT == -1 && el_ge(high[j], boxHigh - tolPx)) hitT = j;\n        }\n        stL = 0;\n        stS = 0;\n        inFrom = hitB - 1;\n        if (hitT - 1 > inFrom) inFrom = hitT - 1;\n    }\n    if (!boxNew) {\n        if (hitB != -1) hitB = hitB + 1;\n        if (hitT != -1) hitT = hitT + 1;\n        if (el_le(low[0], boxLow + tolPx)) {\n            hitB = 0;\n            stL = 0;\n        }\n        if (el_ge(high[0], boxHigh - tolPx)) {\n            hitT = 0;\n            stS = 0;\n        }\n    }\n    for (int inJ = inFrom; inJ >= (int)innerStrength; --inJ) {\n        inIsH = true;\n        inIsL = true;\n        for (int k = inJ - (int)innerStrength; k <= inJ - 1; ++k) {\n            if (el_le(high[inJ], high[k])) inIsH = false;\n            if (el_ge(low[inJ], low[k])) inIsL = false;\n        }\n        for (int k = inJ + 1; k <= inJ + (int)innerStrength; ++k) {\n            if (el_lt(high[inJ], high[k])) inIsH = false;\n            if (el_gt(low[inJ], low[k])) inIsL = false;\n        }\n        inEv1 = 0;\n        inEv2 = 0;\n        if (inIsH) inEv1 = 1;\n        if (inIsL) inEv1 = -1;\n        if (inIsH && inIsL) {\n            inEv1 = 1;\n            inEv2 = -1;\n            if (el_gt(close[inJ], open[inJ])) {\n                inEv1 = -1;\n                inEv2 = 1;\n            }\n        }\n        for (int e = 1; e <= 2; ++e) {\n            inT = inEv1;\n            if (e == 2) inT = inEv2;\n            if (inT != 0) {\n                if (inJ < hitB) {\n                    if (stL == 1 && inT == -1) {\n                        stL = 2;\n                        if (inJ == (int)innerStrength && el_gt(low[inJ], boxLow + tolPx)) fireL = true;\n                    }\n                    if (stL == 0 && inT == 1) stL = 1;\n                }\n                if (inJ < hitT) {\n                    if (stS == 1 && inT == 1) {\n                        stS = 2;\n                        if (inJ == (int)innerStrength && el_lt(high[inJ], boxHigh - tolPx)) fireS = true;\n                    }\n                    if (stS == 0 && inT == -1) stS = 1;\n                }\n            }\n        }\n    }\n}\nbottomLast = hitB != -1 && (hitT == -1 || hitB < hitT);\ntopLast = hitT != -1 && (hitB == -1 || hitT < hitB);\n",
+    "longCondition": "fireL && bottomLast",
+    "shortCondition": "fireS && topLast",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

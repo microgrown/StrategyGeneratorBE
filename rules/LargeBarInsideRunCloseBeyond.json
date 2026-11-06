@@ -1,0 +1,83 @@
+{
+    "name": "LargeBarInsideRunCloseBeyond",
+    "type": "Entry",
+    "inputVariables": {
+        "containedBars": "2",
+        "minRangeAtr": "1.0",
+        "bodyFraction": "0.5",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "mm": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "bigR": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigA": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxed": {
+            "type": "bool",
+            "init": "true"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Large bar, inside run, close beyond (Brian's notes ON-40-a, TRIAGE #40,\n// pp. 43-44). As written the SHORT: bar 1 (containedBars + 1 ago) a large bear\n// bar (range over minRangeAtr x its own-bar ATR, body over bodyFraction), the\n// bars between inside it (inclusive), this bar not above its high and closing\n// below its low. LONG mirrors. Not ConsecutiveInsideBars (bar-to-bar chain; this\n// is a mother-bar box with a close beyond the far side).\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nmm = (int)containedBars + 1;\nbigR = high[mm] - low[mm];\natrIdx = (int)atrHist.size() - 1 - (mm);\nbigA = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\nboxed = true;\nfor (jj = 1; jj <= (int)containedBars; ++jj) {\n    if (!(el_le(high[jj], high[mm]) && el_ge(low[jj], low[mm]))) boxed = false;\n}",
+    "longCondition": "el_gt(close[mm], open[mm]) && el_gt(close[mm] - open[mm], bodyFraction * bigR) && el_gt(bigR, minRangeAtr * bigA) && boxed && el_ge(low[0], low[mm]) && el_gt(close[0], high[mm])",
+    "shortCondition": "el_lt(close[mm], open[mm]) && el_gt(open[mm] - close[mm], bodyFraction * bigR) && el_gt(bigR, minRangeAtr * bigA) && boxed && el_le(high[0], high[mm]) && el_lt(close[0], low[mm])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,88 @@
+{
+    "name": "BandHighThenMidlineRetrace",
+    "type": "Entry",
+    "inputVariables": {
+        "highBars": "20",
+        "length": "20",
+        "numDevs": "2",
+        "retraceDevs": "0",
+        "maxWaitBars": "15"
+    },
+    "localVariables": {
+        "bbAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbSd": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbDev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "windowLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longLevel0": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortLevel0": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upT": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnT": {
+            "type": "int",
+            "init": "0"
+        },
+        "longHit": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortHit": {
+            "type": "bool",
+            "init": "false"
+        },
+        "longSetup": {
+            "type": "bool",
+            "init": "false"
+        },
+        "shortSetup": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BandHighThenMidlineRetrace (Brian's phone notes P10; a kept twist).\n// upT is the most recent bar in 1 .. maxWaitBars that made a highBars-bar high\n// (its high is the highest of the highBars bars ENDING at it, inclusive '='\n// convention) AND whose high touched the upper band. The retracement level\n// is avg - retraceDevs x sd (retraceDevs 0 = the middle band, = numDevs the\n// lower band), each bar against its OWN band. No bar since upT\n// (1 .. upT - 1) has reached its level; this bar's low does: long, once.\n// Short mirrors: a highBars-bar low touching the lower band, and this bar's\n// high reaching avg + retraceDevs x sd.\n// The bands are BollingerBandCross's construction, open-coded at each offset\n// ii so a past bar's band is computed from price as it stood on that bar (EL's\n// BollingerBand is fresh per bar; reading a stored band variable at [ii]\n// would compare against its zero fill during warm-up): Average(close, length)\n// summed NEWEST-FIRST, POPULATION StdDev, upper = avg + numDevs x sd, lower =\n// avg + (-numDevs) x sd. `bollingerband` VERIFIED; do not reorder the loops.\nupT = 0;\ndnT = 0;\nlongHit = false;\nshortHit = false;\nlongLevel0 = 0.0;\nshortLevel0 = 0.0;\nfor (int ii = 0; ii <= (int)maxWaitBars; ++ii) {\n    bbAvg = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbAvg += close[ii + jj];\n    }\n    bbAvg /= (int)length;\n    bbSd = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbDev = close[ii + jj] - bbAvg;\n        bbSd += bbDev * bbDev;\n    }\n    bbSd = std::sqrt(bbSd / (int)length);\n    upperBand = bbAvg + numDevs * bbSd;\n    lowerBand = bbAvg + (-numDevs) * bbSd;\n    longLevel = bbAvg - retraceDevs * bbSd;\n    shortLevel = bbAvg + retraceDevs * bbSd;\n    if (ii == 0) {\n        longLevel0 = longLevel;\n        shortLevel0 = shortLevel;\n    } else {\n        // Highest/Lowest(.., highBars)[ii] open-coded as EL's Extremes.\n        windowHigh = high[ii];\n        windowLow = low[ii];\n        for (int jj = 1; jj <= (int)highBars - 1; ++jj) {\n            if (el_gt(high[ii + jj], windowHigh)) windowHigh = high[ii + jj];\n            if (el_lt(low[ii + jj], windowLow)) windowLow = low[ii + jj];\n        }\n        // Walking back, a bar is checked against the level only until the\n        // setup bar is found; the setup bar itself is not.\n        if (upT == 0) {\n            if (el_ge(high[ii], windowHigh) && el_ge(high[ii], upperBand)) upT = ii;\n            else if (el_le(low[ii], longLevel)) longHit = true;\n        }\n        if (dnT == 0) {\n            if (el_le(low[ii], windowLow) && el_le(low[ii], lowerBand)) dnT = ii;\n            else if (el_ge(high[ii], shortLevel)) shortHit = true;\n        }\n    }\n}\nlongSetup = upT > 0 && !longHit;\nshortSetup = dnT > 0 && !shortHit;",
+    "longCondition": "longSetup && el_le(low[0], longLevel0)",
+    "shortCondition": "shortSetup && el_ge(high[0], shortLevel0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

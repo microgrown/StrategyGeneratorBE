@@ -1,0 +1,25 @@
+{
+    "name": "TrueRangeCoefficientOfVariation",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "cvMax": "0.5"
+    },
+    "localVariables": {
+        "trMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trSd": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TrueRangeCoefficientOfVariation (Brian's notes ON-57-b, #57): the\n// population StdDev of the true range over the last lookback bars is at most\n// cvMax x their mean -- steady volatility. Negate for erratic volatility.\n// Product form, no divide (EL raises on a zero divisor). CV is taken on true\n// range, not close: CV of a price fails the shift test.\n// Plain EL Average(TrueRange, n) and StdDev(TrueRange, n): FRESH every bar\n// over the price expression (TrueRangeAvgRatio is the precedent), summed\n// NEWEST-FIRST, population form; StdDev's own Average is the same mean.\n// TrueRange is the two-term max(H, C[1]) - min(L, C[1]).\ntrMean = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n    double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n    trMean += hi - lo;\n}\ntrMean /= (int)lookback;\ntrSd = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n    double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n    double dev = (hi - lo) - trMean;\n    trSd += dev * dev;\n}\ntrSd = std::sqrt(trSd / (int)lookback);",
+    "longCondition": "el_le(trSd, cvMax * trMean)",
+    "shortCondition": "el_le(trSd, cvMax * trMean)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,137 @@
+{
+    "name": "HugeBarOppositeInsideBarThenResume",
+    "type": "Entry",
+    "inputVariables": {
+        "hugeAtr": "2.0",
+        "maxRangeAtr": "100.0",
+        "nearFraction": "0.25",
+        "breakLookback": "20",
+        "maxBars": "20",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "bb": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "bigR": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigA": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sizeOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bullBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "winHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "winLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "holdLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "holdHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "jr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "insBear": {
+            "type": "int",
+            "init": "0"
+        },
+        "insBull": {
+            "type": "int",
+            "init": "0"
+        },
+        "noGreen": {
+            "type": "bool",
+            "init": "false"
+        },
+        "noRed": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Huge bar, opposite inside bar, resumption (Brian's notes ON-24, TRIAGE #24,\n// p. 26). As written the SHORT: a huge bear bar bb bars ago (ON-12-a shape at\n// hugeAtr, nearFraction for open and close) whose low took out the prior\n// breakLookback-bar low, no high since above its high, later a bullish strict\n// inside bar (open near low, close near high), and this the first red bar after\n// it. LONG mirrors. bb scans 2..maxBars, any anchor fires; the most recent\n// qualifying inside bar is used (index sentinel 0, bar indices are not prices).\n// Not InsideBar (single strict inside test, no chain).\n// The large shaped bar is the shared primitive ON-12-a (LargeShapedBarAtLag),\n// inlined in one form: range strictly between minRangeAtr and maxRangeAtr x the\n// ATR AS OF THAT BAR (atrValue[lag]), open in the bottom openFraction, close in\n// the top closeFraction (bear: open top, close bottom). During warm-up the\n// lagged ATR reads 0, so `r < maxRangeAtr * 0` fails and nothing fires -- as in EL.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nfireLong = false;\nfireShort = false;\nfor (bb = 2; bb <= (int)maxBars; ++bb) {\n    bigR = high[bb] - low[bb];\n    atrIdx = (int)atrHist.size() - 1 - (bb);\n    bigA = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\n    sizeOk = el_gt(bigR, hugeAtr * bigA) && el_lt(bigR, maxRangeAtr * bigA);\n    bullBig = sizeOk && el_le(open[bb] - low[bb], nearFraction * bigR) && el_le(high[bb] - close[bb], nearFraction * bigR);\n    bearBig = sizeOk && el_le(high[bb] - open[bb], nearFraction * bigR) && el_le(close[bb] - low[bb], nearFraction * bigR);\n    winHi = high[bb + 1];\n    winLo = low[bb + 1];\n    for (jj = bb + 2; jj <= bb + (int)breakLookback; ++jj) {\n        if (el_gt(high[jj], winHi)) winHi = high[jj];\n        if (el_lt(low[jj], winLo)) winLo = low[jj];\n    }\n    holdLo = true;\n    holdHi = true;\n    for (jj = 0; jj <= bb - 1; ++jj) {\n        if (el_lt(low[jj], low[bb])) holdLo = false;\n        if (el_gt(high[jj], high[bb])) holdHi = false;\n    }\n    insBear = 0;\n    insBull = 0;\n    for (jj = 1; jj <= bb - 1; ++jj) {\n        jr = high[jj] - low[jj];\n        if (insBear == 0 && el_lt(high[jj], high[jj + 1]) && el_gt(low[jj], low[jj + 1]) && el_lt(close[jj], open[jj]) && el_le(high[jj] - open[jj], nearFraction * jr) && el_le(close[jj] - low[jj], nearFraction * jr)) insBear = jj;\n        if (insBull == 0 && el_lt(high[jj], high[jj + 1]) && el_gt(low[jj], low[jj + 1]) && el_gt(close[jj], open[jj]) && el_le(open[jj] - low[jj], nearFraction * jr) && el_le(high[jj] - close[jj], nearFraction * jr)) insBull = jj;\n    }\n    if (insBear > 0) {\n        noGreen = true;\n        for (jj = 1; jj <= insBear - 1; ++jj) {\n            if (el_gt(close[jj], open[jj])) noGreen = false;\n        }\n        if (bullBig && el_gt(high[bb], winHi) && holdLo && noGreen && el_gt(close[0], open[0])) fireLong = true;\n    }\n    if (insBull > 0) {\n        noRed = true;\n        for (jj = 1; jj <= insBull - 1; ++jj) {\n            if (el_lt(close[jj], open[jj])) noRed = false;\n        }\n        if (bearBig && el_lt(low[bb], winLo) && holdHi && noRed && el_lt(close[0], open[0])) fireShort = true;\n    }\n}",
+    "longCondition": "fireLong",
+    "shortCondition": "fireShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

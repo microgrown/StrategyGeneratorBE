@@ -1,0 +1,350 @@
+{
+  "slice": "02_pivot_sequence",
+  "rules": [
+    {
+      "id": "ON-50",
+      "name": "FractalBoxBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#50",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        59,
+        60
+      ],
+      "quote": "5-bar fractals ordered low, high, low, high. The last two are within the range of the first two. Enter on the first candle to close outside the range of the last two. If it closes above, enter long.",
+      "description": "The four most recent pivots, oldest to newest, are low L1, high H1, low L2, high H2 with L2 and H2 both inside [L1, H1] (a contracting box). Long on the first close above H2 since H2 printed; short on the first close below L2. p.60 (the fade) is the same rule with the per-placement flip.",
+      "pseudocode": "pat = n >= 4 && t[3] == -1 && t[2] == +1 && t[1] == -1 && t[0] == +1\n      && el_ge(v[1], v[3]) && el_le(v[1], v[2]) && el_ge(v[0], v[3]) && el_le(v[0], v[2]);\nboxHi = v[0]; boxLo = v[1];\nfirst = true;\nfor (i = 1; i < b[0]; ++i) if (el_gt(close[i], boxHi) || el_lt(close[i], boxLo)) first = false;\nlong = pat && first && el_gt(close[0], boxHi);\n// short: the same pattern, el_lt(close[0], boxLo)",
+      "sides": "mirrored trigger only: the pivot pattern (L,H,L,H) is the same on both sides, the short fires on the close below L2",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "close outside the box (already close-based)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivot pattern over a variable-length window plus a first-close-outside test"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "Closest: DoubleExtremeBreakout and TrendLineBreak (Brooks) break a level built from two same-side pivots; nothing tests an L-H-L-H contraction box."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Within the range of the first two' read inclusively (el_ge/el_le).",
+        "The rule fires only while these four are still the four most recent pivots; a newer pivot inside the box replaces the pattern.",
+        "Whether the mirrored ordering H,L,H,L should also qualify is an open question (the note states only L,H,L,H)."
+      ]
+    },
+    {
+      "id": "ON-51",
+      "name": "LateFractalFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#51",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        61
+      ],
+      "quote": "Calculate average number of bars between fractal points over the last 8+ fractals. Next fractal comes 2-3x the average number of bars later. If it is a fractal high, enter short. If it is a fractal low, enter long.",
+      "description": "On the bar a new pivot is confirmed, compare the gap since the previous pivot (either type) with the mean gap between the F pivots before it. If the new gap is at least K times the mean, fade the pivot: a late swing low is a long, a late swing high a short.",
+      "pseudocode": "ok = n >= pivotCount + 1 && b[0] == strength && b[pivotCount] > b[1];\nmeanGap = (double)(b[pivotCount] - b[1]) / (pivotCount - 1);\nlateGap = b[1] - b[0];\nlong = ok && t[0] == -1 && el_ge(lateGap, lateMultiple * meanGap);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 300,
+        "pivotCount": 8,
+        "lateMultiple": 2
+      },
+      "book_order_type": "n/a (enter on the confirmation bar's close, next open)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot sequence plus inter-pivot timing statistics"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule in the catalog measures the timing between pivots; SwingLegLengthAtLeast tests a fixed minimum leg length in bars, not relative lateness."
+      },
+      "confidence": "high",
+      "notes": [
+        "'2-3x' is read as a minimum multiple (default 2, range 2-3); an upper cap was not stated.",
+        "The signal is confirmed `strength` bars after the pivot bar, by construction.",
+        "lookback must hold pivotCount + 1 pivots; 300 bars is a starting point."
+      ]
+    },
+    {
+      "id": "ON-53",
+      "name": "FractalOrderLowHighHigh",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#53",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        64
+      ],
+      "quote": "Order of fractals is low, high, high. Enter long. Order of fractals is high, low, low. Enter short.",
+      "description": "The three most recent pivots, oldest to newest, are a swing low followed by two swing highs (no low between them, possible because swings are non-alternating): long. High, low, low: short. Fires on the bar the third pivot is confirmed.",
+      "pseudocode": "long = n >= 3 && b[0] == strength && t[2] == -1 && t[1] == +1 && t[0] == +1;",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivot sequence"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "near",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow / ThreePushPattern compare pivot PRICES on one side; nothing reads the TYPE order of the merged sequence. No price relation between the two highs is required here."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Fired as an event (the confirmation bar). Holding it as a state until the next pivot is the other reading; see open_questions."
+      ]
+    },
+    {
+      "id": "ON-59",
+      "name": "FractalLegSlopeDecay",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#59",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        72
+      ],
+      "quote": "Fractal pattern goes low, high, low, high. Slope on the last leg up (low to high) is less than the slope on the first leg up (first low to high). Enter short.",
+      "description": "The four most recent pivots are L1, H1, L2, H2 (oldest to newest) and the last up-leg L2->H2 rises more slowly per bar than the first up-leg L1->H1: momentum is fading, short. The long side is the mirror: H, L, H, L with the last down-leg shallower than the first. Fires on the bar H2 (L2 on the long side) is confirmed.",
+      "pseudocode": "// long (mirror): pattern H,L,H,L = t[3],t[2],t[1],t[0] = +1,-1,+1,-1\npat = n >= 4 && b[0] == strength && t[3] == +1 && t[2] == -1 && t[1] == +1 && t[0] == -1\n      && b[3] > b[2] && b[1] > b[0];\n// drop per bar: leg1 = (v[3]-v[2])/(b[3]-b[2]), leg2 = (v[1]-v[0])/(b[1]-b[0]); cross-multiplied\nlong = pat && el_lt((v[1] - v[0]) * (b[3] - b[2]), (v[3] - v[2]) * (b[1] - b[0]));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivots plus leg-slope comparison"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "ThreePushPattern",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ThreePushPattern",
+        "origin": "Brooks",
+        "evidence": "ThreePushPattern's converging shapeMode compares push EXTENTS on one side; TrendLineSlopeFlattening compares trend-line slopes. Neither compares the slopes of two legs of an L-H-L-H sequence."
+      },
+      "confidence": "high",
+      "notes": [
+        "Slopes in price per bar; the ratio test is scale-free and shift-invariant. No price relation (e.g. H2 > H1) is required by the note."
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "FractalMovePullbackContraction",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P6",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        14,
+        15,
+        16
+      ],
+      "quote": "Move down characterized by a fractal low length ~3 that is also the lowest of the last several fractals lows. Start of move is prior fractal high. Short term pullback (several bars, must be at least the fractal length) which are contained within the move. If average bar size during the pullback is much lower than average bar size during the move, enter short.",
+      "description": "Short as written; long mirrors. The latest swing low (strength 3) is the lowest of the last Q swing lows; the move runs from the latest swing high before it down to it. The bars since that low (the pullback, at least `strength` of them) stay inside the move's range, and their mean range is at most R x the move's mean range.",
+      "pseudocode": "// long side (mirror): latest swing high Hb (strength S) is the highest of the last Q swing highs;\n// move = from the latest swing low before Hb (bar Lb) up to Hb\npbBars = Hb;   // bars 0..Hb-1 are the pullback\nok = haveH && haveL && pbBars >= S && pbBars <= maxPullbackBars;\nfor (i = 0; i < Hb; ++i) if (el_gt(high[i], vH) || el_lt(low[i], vL)) ok = false;\nmovMean = mean(high - low over bars Hb..Lb); pbMean = mean(high - low over bars 0..Hb-1);\nlong = ok && el_le(pbMean, R * movMean);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 3,
+        "Q": 4,
+        "R": 0.5,
+        "maxPullbackBars": 15,
+        "pivotLookback": 150
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivots of both kinds, a variable-length move and pullback, and range statistics"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "FirstPullbackAfterSpike",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FirstPullbackAfterSpike",
+        "origin": "Brooks",
+        "evidence": "FirstPullbackAfterSpike / BreakoutPullbackEntry take the first pullback after a spike or breakout bar; MaxPullbackDepthBelowThreshold bounds pullback depth. None anchors the move on pivots or compares the pullback's bar size with the move's."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Fractal low length ~3' read as strength 3 (MINING: fractal length = strength); a 3-bar fractal (strength 1) is the other reading.",
+        "Fires on every bar the conditions hold, up to maxPullbackBars (not in the note)."
+      ]
+    }
+  ],
+  "primitives_to_inline": [
+    {
+      "id": "ON-50-a",
+      "name": "SwingPivotSequence",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "#50",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        59,
+        60,
+        61,
+        64,
+        71,
+        72
+      ],
+      "quote": "5-bar fractals ordered low, high, low, high.",
+      "description": "The merged, newest-first list of the most recent confirmed swing pivots of strength S (non-alternating EL SwingHigh/SwingLow semantics) inside a lookback window: each entry carries its type (+1 high, -1 low), its price and its bars-ago. Shared by every fractal-ORDER rule in this file (#50, #51, #53, #59, P6). Rules that only need one side (#52, #58, P9, P13, P15, I2-I4) read the per-side occurrences of the measured port directly.",
+      "pseudocode": "// newest-first; the pivot test is the measured SwingHigh port: at-or-beyond the S OLDER bars,\n// STRICTLY beyond the S NEWER bars (EL_Swing_Probe). Confirmation lag is exactly S bars.\nn = 0;\nfor (j = strength; j <= lookback - 1 && n < maxPivots; ++j) {\n    isHi = true; isLo = true;\n    for (k = j - strength; k < j; ++k) { if (!el_gt(high[j], high[k])) isHi = false; if (!el_lt(low[j], low[k])) isLo = false; }\n    for (k = j + 1; k <= j + strength; ++k) { if (!el_ge(high[j], high[k])) isHi = false; if (!el_le(low[j], low[k])) isLo = false; }\n    if (isHi) { t[n] = +1; v[n] = high[j]; b[n] = j; ++n; }\n    if (isLo && n < maxPivots) { t[n] = -1; v[n] = low[j]; b[n] = j; ++n; }\n}\n// p[0] is the newest pivot; a rule needing m pivots checks n >= m (never a price sentinel)",
+      "sides": "same",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100,
+        "maxPivots": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "swing-pivot detection on both series merged into one ordered sequence"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "SwingHigh",
+      "library_check": {
+        "verdict": "near",
+        "rule": "SwingHigh",
+        "origin": "Brooks corpus (pivot primitive, measured with EL_Swing_Probe)",
+        "evidence": "SwingHigh/SwingLow give per-side occurrences only; HigherSwingLow and ThreePushPattern inline the same scan per side. No rule merges both sides into one ordered sequence, which is what 'fractal order' needs."
+      },
+      "confidence": "high",
+      "notes": [
+        "5-bar fractal = strength 2 (MINING convention); strength is the input.",
+        "The EL twin can rebuild the sequence from SwingHighBar/SwingLowBar occurrences (bar indices, so guarded on <> -1, never on price).",
+        "A bar that is both a swing high and a swing low (an outside-bar pivot) enters the list twice at the same bars-ago; their relative order is an open question."
+      ]
+    }
+  ],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

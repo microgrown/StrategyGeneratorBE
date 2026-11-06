@@ -1,0 +1,60 @@
+{
+    "name": "LevelHighVolume",
+    "type": "Entry",
+    "inputVariables": {
+        "minGap": "20",
+        "lookback": "500",
+        "minVisits": "5",
+        "volumeMultiple": "1.2",
+        "volumeLookback": "50"
+    },
+    "localVariables": {
+        "vol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgVol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "volCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "vv": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "visitCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "ticksSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "meanTicks": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "enoughVisits": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Level high volume (Brian's notes P1f, volume form, triage row P1). Pane 2. The\n// P1 visit scan: a VISIT is a bar kk bars ago, minGap <= kk <= lookback, whose\n// low..high range contains the current close (inclusive, el_le/el_ge). At least\n// minVisits visits. Passes when the mean TOTAL ticks of the visit bars\n// (ctx.Ticks[kk], the data series) is at least volumeMultiple x the\n// volumeLookback-bar average of vol = Ticks. Identical both sides.\n// The average is VolumeAboveAverageMultiple's block verbatim: vol is an EL\n// VARIABLE, so average(vol, n) reads its zero-filled warm-up history, mirrored\n// as a zero-initialized ring buffer read NEWEST-FIRST (EL's Summation order).\nvol = (double)ctx.Ticks[0];\nif (volHistory.size() != (std::size_t)(int)volumeLookback) {\n    volHistory.assign((std::size_t)(int)volumeLookback, 0.0);\n    volCursor = 0;\n}\nvolHistory[volCursor] = vol;\nvolCursor = (volCursor + 1) % volHistory.size();\navgVol = 0.0;\nfor (vv = 0; vv < volHistory.size(); ++vv) {\n    avgVol += volHistory[(volCursor + volHistory.size() - 1 - vv) % volHistory.size()];\n}\navgVol /= (int)volumeLookback;\nvisitCount = 0;\nticksSum = 0.0;\nfor (kk = (int)minGap; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], close[0]) && el_ge(high[kk], close[0])) {\n        visitCount = visitCount + 1;\n        ticksSum = ticksSum + (double)ctx.Ticks[kk];\n    }\n}\nmeanTicks = 0.0;\nif (visitCount > 0) meanTicks = ticksSum / visitCount;\nenoughVisits = el_ge(visitCount, minVisits) && el_gt(visitCount, 0);",
+    "longCondition": "enoughVisits && el_ge(meanTicks, volumeMultiple * avgVol)",
+    "shortCondition": "enoughVisits && el_ge(meanTicks, volumeMultiple * avgVol)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

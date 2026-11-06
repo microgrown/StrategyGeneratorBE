@@ -1,0 +1,138 @@
+{
+    "name": "SwingHighClusterDecisiveBreak",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "M": "3",
+        "tol": "0.25",
+        "breakTol": "0.25",
+        "Y": "0.5",
+        "pivotLookback": "100",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "pS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nNeed": {
+            "type": "int",
+            "init": "0"
+        },
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "nH": {
+            "type": "int",
+            "init": "0"
+        },
+        "nL": {
+            "type": "int",
+            "init": "0"
+        },
+        "hBarOld": {
+            "type": "int",
+            "init": "0"
+        },
+        "lBarOld": {
+            "type": "int",
+            "init": "0"
+        },
+        "ci": {
+            "type": "int",
+            "init": "0"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "maxH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Swing-high cluster, decisive break (Brian's notes P9, TRIAGE P9, p. 24). The\n// M most recent confirmed swing highs (3-bar or 5-bar: strength 1 or 2) lie\n// within tol ATR of each other (max - min); no close since the OLDEST of them\n// went above their max by more than breakTol ATR (\"no significant break\"); and\n// now the close is at least Y ATR above their max (\"decisive break\"). LONG.\n// Short mirrors on the swing lows. breakTol <= Y keeps the decisive close the\n// first one; that is a parameter choice, not enforced. One CURRENT ATR is read\n// for every scanned close, as LevelTouchCount does.\n//\n// Not LevelTouchCount (bar touches of ONE pivot level), DoubleExtremeBreakout\n// (two pivots, tick break) or CloseBeyondLastSwingPoint (close above K swing\n// highs, no clustering). Distinct from LevelPairPivotBreakout (P15): there the\n// break is itself a confirmed pivot, here it is a close.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// PIVOT SCAN, hand-rolled in BOTH twins (SwingPivotTarget's open-coded form):\n// more than two occurrences are needed and Occurrence 3+ of SwingHigh/SwingLow is\n// UNMEASURED, so no SwingHigh(n, ...) call stands in. MEASURED test\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT OR\n// BEYOND the `strength` OLDER bars and STRICTLY BEYOND the `strength` NEWER bars\n// (bars-ago indexing: the newer bars are the smaller pk, el_gt / el_lt; the older\n// el_ge / el_le), confirmation lag exactly `strength` bars, candidate offsets\n// strength..window-1, the neighbourhood reaching `strength` bars past the window.\n// Swings are non-alternating: highs and lows are two independent series.\n// No early break, matching the twin (Break is not a registered word).\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingPointTestHolds's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;), because EL\n// evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\npS = (int)strength;\npW = (int)pivotLookback;\nnNeed = (int)M;\nnH = 0;\nnL = 0;\nmaxH = 0.0;\nminH = 0.0;\nmaxL = 0.0;\nminL = 0.0;\nhBarOld = 0;\nlBarOld = 0;\nfor (pj = pS; pj <= pW - 1; ++pj) {\n    okHi = true;\n    okLo = true;\n    for (pk = pj - pS; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) okHi = false;\n        if (!el_lt(low[pj], low[pk])) okLo = false;\n    }\n    for (pk = pj + 1; pk <= pj + pS; ++pk) {\n        if (!el_ge(high[pj], high[pk])) okHi = false;\n        if (!el_le(low[pj], low[pk])) okLo = false;\n    }\n    if (okHi && nH < nNeed) {\n        nH = nH + 1;\n        if (nH == 1) {\n            maxH = high[pj];\n            minH = high[pj];\n        } else {\n            if (el_gt(high[pj], maxH)) maxH = high[pj];\n            if (el_lt(high[pj], minH)) minH = high[pj];\n        }\n        hBarOld = pj;\n    }\n    if (okLo && nL < nNeed) {\n        nL = nL + 1;\n        if (nL == 1) {\n            maxL = low[pj];\n            minL = low[pj];\n        } else {\n            if (el_gt(low[pj], maxL)) maxL = low[pj];\n            if (el_lt(low[pj], minL)) minL = low[pj];\n        }\n        lBarOld = pj;\n    }\n}\nhaveH = (nNeed >= 1) && (nH >= nNeed);\nhaveL = (nNeed >= 1) && (nL >= nNeed);\ncleanH = true;\nfor (ci = 1; ci <= hBarOld - 1; ++ci) {\n    if (el_gt(close[ci], maxH + breakTol * atrValue)) cleanH = false;\n}\ncleanL = true;\nfor (ci = 1; ci <= lBarOld - 1; ++ci) {\n    if (el_lt(close[ci], minL - breakTol * atrValue)) cleanL = false;\n}",
+    "longCondition": "haveH && el_le(maxH - minH, tol * atrValue) && cleanH && el_ge(close[0], maxH + Y * atrValue)",
+    "shortCondition": "haveL && el_le(maxL - minL, tol * atrValue) && cleanL && el_le(close[0], minL - Y * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

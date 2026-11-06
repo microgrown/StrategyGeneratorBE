@@ -1,0 +1,545 @@
+{
+  "slice": "06_oscillators_bands",
+  "rules": [
+    {
+      "id": "ON-7",
+      "name": "RsiBandBreakThenOppositeBar",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "7",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        6
+      ],
+      "quote": "Rsi has been within extremes (40-60,35-65,30-70) for last 50 bars. At close of bar the rsi falls below the lower threshold. Enter long on first subsequent bar that closes green. If rsi falls back into range without a green candle the setup is invalidated.",
+      "description": "RSI stayed inside a symmetric band around 50 for N bars, then a bar's RSI fell below the band. Long on the first later bar that closes green, provided RSI has stayed below the band on every bar in between. Short mirrors: RSI rises above the band, short on the first red bar.",
+      "pseudocode": "rsiVal = WFSafe_RSI(close, rsiLength);   // series variable; history read as rsiVal[j]\nlo = 50 - bandHalfWidth; hi = 50 + bandHalfWidth;\nfor (b = 1; b <= maxWaitBars; ++b) {\n  if (!(rsiVal[b] < lo)) continue;\n  if (any j in b+1..b+bandBars with rsiVal[j] < lo || rsiVal[j] > hi) continue;   // band held before the break\n  if (any j in 1..b-1 with rsiVal[j] >= lo) continue;                            // back in the band: invalidated\n  if (any j in 1..b-1 with close[j] > open[j]) continue;                         // not the first green bar\n  return close[0] > open[0];\n}\nreturn false;",
+      "sides": "mirrored",
+      "parameters": {
+        "rsiLength": 14,
+        "bandHalfWidth": 10,
+        "bandBars": 50,
+        "maxWaitBars": 20
+      },
+      "book_order_type": "next bar after the green close",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "RSI series-variable history over a window plus a bounded backward scan."
+      },
+      "el_words_needed": [
+        "WFSafe_RSI"
+      ],
+      "likely_existing_rule": "RsiBelowThreshold",
+      "library_check": {
+        "verdict": "near",
+        "rule": "RsiBelowThreshold",
+        "origin": "AI Book strategies (facd294; external book, not Davey or Brooks)",
+        "evidence": "RsiBelowThreshold is the bare RSI-below-T test. ON-7 needs RSI history: the band held for N bars, a break, no re-entry, and a first green bar. No catalog rule reads RSI's own history beyond lag 1 (RsiRising)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Band widths 40-60 / 35-65 / 30-70 map to bandHalfWidth 10 / 15 / 20; symmetric so the short mirror is exact.",
+        "RSI length is not given; 14 assumed.",
+        "maxWaitBars bounds the wait for the green bar (the note invalidates only on RSI re-entry, so an unbounded wait is possible); needed for Max Bars Back.",
+        "RSI history is read off a series variable (EL zero-fill during warm-up applies).",
+        "The note asks for the reverse explicitly: the flip toggle."
+      ]
+    },
+    {
+      "id": "ON-20",
+      "name": "RsiTightBandExitBarColour",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "20",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        21,
+        22
+      ],
+      "quote": "RSI-14 is in a very tight range (45-55 or 40-60) for at least 5 bars. Next bar (signal) brings RSI out of the range. If signal bar is green, enter long.",
+      "description": "RSI was inside a tight band around 50 on each of the previous N bars and this bar's RSI is outside it (either side); a green signal bar means long, a red one short. 20241025.1 (green means short) is the reverse placement.",
+      "pseudocode": "rsiVal = WFSafe_RSI(close, rsiLength);\nlo = 50 - bandHalfWidth; hi = 50 + bandHalfWidth;\nfor (j = 1; j <= bandBars; ++j) if (rsiVal[j] < lo || rsiVal[j] > hi) return false;\nreturn (rsiVal[0] < lo || rsiVal[0] > hi) && close[0] > open[0];",
+      "sides": "mirrored",
+      "parameters": {
+        "rsiLength": 14,
+        "bandHalfWidth": 5,
+        "bandBars": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "RSI series-variable history over a short window."
+      },
+      "el_words_needed": [
+        "WFSafe_RSI"
+      ],
+      "likely_existing_rule": "RsiBelowThreshold",
+      "library_check": {
+        "verdict": "near",
+        "rule": "RsiBelowThreshold",
+        "origin": "AI Book strategies (facd294)",
+        "evidence": "RsiBelowThreshold is a bare threshold. Nothing tests RSI held in a band for N bars and then left it, nor gates on the signal bar's colour."
+      },
+      "confidence": "high",
+      "notes": [
+        "45-55 / 40-60 map to bandHalfWidth 5 / 10.",
+        "The note does not say which side RSI leaves on; both sides count. A green bar can leave the band downward (close below the prior close after a gap), so this is not the same as 'RSI leaves upward'.",
+        "One rule and its reverse: .2 is the plain long, .1 the flip."
+      ]
+    },
+    {
+      "id": "ON-41",
+      "name": "RsiDivergenceAtWindowExtreme",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "41",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        45,
+        46
+      ],
+      "quote": "Basic RSI divergence. Price[1] is highest price of last X bars RSI < RSI X bars ago Enter short",
+      "description": "Long side (bullish divergence, the mirror): the previous bar's low is the lowest low of the X bars ending at it, while RSI is above its value X bars ago. Short (the note's .1): high[1] is the X-bar highest high and RSI is below RSI X bars ago. .2 is the reverse placement.",
+      "pseudocode": "rsiVal = WFSafe_RSI(close, rsiLength);\nreturn low[1] <= lowest(low, X)[1] && rsiVal[0] > rsiVal[(int)X];",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10,
+        "rsiLength": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "RSI series-variable history at a fixed input offset plus one window extreme."
+      },
+      "el_words_needed": [
+        "WFSafe_RSI",
+        "Lowest"
+      ],
+      "likely_existing_rule": "RsiRising",
+      "library_check": {
+        "verdict": "near",
+        "rule": "RsiRising",
+        "origin": "AI Book strategies (facd294)",
+        "evidence": "No RSI divergence rule exists. RsiRising compares RSI with its previous bar and has no price-extreme term."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Price' read as High (short) / Low (long), the extreme over the X bars ending at bar 1 (bars 1..X).",
+        "The RSI comparison is literal: RSI now against RSI X bars ago; RSI[1] vs RSI[1+X] would align it with Price[1].",
+        "X and RSI length are not given: X 10 (range 5-30), RSI 14.",
+        "Decision 5: a divergence is a kept twist on a classic indicator."
+      ]
+    },
+    {
+      "id": "ON-55",
+      "name": "AdxFallingMomentumFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#55",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        67,
+        68
+      ],
+      "quote": "ADX[1] < ADX[Z] Close[1] > Close[Z] Enter short ... ADX[1] < ADX[Z] Close[1] < Close[Z] Enter long",
+      "description": "A divergence between trend strength and price: ADX has fallen from Z bars ago to the last bar while price has risen over the same span: short (fade); price fell with ADX falling: long. .4 is the flip. Kept as one candidate because the two halves share Z and only mean something as a pair (the divergence twist Decision 5 keeps).",
+      "pseudocode": "long = el_lt(adx[1], adx[Z]) && el_lt(close[1], close[Z]);\n// short: el_lt(adx[1], adx[Z]) && el_gt(close[1], close[Z])",
+      "sides": "mirrored (the ADX term is identical on both sides; only the close comparison flips)",
+      "parameters": {
+        "adxLength": 14,
+        "Z": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's own history, which needs a mirrored series buffer"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "AdxBelowThreshold",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AdxBelowThreshold",
+        "origin": "unknown (August 2026 authoring batch, StrategyGeneratorTS-era)",
+        "evidence": "AdxBelowThreshold and EecTwoAmigos threshold the ADX level; no rule compares ADX with its own lagged value. The close half alone is Momentum at lag Z shifted one bar."
+      },
+      "confidence": "high",
+      "notes": [
+        "Z has no default in the note; 10, range 5-30.",
+        "adx[Z] is WFSafe_ADX's function history; the C++ must mirror it in a buffer, zero-filled before the first evaluated bar (CLAUDE.md zero-fill convention)."
+      ]
+    },
+    {
+      "id": "ON-55-b",
+      "name": "AdxRisingExit",
+      "role": "Exit",
+      "pane": "exit",
+      "triage_row": "#55",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        67,
+        68
+      ],
+      "quote": "Exit if ADX[1] > ADX[Z]",
+      "description": "Exit any position once ADX has risen from Z bars ago to the last bar: the trend is strengthening against a fade.",
+      "pseudocode": "exitLong = el_gt(adx[1], adx[Z]);   // identical for exitShort",
+      "sides": "same",
+      "parameters": {
+        "adxLength": 14,
+        "Z": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's own history"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No ADX-slope exit; AtrRising is the ATR analogue as an entry filter."
+      },
+      "confidence": "high",
+      "notes": [
+        "Reads no position state: an exit by placement. Shares Z with ON-55 by default."
+      ]
+    },
+    {
+      "id": "ON-54",
+      "name": "MomentumLadder",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#54",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        65,
+        66
+      ],
+      "quote": "Close > Close [X] > Close [2X] > Close [4X] Enter long",
+      "description": "Closes sampled at 0, X, 2X and 4X bars ago are strictly descending into the past: a ladder of momentum on three horizons. Long; .2 (short on the same condition) is the flip.",
+      "pseudocode": "long = el_gt(close[0], close[X]) && el_gt(close[X], close[2 * X]) && el_gt(close[2 * X], close[4 * X]);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "fixed-offset close comparisons"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "Momentum",
+      "library_check": {
+        "verdict": "near",
+        "rule": "Momentum",
+        "origin": "original corpus ported from StrategyGeneratorTS (Davey-style momentum, per TRIAGE #60)",
+        "evidence": "Momentum(X) is the first link only; the later links compare LAGGED closes with each other, which no Momentum placement (always anchored at close[0]) reaches. ClosingPatternOne (EEC) orders closes at 1-3 bars, not a scaled ladder."
+      },
+      "confidence": "high",
+      "notes": [
+        "X default is not in the note; 20 with a 5-50 range. Reaches back 4X.",
+        "Davey-style momentum is a pane-2 trend filter only (Decision 3); here the ladder shape is the entry, which TRIAGE kept."
+      ]
+    },
+    {
+      "id": "ON-57-b",
+      "name": "TrueRangeCoefficientOfVariation",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#57",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        70
+      ],
+      "quote": "Volatility - Coefficient of variation",
+      "description": "The coefficient of variation of the true range over N bars (population StdDev / mean) is at most T: volatility is steady. Negate for erratic volatility.",
+      "pseudocode": "m = average(trueRange, N); s = stddev(trueRange, N);   // population form, fresh, newest-first\npass = el_le(s, cvMax * m);   // product form, no divide",
+      "sides": "same",
+      "parameters": {
+        "N": 20,
+        "cvMax": 0.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window mean and standard deviation"
+      },
+      "el_words_needed": [
+        "TrueRange",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "BarRangeAboveStd uses the same mean/StdDev pair to flag one outsized bar; nothing thresholds the dispersion of the window itself."
+      },
+      "confidence": "medium",
+      "notes": [
+        "CV of CLOSE (the textbook form) is std/mean of price and fails the shift test; true range is substituted. Which series Brian meant is an open question.",
+        "Average/StdDev over a price EXPRESSION read real history (fresh loops), not a zero-filled variable."
+      ]
+    },
+    {
+      "id": "ON-64-a",
+      "name": "UpperBandTouchHigherHigh",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#64",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "Compare last two touches of the upper bollinger band. If those make a higher high, go long.",
+      "description": "The current touch of the upper Bollinger band (high >= band) makes a higher high than the previous touch episode: long, on the first bar of the current episode whose high exceeds the previous episode's high. Short mirrors on lower-band touches making a lower low.",
+      "pseudocode": "touch[i] = el_ge(high[i], bbUpper[i]);   // bbUpper = Average(close, N) + k * StdDev(close, N), population\n// current episode: consecutive touch bars 0..e-1; previous episode: the next run of touch bars before a gap\nprevHi = max high of the previous episode (within lookback);\ncurHiBefore = max high of bars 1..e-1 of the current episode;\nlong = touch[0] && havePrev && el_gt(high[0], prevHi) && !(e > 1 && el_gt(curHiBefore, prevHi));",
+      "sides": "mirrored",
+      "parameters": {
+        "length": 20,
+        "numDevs": 2,
+        "lookback": 60
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band series history and episode bookkeeping over a variable window"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "BollingerBandCross fires on a close crossing back over a band; no rule compares successive band touches. TRIAGE: a twist (Decision 5), previously backtested (Q1)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Treating consecutive touch bars as one episode is a concretization; touch-bar-by-touch-bar is the other reading (open question).",
+        "bbUpper[i] is recomputed fresh per offset from price (BollingerBand is fresh per bar)."
+      ]
+    },
+    {
+      "id": "ON-64-b",
+      "name": "UpperBandTouchBarBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#64",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "After a touch of the upper bollinger band, go long on the next candle to close above the high of the touch candle. If lower band is touched, invalidate the long trade.",
+      "description": "Take the most recent upper-band touch bar T in 1..L. Long on the first close above high[T] since T, provided no bar since T touched the lower band. Short mirrors.",
+      "pseudocode": "T = most recent i in 1..L with el_ge(high[i], bbUpper[i]);\nok = haveT;\nfor (i = 1; i < T; ++i) if (el_le(low[i], bbLower[i]) || el_gt(close[i], high[T])) ok = false;\nlong = ok && !el_le(low[0], bbLower[0]) && el_gt(close[0], high[T]);",
+      "sides": "mirrored",
+      "parameters": {
+        "length": 20,
+        "numDevs": 2,
+        "maxWaitBars": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band history plus an armed-level scan"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "Not a band cross; closest structural relative is PriorHighBreakoutWithOffset-style 'close above a prior bar's high', here anchored to the band-touch bar. Previously backtested (Q1)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The expiry L is not in the note (default 10). A bar touching both bands on bar 0 does not fire."
+      ]
+    },
+    {
+      "id": "ON-64-c",
+      "name": "BollingerWidthBelowAverage",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#64",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "Filter is that range from upper to lower bollinger band is less than its average over the last X bars.",
+      "description": "Bollinger band width (upper - lower = 2k x StdDev) below its own X-bar average: a low-volatility filter. k cancels, so it is StdDev(close, N) below its X-bar average.",
+      "pseudocode": "sd = stddev(close, N);   // a variable; its history is zero-filled before the first bar\npass = el_lt(sd, average(sd, X));",
+      "sides": "same",
+      "parameters": {
+        "length": 20,
+        "widthLookback": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "average over a variable's own history (the BarRangeAboveStd mirror shape)"
+      },
+      "el_words_needed": [
+        "StdDev",
+        "Average",
+        "BollingerBand"
+      ],
+      "likely_existing_rule": "AtrAboveAverage",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AtrAboveAverage",
+        "origin": "unknown (August 2026 authoring batch)",
+        "evidence": "AtrAboveAverage (negated) is the same shape on ATR; nothing tests the StdDev of close against its own average. Width in price units, compared with itself, so the shift test passes."
+      },
+      "confidence": "high",
+      "notes": [
+        "Zero-filled warm-up makes the average small early on, so the filter rarely passes during warm-up (the AtrAboveAverage note in reverse)."
+      ]
+    },
+    {
+      "id": "P10",
+      "name": "BandHighThenMidlineRetrace",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P10",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        26
+      ],
+      "quote": "Market formed an X-bar high that touches the top of bollinger bands. Enter long on the retracement to the bollinger middle line or lower line.",
+      "description": "Within the last L bars some bar made an X-bar high with its high at or above the upper band; this bar's low reaches the middle band (or the lower band, by input) for the first time since: long. Short mirrors.",
+      "pseudocode": "T = most recent i in 1..L with el_ge(high[i], highest(high, X)[i]) && el_ge(high[i], bbUpper[i]);\nlevelAt(i) = average(close, length)[i] - retraceDevs * stddev(close, length)[i];   // retraceDevs 0 = middle band, numDevs = lower band\nlevel = levelAt(0);\nfirst = true; for (i = 1; i < T; ++i) if (el_le(low[i], levelAt(i))) first = false;\nlong = haveT && first && el_le(low[0], level);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20,
+        "length": 20,
+        "numDevs": 2,
+        "retraceDevs": 0,
+        "maxWaitBars": 15
+      },
+      "book_order_type": "limit at the band; mechanized as the bar's low reaching it, next open",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band history and an armed retracement"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev",
+        "Highest"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "BollingerBandCross buys a close back over the lower band; nothing arms on an upper-band new high and buys the pull to the middle. Kept as a twist (Decision 9)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "retraceDevs selects the level: 0 the middle band, numDevs the lower band (lower = mid - numDevs x sd)."
+      ]
+    }
+  ],
+  "primitives_to_inline": [],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+    "name": "SwingLowRejection",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "tol": "0.25",
+        "w": "0.33",
+        "maxBarsBack": "60",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "pok": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBot": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveLo1": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi1": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Swing low rejection (Brian's notes P13-b, TRIAGE P13, p. 36). The bar's low\n// comes within tol ATR of the most recent CONFIRMED swing low, on EITHER side,\n// and the bar REJECTS it: it closes above the swing low with a lower wick\n// (min(open, close) - low) of at least w of its range. LONG. Short mirrors at\n// the latest swing high. The note's context -- \"the next swing low is higher\"\n// (P13-a) -- is HigherSwingLow and is placed separately, never folded in here.\n//\n// Not SwingPointTestHolds (one-sided: may not trade below the level) and not\n// FailedSwingBreakoutReversal (must trade below, depth unbounded, no wick test):\n// this is a two-sided band with a bounded undercut AND a wick test, so no single\n// placement of either reproduces it.\n//\n// Pivot scan inlined from SwingHigh at Occurrence 1 (the twin calls SwingLow /\n// SwingHigh, VERIFIED): MEASURED mixed test -- at-or-beyond the strength OLDER\n// bars, STRICTLY beyond the strength NEWER bars (the smaller pk) -- lag exactly\n// strength, offsets strength..maxBarsBack-1, deepest bar maxBarsBack - 1 +\n// strength, el_* for the relational tolerance; existence is a bool, never a\n// price test against -1. MinList/MaxList pick between open and close, tick-grid\n// operands inside their ACCEPTED scope, so plain comparisons stand in.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingPointTestHolds's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;), because EL\n// evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nlo1 = 0.0;\nhaveLo1 = false;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lo1 = low[pj]; haveLo1 = true; break; }\n}\nhi1 = 0.0;\nhaveHi1 = false;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { hi1 = high[pj]; haveHi1 = true; break; }\n}\nbodyBot = open[0];\nif (close[0] < bodyBot) bodyBot = close[0];\nbodyTop = open[0];\nif (close[0] > bodyTop) bodyTop = close[0];",
+    "longCondition": "haveLo1 && el_le(std::fabs(low[0] - lo1), tol * atrValue) && el_gt(close[0], lo1) && el_ge(bodyBot - low[0], w * (high[0] - low[0]))",
+    "shortCondition": "haveHi1 && el_le(std::fabs(high[0] - hi1), tol * atrValue) && el_lt(close[0], hi1) && el_ge(high[0] - bodyTop, w * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

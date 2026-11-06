@@ -1,0 +1,394 @@
+{
+  "slice": "03_swing_lines",
+  "rules": [
+    {
+      "id": "ON-52",
+      "name": "FractalTrendlineBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#52",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        62,
+        63
+      ],
+      "quote": "Downward trendline defined by 3 or more consecutive fractal highs (5-bar) for which linear regression gives R^2 < Y. Enter long on first candle to close above the trendline. Invalidate trendline if it happened more than Z bars ago or if there is a close that crosses it.",
+      "description": "Least-squares line through the M most recent swing highs (price on bar index). It qualifies when R^2 > Y (Brian's correction), its slope is at most -minSlope ATR per bar, and its newest pivot is no more than Z bars old. Long on the first close above the projected line, no close having crossed it since the newest pivot. Short mirrors on an up-line through swing lows; p.63's fade is the flip toggle.",
+      "pseudocode": "// x[k], y[k]: bars-ago and price of swing-high occurrences k = 0..M-1 (high-side scan)\nhaveM = foundHighs >= M;\nmx = mean(x); my = mean(y);\nsxx = sum((x-mx)^2); sxy = sum((x-mx)*(y-my)); syy = sum((y-my)^2);   // centred: shift-invariant\nslopeAgo = sxy / sxx;            // price per bar-ago; forward slope = -slopeAgo\nr2 = sxy * sxy / (sxx * syy);    // guard syy > 0 and sxx > 0\nlineAt(j) = my + slopeAgo * (j - mx);\nqual = haveM && sxx > 0 && syy > 0 && el_gt(r2, minR2)\n       && el_ge(slopeAgo, minSlopeAtr * atr(atrLength)) && x[0] <= maxAgeBars;\nclean = true; for (i = 1; i < x[0]; ++i) if (el_gt(close[i], lineAt(i))) clean = false;\nlong = qual && clean && el_gt(close[0], lineAt(0));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "pivotCount": 3,
+        "minR2": 0.8,
+        "minSlopeAtr": 0.05,
+        "maxAgeBars": 30,
+        "atrLength": 14,
+        "pivotLookback": 150
+      },
+      "book_order_type": "close above the line (already close-based)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection, least-squares fit with R^2, and line projection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "TrendLineBreak",
+      "library_check": {
+        "verdict": "near",
+        "rule": "TrendLineBreak",
+        "origin": "Brooks",
+        "evidence": "TrendLineBreak draws a two-pivot line through the two most recent swing highs and fires on the close through it; this fits M >= 3 pivots by regression and gates on R^2, slope and age. At M = 2 R^2 is identically 1 and the line is TrendLineBreak's, so the two coincide only at that degenerate setting (minus the slope and age gates)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The raw note says R^2 < Y; TRIAGE (Brian 2026-11-05) corrects it to R^2 > Y.",
+        "Sums are centred on the means so the fit is shift-invariant in floating point too; the EL twin must sum in the same order (newest-first).",
+        "slopeAgo >= minSlope*ATR means the line FALLS going forward (bars-ago axis); minSlope and Z defaults are not in the note."
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "SwingHighClusterDecisiveBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P9",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        24
+      ],
+      "quote": "3 or more swing highs (3 bar, 5 bar) at about the same price with no significant break of that level. Decisive break of the swing highs (close at least Y ATR above the swing highs). Enter long.",
+      "description": "The M most recent swing highs (strength 1 or 2) lie within tol x ATR of each other; no close since the oldest of them went above their max by breakTol x ATR; now the close is at least Y x ATR above their max. Long; short mirrors on swing lows.",
+      "pseudocode": "ok = foundHighs >= M && el_le(maxH - minH, tol * atr);\nfor (i = 1; i < oldestBarsAgo; ++i) if (el_gt(close[i], maxH + breakTol * atr)) ok = false;\nlong = ok && el_ge(close[0], maxH + Y * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "M": 3,
+        "tol": 0.25,
+        "breakTol": 0.25,
+        "Y": 0.5,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot cluster plus a no-break scan"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "LevelTouchCount",
+      "library_check": {
+        "verdict": "near",
+        "rule": "LevelTouchCount",
+        "origin": "Brooks",
+        "evidence": "LevelTouchCount counts bar touches of a pivot-derived level; DoubleExtremeBreakout breaks a two-pivot double top/bottom by ticks; CloseBeyondLastSwingPoint closes above K swing highs. None needs M level pivots and an ATR-sized decisive close."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'No significant break' concretized as breakTol x ATR, kept <= Y so the decisive close is the first."
+      ]
+    },
+    {
+      "id": "P13-b",
+      "name": "SwingLowRejection",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P13",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P13-a"
+      ],
+      "pages": [
+        36
+      ],
+      "quote": "Bar rejects off the second swing low (wick near the swing low, close higher",
+      "description": "The bar's low comes within tol x ATR of the latest swing low (either side) and the bar closes above that swing low with a lower wick of at least w of its range: long. Short mirrors at the latest swing high.",
+      "pseudocode": "long = haveLo && el_le(absvalue(low[0] - lo1), tol * atr) && el_gt(close[0], lo1)\n       && el_ge(minlist(open[0], close[0]) - low[0], w * (high[0] - low[0]));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "tol": 0.25,
+        "w": 0.33,
+        "maxBarsBack": 60,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "SwingPointTestHolds",
+      "library_check": {
+        "verdict": "near",
+        "rule": "SwingPointTestHolds",
+        "origin": "Brooks",
+        "evidence": "SwingPointTestHolds: low within tol x ATR ABOVE the swing low without trading below; FailedSwingBreakoutReversal: trades below and closes back above (no depth bound). P13-b is their union with a bounded undercut plus a wick test, so no single placement reproduces it."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Close higher' read as close above the swing low; the wick fraction is a concretization of 'rejects'."
+      ]
+    },
+    {
+      "id": "P15",
+      "name": "LevelPairPivotBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P15",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        42,
+        43
+      ],
+      "quote": "Non-alternating swing highs (2 bars per side) Second and third most recent highs were at same level (.05 ATR or something). Most recent high breaks to the upside by at least 1 x ATR-10. Enter long",
+      "description": "Strength-2 swing highs: the 2nd and 3rd most recent are within eq x ATR of each other and the most recent is at least m x ATR(10) above the higher of them. Long on the bar the newest high is confirmed. Short mirrors on swing lows.",
+      "pseudocode": "long = foundHighs >= 3 && hb1 == strength && el_le(absvalue(h2 - h3), eqAtr * atr)\n       && el_ge(h1, maxlist(h2, h3) + breakAtr * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "eqAtr": 0.05,
+        "breakAtr": 1.0,
+        "atrLookback": 10,
+        "pivotLookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange",
+        "MaxList"
+      ],
+      "likely_existing_rule": "DoubleExtremeBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "DoubleExtremeBreakout",
+        "origin": "Brooks",
+        "evidence": "DoubleExtremeBreakout breaks a two-pivot double top by ticks on any bar's extreme within a failure window; P15 requires the break to be itself a confirmed pivot by an ATR multiple. P9 is the 3+-touch close-break relative (TRIAGE)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Fires at confirmation (2 bars after the pivot bar), the only time the newest pivot is known."
+      ]
+    },
+    {
+      "id": "I3",
+      "name": "SwingRegressionTrend",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I3",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        3
+      ],
+      "quote": "Look at swing extremes (1 bar per side). Fit a line to the most recent X highs and most recent X lows. Trend vs range determined by slope of lines.",
+      "description": "Least-squares slopes through the last X 1-bar swing highs and the last X swing lows, in ATR per bar: both at least +s is an uptrend (long), both at most -s a downtrend (short); otherwise a range.",
+      "pseudocode": "// per side: centred least squares on (bars-ago, price) of occurrences 0..X-1\nslopeHi = -sxyHi / sxxHi; slopeLo = -sxyLo / sxxLo;   // forward slope, price per bar\nlong = haveHi && haveLo && el_ge(slopeHi, s * atr) && el_ge(slopeLo, s * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 1,
+        "X": 4,
+        "s": 0.05,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection and two regressions"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ThreePushSlopeBias",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ThreePushSlopeBias",
+        "origin": "Brooks",
+        "evidence": "ThreePushSlopeBias takes the sign of a line through pattern pivots; TrendLineSlopeFlattening compares two-pivot slopes. No rule regresses N pivots per side."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The 'range' state is neither side; it cannot be reached by negating one side (that admits the other trend), so a range placement needs both negated or a dedicated same-sided form.",
+        "X default not in the note (4)."
+      ]
+    },
+    {
+      "id": "I4",
+      "name": "SwingStructureTrend",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I4",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        4
+      ],
+      "quote": "Just look at last 2 swing highs and swing lows with 30 bars per side. If it made higher highs and higher lows it is an uptrend.",
+      "description": "With strength-30 swing pivots: the latest swing high above the previous one AND the latest swing low above the previous one: uptrend (long). Both lower: downtrend (short). Otherwise ranging.",
+      "pseudocode": "long = haveHi2 && haveLo2 && el_gt(hi1, hi2) && el_gt(lo1, lo2);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 30,
+        "maxBarsBack": 400
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection on both sides"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "near",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow (long: higher swing low; short: lower swing high) is one series per side; I4 needs both series agreeing. Flipping or negating HigherSwingLow cannot supply the higher HIGH (negation admits equality and the -1 guard semantics differ). Would be HigherSwingLow `extends` with a 'both series' input."
+      },
+      "confidence": "high",
+      "notes": [
+        "Strength 30 confirms 30 bars late; maxBarsBack must hold two pivots of each kind."
+      ]
+    }
+  ],
+  "primitives_to_inline": [
+    {
+      "id": "P13-a",
+      "name": "HigherSwingLowContext",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P13",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        35
+      ],
+      "quote": "One swing low. Next swing low is higher.",
+      "description": "The latest confirmed swing low is above the one before it (short: lower swing high).",
+      "pseudocode": "long = haveLo && el_gt(lo1, lo2);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow is exactly this, at strength 2."
+      },
+      "confidence": "high",
+      "notes": []
+    }
+  ],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

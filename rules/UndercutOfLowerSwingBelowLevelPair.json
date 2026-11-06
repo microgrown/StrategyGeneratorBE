@@ -1,0 +1,97 @@
+{
+    "name": "UndercutOfLowerSwingBelowLevelPair",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "100",
+        "pairTolAtr": "0.25",
+        "minBelowAtr": "1",
+        "maxBelowAtr": "3",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiBar3": {
+            "type": "int",
+            "init": "0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loBar3": {
+            "type": "int",
+            "init": "0"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "okU": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// UNDERCUT OF THE LOWER SWING BELOW A LEVEL PAIR (Brian's notes ON-11, #11,\n// p.11). The two most recent swing lows sit at about the same level (within\n// pairTolAtr ATRs of each other); the swing low before them (occurrence 3) is\n// between minBelowAtr and maxBelowAtr ATRs below the lower of the pair and has\n// not been traded below since it formed. This bar's low goes below that\n// earlier swing low and the bar closes back above it: long. Short mirrors at\n// swing highs. Swing strength is not stated in the note (\"identify ATR\n// threshold by eye\"); 2 is the default.\n//\n//\n// Pivot scan hand-rolled as in SwingPivotTarget (the register lists SwingHigh's\n// Occurrence 3+ as unmeasured, and a lagged SwingHigh read is unregistered).\n// MEASURED (EL_Swing_Probe.txt): the pivot bar is AT OR ABOVE the swingStrength\n// OLDER bars and STRICTLY ABOVE the swingStrength NEWER bars -- bars-ago\n// indexing, so the newer bars are the smaller kk; lag exactly swingStrength;\n// the low side's tie sense mirrors the measured high side. No Break -- not a\n// registered word.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently. The local counter is\n// atrLen, not the input.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\nnHi = 0;\nnLo = 0;\nhiPx1 = 0.0;\nhiPx2 = 0.0;\nhiPx3 = 0.0;\nhiBar3 = 0;\nloPx1 = 0.0;\nloPx2 = 0.0;\nloPx3 = 0.0;\nloBar3 = 0;\nfor (int jj = (int)swingStrength; jj <= (int)pivotLookback - 1; ++jj) {\n    okHi = true;\n    okLo = true;\n    for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n        if (el_le(high[jj], high[kk])) okHi = false;\n        if (el_ge(low[jj], low[kk])) okLo = false;\n    }\n    for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n        if (el_lt(high[jj], high[kk])) okHi = false;\n        if (el_gt(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHi < 3) {\n        nHi = nHi + 1;\n        if (nHi == 1) hiPx1 = high[jj];\n        if (nHi == 2) hiPx2 = high[jj];\n        if (nHi == 3) {\n            hiPx3 = high[jj];\n            hiBar3 = jj;\n        }\n    }\n    if (okLo && nLo < 3) {\n        nLo = nLo + 1;\n        if (nLo == 1) loPx1 = low[jj];\n        if (nLo == 2) loPx2 = low[jj];\n        if (nLo == 3) {\n            loPx3 = low[jj];\n            loBar3 = jj;\n        }\n    }\n}\nfireL = false;\nfireS = false;\nif (nLo == 3) {\n    if (el_le(std::fabs(loPx1 - loPx2), pairTolAtr * atrVal)) {\n        gap = loPx1 - loPx3;\n        if (el_lt(loPx2, loPx1)) gap = loPx2 - loPx3;\n        if (el_ge(gap, minBelowAtr * atrVal) && el_le(gap, maxBelowAtr * atrVal)) {\n            okU = true;\n            for (int kk = 1; kk <= loBar3 - 1; ++kk) {\n                if (el_lt(low[kk], loPx3)) okU = false;\n            }\n            if (okU && el_lt(low[0], loPx3) && el_gt(close[0], loPx3)) fireL = true;\n        }\n    }\n}\nif (nHi == 3) {\n    if (el_le(std::fabs(hiPx1 - hiPx2), pairTolAtr * atrVal)) {\n        gap = hiPx3 - hiPx1;\n        if (el_gt(hiPx2, hiPx1)) gap = hiPx3 - hiPx2;\n        if (el_ge(gap, minBelowAtr * atrVal) && el_le(gap, maxBelowAtr * atrVal)) {\n            okU = true;\n            for (int kk = 1; kk <= hiBar3 - 1; ++kk) {\n                if (el_gt(high[kk], hiPx3)) okU = false;\n            }\n            if (okU && el_gt(high[0], hiPx3) && el_lt(close[0], hiPx3)) fireS = true;\n        }\n    }\n}\n",
+    "longCondition": "fireL",
+    "shortCondition": "fireS",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

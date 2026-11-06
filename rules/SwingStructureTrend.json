@@ -1,0 +1,61 @@
+{
+    "name": "SwingStructureTrend",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "30",
+        "maxBarsBack": "400"
+    },
+    "localVariables": {
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "pok": {
+            "type": "bool",
+            "init": "false"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lo2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hi2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SWING STRUCTURE TREND (Brian's notes I4, TRIAGE I4, p. 4), a pane-2 filter.\n// With strength-30 swing pivots (\"30 bars per side\"): the most recent confirmed\n// swing high above the one before it AND the most recent swing low above the one\n// before it -- higher highs and higher lows -- is an uptrend, LONG. Both lower is\n// a downtrend, SHORT. Anything else is a range, true on neither side; negating\n// ONE side admits the other trend, so a range placement needs both negated.\n//\n// Not HigherSwingLow, which reads ONE series per side (long: higher low only;\n// short: lower high only): flipping or negating it cannot supply the second\n// series, since negation admits equality and turns the missing-pivot guard\n// into a pass.\n//\n// Pivot scan inlined from HigherSwingLow verbatim (Occurrences 1 and 2 of the\n// measured SwingLow / SwingHigh): mixed test, lag exactly strength -- 30 bars\n// here, so a pivot is known 30 bars after it printed -- offsets\n// strength..maxBarsBack-1, deepest bar maxBarsBack - 1 + strength; maxBarsBack\n// must hold two pivots of each kind. Existence is a bool set on the SECOND\n// pivot, never a price test against -1.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\nlo1 = 0.0;\nlo2 = 0.0;\nhaveLo = false;\nfoundLo = 0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) {\n        ++foundLo;\n        if (foundLo == 1) { lo1 = low[pj]; }\n        else { lo2 = low[pj]; haveLo = true; break; }\n    }\n}\nhi1 = 0.0;\nhi2 = 0.0;\nhaveHi = false;\nfoundHi = 0;\nfor (pj = (int)strength; pj <= (int)maxBarsBack - 1; ++pj) {\n    pok = true;\n    for (pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) {\n        ++foundHi;\n        if (foundHi == 1) { hi1 = high[pj]; }\n        else { hi2 = high[pj]; haveHi = true; break; }\n    }\n}",
+    "longCondition": "haveHi && haveLo && el_gt(hi1, hi2) && el_gt(lo1, lo2)",
+    "shortCondition": "haveHi && haveLo && el_lt(hi1, hi2) && el_lt(lo1, lo2)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

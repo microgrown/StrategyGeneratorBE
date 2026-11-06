@@ -1,0 +1,62 @@
+{
+    "name": "MaStackGapNarrowing",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLength": "20",
+        "slowLength": "50",
+        "narrowLookback": "10"
+    },
+    "localVariables": {
+        "emaFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaFastSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSlowSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fastHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "slowHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "histCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "histDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "fastLag": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slowLag": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lagReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MA STACK GAP NARROWING (Brian's notes ON-61-a, #61): the note's case is\n// the short (rising stack, fast above slow, gap narrower than\n// narrowLookback bars ago); long mirrors on a falling stack.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaFastSf = 2.0 / (fastLength + 1.0);\nemaSlowSf = 2.0 / (slowLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaFast = close[0];\n    emaSlow = close[0];\n} else {\n    emaFast = emaFast + emaFastSf * (close[0] - emaFast);\n    emaSlow = emaSlow + emaSlowSf * (close[0] - emaSlow);\n}\n// LAGGED EMA READS (MEASURED, XAVERAGE_LAG_FINDINGS.md): ema[k] is bit for\n// bit the value k bars earlier and reads 0.0 before that history exists, so\n// the zero-initialized ring buffer below is exact and the rule guards its\n// first k bars on the bar counter instead of comparing against the zero.\n// Re-seeded if the depth changes.\n// Depth narrowLookback + 1 so lag 0 and lag narrowLookback both live in it.\nhistDepth = (int)narrowLookback + 1;\nif (histDepth < 1) {\n    histDepth = 1;\n}\nif (fastHistory.size() != (std::size_t)histDepth) {\n    fastHistory.assign((std::size_t)histDepth, 0.0);\n    slowHistory.assign((std::size_t)histDepth, 0.0);\n    histCursor = 0;\n}\nfastHistory[histCursor] = emaFast;\nslowHistory[histCursor] = emaSlow;\nfastLag = fastHistory[(histCursor + fastHistory.size() - (std::size_t)((int)narrowLookback)) % fastHistory.size()];\nslowLag = slowHistory[(histCursor + slowHistory.size() - (std::size_t)((int)narrowLookback)) % slowHistory.size()];\nhistCursor = (histCursor + 1) % fastHistory.size();\nlagReady = ctx.CurrentBar() > (int)narrowLookback;",
+    "longCondition": "lagReady && el_lt(emaFast, emaSlow) && el_lt(emaFast, fastLag) && el_lt(emaSlow, slowLag) && el_lt(emaSlow - emaFast, slowLag - fastLag)",
+    "shortCondition": "lagReady && el_gt(emaFast, emaSlow) && el_gt(emaFast, fastLag) && el_gt(emaSlow, slowLag) && el_lt(emaFast - emaSlow, fastLag - slowLag)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

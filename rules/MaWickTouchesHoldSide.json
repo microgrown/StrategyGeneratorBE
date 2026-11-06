@@ -1,0 +1,33 @@
+{
+    "name": "MaWickTouchesHoldSide",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "50",
+        "touchCount": "3"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "downRun": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MA WICK TOUCHES HOLD SIDE (Brian's notes ON-71, #71): the last\n// touchCount EMA touches were wick-only with the body above (long) /\n// below (short). Counters persist; only touch bars update them.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\nif (el_le(low[0], emaVal) && el_ge(high[0], emaVal)) {\n    if (el_gt(open[0], emaVal) && el_gt(close[0], emaVal)) {\n        upRun = upRun + 1;\n    } else {\n        upRun = 0;\n    }\n    if (el_lt(open[0], emaVal) && el_lt(close[0], emaVal)) {\n        downRun = downRun + 1;\n    } else {\n        downRun = 0;\n    }\n}",
+    "longCondition": "el_ge((double)upRun, touchCount)",
+    "shortCondition": "el_ge((double)downRun, touchCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

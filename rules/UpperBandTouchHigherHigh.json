@@ -1,0 +1,94 @@
+{
+    "name": "UpperBandTouchHigherHigh",
+    "type": "Entry",
+    "inputVariables": {
+        "length": "20",
+        "numDevs": "2",
+        "lookback": "60"
+    },
+    "localVariables": {
+        "bbAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbSd": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bbDev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lowerBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "touchUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchUp0": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchDn0": {
+            "type": "bool",
+            "init": "false"
+        },
+        "upPhase": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnPhase": {
+            "type": "int",
+            "init": "0"
+        },
+        "curHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveCurHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "prevHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "havePrevHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "curLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveCurLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "prevLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "havePrevLo": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// UpperBandTouchHigherHigh (Brian's notes ON-64-a, #64). A touch is a bar\n// whose high reaches the upper band (el_ge); a run of consecutive touch bars\n// is ONE touch (an episode). This bar touches, and its high exceeds the\n// highest high of the PREVIOUS episode, and no earlier bar of the current\n// episode already did: long, once per episode. Short mirrors on lower-band\n// touches (low <= lower band) making a lower low. Both episodes must lie in\n// bars 0 .. lookback - 1; an episode cut by the window edge counts with the\n// bars inside it.\n// The bands are BollingerBandCross's construction, open-coded at each offset\n// ii so a past bar's band is computed from price as it stood on that bar (EL's\n// BollingerBand is fresh per bar; reading a stored band variable at [ii]\n// would compare against its zero fill during warm-up): Average(close, length)\n// summed NEWEST-FIRST, POPULATION StdDev, upper = avg + numDevs x sd, lower =\n// avg + (-numDevs) x sd. `bollingerband` VERIFIED; do not reorder the loops.\n// Phases walking back from bar 1: 0 = still in the current episode, 1 = the\n// gap, 2 = in the previous episode, 3 = done.\nupPhase = 0;\ndnPhase = 0;\nhaveCurHi = false;\nhavePrevHi = false;\nhaveCurLo = false;\nhavePrevLo = false;\ncurHi = 0.0;\nprevHi = 0.0;\ncurLo = 0.0;\nprevLo = 0.0;\ntouchUp0 = false;\ntouchDn0 = false;\nfor (int ii = 0; ii <= (int)lookback - 1; ++ii) {\n    bbAvg = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbAvg += close[ii + jj];\n    }\n    bbAvg /= (int)length;\n    bbSd = 0.0;\n    for (int jj = 0; jj < (int)length; ++jj) {\n        bbDev = close[ii + jj] - bbAvg;\n        bbSd += bbDev * bbDev;\n    }\n    bbSd = std::sqrt(bbSd / (int)length);\n    upperBand = bbAvg + numDevs * bbSd;\n    lowerBand = bbAvg + (-numDevs) * bbSd;\n    touchUp = el_ge(high[ii], upperBand);\n    touchDn = el_le(low[ii], lowerBand);\n    if (ii == 0) {\n        touchUp0 = touchUp;\n        touchDn0 = touchDn;\n    } else {\n        if (upPhase == 0) {\n            if (touchUp) {\n                if (!haveCurHi || el_gt(high[ii], curHi)) curHi = high[ii];\n                haveCurHi = true;\n            } else upPhase = 1;\n        } else if (upPhase == 1) {\n            if (touchUp) {\n                upPhase = 2;\n                prevHi = high[ii];\n                havePrevHi = true;\n            }\n        } else if (upPhase == 2) {\n            if (touchUp) {\n                if (el_gt(high[ii], prevHi)) prevHi = high[ii];\n            } else upPhase = 3;\n        }\n        if (dnPhase == 0) {\n            if (touchDn) {\n                if (!haveCurLo || el_lt(low[ii], curLo)) curLo = low[ii];\n                haveCurLo = true;\n            } else dnPhase = 1;\n        } else if (dnPhase == 1) {\n            if (touchDn) {\n                dnPhase = 2;\n                prevLo = low[ii];\n                havePrevLo = true;\n            }\n        } else if (dnPhase == 2) {\n            if (touchDn) {\n                if (el_lt(low[ii], prevLo)) prevLo = low[ii];\n            } else dnPhase = 3;\n        }\n    }\n}",
+    "longCondition": "touchUp0 && havePrevHi && el_gt(high[0], prevHi) && !(haveCurHi && el_gt(curHi, prevHi))",
+    "shortCondition": "touchDn0 && havePrevLo && el_lt(low[0], prevLo) && !(haveCurLo && el_lt(curLo, prevLo))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

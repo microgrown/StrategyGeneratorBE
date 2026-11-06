@@ -1,0 +1,43 @@
+{
+    "name": "LevelBodyDominated",
+    "type": "Entry",
+    "inputVariables": {
+        "minGap": "20",
+        "lookback": "500",
+        "minVisits": "5",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "visitCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "bodyVisits": {
+            "type": "int",
+            "init": "0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "enoughVisits": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Level body dominated (Brian's notes P1d, triage row P1). Pane 2. The P1 visit\n// scan: a VISIT is a bar kk bars ago, minGap <= kk <= lookback, whose low..high\n// range contains the current close (inclusive, el_le/el_ge). At least minVisits\n// visits. Body visit: close[0] inside the visit's body, edges included. Passes\n// when at least bodyFraction of the visits are body visits. EL's\n// MaxList/MinList select between open and close -- tick-grid prices, the scope\n// their ACCEPTED row allows -- so plain comparisons stand in. Both operands of\n// EL's `and` are pure, so C++ short-circuiting is harmless here.\nvisitCount = 0;\nbodyVisits = 0;\nfor (kk = (int)minGap; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], close[0]) && el_ge(high[kk], close[0])) {\n        visitCount = visitCount + 1;\n        bodyTop = open[kk];\n        if (close[kk] > bodyTop) bodyTop = close[kk];\n        bodyBottom = open[kk];\n        if (close[kk] < bodyBottom) bodyBottom = close[kk];\n        if (el_ge(close[0], bodyBottom) && el_le(close[0], bodyTop)) bodyVisits = bodyVisits + 1;\n    }\n}\nenoughVisits = el_ge(visitCount, minVisits) && el_gt(visitCount, 0);",
+    "longCondition": "enoughVisits && el_ge(bodyVisits, bodyFraction * visitCount)",
+    "shortCondition": "enoughVisits && el_ge(bodyVisits, bodyFraction * visitCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,91 @@
+{
+    "name": "BearBarTopHalfUntouchedLong",
+    "type": "Entry",
+    "inputVariables": {
+        "W": "12",
+        "K": "1.0",
+        "F": "0.6",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "ww": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "barR": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barA": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "midW": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cleanTop": {
+            "type": "bool",
+            "init": "true"
+        },
+        "cleanBot": {
+            "type": "bool",
+            "init": "true"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Bear bar top half untouched (Brian's phone notes P14, pp. 38-39). DELAYED\n// (Decision 9): the bar W ago is a strong bear bar (body >= F of range, range >=\n// K x the ATR as of that bar) and none of bars 0..W-1 traded into its top half.\n// LONG counter-trend on the bar the window completes; short mirrors on a strong\n// bull bar with its bottom half untouched. Not ClimaxBar (lag 0, no wait).\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nww = (int)W;\nbarR = high[ww] - low[ww];\natrIdx = (int)atrHist.size() - 1 - (ww);\nbarA = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\nmidW = (high[ww] + low[ww]) / 2;\ncleanTop = true;\ncleanBot = true;\nfor (ii = 0; ii <= ww - 1; ++ii) {\n    if (el_ge(high[ii], midW)) cleanTop = false;\n    if (el_le(low[ii], midW)) cleanBot = false;\n}",
+    "longCondition": "el_lt(close[ww], open[ww]) && el_ge(open[ww] - close[ww], F * barR) && el_ge(barR, K * barA) && cleanTop",
+    "shortCondition": "el_gt(close[ww], open[ww]) && el_ge(close[ww] - open[ww], F * barR) && el_ge(barR, K * barA) && cleanBot",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

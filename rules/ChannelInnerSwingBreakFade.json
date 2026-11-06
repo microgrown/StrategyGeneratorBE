@@ -1,0 +1,150 @@
+{
+    "name": "ChannelInnerSwingBreakFade",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "5",
+        "anchorLookback": "30",
+        "maxLookback": "150"
+    },
+    "localVariables": {
+        "boxLive": {
+            "type": "bool",
+            "init": "false"
+        },
+        "boxNew": {
+            "type": "bool",
+            "init": "false"
+        },
+        "boxLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "boxOrder": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxBarA": {
+            "type": "int",
+            "init": "0"
+        },
+        "boxBarB": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxIsH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxIsL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bxEv1": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxEv2": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxT": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxNextT": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxNextBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "bxRunLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bxRunHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inBType": {
+            "type": "int",
+            "init": "0"
+        },
+        "inFrom": {
+            "type": "int",
+            "init": "0"
+        },
+        "inStage": {
+            "type": "int",
+            "init": "0"
+        },
+        "inPastB": {
+            "type": "bool",
+            "init": "false"
+        },
+        "innerT": {
+            "type": "int",
+            "init": "0"
+        },
+        "innerBar": {
+            "type": "int",
+            "init": "0"
+        },
+        "innerPx": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "innerBroke": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inIsH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inIsL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "inEv1": {
+            "type": "int",
+            "init": "0"
+        },
+        "inEv2": {
+            "type": "int",
+            "init": "0"
+        },
+        "inT": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CHANNEL INNER SWING BREAK FADE (Brian's notes ON-2, #2, p.2). Once a swing\n// box (below) is live, the FIRST swingStrength-bar pivot to form after its\n// anchor B is examined. Short, the note's case: the box is LH (its more recent\n// anchor is the swing high) and that first inner pivot is a swing high below\n// the box top; short the FIRST time a bar's high goes above it (reading\n// confirmed by Brian 2026-11-05). Long mirrors: an HL box, first inner pivot a\n// swing low above the box bottom, buy the first time a bar's low goes below\n// it. If the first inner pivot is of the other type, that side has no setup\n// for this box. The note's stop entry is mechanized as the breaking bar's\n// close, filled at the next open.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// SWING BOX (ON-1-a) -- one inlined form, copied verbatim into\n// ChannelFailedSwingFromHitSide, ChannelInnerSwingBreakFade and\n// InnerBoxFalseBreakReclaim. A horizontal box from an anchor pair of confirmed\n// swingStrength-bar pivots, in either ordering (Brian 2026-11-05): anchor A is\n// a swing low that is also the lowest low of the anchorLookback bars ENDING AT\n// it, and B is the very next pivot in time and is a swing high (boxOrder 1,\n// \"LH\": boxLow = low[A], boxHigh = high[B]); or the mirror, A a swing high that\n// is the anchorLookback-bar highest high and B the next pivot, a swing low\n// (boxOrder 2, \"HL\"). The box is live while no bar since A has traded below\n// boxLow or above boxHigh; a bar AT a side is a hit, not a break. LATCHED:\n// while live, a newer qualifying pair does not replace it; on the bar it\n// breaks, the scan looks again for the most recent qualifying pair. boxBarA /\n// boxBarB are bars-ago and advance one per bar while latched; boxNew marks the\n// bar a box latched. The candidate pivots lie in bars swingStrength ..\n// maxLookback - 1.\n//\n// Pivots are NON-ALTERNATING and use the measured SwingHigh test, hand-rolled\n// as in SwingPivotTarget because the pair scan needs both types in time order\n// (EL_Swing_Probe.txt): AT OR ABOVE the swingStrength OLDER bars, STRICTLY\n// ABOVE the swingStrength NEWER bars (the smaller bxK), lag exactly\n// swingStrength; the low side mirrors. A bar that is both a swing high and a\n// swing low counts as both (Brian 2026-11-05): a green bar (close > open) made\n// its low first, any other bar its high first. The scan runs NEWEST-FIRST, so\n// the event examined as A sees the event immediately newer than it\n// (bxNextT / bxNextBar) as its B. bxRunLo / bxRunHi are the lowest low and\n// highest high of bars 0 .. A: the \"nothing since A took either side out\"\n// test. No Break -- not a registered word.\nboxNew = false;\nif (boxLive) {\n    boxBarA = boxBarA + 1;\n    boxBarB = boxBarB + 1;\n    if (el_lt(low[0], boxLow) || el_gt(high[0], boxHigh)) boxLive = false;\n}\nif (!boxLive) {\n    bxFound = false;\n    bxNextT = 0;\n    bxNextBar = -1;\n    bxRunLo = low[0];\n    bxRunHi = high[0];\n    for (int j = 0; j <= (int)maxLookback - 1; ++j) {\n        if (el_lt(low[j], bxRunLo)) bxRunLo = low[j];\n        if (el_gt(high[j], bxRunHi)) bxRunHi = high[j];\n        if (j >= (int)swingStrength) {\n            bxIsH = true;\n            bxIsL = true;\n            for (int k = j - (int)swingStrength; k <= j - 1; ++k) {\n                if (el_le(high[j], high[k])) bxIsH = false;\n                if (el_ge(low[j], low[k])) bxIsL = false;\n            }\n            for (int k = j + 1; k <= j + (int)swingStrength; ++k) {\n                if (el_lt(high[j], high[k])) bxIsH = false;\n                if (el_gt(low[j], low[k])) bxIsL = false;\n            }\n            bxEv1 = 0;\n            bxEv2 = 0;\n            if (bxIsH) bxEv1 = 1;\n            if (bxIsL) bxEv1 = -1;\n            if (bxIsH && bxIsL) {\n                bxEv1 = -1;\n                bxEv2 = 1;\n                if (el_gt(close[j], open[j])) {\n                    bxEv1 = 1;\n                    bxEv2 = -1;\n                }\n            }\n            for (int e = 1; e <= 2; ++e) {\n                bxT = bxEv1;\n                if (e == 2) bxT = bxEv2;\n                if (bxT != 0) {\n                    if (!bxFound && bxNextT == -bxT) {\n                        bxOk = true;\n                        if (bxT == -1) {\n                            for (int k = j + 1; k <= j + (int)anchorLookback - 1; ++k) {\n                                if (el_gt(low[j], low[k])) bxOk = false;\n                            }\n                            if (bxOk && el_ge(bxRunLo, low[j]) && el_le(bxRunHi, high[bxNextBar])) {\n                                bxFound = true;\n                                boxOrder = 1;\n                                boxLow = low[j];\n                                boxHigh = high[bxNextBar];\n                                boxBarA = j;\n                                boxBarB = bxNextBar;\n                            }\n                        }\n                        if (bxT == 1) {\n                            for (int k = j + 1; k <= j + (int)anchorLookback - 1; ++k) {\n                                if (el_lt(high[j], high[k])) bxOk = false;\n                            }\n                            if (bxOk && el_le(bxRunHi, high[j]) && el_ge(bxRunLo, low[bxNextBar])) {\n                                bxFound = true;\n                                boxOrder = 2;\n                                boxHigh = high[j];\n                                boxLow = low[bxNextBar];\n                                boxBarA = j;\n                                boxBarB = bxNextBar;\n                            }\n                        }\n                    }\n                    bxNextT = bxT;\n                    bxNextBar = j;\n                }\n            }\n        }\n    }\n    if (bxFound) {\n        boxLive = true;\n        boxNew = true;\n    }\n}\n// FIRST PIVOT AFTER B. On the bar a box latches, bars boxBarB .. swingStrength\n// are REPLAYED oldest-first; on later bars only the pivot newly confirmed at\n// bars-ago swingStrength is processed, so every read stays inside maxLookback.\n// Events in TIME order (a bar that is both: green low-after that-high, otherwise\n// high-after that-low, Brian 2026-11-05); inPastB turns on at B's own event, so a\n// both-type bar can put the inner pivot on B's bar. innerBroke records whether\n// any bar since the inner pivot already traded beyond it, which is what makes\n// the entry the FIRST time. inStage: 0 waiting, 1 inner pivot latched.\nfireL = false;\nfireS = false;\nif (boxLive) {\n    inBType = 1;\n    if (boxOrder == 2) inBType = -1;\n    inFrom = (int)swingStrength;\n    if (inStage == 1) innerBar = innerBar + 1;\n    if (boxNew) {\n        inStage = 0;\n        inPastB = false;\n        inFrom = boxBarB;\n    }\n    for (int inJ = inFrom; inJ >= (int)swingStrength; --inJ) {\n        inIsH = true;\n        inIsL = true;\n        for (int k = inJ - (int)swingStrength; k <= inJ - 1; ++k) {\n            if (el_le(high[inJ], high[k])) inIsH = false;\n            if (el_ge(low[inJ], low[k])) inIsL = false;\n        }\n        for (int k = inJ + 1; k <= inJ + (int)swingStrength; ++k) {\n            if (el_lt(high[inJ], high[k])) inIsH = false;\n            if (el_gt(low[inJ], low[k])) inIsL = false;\n        }\n        inEv1 = 0;\n        inEv2 = 0;\n        if (inIsH) inEv1 = 1;\n        if (inIsL) inEv1 = -1;\n        if (inIsH && inIsL) {\n            inEv1 = 1;\n            inEv2 = -1;\n            if (el_gt(close[inJ], open[inJ])) {\n                inEv1 = -1;\n                inEv2 = 1;\n            }\n        }\n        for (int e = 1; e <= 2; ++e) {\n            inT = inEv1;\n            if (e == 2) inT = inEv2;\n            if (inT != 0) {\n                if (inPastB && inStage == 0) {\n                    inStage = 1;\n                    innerT = inT;\n                    innerBar = inJ;\n                    innerPx = low[inJ];\n                    if (inT == 1) innerPx = high[inJ];\n                    innerBroke = false;\n                    for (int k = 1; k <= inJ - 1; ++k) {\n                        if (inT == -1 && el_lt(low[k], innerPx)) innerBroke = true;\n                        if (inT == 1 && el_gt(high[k], innerPx)) innerBroke = true;\n                    }\n                }\n                if (inJ == boxBarB && inT == inBType) inPastB = true;\n            }\n        }\n    }\n    if (inStage == 1) {\n        if (innerT == -1 && boxOrder == 2 && el_gt(innerPx, boxLow) && !innerBroke && el_lt(low[0], innerPx)) fireL = true;\n        if (innerT == 1 && boxOrder == 1 && el_lt(innerPx, boxHigh) && !innerBroke && el_gt(high[0], innerPx)) fireS = true;\n        if (innerT == -1 && el_lt(low[0], innerPx)) innerBroke = true;\n        if (innerT == 1 && el_gt(high[0], innerPx)) innerBroke = true;\n    }\n}\n",
+    "longCondition": "fireL",
+    "shortCondition": "fireS",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

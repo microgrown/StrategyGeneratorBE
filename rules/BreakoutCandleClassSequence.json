@@ -1,0 +1,46 @@
+{
+    "name": "BreakoutCandleClassSequence",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "50",
+        "minC": "1",
+        "maxSpan": "50"
+    },
+    "localVariables": {
+        "hh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ll": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cls": {
+            "type": "int",
+            "init": "0"
+        },
+        "cls0": {
+            "type": "int",
+            "init": "0"
+        },
+        "nC": {
+            "type": "int",
+            "init": "0"
+        },
+        "done": {
+            "type": "bool",
+            "init": "false"
+        },
+        "seqOk": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BREAKOUT CANDLE CLASS SEQUENCE (Brian's notes ON-25, #25). Bar [j] is\n// classed against the prior lookback bars (Extremes over bars j + 1 ..\n// j + lookback, seeded at j + 1, strict): H (= 1) if it closes above their\n// high, L (= -1) if it closes below their low (Brian 2026-11-05: a high\n// candle is a close above, symmetric with the low candle), C (= 2) if it trades through either but\n// closes back inside, otherwise 0. Long: bar 0 is H, bars 1 .. m are ALL C\n// (every bar between the two H's must be C -- Brian 2026-11-05), m >= minC,\n// and bar m + 1 is H. Short: the same with L. The first non-C bar ends the\n// scan; maxSpan bounds it. No Break: the done flag stops the work.\ncls0 = 0;\nnC = 0;\ndone = false;\nseqOk = false;\nfor (int jj = 0; jj <= (int)maxSpan; ++jj) {\n    if (!done) {\n        hh = high[jj + 1];\n        ll = low[jj + 1];\n        for (int ii = 2; ii <= (int)lookback; ++ii) {\n            if (el_gt(high[jj + ii], hh)) hh = high[jj + ii];\n            if (el_lt(low[jj + ii], ll)) ll = low[jj + ii];\n        }\n        cls = 0;\n        if (el_gt(close[jj], hh)) cls = 1;\n        else if (el_lt(close[jj], ll)) cls = -1;\n        else if (el_gt(high[jj], hh) || el_lt(low[jj], ll)) cls = 2;\n        if (jj == 0) {\n            cls0 = cls;\n            if (cls != 1 && cls != -1) done = true;\n        } else if (cls == 2) {\n            nC = nC + 1;\n        } else {\n            done = true;\n            seqOk = (cls == cls0) && el_ge((double)nC, minC);\n        }\n    }\n}",
+    "longCondition": "seqOk && el_eq((double)cls0, 1.0)",
+    "shortCondition": "seqOk && el_eq((double)cls0, -1.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

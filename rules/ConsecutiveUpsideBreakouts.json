@@ -1,0 +1,46 @@
+{
+    "name": "ConsecutiveUpsideBreakouts",
+    "type": "Entry",
+    "inputVariables": {
+        "breakoutBars": "20",
+        "eventCount": "3",
+        "maxScanBars": "300"
+    },
+    "localVariables": {
+        "hh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ll": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upN": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnN": {
+            "type": "int",
+            "init": "0"
+        },
+        "seen": {
+            "type": "int",
+            "init": "0"
+        },
+        "isUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "isDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CONSECUTIVE UPSIDE BREAKOUTS (Brian's notes P8): the last eventCount\n// breakout events were ALL upside: long; all downside: short. Kept distinct\n// from BreakoutDirectionShare by Brian's decision, though under this reading\n// it equals that rule at minShare 1.\n// BREAKOUT EVENT SCAN (shared by BreakoutDirectionShare and\n// ConsecutiveUpsideBreakouts, Brian's notes P4/P8). Walking back from bar 0,\n// bar [i] is an UPSIDE breakout event when its high is above the prior\n// breakoutBars-bar high (Extremes over bars i + 1 .. i + breakoutBars, seeded\n// at i + 1, strict) and a DOWNSIDE event when its low is below the prior low;\n// a bar doing both is ambiguous and skipped. The scan stops once eventCount\n// events are seen, or after maxScanBars bars.\nupN = 0;\ndnN = 0;\nseen = 0;\nfor (int ii = 0; ii <= (int)maxScanBars - 1; ++ii) {\n    if (el_lt((double)seen, eventCount)) {\n        hh = high[ii + 1];\n        ll = low[ii + 1];\n        for (int jj = 2; jj <= (int)breakoutBars; ++jj) {\n            if (el_gt(high[ii + jj], hh)) hh = high[ii + jj];\n            if (el_lt(low[ii + jj], ll)) ll = low[ii + jj];\n        }\n        isUp = el_gt(high[ii], hh);\n        isDn = el_lt(low[ii], ll);\n        if (isUp && !isDn) {\n            upN = upN + 1;\n            seen = seen + 1;\n        } else if (isDn && !isUp) {\n            dnN = dnN + 1;\n            seen = seen + 1;\n        }\n    }\n}",
+    "longCondition": "el_eq((double)seen, eventCount) && el_eq((double)upN, eventCount)",
+    "shortCondition": "el_eq((double)seen, eventCount) && el_eq((double)dnN, eventCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

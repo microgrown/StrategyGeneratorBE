@@ -1,0 +1,103 @@
+{
+    "name": "LargeBarTightPauseNearHigh",
+    "type": "Entry",
+    "inputVariables": {
+        "pauseBars": "3",
+        "smallFraction": "0.5",
+        "bandFraction": "0.4",
+        "minRangeAtr": "2.0",
+        "maxRangeAtr": "7.0",
+        "openFraction": "0.25",
+        "closeFraction": "0.25",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "nn": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "bigR": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigA": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sizeOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bullBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearBig": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pauseHi": {
+            "type": "bool",
+            "init": "true"
+        },
+        "pauseLo": {
+            "type": "bool",
+            "init": "true"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Large bar, tight pause near its high (Brian's notes ON-12-b, TRIAGE #12,\n// p. 12). The bar pauseBars ago is a large bull bar (ON-12-a shape) and each of\n// the pauseBars bars since is under smallFraction of its range and lies inside\n// its high +/- bandFraction x its range. LONG on the last pause bar; short\n// mirrors around a large bear bar's low. Not MultiSessionPauseBreakout (that\n// waits for a breakout of a window leg; this enters on the pause itself).\n// The large shaped bar is the shared primitive ON-12-a (LargeShapedBarAtLag),\n// inlined in one form: range strictly between minRangeAtr and maxRangeAtr x the\n// ATR AS OF THAT BAR (atrValue[lag]), open in the bottom openFraction, close in\n// the top closeFraction (bear: open top, close bottom). During warm-up the\n// lagged ATR reads 0, so `r < maxRangeAtr * 0` fails and nothing fires -- as in EL.\n// Every scratch value is a localVariables entry, so a double placement compiles.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nnn = (int)pauseBars;\nbigR = high[nn] - low[nn];\natrIdx = (int)atrHist.size() - 1 - (nn);\nbigA = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\nsizeOk = el_gt(bigR, minRangeAtr * bigA) && el_lt(bigR, maxRangeAtr * bigA);\nbullBig = sizeOk && el_le(open[nn] - low[nn], openFraction * bigR) && el_le(high[nn] - close[nn], closeFraction * bigR);\nbearBig = sizeOk && el_le(high[nn] - open[nn], openFraction * bigR) && el_le(close[nn] - low[nn], closeFraction * bigR);\npauseHi = true;\npauseLo = true;\nfor (jj = 0; jj <= nn - 1; ++jj) {\n    if (!(el_lt(high[jj] - low[jj], smallFraction * bigR) && el_le(high[jj], high[nn] + bandFraction * bigR) && el_ge(low[jj], high[nn] - bandFraction * bigR))) pauseHi = false;\n    if (!(el_lt(high[jj] - low[jj], smallFraction * bigR) && el_le(high[jj], low[nn] + bandFraction * bigR) && el_ge(low[jj], low[nn] - bandFraction * bigR))) pauseLo = false;\n}",
+    "longCondition": "bullBig && pauseHi",
+    "shortCondition": "bearBig && pauseLo",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

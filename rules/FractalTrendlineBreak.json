@@ -1,0 +1,234 @@
+{
+    "name": "FractalTrendlineBreak",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "pivotCount": "3",
+        "minR2": "0.8",
+        "minSlopeAtr": "0.05",
+        "maxAgeBars": "30",
+        "atrLength": "14",
+        "pivotLookback": "150"
+    },
+    "localVariables": {
+        "pS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nFit": {
+            "type": "int",
+            "init": "0"
+        },
+        "pj": {
+            "type": "int",
+            "init": "0"
+        },
+        "pk": {
+            "type": "int",
+            "init": "0"
+        },
+        "nH": {
+            "type": "int",
+            "init": "0"
+        },
+        "nL": {
+            "type": "int",
+            "init": "0"
+        },
+        "cH": {
+            "type": "int",
+            "init": "0"
+        },
+        "cL": {
+            "type": "int",
+            "init": "0"
+        },
+        "hBarNew": {
+            "type": "int",
+            "init": "-1"
+        },
+        "lBarNew": {
+            "type": "int",
+            "init": "-1"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sxH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "syH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sxL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "syL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mxH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "myH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "mxL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "myL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dxH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dyH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dxL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dyL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sxxH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sxyH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "syyH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sxxL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sxyL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "syyL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fitH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fitL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "slopeH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "slopeL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "r2H": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "r2L": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lineH": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lineL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "cleanH": {
+            "type": "bool",
+            "init": "false"
+        },
+        "cleanL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ci": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// FRACTAL TRENDLINE BREAK (Brian's notes ON-52, TRIAGE #52, pp. 62-63). A LONG\n// needs a DOWN line fitted through the pivotCount most recent confirmed swing\n// highs (\"fractal highs\", 5-bar = strength 2) that QUALIFIES -- R^2 above minR2\n// (Brian 2026-11-05 corrects the note's \"R^2 < Y\" to \"> Y\"), falling at least\n// minSlopeAtr ATR per bar, its newest pivot no more than maxAgeBars old -- and\n// that no close has crossed since the newest pivot; it fires on the FIRST close\n// above the line projected to bar 0. Short mirrors on an UP line through the\n// swing lows. p.63's fade is the GUI flip, not a second rule.\n//\n// Not TrendLineBreak: that is the two-pivot line, which this coincides with only\n// at pivotCount = 2 (R^2 identically 1) and without the slope and age gates.\n//\n// The line at bars-ago i is my + slope * (i - mx), the same expression in both\n// twins. The no-cross scan covers bars 1..newest-pivot-1, the bars after the\n// newest pivot; a crossing close there invalidates the line.\n// R^2 = sxy^2 / (sxx * syy) is guarded on syy > 0 (all pivots at one price) --\n// EasyLanguage raises on a zero divide, so the twin guards it the same way.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// THE SWING-POINT REGRESSION, shared verbatim by FractalTrendlineBreak and\n// SwingRegressionTrend. Ordinary least squares of pivot PRICE on pivot BARS-AGO\n// over the nFit most recent confirmed pivots of each side. No arrays (the word is\n// unregistered), so the pivots are not stored: pass 1 scans for them and sums\n// x and y to get the means, pass 2 re-runs the identical scan and accumulates the\n// CENTRED sums sxx, sxy, syy. Centring makes the slope and R^2 depend on price\n// differences only (the shift test). Both passes sum NEWEST-FIRST, in scan order,\n// and the twin's statements are the same statements in the same order, so the two\n// sums are the same doubles. On the bars-ago axis a slope sxy/sxx > 0 means the\n// line was HIGHER in the past, i.e. it FALLS going forward. nFit < 2 never fits.\n//\n// PIVOT SCAN, hand-rolled in BOTH twins (SwingPivotTarget's open-coded form):\n// more than two occurrences are needed and Occurrence 3+ of SwingHigh/SwingLow is\n// UNMEASURED, so no SwingHigh(n, ...) call stands in. MEASURED test\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT OR\n// BEYOND the `strength` OLDER bars and STRICTLY BEYOND the `strength` NEWER bars\n// (bars-ago indexing: the newer bars are the smaller pk, el_gt / el_lt; the older\n// el_ge / el_le), confirmation lag exactly `strength` bars, candidate offsets\n// strength..window-1, the neighbourhood reaching `strength` bars past the window.\n// Swings are non-alternating: highs and lows are two independent series.\n// No early break, matching the twin (Break is not a registered word).\n//\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingPointTestHolds's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;), because EL\n// evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\npS = (int)strength;\npW = (int)pivotLookback;\nnFit = (int)pivotCount;\nnH = 0;\nnL = 0;\nsxH = 0.0;\nsyH = 0.0;\nsxL = 0.0;\nsyL = 0.0;\nhBarNew = -1;\nlBarNew = -1;\nfor (pj = pS; pj <= pW - 1; ++pj) {\n    okHi = true;\n    okLo = true;\n    for (pk = pj - pS; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) okHi = false;\n        if (!el_lt(low[pj], low[pk])) okLo = false;\n    }\n    for (pk = pj + 1; pk <= pj + pS; ++pk) {\n        if (!el_ge(high[pj], high[pk])) okHi = false;\n        if (!el_le(low[pj], low[pk])) okLo = false;\n    }\n    if (okHi && nH < nFit) {\n        nH = nH + 1;\n        if (nH == 1) hBarNew = pj;\n        sxH = sxH + pj;\n        syH = syH + high[pj];\n    }\n    if (okLo && nL < nFit) {\n        nL = nL + 1;\n        if (nL == 1) lBarNew = pj;\n        sxL = sxL + pj;\n        syL = syL + low[pj];\n    }\n}\nhaveH = (nFit >= 2) && (nH >= nFit);\nhaveL = (nFit >= 2) && (nL >= nFit);\nmxH = 0.0;\nmyH = 0.0;\nmxL = 0.0;\nmyL = 0.0;\nif (haveH) {\n    mxH = sxH / nH;\n    myH = syH / nH;\n}\nif (haveL) {\n    mxL = sxL / nL;\n    myL = syL / nL;\n}\ncH = 0;\ncL = 0;\nsxxH = 0.0;\nsxyH = 0.0;\nsyyH = 0.0;\nsxxL = 0.0;\nsxyL = 0.0;\nsyyL = 0.0;\nfor (pj = pS; pj <= pW - 1; ++pj) {\n    okHi = true;\n    okLo = true;\n    for (pk = pj - pS; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) okHi = false;\n        if (!el_lt(low[pj], low[pk])) okLo = false;\n    }\n    for (pk = pj + 1; pk <= pj + pS; ++pk) {\n        if (!el_ge(high[pj], high[pk])) okHi = false;\n        if (!el_le(low[pj], low[pk])) okLo = false;\n    }\n    if (okHi && cH < nFit) {\n        cH = cH + 1;\n        dxH = pj - mxH;\n        dyH = high[pj] - myH;\n        sxxH = sxxH + dxH * dxH;\n        sxyH = sxyH + dxH * dyH;\n        syyH = syyH + dyH * dyH;\n    }\n    if (okLo && cL < nFit) {\n        cL = cL + 1;\n        dxL = pj - mxL;\n        dyL = low[pj] - myL;\n        sxxL = sxxL + dxL * dxL;\n        sxyL = sxyL + dxL * dyL;\n        syyL = syyL + dyL * dyL;\n    }\n}\nfitH = false;\nfitL = false;\nslopeH = 0.0;\nslopeL = 0.0;\nr2H = 0.0;\nr2L = 0.0;\nif (haveH && el_gt(sxxH, 0.0) && el_gt(syyH, 0.0)) {\n    fitH = true;\n    slopeH = sxyH / sxxH;\n    r2H = sxyH * sxyH / (sxxH * syyH);\n}\nif (haveL && el_gt(sxxL, 0.0) && el_gt(syyL, 0.0)) {\n    fitL = true;\n    slopeL = sxyL / sxxL;\n    r2L = sxyL * sxyL / (sxxL * syyL);\n}\nlineH = myH + slopeH * (0 - mxH);\nlineL = myL + slopeL * (0 - mxL);\ncleanH = true;\nfor (ci = 1; ci <= hBarNew - 1; ++ci) {\n    if (el_gt(close[ci], myH + slopeH * (ci - mxH))) cleanH = false;\n}\ncleanL = true;\nfor (ci = 1; ci <= lBarNew - 1; ++ci) {\n    if (el_lt(close[ci], myL + slopeL * (ci - mxL))) cleanL = false;\n}",
+    "longCondition": "fitH && el_gt(r2H, minR2) && el_ge(slopeH, minSlopeAtr * atrValue) && el_le(hBarNew, maxAgeBars) && cleanH && el_gt(close[0], lineH)",
+    "shortCondition": "fitL && el_gt(r2L, minR2) && el_le(slopeL, -minSlopeAtr * atrValue) && el_le(lBarNew, maxAgeBars) && cleanL && el_lt(close[0], lineL)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

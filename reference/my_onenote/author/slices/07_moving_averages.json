@@ -1,0 +1,461 @@
+{
+  "slice": "07_moving_averages",
+  "rules": [
+    {
+      "id": "ON-35",
+      "name": "EmaInvertedBarsAboveSlow",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "35",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        37,
+        38
+      ],
+      "quote": "X (~2-4) consecutive bars where EMA25 < EMA50 and high > EMA50 and low > EMA50",
+      "description": "For each of the last X bars the fast EMA is below the slow EMA while the whole bar sits above the slow EMA: price has run above averages that are still in bearish order. Long; short mirrors (fast above slow, whole bar below the slow EMA). The note gives no direction; .2 is the reverse placement.",
+      "pseudocode": "for (j = 0; j < (int)runBars; ++j)\n  if (!(emaFast[j] < emaSlow[j] && low[j] > emaSlow[j])) return false;   // emaFast/emaSlow: XAverage series variables\nreturn true;",
+      "sides": "mirrored",
+      "parameters": {
+        "fastLength": 25,
+        "slowLength": 50,
+        "runBars": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Two EMA series read over a short window."
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "EmaGapBar",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EmaGapBar",
+        "origin": "Brooks",
+        "evidence": "EmaGapBar is one bar clear of one EMA. ON-35 needs X consecutive bars clear of the SLOW EMA while the fast EMA is still below it (the divergence between price and MA order). EmaGapBarRun (Brooks) counts bars not straddling an EMA on either side, with no MA-order term."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'X consecutive bars' read as: the last X bars all qualify, so it fires on every bar while the run continues (the MomentumConsecutiveBars convention); 'exactly X' is the alternative.",
+        "Equivalent to two ANDed 'for all of the last X bars' tests (MA order, bar above slow EMA), but kept as one rule: the pairing is the idea (Decision 5 twist).",
+        "No direction stated; long written first. Range: runBars 2-4.",
+        "Chart reference AUXCAX H12 2022-02-09."
+      ]
+    },
+    {
+      "id": "ON-38-a",
+      "name": "DoubleEmaTouchRun",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "38",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        41,
+        42
+      ],
+      "quote": "X (3-5) consecutive bars which touch the EMA25 and the EMA50",
+      "description": "Each of the last X bars has a range that contains both the fast and the slow EMA. Direction-agnostic; the direction comes from pane 2 (ON-38-b for #38, ON-39 for #39).",
+      "pseudocode": "for (j = 0; j < (int)runBars; ++j)\n  if (!(low[j] <= min(emaFast[j], emaSlow[j]) && high[j] >= max(emaFast[j], emaSlow[j]))) return false;\nreturn true;",
+      "sides": "same",
+      "parameters": {
+        "fastLength": 25,
+        "slowLength": 50,
+        "runBars": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Two EMA series read over a short window."
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "EmaTouch",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EmaTouch",
+        "origin": "Brooks",
+        "evidence": "EmaTouch is one bar straddling one EMA. ON-38-a is X consecutive bars straddling two EMAs at once (the averages compressed into the bars)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Same 'last X bars all qualify' reading as ON-35.",
+        "Range: runBars 3-5."
+      ]
+    },
+    {
+      "id": "ON-39",
+      "name": "FastEmaAboveSlowEma",
+      "role": "Entry",
+      "pane": "2",
+      "triage_row": "39",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        42
+      ],
+      "quote": "Reverse of 20250303.1 ... EMA25 < EMA50 ... Enter long for reversal",
+      "description": "The fast EMA is above the slow EMA (long) / below (short): an MA-order state filter. #39 places it FLIPPED with ON-38-a (long when EMA25 < EMA50, a reversal entry).",
+      "pseudocode": "emaFast[0] > emaSlow[0]",
+      "sides": "mirrored",
+      "parameters": {
+        "fastLength": 25,
+        "slowLength": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Two EMA series."
+      },
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "likely_existing_rule": "MovingAverageCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "MovingAverageCross",
+        "origin": "Davey EEC E13",
+        "evidence": "MovingAverageCross is the CROSSING event of two SIMPLE averages; ON-39 is the STATE of two EMAs. No catalog rule tests fast-EMA-above-slow-EMA as a state. CloseBeyondEma (Brooks) compares the close with one EMA."
+      },
+      "confidence": "high",
+      "notes": [
+        "TRIAGE: '#38's reverse with EMA25 below EMA50; one rule, the filter in pane 2'. So #39 = ON-38-a + ON-39 flipped; #38 = ON-38-a + ON-38-b.",
+        "A plain MA-order filter is classic, which is fine in pane 2 (Decision 8)."
+      ]
+    },
+    {
+      "id": "ON-61-a",
+      "name": "MaStackGapNarrowing",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#61",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        75
+      ],
+      "quote": "Upward moving averages have not crossed to the downside but the gap between them is narrower than it was X bars ago.",
+      "description": "The note's case is the SHORT side: fast MA above slow MA, both rising over X bars, but the gap fast - slow is smaller than X bars ago (an uptrend losing steam). Long side mirrors: falling stack, fast below slow, gap narrowing.",
+      "pseudocode": "// long side (mirror of the note's short):\nlong = el_lt(emaF, emaS) && el_lt(emaF, emaF[X]) && el_lt(emaS, emaS[X])\n       && el_lt(emaS - emaF, emaS[X] - emaF[X]);",
+      "sides": "mirrored (the note's uptrend case is the short side)",
+      "parameters": {
+        "fastLength": 20,
+        "slowLength": 50,
+        "X": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two EMAs and their history"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "ChannelWidthConvergence measures a narrowing between two pivot LINES; EmaSlope tests one EMA's rise. Nothing reads the gap between two MAs against its own past."
+      },
+      "confidence": "medium",
+      "notes": [
+        "MA type and lengths are not in the note: EMAs 20/50 (the corpus's measured WFSafe_Xaverage). 'Upward' read as each MA above its own value X bars ago.",
+        "EMA history reads need a mirrored buffer (zero-filled before the first bar)."
+      ]
+    },
+    {
+      "id": "ON-68",
+      "name": "MaDistanceRegime",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#68",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Average distance between price and the moving average. Long term one is large in magnitude, short term one is small in magnitude. Enter long (v1) or short (v2) if the long term one is positive",
+      "description": "Mean of (close - EMA) over a long window, in ATR units, is at least +A while the mean over a short window is within +/-B: price has lived well above the average but has come back to it. Long (v1); v2 is the flip. Short mirrors on a negative long-window mean.",
+      "pseudocode": "dLong  = average(close - ema, longWindow) / atr;\ndShort = average(close - ema, shortWindow) / atr;\nlong = el_ge(dLong, minLongAtr) && el_le(absvalue(dShort), maxShortAtr);",
+      "sides": "mirrored (the short-window band is identical on both sides)",
+      "parameters": {
+        "emaLength": 50,
+        "longWindow": 100,
+        "shortWindow": 10,
+        "minLongAtr": 1.0,
+        "maxShortAtr": 0.25,
+        "atrLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "averages over an EMA-derived series"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage",
+        "Average",
+        "WFSafe_AvgTrueRange",
+        "AbsValue"
+      ],
+      "likely_existing_rule": "CloseWithinAtrOfEma",
+      "library_check": {
+        "verdict": "near",
+        "rule": "CloseWithinAtrOfEma",
+        "origin": "Brooks",
+        "evidence": "CloseWithinAtrOfEma tests the current close's distance; no rule averages the distance over a window, let alone two."
+      },
+      "confidence": "medium",
+      "notes": [
+        "One MA and two averaging windows (TRIAGE's reading); MA type and length are not in the note (EMA 50).",
+        "close - ema is a variable: its history before the first evaluated bar is zero-filled in EL (EMA = 0 there), so longWindow must be warm before use."
+      ]
+    },
+    {
+      "id": "ON-71",
+      "name": "MaWickTouchesHoldSide",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#71",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "The last X time price touched the moving average it was a wick and closed all on the same side of the average.",
+      "description": "Each of the last X bars that touched the EMA did so with a wick only, the whole body staying above it (long: the average is holding as support); short mirrors with bodies below. A touch whose body straddles or closes on the other side resets the count.",
+      "pseudocode": "if (el_le(low[0], ema) && el_ge(high[0], ema)) {\n    if (el_gt(minlist(open[0], close[0]), ema)) upRun = upRun + 1; else upRun = 0;\n    if (el_lt(maxlist(open[0], close[0]), ema)) dnRun = dnRun + 1; else dnRun = 0;\n}\nlong = el_ge(upRun, touchCount);",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 50,
+        "touchCount": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "persistent counters across bars"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage",
+        "MaxList",
+        "MinList"
+      ],
+      "likely_existing_rule": "EmaTouchRecovery",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EmaTouchRecovery",
+        "origin": "Brooks",
+        "evidence": "EmaTouchRecovery is one bar trading through the EMA and closing back above; TwentyGapBarPullbackEntry counts bars between touches. Nothing counts consecutive wick-only touches."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Pane 2 because the note states a condition with no entry; it can sit under any pullback entry.",
+        "MA type/length not in the note (EMA 50)."
+      ]
+    },
+    {
+      "id": "ON-85-a",
+      "name": "EmaTouchAfterLongAbsence",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#85",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        95
+      ],
+      "quote": "Look at long-term ema (~200 bar) and see how many bars there are between touches. When the most recent time between touches is much longer than recent ones, enter is such a direction that you are expecting the trend line not to hold.",
+      "description": "The bar touches the 200 EMA (range contains it) and the gap since the previous touch is at least K x the mean of the N gaps before that. Enter in the direction of the crossing: long when the bar before the touch was entirely below the EMA (price coming up through it), short when entirely above.",
+      "pseudocode": "touch = el_le(low[0], ema) && el_ge(high[0], ema);\n// persistent: gaps[] = bar counts between successive touches, newest-first; curGap = bars since last touch\nlong = touch && haveN && el_ge(curGap, K * meanOf(gaps, N)) && el_lt(high[1], ema[1]);",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 200,
+        "K": 3,
+        "N": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "persistent touch-gap history and an EMA"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "TwentyGapBarPullbackEntry",
+      "library_check": {
+        "verdict": "near",
+        "rule": "TwentyGapBarPullbackEntry",
+        "origin": "Brooks",
+        "evidence": "TwentyGapBarPullbackEntry fires on the first touch after a FIXED gap count and buys the HOLD (close stays above); this uses an adaptive threshold (K x recent mean gap) and trades THROUGH the average, the opposite direction. EmaGapBarRun counts the gap but has no direction or adaptivity."
+      },
+      "confidence": "high",
+      "notes": [
+        "Gap history lives in a fixed ring of N + 1 slots updated on touch bars."
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "BodyMaBandBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P2",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        3,
+        4
+      ],
+      "quote": "Fit a moving average to the higher end of the bodies (open of red bar / close of green bar) and another to the lower end. Go long when price is more than X*(high ma low ma) above the (moving?) average of the",
+      "description": "SMA of body tops max(open, close) and SMA of body bottoms min(open, close) over N bars; their midpoint and width define a band. Long when the close is more than X x width above the midpoint; short mirrored below.",
+      "pseudocode": "top = average(maxlist(open, close), N); bot = average(minlist(open, close), N);\nmid = (top + bot) / 2; w = top - bot;\nlong = el_gt(close[0], mid + X * w);",
+      "sides": "mirrored",
+      "parameters": {
+        "N": 20,
+        "X": 1.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "two fresh window averages"
+      },
+      "el_words_needed": [
+        "Average",
+        "MaxList",
+        "MinList"
+      ],
+      "likely_existing_rule": "KeltnerChannelCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "KeltnerChannelCross",
+        "origin": "EEC (E26)",
+        "evidence": "Keltner/Bollinger bands are a centre plus a multiple of ATR/StdDev; this band's width is the mean body extent, and the test is a level, not a cross. CloseBeyondEma is the single-MA analogue."
+      },
+      "confidence": "high",
+      "notes": [
+        "Midpoint reading per Brian (TRIAGE). MA type not stated: SMA (fresh Average over price expressions).",
+        "A state, not an event: it fires on every bar beyond the band."
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "MaSideFlipRun",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P5",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        11,
+        12
+      ],
+      "quote": "Most recent X bars are above ma. Before that most recent Y bars (longer) are below ma.",
+      "description": "The last X closes are all above the MA and the Y closes before them were all below it (Y > X): price has just held above after a longer spell below. Long; short mirrored. Fires once, X bars after the flip.",
+      "pseudocode": "ok = true;\nfor (i = 0; i < X; ++i) if (!el_gt(close[i], ma[i])) ok = false;\nfor (i = X; i < X + Y; ++i) if (!el_lt(close[i], ma[i])) ok = false;\nlong = ok;",
+      "sides": "mirrored",
+      "parameters": {
+        "maLength": 50,
+        "X": 3,
+        "Y": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EMA history over a window"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "ConsecutiveClosesBeyondEmaRun",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ConsecutiveClosesBeyondEmaRun",
+        "origin": "Brooks",
+        "evidence": "ConsecutiveClosesBeyondEmaRun is the first half (all of the last N closes above the EMA); BarsBeyondEmaCount is the K-of-N form; CloseCrossesEma the single flip bar. The preceding below-run cannot be reached by a second placement because ConsecutiveClosesBeyondEmaRun has no lag input."
+      },
+      "confidence": "high",
+      "notes": [
+        "MA type/length not in the note: EMA 50 to share the measured WFSafe_Xaverage. Needs the EMA's history (mirrored buffer).",
+        "As written, 'above ma' is read on closes."
+      ]
+    }
+  ],
+  "primitives_to_inline": [],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

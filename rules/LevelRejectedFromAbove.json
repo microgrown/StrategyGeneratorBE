@@ -1,0 +1,47 @@
+{
+    "name": "LevelRejectedFromAbove",
+    "type": "Entry",
+    "inputVariables": {
+        "minGap": "20",
+        "lookback": "500",
+        "minVisits": "5",
+        "wickFraction": "0.6"
+    },
+    "localVariables": {
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "visitCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowerWickVisits": {
+            "type": "int",
+            "init": "0"
+        },
+        "upperWickVisits": {
+            "type": "int",
+            "init": "0"
+        },
+        "bodyTop": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bodyBottom": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "enoughVisits": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Level rejected from above (Brian's notes P1a, triage row P1). The P1 visit\n// scan: a VISIT is a bar kk bars ago, minGap <= kk <= lookback, whose low..high\n// range contains the current close (inclusive, el_le/el_ge). At least minVisits\n// visits are required. Upper-wick visit: close[0] strictly above the visit's\n// body top; lower-wick visit: strictly below its body bottom. SHORT when at\n// least wickFraction of the visits are upper-wick visits; LONG mirrors on\n// lower-wick visits. EL's MaxList/MinList select between open and close --\n// tick-grid prices, the scope their ACCEPTED row allows -- so plain\n// comparisons stand in (AverageUpperTailFraction's form).\nvisitCount = 0;\nlowerWickVisits = 0;\nupperWickVisits = 0;\nfor (kk = (int)minGap; kk <= (int)lookback; ++kk) {\n    if (el_le(low[kk], close[0]) && el_ge(high[kk], close[0])) {\n        visitCount = visitCount + 1;\n        bodyTop = open[kk];\n        if (close[kk] > bodyTop) bodyTop = close[kk];\n        bodyBottom = open[kk];\n        if (close[kk] < bodyBottom) bodyBottom = close[kk];\n        if (el_lt(close[0], bodyBottom)) lowerWickVisits = lowerWickVisits + 1;\n        if (el_gt(close[0], bodyTop)) upperWickVisits = upperWickVisits + 1;\n    }\n}\nenoughVisits = el_ge(visitCount, minVisits) && el_gt(visitCount, 0);",
+    "longCondition": "enoughVisits && el_ge(lowerWickVisits, wickFraction * visitCount)",
+    "shortCondition": "enoughVisits && el_ge(upperWickVisits, wickFraction * visitCount)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

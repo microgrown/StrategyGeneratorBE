@@ -1,0 +1,131 @@
+{
+    "name": "RedRunThroughStackedSupportFade",
+    "type": "Entry",
+    "inputVariables": {
+        "maxRunBars": "10",
+        "zoneStrength": "1",
+        "zoneSize": "3",
+        "zoneWidthAtr": "1",
+        "zoneStdAtr": "0.3",
+        "zoneKillAtr": "0.5",
+        "pivotLookback": "100",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "runK": {
+            "type": "int",
+            "init": "0"
+        },
+        "runOn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "z1Found": {
+            "type": "bool",
+            "init": "false"
+        },
+        "z2Found": {
+            "type": "bool",
+            "init": "false"
+        },
+        "z1Lo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "z1Hi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "z2Lo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "z2Hi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zULo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zUHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zLLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zLHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wN": {
+            "type": "int",
+            "init": "0"
+        },
+        "wMin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wMax": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wMu": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wSS": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "wOld": {
+            "type": "int",
+            "init": "0"
+        },
+        "wOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okP": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okQ": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RED RUN THROUGH STACKED SUPPORT, FADED (Brian's notes ON-26, #26, p.28;\n// reading confirmed by Brian 2026-11-05). Two DISTINCT, STACKED I2 support\n// zones (below) are valid as of the bar before the run. An unbroken run of red\n// bars (close < open) ends at this bar, at most maxRunBars long; its first bar\n// opened at or above the upper zone's bottom (inside the zone counts as \"at\"),\n// and this bar, still red, is the FIRST in the run to close below the lower\n// zone's bottom: long, a fade. Short mirrors: a green run up through two\n// stacked resistance zones, first close above the upper zone's top. The range\n// precondition is a separate pane-2 rule (I3 / I1).\n//\n// THE TWO ZONES. Each window of zoneSize consecutive swing lows is the I2\n// zone as it stood when its newest member formed; it is valid when it passes\n// the width and spread tests and no close since its newest member, up to the\n// reference bar, killed it. Zone 1 is the most recent valid window; zone 2 is\n// the most recent valid window whose price range does not overlap zone 1's\n// (strictly above or below it) -- \"two distinct zones\" (Brian 2026-11-05).\n// Price-disjoint implies member-disjoint, since a shared member would lie in\n// both ranges. The reference bar is the bar before the run (bars-ago runK):\n// candidates at runK + zoneStrength .. runK + pivotLookback - 1, the kill\n// check over closes at bars-ago runK + 1 .. the newest member (I2's own\n// 1 .. newest, shifted). The ATR is the current bar's.\n//\n//\n// I2 SUPPORT ZONE (Brian's indicator 20250116.1, settled 2026-11-05), inlined.\n// A support zone is M (zoneSize) CONSECUTIVE swing lows (consecutive in the swing-low\n// sequence) of strength S (zoneStrength), non-alternating, that all lie within W (zoneWidthAtr) ATRs of each\n// other (max - min <= W x ATR) and whose POPULATION standard deviation is at\n// most K (zoneStdAtr) ATRs -- Brian's spread test, replacing the identically-zero\n// horizontal-line R^2. Bottom = the lowest of them, top = the highest. A close\n// more than a margin (zoneKillAtr) of ATRs below the bottom kills it. Resistance mirrors:\n// swing highs, killed by a close more than the margin above the top. Sums run\n// newest-first, mean first and squared deviations second (two passes). The\n// members are found by re-scanning the window, because EasyLanguage arrays\n// have no row in the register. Pivot test hand-rolled as in SwingPivotTarget\n// (EL_Swing_Probe.txt): AT OR ABOVE the S OLDER bars, STRICTLY ABOVE the S\n// NEWER bars (the smaller index), lag exactly S; the low side mirrors. No\n// Break -- not a registered word.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently. The local counter is\n// atrLen, not the input.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\nfireL = false;\nfireS = false;\n// long: red run down through two support zones\nrunK = 0;\nrunOn = true;\nfor (int jj = 0; jj <= (int)maxRunBars; ++jj) {\n    if (el_ge(close[jj], open[jj])) runOn = false;\n    if (runOn) runK = runK + 1;\n}\nif (runK >= 1 && runK <= (int)maxRunBars) {\n    z1Found = false;\n    z2Found = false;\n    for (int jj = runK + (int)zoneStrength; jj <= runK + (int)pivotLookback - 1; ++jj) {\n        okP = true;\n        for (int mm = jj - (int)zoneStrength; mm <= jj - 1; ++mm) {\n            if (el_ge(low[jj], low[mm])) okP = false;\n        }\n        for (int mm = jj + 1; mm <= jj + (int)zoneStrength; ++mm) {\n            if (el_gt(low[jj], low[mm])) okP = false;\n        }\n        if (okP && !z2Found) {\n            wN = 0;\n            wMin = 0.0;\n            wMax = 0.0;\n            wSum = 0.0;\n            wOld = jj;\n            for (int kk = jj; kk <= runK + (int)pivotLookback - 1; ++kk) {\n                okQ = true;\n                for (int mm = kk - (int)zoneStrength; mm <= kk - 1; ++mm) {\n                    if (el_ge(low[kk], low[mm])) okQ = false;\n                }\n                for (int mm = kk + 1; mm <= kk + (int)zoneStrength; ++mm) {\n                    if (el_gt(low[kk], low[mm])) okQ = false;\n                }\n                if (okQ && wN < (int)zoneSize) {\n                    wN = wN + 1;\n                    if (wN == 1) {\n                        wMin = low[kk];\n                        wMax = low[kk];\n                    }\n                    if (el_lt(low[kk], wMin)) wMin = low[kk];\n                    if (el_gt(low[kk], wMax)) wMax = low[kk];\n                    wSum = wSum + low[kk];\n                    wOld = kk;\n                }\n            }\n            wOk = false;\n            if (wN >= 1 && wN == (int)zoneSize) {\n                wMu = wSum / wN;\n                wSS = 0.0;\n                for (int kk = jj; kk <= wOld; ++kk) {\n                    okQ = true;\n                    for (int mm = kk - (int)zoneStrength; mm <= kk - 1; ++mm) {\n                        if (el_ge(low[kk], low[mm])) okQ = false;\n                    }\n                    for (int mm = kk + 1; mm <= kk + (int)zoneStrength; ++mm) {\n                        if (el_gt(low[kk], low[mm])) okQ = false;\n                    }\n                    if (okQ) wSS = wSS + (low[kk] - wMu) * (low[kk] - wMu);\n                }\n                wOk = el_le(wMax - wMin, zoneWidthAtr * atrVal) && el_le(std::sqrt(wSS / wN), zoneStdAtr * atrVal);\n                for (int kk = runK + 1; kk <= jj; ++kk) {\n                    if (el_lt(close[kk], wMin - zoneKillAtr * atrVal)) wOk = false;\n                }\n            }\n            if (wOk && z1Found && (el_lt(wMax, z1Lo) || el_gt(wMin, z1Hi))) {\n                z2Found = true;\n                z2Lo = wMin;\n                z2Hi = wMax;\n            }\n            if (wOk && !z1Found) {\n                z1Found = true;\n                z1Lo = wMin;\n                z1Hi = wMax;\n            }\n        }\n    }\n    if (z2Found) {\n        zULo = z1Lo;\n        zUHi = z1Hi;\n        zLLo = z2Lo;\n        zLHi = z2Hi;\n        if (el_gt(z2Lo, z1Lo)) {\n            zULo = z2Lo;\n            zUHi = z2Hi;\n            zLLo = z1Lo;\n            zLHi = z1Hi;\n        }\n        if (el_ge(open[runK - 1], zULo) && el_lt(close[0], zLLo) && (runK == 1 || el_ge(close[1], zLLo))) fireL = true;\n    }\n}\n// short: green run up through two resistance zones\nrunK = 0;\nrunOn = true;\nfor (int jj = 0; jj <= (int)maxRunBars; ++jj) {\n    if (el_le(close[jj], open[jj])) runOn = false;\n    if (runOn) runK = runK + 1;\n}\nif (runK >= 1 && runK <= (int)maxRunBars) {\n    z1Found = false;\n    z2Found = false;\n    for (int jj = runK + (int)zoneStrength; jj <= runK + (int)pivotLookback - 1; ++jj) {\n        okP = true;\n        for (int mm = jj - (int)zoneStrength; mm <= jj - 1; ++mm) {\n            if (el_le(high[jj], high[mm])) okP = false;\n        }\n        for (int mm = jj + 1; mm <= jj + (int)zoneStrength; ++mm) {\n            if (el_lt(high[jj], high[mm])) okP = false;\n        }\n        if (okP && !z2Found) {\n            wN = 0;\n            wMin = 0.0;\n            wMax = 0.0;\n            wSum = 0.0;\n            wOld = jj;\n            for (int kk = jj; kk <= runK + (int)pivotLookback - 1; ++kk) {\n                okQ = true;\n                for (int mm = kk - (int)zoneStrength; mm <= kk - 1; ++mm) {\n                    if (el_le(high[kk], high[mm])) okQ = false;\n                }\n                for (int mm = kk + 1; mm <= kk + (int)zoneStrength; ++mm) {\n                    if (el_lt(high[kk], high[mm])) okQ = false;\n                }\n                if (okQ && wN < (int)zoneSize) {\n                    wN = wN + 1;\n                    if (wN == 1) {\n                        wMin = high[kk];\n                        wMax = high[kk];\n                    }\n                    if (el_lt(high[kk], wMin)) wMin = high[kk];\n                    if (el_gt(high[kk], wMax)) wMax = high[kk];\n                    wSum = wSum + high[kk];\n                    wOld = kk;\n                }\n            }\n            wOk = false;\n            if (wN >= 1 && wN == (int)zoneSize) {\n                wMu = wSum / wN;\n                wSS = 0.0;\n                for (int kk = jj; kk <= wOld; ++kk) {\n                    okQ = true;\n                    for (int mm = kk - (int)zoneStrength; mm <= kk - 1; ++mm) {\n                        if (el_le(high[kk], high[mm])) okQ = false;\n                    }\n                    for (int mm = kk + 1; mm <= kk + (int)zoneStrength; ++mm) {\n                        if (el_lt(high[kk], high[mm])) okQ = false;\n                    }\n                    if (okQ) wSS = wSS + (high[kk] - wMu) * (high[kk] - wMu);\n                }\n                wOk = el_le(wMax - wMin, zoneWidthAtr * atrVal) && el_le(std::sqrt(wSS / wN), zoneStdAtr * atrVal);\n                for (int kk = runK + 1; kk <= jj; ++kk) {\n                    if (el_gt(close[kk], wMax + zoneKillAtr * atrVal)) wOk = false;\n                }\n            }\n            if (wOk && z1Found && (el_lt(wMax, z1Lo) || el_gt(wMin, z1Hi))) {\n                z2Found = true;\n                z2Lo = wMin;\n                z2Hi = wMax;\n            }\n            if (wOk && !z1Found) {\n                z1Found = true;\n                z1Lo = wMin;\n                z1Hi = wMax;\n            }\n        }\n    }\n    if (z2Found) {\n        zULo = z1Lo;\n        zUHi = z1Hi;\n        zLLo = z2Lo;\n        zLHi = z2Hi;\n        if (el_gt(z2Lo, z1Lo)) {\n            zULo = z2Lo;\n            zUHi = z2Hi;\n            zLLo = z1Lo;\n            zLHi = z1Hi;\n        }\n        if (el_le(open[runK - 1], zLHi) && el_gt(close[0], zUHi) && (runK == 1 || el_le(close[1], zUHi))) fireS = true;\n    }\n}\n",
+    "longCondition": "fireL",
+    "shortCondition": "fireS",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

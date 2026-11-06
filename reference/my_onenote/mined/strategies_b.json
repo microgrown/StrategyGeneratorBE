@@ -1,0 +1,3035 @@
+{
+  "source": {
+    "source": "Brian's notebooks",
+    "files": [
+      "reference/my_onenote/text/strategies.txt",
+      "reference/my_onenote/text/indicators.txt",
+      "reference/my_onenote/phone_notes.txt",
+      "reference/my_onenote/TRIAGE.md"
+    ],
+    "rows": "Strategies #50-#85 KEEP (incl. #57 filters, #58, #55 exit), I1-I5, P1 (P1a-P1f), P2-P16",
+    "specced": "2026-11-05"
+  },
+  "conventions": "signal-bar close then next-bar open; every tunable constant is a parameter; long side only in pseudocode; non-alternating swings, 5-bar fractal = strength 2; el_* comparisons; ATR is WFSafe_AvgTrueRange",
+  "candidates": [
+    {
+      "id": "ON-50-a",
+      "name": "SwingPivotSequence",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "#50",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        59,
+        60,
+        61,
+        64,
+        71,
+        72
+      ],
+      "quote": "5-bar fractals ordered low, high, low, high.",
+      "description": "The merged, newest-first list of the most recent confirmed swing pivots of strength S (non-alternating EL SwingHigh/SwingLow semantics) inside a lookback window: each entry carries its type (+1 high, -1 low), its price and its bars-ago. Shared by every fractal-ORDER rule in this file (#50, #51, #53, #59, P6). Rules that only need one side (#52, #58, P9, P13, P15, I2-I4) read the per-side occurrences of the measured port directly.",
+      "pseudocode": "// newest-first; the pivot test is the measured SwingHigh port: at-or-beyond the S OLDER bars,\n// STRICTLY beyond the S NEWER bars (EL_Swing_Probe). Confirmation lag is exactly S bars.\nn = 0;\nfor (j = strength; j <= lookback - 1 && n < maxPivots; ++j) {\n    isHi = true; isLo = true;\n    for (k = j - strength; k < j; ++k) { if (!el_gt(high[j], high[k])) isHi = false; if (!el_lt(low[j], low[k])) isLo = false; }\n    for (k = j + 1; k <= j + strength; ++k) { if (!el_ge(high[j], high[k])) isHi = false; if (!el_le(low[j], low[k])) isLo = false; }\n    if (isHi) { t[n] = +1; v[n] = high[j]; b[n] = j; ++n; }\n    if (isLo && n < maxPivots) { t[n] = -1; v[n] = low[j]; b[n] = j; ++n; }\n}\n// p[0] is the newest pivot; a rule needing m pivots checks n >= m (never a price sentinel)",
+      "sides": "same",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100,
+        "maxPivots": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "swing-pivot detection on both series merged into one ordered sequence"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "SwingHigh",
+      "library_check": {
+        "verdict": "near",
+        "rule": "SwingHigh",
+        "origin": "Brooks corpus (pivot primitive, measured with EL_Swing_Probe)",
+        "evidence": "SwingHigh/SwingLow give per-side occurrences only; HigherSwingLow and ThreePushPattern inline the same scan per side. No rule merges both sides into one ordered sequence, which is what 'fractal order' needs."
+      },
+      "confidence": "high",
+      "notes": [
+        "5-bar fractal = strength 2 (MINING convention); strength is the input.",
+        "The EL twin can rebuild the sequence from SwingHighBar/SwingLowBar occurrences (bar indices, so guarded on <> -1, never on price).",
+        "A bar that is both a swing high and a swing low (an outside-bar pivot) enters the list twice at the same bars-ago; their relative order is an open question."
+      ]
+    },
+    {
+      "id": "ON-50",
+      "name": "FractalBoxBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#50",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        59,
+        60
+      ],
+      "quote": "5-bar fractals ordered low, high, low, high. The last two are within the range of the first two. Enter on the first candle to close outside the range of the last two. If it closes above, enter long.",
+      "description": "The four most recent pivots, oldest to newest, are low L1, high H1, low L2, high H2 with L2 and H2 both inside [L1, H1] (a contracting box). Long on the first close above H2 since H2 printed; short on the first close below L2. p.60 (the fade) is the same rule with the per-placement flip.",
+      "pseudocode": "pat = n >= 4 && t[3] == -1 && t[2] == +1 && t[1] == -1 && t[0] == +1\n      && el_ge(v[1], v[3]) && el_le(v[1], v[2]) && el_ge(v[0], v[3]) && el_le(v[0], v[2]);\nboxHi = v[0]; boxLo = v[1];\nfirst = true;\nfor (i = 1; i < b[0]; ++i) if (el_gt(close[i], boxHi) || el_lt(close[i], boxLo)) first = false;\nlong = pat && first && el_gt(close[0], boxHi);\n// short: the same pattern, el_lt(close[0], boxLo)",
+      "sides": "mirrored trigger only: the pivot pattern (L,H,L,H) is the same on both sides, the short fires on the close below L2",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "close outside the box (already close-based)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivot pattern over a variable-length window plus a first-close-outside test"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "Closest: DoubleExtremeBreakout and TrendLineBreak (Brooks) break a level built from two same-side pivots; nothing tests an L-H-L-H contraction box."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Within the range of the first two' read inclusively (el_ge/el_le).",
+        "The rule fires only while these four are still the four most recent pivots; a newer pivot inside the box replaces the pattern.",
+        "Whether the mirrored ordering H,L,H,L should also qualify is an open question (the note states only L,H,L,H)."
+      ]
+    },
+    {
+      "id": "ON-51",
+      "name": "LateFractalFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#51",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        61
+      ],
+      "quote": "Calculate average number of bars between fractal points over the last 8+ fractals. Next fractal comes 2-3x the average number of bars later. If it is a fractal high, enter short. If it is a fractal low, enter long.",
+      "description": "On the bar a new pivot is confirmed, compare the gap since the previous pivot (either type) with the mean gap between the F pivots before it. If the new gap is at least K times the mean, fade the pivot: a late swing low is a long, a late swing high a short.",
+      "pseudocode": "ok = n >= pivotCount + 1 && b[0] == strength && b[pivotCount] > b[1];\nmeanGap = (double)(b[pivotCount] - b[1]) / (pivotCount - 1);\nlateGap = b[1] - b[0];\nlong = ok && t[0] == -1 && el_ge(lateGap, lateMultiple * meanGap);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 300,
+        "pivotCount": 8,
+        "lateMultiple": 2
+      },
+      "book_order_type": "n/a (enter on the confirmation bar's close, next open)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot sequence plus inter-pivot timing statistics"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule in the catalog measures the timing between pivots; SwingLegLengthAtLeast tests a fixed minimum leg length in bars, not relative lateness."
+      },
+      "confidence": "high",
+      "notes": [
+        "'2-3x' is read as a minimum multiple (default 2, range 2-3); an upper cap was not stated.",
+        "The signal is confirmed `strength` bars after the pivot bar, by construction.",
+        "lookback must hold pivotCount + 1 pivots; 300 bars is a starting point."
+      ]
+    },
+    {
+      "id": "ON-52",
+      "name": "FractalTrendlineBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#52",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        62,
+        63
+      ],
+      "quote": "Downward trendline defined by 3 or more consecutive fractal highs (5-bar) for which linear regression gives R^2 < Y. Enter long on first candle to close above the trendline. Invalidate trendline if it happened more than Z bars ago or if there is a close that crosses it.",
+      "description": "Least-squares line through the M most recent swing highs (price on bar index). It qualifies when R^2 > Y (Brian's correction), its slope is at most -minSlope ATR per bar, and its newest pivot is no more than Z bars old. Long on the first close above the projected line, no close having crossed it since the newest pivot. Short mirrors on an up-line through swing lows; p.63's fade is the flip toggle.",
+      "pseudocode": "// x[k], y[k]: bars-ago and price of swing-high occurrences k = 0..M-1 (high-side scan)\nhaveM = foundHighs >= M;\nmx = mean(x); my = mean(y);\nsxx = sum((x-mx)^2); sxy = sum((x-mx)*(y-my)); syy = sum((y-my)^2);   // centred: shift-invariant\nslopeAgo = sxy / sxx;            // price per bar-ago; forward slope = -slopeAgo\nr2 = sxy * sxy / (sxx * syy);    // guard syy > 0 and sxx > 0\nlineAt(j) = my + slopeAgo * (j - mx);\nqual = haveM && sxx > 0 && syy > 0 && el_gt(r2, minR2)\n       && el_ge(slopeAgo, minSlopeAtr * atr(atrLength)) && x[0] <= maxAgeBars;\nclean = true; for (i = 1; i < x[0]; ++i) if (el_gt(close[i], lineAt(i))) clean = false;\nlong = qual && clean && el_gt(close[0], lineAt(0));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "pivotCount": 3,
+        "minR2": 0.8,
+        "minSlopeAtr": 0.05,
+        "maxAgeBars": 30,
+        "atrLength": 14,
+        "pivotLookback": 150
+      },
+      "book_order_type": "close above the line (already close-based)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection, least-squares fit with R^2, and line projection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "TrendLineBreak",
+      "library_check": {
+        "verdict": "near",
+        "rule": "TrendLineBreak",
+        "origin": "Brooks",
+        "evidence": "TrendLineBreak draws a two-pivot line through the two most recent swing highs and fires on the close through it; this fits M >= 3 pivots by regression and gates on R^2, slope and age. At M = 2 R^2 is identically 1 and the line is TrendLineBreak's, so the two coincide only at that degenerate setting (minus the slope and age gates)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The raw note says R^2 < Y; TRIAGE (Brian 2026-11-05) corrects it to R^2 > Y.",
+        "Sums are centred on the means so the fit is shift-invariant in floating point too; the EL twin must sum in the same order (newest-first).",
+        "slopeAgo >= minSlope*ATR means the line FALLS going forward (bars-ago axis); minSlope and Z defaults are not in the note."
+      ]
+    },
+    {
+      "id": "ON-53",
+      "name": "FractalOrderLowHighHigh",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#53",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        64
+      ],
+      "quote": "Order of fractals is low, high, high. Enter long. Order of fractals is high, low, low. Enter short.",
+      "description": "The three most recent pivots, oldest to newest, are a swing low followed by two swing highs (no low between them, possible because swings are non-alternating): long. High, low, low: short. Fires on the bar the third pivot is confirmed.",
+      "pseudocode": "long = n >= 3 && b[0] == strength && t[2] == -1 && t[1] == +1 && t[0] == +1;",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivot sequence"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "near",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow / ThreePushPattern compare pivot PRICES on one side; nothing reads the TYPE order of the merged sequence. No price relation between the two highs is required here."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Fired as an event (the confirmation bar). Holding it as a state until the next pivot is the other reading; see open_questions."
+      ]
+    },
+    {
+      "id": "ON-54",
+      "name": "MomentumLadder",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#54",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        65,
+        66
+      ],
+      "quote": "Close > Close [X] > Close [2X] > Close [4X] Enter long",
+      "description": "Closes sampled at 0, X, 2X and 4X bars ago are strictly descending into the past: a ladder of momentum on three horizons. Long; .2 (short on the same condition) is the flip.",
+      "pseudocode": "long = el_gt(close[0], close[X]) && el_gt(close[X], close[2 * X]) && el_gt(close[2 * X], close[4 * X]);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "fixed-offset close comparisons"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "Momentum",
+      "library_check": {
+        "verdict": "near",
+        "rule": "Momentum",
+        "origin": "original corpus ported from StrategyGeneratorTS (Davey-style momentum, per TRIAGE #60)",
+        "evidence": "Momentum(X) is the first link only; the later links compare LAGGED closes with each other, which no Momentum placement (always anchored at close[0]) reaches. ClosingPatternOne (EEC) orders closes at 1-3 bars, not a scaled ladder."
+      },
+      "confidence": "high",
+      "notes": [
+        "X default is not in the note; 20 with a 5-50 range. Reaches back 4X.",
+        "Davey-style momentum is a pane-2 trend filter only (Decision 3); here the ladder shape is the entry, which TRIAGE kept."
+      ]
+    },
+    {
+      "id": "ON-55",
+      "name": "AdxFallingMomentumFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#55",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        67,
+        68
+      ],
+      "quote": "ADX[1] < ADX[Z] Close[1] > Close[Z] Enter short ... ADX[1] < ADX[Z] Close[1] < Close[Z] Enter long",
+      "description": "A divergence between trend strength and price: ADX has fallen from Z bars ago to the last bar while price has risen over the same span: short (fade); price fell with ADX falling: long. .4 is the flip. Kept as one candidate because the two halves share Z and only mean something as a pair (the divergence twist Decision 5 keeps).",
+      "pseudocode": "long = el_lt(adx[1], adx[Z]) && el_lt(close[1], close[Z]);\n// short: el_lt(adx[1], adx[Z]) && el_gt(close[1], close[Z])",
+      "sides": "mirrored (the ADX term is identical on both sides; only the close comparison flips)",
+      "parameters": {
+        "adxLength": 14,
+        "Z": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's own history, which needs a mirrored series buffer"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "AdxBelowThreshold",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AdxBelowThreshold",
+        "origin": "unknown (August 2026 authoring batch, StrategyGeneratorTS-era)",
+        "evidence": "AdxBelowThreshold and EecTwoAmigos threshold the ADX level; no rule compares ADX with its own lagged value. The close half alone is Momentum at lag Z shifted one bar."
+      },
+      "confidence": "high",
+      "notes": [
+        "Z has no default in the note; 10, range 5-30.",
+        "adx[Z] is WFSafe_ADX's function history; the C++ must mirror it in a buffer, zero-filled before the first evaluated bar (CLAUDE.md zero-fill convention)."
+      ]
+    },
+    {
+      "id": "ON-55-b",
+      "name": "AdxRisingExit",
+      "role": "Exit",
+      "pane": "exit",
+      "triage_row": "#55",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        67,
+        68
+      ],
+      "quote": "Exit if ADX[1] > ADX[Z]",
+      "description": "Exit any position once ADX has risen from Z bars ago to the last bar: the trend is strengthening against a fade.",
+      "pseudocode": "exitLong = el_gt(adx[1], adx[Z]);   // identical for exitShort",
+      "sides": "same",
+      "parameters": {
+        "adxLength": 14,
+        "Z": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's own history"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No ADX-slope exit; AtrRising is the ATR analogue as an entry filter."
+      },
+      "confidence": "high",
+      "notes": [
+        "Reads no position state: an exit by placement. Shares Z with ON-55 by default."
+      ]
+    },
+    {
+      "id": "ON-57-a",
+      "name": "AtrShortLongRatio",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#57",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        70
+      ],
+      "quote": "Volatility - ATR (compare short to long ATR)",
+      "description": "The short-window ATR is at least K times the long-window ATR (volatility expanding); negate for contraction.",
+      "pseudocode": "pass = el_ge(atrFast, multiple * atrSlow);   // same both sides",
+      "sides": "same",
+      "parameters": {
+        "fastLookback": 10,
+        "slowLookback": 50,
+        "multiple": 1.0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "two ATR values"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "AtrFastAboveSlow",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "AtrFastAboveSlow",
+        "origin": "unknown (AtrFastAboveSlow, Aug 2026 batch); TrueRangeAvgRatio is from the 'AI Book' batch",
+        "evidence": "AtrFastAboveSlow is this at multiple = 1 (WFSafe ATRs); TrueRangeAvgRatio carries the multiple K over fresh TR means (lookback, lookback*slowFactor). Any K != 1 with WFSafe ATRs would be AtrFastAboveSlow `extends` (one new input)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Pullback Study filter; Davey's study frame itself is excluded (Decision 3)."
+      ]
+    },
+    {
+      "id": "ON-57-b",
+      "name": "TrueRangeCoefficientOfVariation",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#57",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        70
+      ],
+      "quote": "Volatility - Coefficient of variation",
+      "description": "The coefficient of variation of the true range over N bars (population StdDev / mean) is at most T: volatility is steady. Negate for erratic volatility.",
+      "pseudocode": "m = average(trueRange, N); s = stddev(trueRange, N);   // population form, fresh, newest-first\npass = el_le(s, cvMax * m);   // product form, no divide",
+      "sides": "same",
+      "parameters": {
+        "N": 20,
+        "cvMax": 0.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window mean and standard deviation"
+      },
+      "el_words_needed": [
+        "TrueRange",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "BarRangeAboveStd uses the same mean/StdDev pair to flag one outsized bar; nothing thresholds the dispersion of the window itself."
+      },
+      "confidence": "medium",
+      "notes": [
+        "CV of CLOSE (the textbook form) is std/mean of price and fails the shift test; true range is substituted. Which series Brian meant is an open question.",
+        "Average/StdDev over a price EXPRESSION read real history (fresh loops), not a zero-filled variable."
+      ]
+    },
+    {
+      "id": "ON-57-c",
+      "name": "AdxTrendFilter",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#57",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        70
+      ],
+      "quote": "Trend - ADX",
+      "description": "ADX(14) below (or, negated, at or above) a threshold.",
+      "pseudocode": "pass = el_lt(adx, threshold);",
+      "sides": "same",
+      "parameters": {
+        "lookback": 14,
+        "threshold": 25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "WFSafe_ADX port"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "AdxBelowThreshold",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "AdxBelowThreshold",
+        "origin": "unknown (August 2026 authoring batch)",
+        "evidence": "Identical test, both sides same; the negate toggle gives the trending reading."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "ON-57-d",
+      "name": "ChoppinessIndexAbove",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#57",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        70
+      ],
+      "quote": "Choppiness Index CI = 100 x log10(Sum of ATR (14-day) / Range) / log10(14)",
+      "description": "Choppiness Index over N bars above T (choppy). CI > T is equivalent to Range < ATR x N^(1 - T/100), so it is RangeWidthBelowAtrMultiple with rangeLookback = atrLookback = N and rangeAtrMultiple = N^(1 - T/100); no logarithm is needed.",
+      "pseudocode": "// CI = 100*log10(N*atr/range)/log10(N) > T  <=>  range < atr * pow(N, 1 - T/100)\npass = el_le(highest(high, N) - lowest(low, N), N_pow * atr(N));  // N_pow precomputed per grid point",
+      "sides": "same",
+      "parameters": {
+        "N": 14,
+        "threshold": 61.8
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window range against ATR"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "RangeWidthBelowAtrMultiple",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "RangeWidthBelowAtrMultiple",
+        "origin": "Brooks",
+        "evidence": "Monotone transform: choppy CI > T fires on the bars RangeWidthBelowAtrMultiple(N, N^(1-T/100), N) fires on (61.8 at N=14 gives K = 14^0.382 = 2.74). Differences: the textbook CI uses Sum(TR(1)) and true high/low; the library uses the WFSafe rolling ATR and plain highs/lows. Same as I5 up to the constant."
+      },
+      "confidence": "high",
+      "notes": [
+        "log/log10 have no EL_FEATURES row (UNKNOWN); the transform avoids them, and pow can be done in the grid instead of in EL.",
+        "The note's 'Sum of ATR (14-day)' is read as the sum of 1-bar true ranges over 14 bars, the standard CI."
+      ]
+    },
+    {
+      "id": "ON-58",
+      "name": "StopBeyondRecentFractal",
+      "role": "Exit",
+      "pane": "exit",
+      "triage_row": "#58",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        71
+      ],
+      "quote": "Stop loss below the most recent fractal high / low",
+      "description": "A long exits when the close falls to or below the most recent confirmed swing low (5-bar fractal); a short above the most recent swing high.",
+      "pseudocode": "exitLong = ctx.MarketPosition() > 0 && haveLo1 && el_le(close[0], lo1 - offsetTicks * tick);",
+      "sides": "mirrored",
+      "parameters": {
+        "pivotStrength": 2,
+        "trailOffsetTicks": 0,
+        "lookbackBars": 40
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "swing-pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "MinMove",
+        "PriceScale"
+      ],
+      "likely_existing_rule": "SwingPointTrailingStop",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "SwingPointTrailingStop",
+        "origin": "Brooks",
+        "evidence": "SwingPointTrailingStop at trailOffsetTicks = 0 (default 1) re-reads the latest pivot every bar. If 'most recent' means the pivot at ENTRY, it is InitialStopBeyondSwingAtEntry (also Brooks) at stopTicks = 0."
+      },
+      "confidence": "high",
+      "notes": [
+        "Close-based like the library's (the standing convention for stops)."
+      ]
+    },
+    {
+      "id": "ON-59",
+      "name": "FractalLegSlopeDecay",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#59",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        72
+      ],
+      "quote": "Fractal pattern goes low, high, low, high. Slope on the last leg up (low to high) is less than the slope on the first leg up (first low to high). Enter short.",
+      "description": "The four most recent pivots are L1, H1, L2, H2 (oldest to newest) and the last up-leg L2->H2 rises more slowly per bar than the first up-leg L1->H1: momentum is fading, short. The long side is the mirror: H, L, H, L with the last down-leg shallower than the first. Fires on the bar H2 (L2 on the long side) is confirmed.",
+      "pseudocode": "// long (mirror): pattern H,L,H,L = t[3],t[2],t[1],t[0] = +1,-1,+1,-1\npat = n >= 4 && b[0] == strength && t[3] == +1 && t[2] == -1 && t[1] == +1 && t[0] == -1\n      && b[3] > b[2] && b[1] > b[0];\n// drop per bar: leg1 = (v[3]-v[2])/(b[3]-b[2]), leg2 = (v[1]-v[0])/(b[1]-b[0]); cross-multiplied\nlong = pat && el_lt((v[1] - v[0]) * (b[3] - b[2]), (v[3] - v[2]) * (b[1] - b[0]));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "lookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "ordered pivots plus leg-slope comparison"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "ThreePushPattern",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ThreePushPattern",
+        "origin": "Brooks",
+        "evidence": "ThreePushPattern's converging shapeMode compares push EXTENTS on one side; TrendLineSlopeFlattening compares trend-line slopes. Neither compares the slopes of two legs of an L-H-L-H sequence."
+      },
+      "confidence": "high",
+      "notes": [
+        "Slopes in price per bar; the ratio test is scale-free and shift-invariant. No price relation (e.g. H2 > H1) is required by the note."
+      ]
+    },
+    {
+      "id": "ON-61-a",
+      "name": "MaStackGapNarrowing",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#61",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        75
+      ],
+      "quote": "Upward moving averages have not crossed to the downside but the gap between them is narrower than it was X bars ago.",
+      "description": "The note's case is the SHORT side: fast MA above slow MA, both rising over X bars, but the gap fast - slow is smaller than X bars ago (an uptrend losing steam). Long side mirrors: falling stack, fast below slow, gap narrowing.",
+      "pseudocode": "// long side (mirror of the note's short):\nlong = el_lt(emaF, emaS) && el_lt(emaF, emaF[X]) && el_lt(emaS, emaS[X])\n       && el_lt(emaS - emaF, emaS[X] - emaF[X]);",
+      "sides": "mirrored (the note's uptrend case is the short side)",
+      "parameters": {
+        "fastLength": 20,
+        "slowLength": 50,
+        "X": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two EMAs and their history"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "ChannelWidthConvergence measures a narrowing between two pivot LINES; EmaSlope tests one EMA's rise. Nothing reads the gap between two MAs against its own past."
+      },
+      "confidence": "medium",
+      "notes": [
+        "MA type and lengths are not in the note: EMAs 20/50 (the corpus's measured WFSafe_Xaverage). 'Upward' read as each MA above its own value X bars ago.",
+        "EMA history reads need a mirrored buffer (zero-filled before the first bar)."
+      ]
+    },
+    {
+      "id": "ON-61-b",
+      "name": "NewXBarLowEntry",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#61",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        75
+      ],
+      "quote": "Candle makes a new X bar low. Enter short.",
+      "description": "The bar's low is at or below the lowest low of the last X bars: short (long mirrors on a new X-bar high). The classic trigger paired with ON-61-a's novel filter (Decision 10).",
+      "pseudocode": "long = el_ge(high[0], highest(high, X));   // short: el_le(low[0], lowest(low, X))",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extreme"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "HighestHighBreakout",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "HighestHighBreakout",
+        "origin": "EEC (Davey Entry & Exit Confessions batch)",
+        "evidence": "HighestHighBreakout's short side is exactly 'low at or below the lowest low of the last N bars', current bar included; X shared with ON-61-a."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "ON-62",
+      "name": "NewExtremeFrequency",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#62",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        76
+      ],
+      "quote": "Trend strength indicator: What fraction of the last X bars made a Y bar low?",
+      "description": "At least a fraction F of the last X bars each made a Y-bar low (short side: downtrend strength); the long side counts Y-bar highs.",
+      "pseudocode": "cnt = 0;\nfor (i = 0; i < X; ++i) if (el_ge(high[i], highest(high, Y)[i])) cnt = cnt + 1;   // bar i is the high of the Y bars ending at it\nlong = el_ge(cnt, fraction * X);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20,
+        "Y": 20,
+        "fraction": 0.3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "nested window loop"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "CountIF"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "HighestHighBreakout tests the current bar only; HigherLowCount counts adjacent-bar higher lows; TrendBarCountDominanceInWindow counts trend bars. Nothing counts new Y-bar extremes in a window."
+      },
+      "confidence": "high",
+      "notes": [
+        "'Made a Y-bar low' read inclusively (the bar's low is the lowest of the Y bars ending at it), HighestHighBreakout's '=' convention. Reaches back X - 1 + Y - 1."
+      ]
+    },
+    {
+      "id": "ON-64-a",
+      "name": "UpperBandTouchHigherHigh",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#64",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "Compare last two touches of the upper bollinger band. If those make a higher high, go long.",
+      "description": "The current touch of the upper Bollinger band (high >= band) makes a higher high than the previous touch episode: long, on the first bar of the current episode whose high exceeds the previous episode's high. Short mirrors on lower-band touches making a lower low.",
+      "pseudocode": "touch[i] = el_ge(high[i], bbUpper[i]);   // bbUpper = Average(close, N) + k * StdDev(close, N), population\n// current episode: consecutive touch bars 0..e-1; previous episode: the next run of touch bars before a gap\nprevHi = max high of the previous episode (within lookback);\ncurHiBefore = max high of bars 1..e-1 of the current episode;\nlong = touch[0] && havePrev && el_gt(high[0], prevHi) && !(e > 1 && el_gt(curHiBefore, prevHi));",
+      "sides": "mirrored",
+      "parameters": {
+        "length": 20,
+        "numDevs": 2,
+        "lookback": 60
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band series history and episode bookkeeping over a variable window"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "BollingerBandCross fires on a close crossing back over a band; no rule compares successive band touches. TRIAGE: a twist (Decision 5), previously backtested (Q1)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Treating consecutive touch bars as one episode is a concretization; touch-bar-by-touch-bar is the other reading (open question).",
+        "bbUpper[i] is recomputed fresh per offset from price (BollingerBand is fresh per bar)."
+      ]
+    },
+    {
+      "id": "ON-64-b",
+      "name": "UpperBandTouchBarBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#64",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "After a touch of the upper bollinger band, go long on the next candle to close above the high of the touch candle. If lower band is touched, invalidate the long trade.",
+      "description": "Take the most recent upper-band touch bar T in 1..L. Long on the first close above high[T] since T, provided no bar since T touched the lower band. Short mirrors.",
+      "pseudocode": "T = most recent i in 1..L with el_ge(high[i], bbUpper[i]);\nok = haveT;\nfor (i = 1; i < T; ++i) if (el_le(low[i], bbLower[i]) || el_gt(close[i], high[T])) ok = false;\nlong = ok && !el_le(low[0], bbLower[0]) && el_gt(close[0], high[T]);",
+      "sides": "mirrored",
+      "parameters": {
+        "length": 20,
+        "numDevs": 2,
+        "maxWaitBars": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band history plus an armed-level scan"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "Not a band cross; closest structural relative is PriorHighBreakoutWithOffset-style 'close above a prior bar's high', here anchored to the band-touch bar. Previously backtested (Q1)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The expiry L is not in the note (default 10). A bar touching both bands on bar 0 does not fire."
+      ]
+    },
+    {
+      "id": "ON-64-c",
+      "name": "BollingerWidthBelowAverage",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#64",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        78
+      ],
+      "quote": "Filter is that range from upper to lower bollinger band is less than its average over the last X bars.",
+      "description": "Bollinger band width (upper - lower = 2k x StdDev) below its own X-bar average: a low-volatility filter. k cancels, so it is StdDev(close, N) below its X-bar average.",
+      "pseudocode": "sd = stddev(close, N);   // a variable; its history is zero-filled before the first bar\npass = el_lt(sd, average(sd, X));",
+      "sides": "same",
+      "parameters": {
+        "length": 20,
+        "widthLookback": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "average over a variable's own history (the BarRangeAboveStd mirror shape)"
+      },
+      "el_words_needed": [
+        "StdDev",
+        "Average",
+        "BollingerBand"
+      ],
+      "likely_existing_rule": "AtrAboveAverage",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AtrAboveAverage",
+        "origin": "unknown (August 2026 authoring batch)",
+        "evidence": "AtrAboveAverage (negated) is the same shape on ATR; nothing tests the StdDev of close against its own average. Width in price units, compared with itself, so the shift test passes."
+      },
+      "confidence": "high",
+      "notes": [
+        "Zero-filled warm-up makes the average small early on, so the filter rarely passes during warm-up (the AtrAboveAverage note in reverse)."
+      ]
+    },
+    {
+      "id": "ON-68",
+      "name": "MaDistanceRegime",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#68",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Average distance between price and the moving average. Long term one is large in magnitude, short term one is small in magnitude. Enter long (v1) or short (v2) if the long term one is positive",
+      "description": "Mean of (close - EMA) over a long window, in ATR units, is at least +A while the mean over a short window is within +/-B: price has lived well above the average but has come back to it. Long (v1); v2 is the flip. Short mirrors on a negative long-window mean.",
+      "pseudocode": "dLong  = average(close - ema, longWindow) / atr;\ndShort = average(close - ema, shortWindow) / atr;\nlong = el_ge(dLong, minLongAtr) && el_le(absvalue(dShort), maxShortAtr);",
+      "sides": "mirrored (the short-window band is identical on both sides)",
+      "parameters": {
+        "emaLength": 50,
+        "longWindow": 100,
+        "shortWindow": 10,
+        "minLongAtr": 1.0,
+        "maxShortAtr": 0.25,
+        "atrLookback": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "averages over an EMA-derived series"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage",
+        "Average",
+        "WFSafe_AvgTrueRange",
+        "AbsValue"
+      ],
+      "likely_existing_rule": "CloseWithinAtrOfEma",
+      "library_check": {
+        "verdict": "near",
+        "rule": "CloseWithinAtrOfEma",
+        "origin": "Brooks",
+        "evidence": "CloseWithinAtrOfEma tests the current close's distance; no rule averages the distance over a window, let alone two."
+      },
+      "confidence": "medium",
+      "notes": [
+        "One MA and two averaging windows (TRIAGE's reading); MA type and length are not in the note (EMA 50).",
+        "close - ema is a variable: its history before the first evaluated bar is zero-filled in EL (EMA = 0 there), so longWindow must be warm before use."
+      ]
+    },
+    {
+      "id": "ON-69",
+      "name": "TwoLargeBullBarsLittleOverlap",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#69",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Two large (>1 ATR) green candles with little overlap in the range",
+      "description": "The last two bars are both up-close bars with range at least K x ATR, and their ranges overlap by at most F of the smaller range. Long; short mirrors on red bars.",
+      "pseudocode": "big = 2 of last 2 bars: el_gt(close[i], open[i]) && el_ge(high[i] - low[i], K * atr);\novl = min(high[0], high[1]) - max(low[0], low[1]);\nlong = big && el_le(ovl, F * min(high[0] - low[0], high[1] - low[1]));",
+      "sides": "mirrored (overlap half identical)",
+      "parameters": {
+        "K": 1.0,
+        "F": 0.3,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "two-bar arithmetic plus ATR"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "MaxList",
+        "MinList"
+      ],
+      "likely_existing_rule": "LargeTrendBarCountInWindow + ConsecutiveBarsLittleOverlap",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "LargeTrendBarCountInWindow + ConsecutiveBarsLittleOverlap",
+        "origin": "Brooks",
+        "evidence": "LargeTrendBarCountInWindow(lookback 2, minCount 2, bodyFraction 0, largeMultiple K) AND ConsecutiveBarsLittleOverlap(consecutiveBars 1, maxOverlapFraction F) in two placements fire on the same bars (both use the current ATR and the smaller-range divisor). SpikeTrendBarsLowOverlap is the tick-overlap variant."
+      },
+      "confidence": "high",
+      "notes": [
+        "'Two' read as consecutive. Overlap measured against the smaller range (ConsecutiveBarsLittleOverlap's divisor); the note gives no divisor."
+      ]
+    },
+    {
+      "id": "ON-71",
+      "name": "MaWickTouchesHoldSide",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#71",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "The last X time price touched the moving average it was a wick and closed all on the same side of the average.",
+      "description": "Each of the last X bars that touched the EMA did so with a wick only, the whole body staying above it (long: the average is holding as support); short mirrors with bodies below. A touch whose body straddles or closes on the other side resets the count.",
+      "pseudocode": "if (el_le(low[0], ema) && el_ge(high[0], ema)) {\n    if (el_gt(minlist(open[0], close[0]), ema)) upRun = upRun + 1; else upRun = 0;\n    if (el_lt(maxlist(open[0], close[0]), ema)) dnRun = dnRun + 1; else dnRun = 0;\n}\nlong = el_ge(upRun, touchCount);",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 50,
+        "touchCount": 3
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "persistent counters across bars"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage",
+        "MaxList",
+        "MinList"
+      ],
+      "likely_existing_rule": "EmaTouchRecovery",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EmaTouchRecovery",
+        "origin": "Brooks",
+        "evidence": "EmaTouchRecovery is one bar trading through the EMA and closing back above; TwentyGapBarPullbackEntry counts bars between touches. Nothing counts consecutive wick-only touches."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Pane 2 because the note states a condition with no entry; it can sit under any pullback entry.",
+        "MA type/length not in the note (EMA 50)."
+      ]
+    },
+    {
+      "id": "ON-72-a",
+      "name": "QuietBodiesBeforeBar",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#72",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Last ~10 bars have a small average body to range ratio.",
+      "description": "Over the N bars ENDING ONE BAR AGO, the mean body is below F x the mean range (indecisive bars before the signal bar).",
+      "pseudocode": "for (i = lag; i < lag + N; ++i) { sb += absvalue(close[i] - open[i]); sr += high[i] - low[i]; }\npass = el_lt(sb / N, F * (sr / N));",
+      "sides": "same",
+      "parameters": {
+        "lookback": 10,
+        "weakBodyFraction": 0.4,
+        "lag": 1
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window means"
+      },
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "likely_existing_rule": "AvgBodyBelowRangeFraction",
+      "library_check": {
+        "verdict": "extends",
+        "rule": "AvgBodyBelowRangeFraction",
+        "origin": "Brooks",
+        "evidence": "AvgBodyBelowRangeFraction is this test current-bar-inclusive; adding a lag input (default 0 keeps it unchanged) gives the 'before the signal bar' window. If 'average body to range ratio' means the mean of per-bar ratios, it is AverageTailFractionBelow negated at 1 - F instead (see ON-76-b)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Ratio of means chosen; mean of ratios is the other reading."
+      ]
+    },
+    {
+      "id": "ON-72-b",
+      "name": "LargeStrongBarDirection",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#72",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Next bar is large (>1 ATR) with body >50% the range. Enter in direction of that bar.",
+      "description": "The bar is an up-close bar with range at least K x ATR and body at least F of its range: long; mirrored on a down bar.",
+      "pseudocode": "long = el_gt(close[0], open[0]) && el_ge(close[0] - open[0], 0.5 * (high[0] - low[0])) && el_ge(high[0] - low[0], 1.0 * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "climaxMultiple": 1.0,
+        "bodyFraction": 0.5,
+        "atrLength": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "single-bar arithmetic plus ATR"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ClimaxBar",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "ClimaxBar",
+        "origin": "Brooks",
+        "evidence": "ClimaxBar at climaxMultiple 1 (default 2), bodyFraction 0.5 (default 0.6) is this test; the note's strict '>' differs only on exact ties."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "ON-73",
+      "name": "EmaSlopeAtrPerBar",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#73",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Use slope of ema as an indicator. Units are ATR/bar. ATR lookback same length as lookback over which you calculate the slope.",
+      "description": "The EMA's rise over N bars, divided by N x ATR(N), is at least s ATR per bar (uptrend); short mirrored.",
+      "pseudocode": "long = el_ge(ema - ema[N], s * N * atr(N));",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 50,
+        "slopeLookback": 10,
+        "slopePerBarAtr": 0.05
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EMA history plus ATR"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "EmaSlope",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "EmaSlope",
+        "origin": "Brooks",
+        "evidence": "EmaSlope fires when ema - ema[N] >= slopeAtr x ATR; with atrLookback = slopeLookback = N and slopeAtr = s x N it is this rule. A regression slope (the dropped R^2 sub-question hints at a fit) would be a different rule."
+      },
+      "confidence": "high",
+      "notes": [
+        "The R^2 sub-question is dropped per TRIAGE."
+      ]
+    },
+    {
+      "id": "ON-76-a",
+      "name": "GreenBarFraction",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#76",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Fraction of last X bars that closed green",
+      "description": "At least a fraction F of the last X bars closed above their open (long); short mirrors on red.",
+      "pseudocode": "cnt = CountIF(close > open, X);\nlong = el_ge(cnt, fraction * X);",
+      "sides": "mirrored",
+      "parameters": {
+        "windowBars": 10,
+        "fraction": 0.7
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window count"
+      },
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "likely_existing_rule": "StrongBodyBarCountInWindow",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "StrongBodyBarCountInWindow",
+        "origin": "Brooks",
+        "evidence": "StrongBodyBarCountInWindow at strongBodyFraction = 0 counts exactly the up-close bars (close > open and body >= 0); minCount = F x windowBars. OppositeBodyCountInWindow is the same count read from the other colour against a maximum."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "ON-76-b",
+      "name": "MeanBodyFraction",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#76",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        82
+      ],
+      "quote": "Over last X bars, what is the average candle body as a fraction of the candle range",
+      "description": "The mean over X bars of the per-bar body/range ratio is at least T (decisive bars); negate for indecisive.",
+      "pseudocode": "bf = average(absvalue(close - open) / (high - low + eps), X);\npass = el_ge(bf, T);",
+      "sides": "same",
+      "parameters": {
+        "tailBars": 10,
+        "minBodyFraction": 0.6,
+        "epsilon": 1e-06
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window mean of a per-bar ratio"
+      },
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "likely_existing_rule": "AverageTailFractionBelow",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "AverageTailFractionBelow",
+        "origin": "Brooks",
+        "evidence": "Body fraction = 1 - tail fraction per bar (both over range + eps), so mean body fraction >= T is AverageTailFractionBelow at maxTailFraction = 1 - T; equal up to the eps/(range+eps) term, which moves only near-zero-range bars."
+      },
+      "confidence": "high",
+      "notes": [
+        "The ratio-of-means form is AvgBodyBelowRangeFraction (see ON-72-a and P3)."
+      ]
+    },
+    {
+      "id": "ON-80-a",
+      "name": "DowntrendCloseBelowEma",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#80",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        83
+      ],
+      "quote": "Price trending down.",
+      "description": "Trend context for ON-80-b: close below the EMA(N) for the short; above for the long.",
+      "pseudocode": "long = el_gt(close[0], ema);   // short: el_lt(close[0], ema)",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 50,
+        "marginAtr": 0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EMA"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "CloseBeyondEma",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "CloseBeyondEma",
+        "origin": "Brooks",
+        "evidence": "MINING's prescribed concretization of 'downtrend' is CloseBeyondEma at marginAtr 0."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "ON-80-b",
+      "name": "IsolatedWickExtremeBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#80",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-80-a"
+      ],
+      "pages": [
+        83
+      ],
+      "quote": "At the extreme of the trend (X-bar low) there is a wick with at least Y*ATR of it having no bars in the close In the prior Z bars or Z bars since). Enter short on the first close below the wick.",
+      "description": "A bar w makes the X-bar low, and the price band [low[w], low[w] + Y x ATR] is entered by no bar in the Z bars before w nor the Z bars after w (so it is confirmed Z bars late). After confirmation, short on the first close below low[w]. Long mirrors at an X-bar high with an isolated upper wick, entering on the first close above it.",
+      "pseudocode": "// long side (mirror): search the newest qualifying w with Z <= w <= Z + maxWaitBars\nisoHigh(w) = el_ge(high[w], highest(high, X)[w])\n    && every bar j in w+1..w+Z and w-Z..w-1 has el_lt(high[j], high[w] - Y * atrAt(w));\nclean = true; for (i = 1; i < w - Z; ++i) if (el_gt(close[i], high[w])) clean = false;   // first close beyond since confirmation\nlong = haveW && clean && el_gt(close[0], high[w]);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 50,
+        "Y": 0.5,
+        "Z": 5,
+        "maxWaitBars": 30,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "extreme detection with a two-sided isolation test, confirmed late, then an armed first-close trigger"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "SwingHigh's strength-Z pivot is the shape (an extreme with Z bars either side) but tests only that neighbours do not exceed the extreme, not that they stay Y x ATR away; NotableBarExtremeLevel arms a level from a strong bar, not an isolated wick."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Reading per TRIAGE (Brian 2026-11-05). atrAt(w) is the ATR as of bar w, which needs an ATR history buffer.",
+        "maxWaitBars (how long the level stays armed after confirmation) is not in the note; see open_questions."
+      ]
+    },
+    {
+      "id": "ON-85-a",
+      "name": "EmaTouchAfterLongAbsence",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "#85",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        95
+      ],
+      "quote": "Look at long-term ema (~200 bar) and see how many bars there are between touches. When the most recent time between touches is much longer than recent ones, enter is such a direction that you are expecting the trend line not to hold.",
+      "description": "The bar touches the 200 EMA (range contains it) and the gap since the previous touch is at least K x the mean of the N gaps before that. Enter in the direction of the crossing: long when the bar before the touch was entirely below the EMA (price coming up through it), short when entirely above.",
+      "pseudocode": "touch = el_le(low[0], ema) && el_ge(high[0], ema);\n// persistent: gaps[] = bar counts between successive touches, newest-first; curGap = bars since last touch\nlong = touch && haveN && el_ge(curGap, K * meanOf(gaps, N)) && el_lt(high[1], ema[1]);",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 200,
+        "K": 3,
+        "N": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "persistent touch-gap history and an EMA"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "TwentyGapBarPullbackEntry",
+      "library_check": {
+        "verdict": "near",
+        "rule": "TwentyGapBarPullbackEntry",
+        "origin": "Brooks",
+        "evidence": "TwentyGapBarPullbackEntry fires on the first touch after a FIXED gap count and buys the HOLD (close stays above); this uses an adaptive threshold (K x recent mean gap) and trades THROUGH the average, the opposite direction. EmaGapBarRun counts the gap but has no direction or adaptivity."
+      },
+      "confidence": "high",
+      "notes": [
+        "Gap history lives in a fixed ring of N + 1 slots updated on touch bars."
+      ]
+    },
+    {
+      "id": "ON-85-b",
+      "name": "EmaNoTouchWindow",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "#85",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        95
+      ],
+      "quote": "When ema has not touched within the last X bars. Pair this with volatility filter. Test both directions.",
+      "description": "No bar's range has touched the 200 EMA in the last X bars; direction-agnostic. A volatility filter (e.g. ON-57-a) goes in its own placement.",
+      "pseudocode": "pass = gapRun >= X;   // persistent counter reset on a touching bar",
+      "sides": "same",
+      "parameters": {
+        "emaLength": 200,
+        "gapBarsRequired": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "persistent counter and an EMA"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "EmaGapBarRun",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "EmaGapBarRun",
+        "origin": "Brooks",
+        "evidence": "EmaGapBarRun at emaLength 200 (default 20) and gapBarsRequired X; 'test both directions' is EmaGapBar or a flip in another placement."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "I1",
+      "name": "RangeOutsidePriorRangeFraction",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        1
+      ],
+      "quote": "Generalized, which fraction of the bars range lies outside the range of the previous X bars?",
+      "description": "The part of the bar's high-low range lying above the prior X-bar high or below the prior X-bar low, as a fraction of the bar's range, is at least T: a trend bar. Negate for a consolidation bar.",
+      "pseudocode": "hh = highest(high, X)[1]; ll = lowest(low, X)[1];\nout = maxlist(high[0] - hh, 0) + maxlist(ll - low[0], 0);\npass = el_ge(out, T * (high[0] - low[0]));   // product form: a zero-range bar cannot divide by zero",
+      "sides": "same",
+      "parameters": {
+        "X": 1,
+        "T": 0.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extremes and single-bar arithmetic"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "MaxList"
+      ],
+      "likely_existing_rule": "BreakoutClearsPriorExtremeByMargin",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutClearsPriorExtremeByMargin",
+        "origin": "Brooks",
+        "evidence": "BreakoutClearsPriorExtremeByMargin and CloseAbovePriorHighestHigh test that the bar clears the prior window extreme by a fixed margin; InsideBar (T = 0, negated, X = 1) and OutsideBar are the degenerate ends. None measures the fraction of the bar outside the prior range."
+      },
+      "confidence": "high",
+      "notes": [
+        "Direction-agnostic as TRIAGE describes it; a directional variant would count only the side beyond the prior high.",
+        "MaxList here selects between a price difference and 0, outside EL_FEATURES's accepted scope (tick-grid price operands); a plain if/else in the twin avoids it.",
+        "The note's ATR/indicators-book normalization is not used (TRIAGE)."
+      ]
+    },
+    {
+      "id": "I2-a",
+      "name": "SwingLowSupportZone",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "I2",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        2
+      ],
+      "quote": "Look for prices which have multiple nearby (within X-ATR) swing lows with a horizontal line R^2 value below a threshold. Close well (.5 ATR?) below the bottom of the zone invalidates it.",
+      "description": "A support zone is the M most recent non-alternating 1-bar swing lows when they all lie within X x ATR of each other (max - min) and their population standard deviation is at most k x ATR (Brian's spread test, replacing the identically-zero horizontal R^2). Zone = [min, max]. It is invalidated once any close since the newest of them is below min - margin x ATR. Mirror: resistance from swing highs.",
+      "pseudocode": "// y[0..M-1]: the M most recent swing lows (strength 1), newest-first\nok = foundLows >= M && el_le(max(y) - min(y), X * atr);\nmu = mean(y); sd = sqrt(sum((y - mu)^2) / M);\nok = ok && el_le(sd, k * atr);\nfor (i = 1; i <= newestBarsAgo; ++i) if (el_lt(close[i], min(y) - margin * atr)) ok = false;\nzoneLo = min(y); zoneHi = max(y);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 1,
+        "M": 3,
+        "X": 1.0,
+        "k": 0.3,
+        "margin": 0.5,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection and a spread test over a pivot set"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange",
+        "SquareRoot"
+      ],
+      "likely_existing_rule": "LevelTouchCount",
+      "library_check": {
+        "verdict": "near",
+        "rule": "LevelTouchCount",
+        "origin": "Brooks",
+        "evidence": "LevelTouchCount counts bar touches of one level; DoubleExtremePullback builds a level from two pivots within matchTicks. Neither clusters M pivots with a dispersion test."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Cluster = the M MOST RECENT swing lows (consecutive in the low sequence) is a concretization; 'any M of the last P' is the alternative (open question).",
+        "Row #26 (strategies_a) uses two stacked I2 zones; this primitive is offered for it."
+      ]
+    },
+    {
+      "id": "I2-b",
+      "name": "CloseAtSupportZone",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I2",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "I2-a"
+      ],
+      "pages": [
+        2
+      ],
+      "quote": "Look for prices which have multiple nearby (within X-ATR) swing lows",
+      "description": "A valid I2 support zone exists and the bar's low has come into it (low <= zoneHi + tol x ATR) while the close stays at or above its bottom: price is at support. Short mirrors at a resistance zone.",
+      "pseudocode": "long = ok && el_le(low[0], zoneHi + tol * atr) && el_ge(close[0], zoneLo);",
+      "sides": "mirrored",
+      "parameters": {
+        "tol": 0.25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "depends on the I2 zone primitive"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "SwingPointTestHolds",
+      "library_check": {
+        "verdict": "near",
+        "rule": "SwingPointTestHolds",
+        "origin": "Brooks",
+        "evidence": "SwingPointTestHolds tests one swing low with an ATR tolerance; this tests a multi-pivot zone."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The pane-2 reading of an indicator with no stated threshold is a concretization (TRIAGE: indicators become pane-2 conditions)."
+      ]
+    },
+    {
+      "id": "I3",
+      "name": "SwingRegressionTrend",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I3",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        3
+      ],
+      "quote": "Look at swing extremes (1 bar per side). Fit a line to the most recent X highs and most recent X lows. Trend vs range determined by slope of lines.",
+      "description": "Least-squares slopes through the last X 1-bar swing highs and the last X swing lows, in ATR per bar: both at least +s is an uptrend (long), both at most -s a downtrend (short); otherwise a range.",
+      "pseudocode": "// per side: centred least squares on (bars-ago, price) of occurrences 0..X-1\nslopeHi = -sxyHi / sxxHi; slopeLo = -sxyLo / sxxLo;   // forward slope, price per bar\nlong = haveHi && haveLo && el_ge(slopeHi, s * atr) && el_ge(slopeLo, s * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 1,
+        "X": 4,
+        "s": 0.05,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection and two regressions"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ThreePushSlopeBias",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ThreePushSlopeBias",
+        "origin": "Brooks",
+        "evidence": "ThreePushSlopeBias takes the sign of a line through pattern pivots; TrendLineSlopeFlattening compares two-pivot slopes. No rule regresses N pivots per side."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The 'range' state is neither side; it cannot be reached by negating one side (that admits the other trend), so a range placement needs both negated or a dedicated same-sided form.",
+        "X default not in the note (4)."
+      ]
+    },
+    {
+      "id": "I4",
+      "name": "SwingStructureTrend",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I4",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        4
+      ],
+      "quote": "Just look at last 2 swing highs and swing lows with 30 bars per side. If it made higher highs and higher lows it is an uptrend.",
+      "description": "With strength-30 swing pivots: the latest swing high above the previous one AND the latest swing low above the previous one: uptrend (long). Both lower: downtrend (short). Otherwise ranging.",
+      "pseudocode": "long = haveHi2 && haveLo2 && el_gt(hi1, hi2) && el_gt(lo1, lo2);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 30,
+        "maxBarsBack": 400
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection on both sides"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "near",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow (long: higher swing low; short: lower swing high) is one series per side; I4 needs both series agreeing. Flipping or negating HigherSwingLow cannot supply the higher HIGH (negation admits equality and the -1 guard semantics differ). Would be HigherSwingLow `extends` with a 'both series' input."
+      },
+      "confidence": "high",
+      "notes": [
+        "Strength 30 confirms 30 bars late; maxBarsBack must hold two pivots of each kind."
+      ]
+    },
+    {
+      "id": "I5",
+      "name": "AtrToRangeCongestion",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "I5",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        5
+      ],
+      "quote": "Indicator: ATRX / (X_Bar_High - X_Bar_Low) Maybe it measures congestion zones?",
+      "description": "ATR(X) / (X-bar high - X-bar low) at least T: congestion. Equivalent to RangeWidthBelowAtrMultiple with rangeLookback = atrLookback = X and rangeAtrMultiple = 1/T. Inverse of rows #30-34's consolidation test (strategies_a), which is the same inequality written as range < Y x ATR.",
+      "pseudocode": "pass = el_le(highest(high, X) - lowest(low, X), (1.0 / T) * atr(X));   // product form",
+      "sides": "same",
+      "parameters": {
+        "X": 20,
+        "T": 0.25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window range against ATR"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "RangeWidthBelowAtrMultiple",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "RangeWidthBelowAtrMultiple",
+        "origin": "Brooks",
+        "evidence": "RangeWidthBelowAtrMultiple: el_le(rangeHigh - rangeLow, K * atr), current-bar-inclusive window, WFSafe ATR. I5 above T <=> range <= ATR/T, so K = 1/T and both lookbacks = X; only the ATR window differs from the library default (14 vs 20). Also ON-57-d (Choppiness) is this rule up to the constant."
+      },
+      "confidence": "high",
+      "notes": [
+        "Authored once per TRIAGE; I5 and #30-34 should resolve to the same library rule."
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "BodyMaBandBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P2",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        3,
+        4
+      ],
+      "quote": "Fit a moving average to the higher end of the bodies (open of red bar / close of green bar) and another to the lower end. Go long when price is more than X*(high ma low ma) above the (moving?) average of the",
+      "description": "SMA of body tops max(open, close) and SMA of body bottoms min(open, close) over N bars; their midpoint and width define a band. Long when the close is more than X x width above the midpoint; short mirrored below.",
+      "pseudocode": "top = average(maxlist(open, close), N); bot = average(minlist(open, close), N);\nmid = (top + bot) / 2; w = top - bot;\nlong = el_gt(close[0], mid + X * w);",
+      "sides": "mirrored",
+      "parameters": {
+        "N": 20,
+        "X": 1.5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "two fresh window averages"
+      },
+      "el_words_needed": [
+        "Average",
+        "MaxList",
+        "MinList"
+      ],
+      "likely_existing_rule": "KeltnerChannelCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "KeltnerChannelCross",
+        "origin": "EEC (E26)",
+        "evidence": "Keltner/Bollinger bands are a centre plus a multiple of ATR/StdDev; this band's width is the mean body extent, and the test is a level, not a cross. CloseBeyondEma is the single-MA analogue."
+      },
+      "confidence": "high",
+      "notes": [
+        "Midpoint reading per Brian (TRIAGE). MA type not stated: SMA (fresh Average over price expressions).",
+        "A state, not an event: it fires on every bar beyond the band."
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "BodyToWickRatio",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P3",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        7
+      ],
+      "quote": "Ratio of average body size to average wick length as an indicator. Use where you would use a volatility indicator.",
+      "description": "Mean body / mean wick over N bars below T (wick-dominated); negate for body-dominated. Since mean wick = mean range - mean body, body/wick < T <=> mean body < T/(1+T) x mean range.",
+      "pseudocode": "avgBody = average(absvalue(close - open), N); avgRange = average(high - low, N);\npass = el_lt(avgBody, (T / (1 + T)) * avgRange);",
+      "sides": "same",
+      "parameters": {
+        "lookback": 10,
+        "T": 0.67
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window means"
+      },
+      "el_words_needed": [
+        "Average",
+        "AbsValue"
+      ],
+      "likely_existing_rule": "AvgBodyBelowRangeFraction",
+      "library_check": {
+        "verdict": "exists-param",
+        "rule": "AvgBodyBelowRangeFraction",
+        "origin": "Brooks",
+        "evidence": "AvgBodyBelowRangeFraction (ratio of the two window means, current-inclusive) at weakBodyFraction = T/(1+T): T = 0.67 is the library default 0.4. Exact algebra, not an approximation, with wick = upper + lower tail = range - body."
+      },
+      "confidence": "high",
+      "notes": [
+        "Wick read as both tails together; one tail only would be AverageUpperTailFraction-like and differ."
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "BreakoutDirectionShare",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P4",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        9
+      ],
+      "quote": "X percent of last Y bar breakouts were positive vs negative.",
+      "description": "Scan back for the last Y X-bar breakout events (a bar making a new X-bar high is upside, a new X-bar low downside). If at least a fraction F of them were upside: long; at least F downside: short.",
+      "pseudocode": "up = 0; seen = 0;\nfor (i = 0; i < maxScanBars && seen < Y; ++i) {\n    u = el_gt(high[i], highest(high, X)[i + 1]);\n    d = el_lt(low[i], lowest(low, X)[i + 1]);\n    if (u && !d) { up = up + 1; seen = seen + 1; }\n    else if (d && !u) { seen = seen + 1; }\n}\nlong = seen == Y && el_ge(up, F * Y);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20,
+        "Y": 5,
+        "F": 0.8,
+        "maxScanBars": 300
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "variable-length event scan over a window"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No catalog rule counts breakout EVENTS by direction. TwiceFailedBreakoutAttempt counts failed breakouts in a fixed window; HighestHighBreakout is one event."
+      },
+      "confidence": "medium",
+      "notes": [
+        "TRIAGE reading (Y events of X-bar breakouts, fraction F). A bar that breaks both ways (an outside bar through both extremes) is skipped as ambiguous.",
+        "At F = 1 this is P8 exactly; Brian keeps them distinct (Decision 9), see open_questions."
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "MaSideFlipRun",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P5",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        11,
+        12
+      ],
+      "quote": "Most recent X bars are above ma. Before that most recent Y bars (longer) are below ma.",
+      "description": "The last X closes are all above the MA and the Y closes before them were all below it (Y > X): price has just held above after a longer spell below. Long; short mirrored. Fires once, X bars after the flip.",
+      "pseudocode": "ok = true;\nfor (i = 0; i < X; ++i) if (!el_gt(close[i], ma[i])) ok = false;\nfor (i = X; i < X + Y; ++i) if (!el_lt(close[i], ma[i])) ok = false;\nlong = ok;",
+      "sides": "mirrored",
+      "parameters": {
+        "maLength": 50,
+        "X": 3,
+        "Y": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "EMA history over a window"
+      },
+      "el_words_needed": [
+        "XAverage",
+        "WFSafe_Xaverage"
+      ],
+      "likely_existing_rule": "ConsecutiveClosesBeyondEmaRun",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ConsecutiveClosesBeyondEmaRun",
+        "origin": "Brooks",
+        "evidence": "ConsecutiveClosesBeyondEmaRun is the first half (all of the last N closes above the EMA); BarsBeyondEmaCount is the K-of-N form; CloseCrossesEma the single flip bar. The preceding below-run cannot be reached by a second placement because ConsecutiveClosesBeyondEmaRun has no lag input."
+      },
+      "confidence": "high",
+      "notes": [
+        "MA type/length not in the note: EMA 50 to share the measured WFSafe_Xaverage. Needs the EMA's history (mirrored buffer).",
+        "As written, 'above ma' is read on closes."
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "FractalMovePullbackContraction",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P6",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-50-a"
+      ],
+      "pages": [
+        14,
+        15,
+        16
+      ],
+      "quote": "Move down characterized by a fractal low length ~3 that is also the lowest of the last several fractals lows. Start of move is prior fractal high. Short term pullback (several bars, must be at least the fractal length) which are contained within the move. If average bar size during the pullback is much lower than average bar size during the move, enter short.",
+      "description": "Short as written; long mirrors. The latest swing low (strength 3) is the lowest of the last Q swing lows; the move runs from the latest swing high before it down to it. The bars since that low (the pullback, at least `strength` of them) stay inside the move's range, and their mean range is at most R x the move's mean range.",
+      "pseudocode": "// long side (mirror): latest swing high Hb (strength S) is the highest of the last Q swing highs;\n// move = from the latest swing low before Hb (bar Lb) up to Hb\npbBars = Hb;   // bars 0..Hb-1 are the pullback\nok = haveH && haveL && pbBars >= S && pbBars <= maxPullbackBars;\nfor (i = 0; i < Hb; ++i) if (el_gt(high[i], vH) || el_lt(low[i], vL)) ok = false;\nmovMean = mean(high - low over bars Hb..Lb); pbMean = mean(high - low over bars 0..Hb-1);\nlong = ok && el_le(pbMean, R * movMean);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 3,
+        "Q": 4,
+        "R": 0.5,
+        "maxPullbackBars": 15,
+        "pivotLookback": 150
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivots of both kinds, a variable-length move and pullback, and range statistics"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "FirstPullbackAfterSpike",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FirstPullbackAfterSpike",
+        "origin": "Brooks",
+        "evidence": "FirstPullbackAfterSpike / BreakoutPullbackEntry take the first pullback after a spike or breakout bar; MaxPullbackDepthBelowThreshold bounds pullback depth. None anchors the move on pivots or compares the pullback's bar size with the move's."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Fractal low length ~3' read as strength 3 (MINING: fractal length = strength); a 3-bar fractal (strength 1) is the other reading.",
+        "Fires on every bar the conditions hold, up to maxPullbackBars (not in the note)."
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "BreakoutClearsByHalfBar",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P7",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        18
+      ],
+      "quote": "X bar breakout high where the high of the last X bars is below the midpoint of the breakout bar",
+      "description": "The prior X-bar high is below the current bar's midpoint, so the bar breaks out by at least half its own range. Long; short mirrors (prior X-bar low above the midpoint).",
+      "pseudocode": "long = el_lt(highest(high, X)[1], (high[0] + low[0]) / 2);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extreme"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "BreakoutClearsPriorExtremeByMargin",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutClearsPriorExtremeByMargin",
+        "origin": "Brooks",
+        "evidence": "BreakoutClearsPriorExtremeByMargin clears Highest(High, N)[1] by a fixed tick margin; here the margin is half the breakout bar's own range, so the two fire on different bars at any fixed margin. CloseAbovePriorHighestHigh (EEC) is the close-through form."
+      },
+      "confidence": "high",
+      "notes": [
+        "midpoint > prior high implies high > prior high, so no separate breakout test is needed."
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "ConsecutiveUpsideBreakouts",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P8",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        20
+      ],
+      "quote": "Look at recent X bar breakouts. If last consecutive Y of them are to the upside go long",
+      "description": "The last Y X-bar breakout events were all upside: long; all downside: short.",
+      "pseudocode": "// same event scan as P4\nlong = seen == Y && up == Y;",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20,
+        "Y": 3,
+        "maxScanBars": 300
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "variable-length event scan"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No catalog rule counts breakout events by direction. Against P4 (same file): P8 is P4 at F = 1."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Brian keeps P4 and P8 as two distinct rules (Decision 9); under TRIAGE's wording P8 is P4 at fraction 1, flagged in open_questions."
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "SwingHighClusterDecisiveBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P9",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        24
+      ],
+      "quote": "3 or more swing highs (3 bar, 5 bar) at about the same price with no significant break of that level. Decisive break of the swing highs (close at least Y ATR above the swing highs). Enter long.",
+      "description": "The M most recent swing highs (strength 1 or 2) lie within tol x ATR of each other; no close since the oldest of them went above their max by breakTol x ATR; now the close is at least Y x ATR above their max. Long; short mirrors on swing lows.",
+      "pseudocode": "ok = foundHighs >= M && el_le(maxH - minH, tol * atr);\nfor (i = 1; i < oldestBarsAgo; ++i) if (el_gt(close[i], maxH + breakTol * atr)) ok = false;\nlong = ok && el_ge(close[0], maxH + Y * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "M": 3,
+        "tol": 0.25,
+        "breakTol": 0.25,
+        "Y": 0.5,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot cluster plus a no-break scan"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "LevelTouchCount",
+      "library_check": {
+        "verdict": "near",
+        "rule": "LevelTouchCount",
+        "origin": "Brooks",
+        "evidence": "LevelTouchCount counts bar touches of a pivot-derived level; DoubleExtremeBreakout breaks a two-pivot double top/bottom by ticks; CloseBeyondLastSwingPoint closes above K swing highs. None needs M level pivots and an ATR-sized decisive close."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'No significant break' concretized as breakTol x ATR, kept <= Y so the decisive close is the first."
+      ]
+    },
+    {
+      "id": "P9-b",
+      "name": "MomentumFilter",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P9",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        22,
+        23
+      ],
+      "quote": "X bar momentum filter shows upward trend (Or X bar uptrend and X/2 bar uptrend)",
+      "description": "Close above the close X bars ago (and, in the two-placement form, above the close X/2 bars ago).",
+      "pseudocode": "long = el_gt(close[0], close[X]);",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "fixed-offset comparison"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "Momentum",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "Momentum",
+        "origin": "original corpus ported from StrategyGeneratorTS (Davey momentum, per TRIAGE #60)",
+        "evidence": "Momentum(X); the X and X/2 form is two Momentum placements. Davey momentum is allowed as a pane-2 trend filter (Decision 3)."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P10",
+      "name": "BandHighThenMidlineRetrace",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P10",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        26
+      ],
+      "quote": "Market formed an X-bar high that touches the top of bollinger bands. Enter long on the retracement to the bollinger middle line or lower line.",
+      "description": "Within the last L bars some bar made an X-bar high with its high at or above the upper band; this bar's low reaches the middle band (or the lower band, by input) for the first time since: long. Short mirrors.",
+      "pseudocode": "T = most recent i in 1..L with el_ge(high[i], highest(high, X)[i]) && el_ge(high[i], bbUpper[i]);\nlevelAt(i) = average(close, length)[i] - retraceDevs * stddev(close, length)[i];   // retraceDevs 0 = middle band, numDevs = lower band\nlevel = levelAt(0);\nfirst = true; for (i = 1; i < T; ++i) if (el_le(low[i], levelAt(i))) first = false;\nlong = haveT && first && el_le(low[0], level);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20,
+        "length": 20,
+        "numDevs": 2,
+        "retraceDevs": 0,
+        "maxWaitBars": 15
+      },
+      "book_order_type": "limit at the band; mechanized as the bar's low reaching it, next open",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "band history and an armed retracement"
+      },
+      "el_words_needed": [
+        "BollingerBand",
+        "Average",
+        "StdDev",
+        "Highest"
+      ],
+      "likely_existing_rule": "BollingerBandCross",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BollingerBandCross",
+        "origin": "EEC (E25)",
+        "evidence": "BollingerBandCross buys a close back over the lower band; nothing arms on an upper-band new high and buys the pull to the middle. Kept as a twist (Decision 9)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "retraceDevs selects the level: 0 the middle band, numDevs the lower band (lower = mid - numDevs x sd)."
+      ]
+    },
+    {
+      "id": "P11",
+      "name": "BreakawayPullbackBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P11",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        28
+      ],
+      "quote": "Big breakaway move (multiple bars OR ATR cutoff). Measured from open of first breakaway bar to high of the move. Pullback consisting of multiple bars (3-5) which do not break the high of the move but only pullback a small fraction (top 20-30%). Enter long on break above the high.",
+      "description": "Move = the run of consecutive up-close bars ending at the bar t that holds the highest high of the last (maxRun + maxPullback) bars; height = H - open[first bar of the run]. Breakaway if the run is at least minRunBars long OR height >= A x ATR. Pullback = bars t-1..1, between minPullback and maxPullback of them, all with high < H and low >= H - f x height. Long on the close above H. Short mirrors.",
+      "pseudocode": "t = bar of highest(high, maxRun + maxPullback) in 1..; H = high[t];\nrun: s = t; while (s + 1 <= t + maxRun - 1 && el_gt(close[s + 1], open[s + 1])) s = s + 1;   // requires el_gt(close[t], open[t])\nheight = H - open[s];\nbreakaway = (s - t + 1 >= minRunBars) || el_ge(height, A * atr);\npb = t - 1; ok = pb >= minPullback && pb <= maxPullback;\nfor (i = 1; i < t; ++i) if (el_ge(high[i], H) || el_lt(low[i], H - f * height)) ok = false;\nlong = breakaway && ok && el_gt(close[0], H);",
+      "sides": "mirrored",
+      "parameters": {
+        "minRunBars": 3,
+        "maxRun": 10,
+        "A": 2.0,
+        "minPullback": 3,
+        "maxPullback": 5,
+        "f": 0.25,
+        "atrLookback": 14
+      },
+      "book_order_type": "buy stop above the move high; mechanized as a close above it",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "variable-length move recognition plus a bounded pullback"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest"
+      ],
+      "likely_existing_rule": "BreakoutPullbackEntry",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutPullbackEntry",
+        "origin": "Brooks",
+        "evidence": "BreakoutPullbackEntry (breakout bar, 1-10 bar pullback, close above the pullback high) and FirstPullbackAfterSpike (strong-bar spike, first pullback) are the Brooks relatives; neither bounds the pullback to the top fraction of the move or breaks the move's own high."
+      },
+      "confidence": "low",
+      "notes": [
+        "The move definition (consecutive up-close run) is a concretization; see open_questions."
+      ]
+    },
+    {
+      "id": "P12",
+      "name": "ExtremePairRetraceEntry",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P12",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        31,
+        32,
+        33
+      ],
+      "quote": "First signal bar makes highest high of last X (5-10) bars with no higher bar since. Second signal bars occurs within next X bars and makes the lowest low in last X bars and is lowest bar since. Enter short on retracement to top Y (~50)% of second signal bar.",
+      "description": "Short as written; pseudocode is the long mirror: bar a made the lowest low of X bars with no lower low since; bar b, 1..X bars after a, made the highest high of X bars with no higher high since; enter long on the first close inside the bottom Y of bar b's range.",
+      "pseudocode": "// long mirror; a > b >= 1 (bars ago)\nsig1(a) = el_le(low[a], lowest(low, X)[a]) && no bar in 0..a-1 has el_lt(low[i], low[a]);\nsig2(b) = a - b >= 1 && a - b <= X && el_ge(high[b], highest(high, X)[b]) && no bar in 0..b-1 has el_gt(high[i], high[b]);\nzoneTop = low[b] + Y * (high[b] - low[b]);\nfirst = no close in 1..b-1 inside [low[b], zoneTop];\nlong = sig1 && sig2 && first && el_le(close[0], zoneTop) && el_ge(close[0], low[b]);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 7,
+        "Y": 0.5,
+        "maxWaitBars": 10
+      },
+      "book_order_type": "limit into the top Y of bar 2; mechanized as a close inside the zone, next open (TRIAGE)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two anchored window extremes and an armed zone"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "FibonacciRetracementLevel",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FibonacciRetracementLevel",
+        "origin": "Brooks",
+        "evidence": "FibonacciRetracementLevel retraces a fixed window's span; this retraces into the second signal bar's own range after a high-then-low sequence. Nothing matches the two-signal-bar structure."
+      },
+      "confidence": "medium",
+      "notes": [
+        "maxWaitBars bounds how old bar b may be (not in the note).",
+        "'Within the next X bars' read as 1..X bars after bar a."
+      ]
+    },
+    {
+      "id": "P13-a",
+      "name": "HigherSwingLowContext",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P13",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        35
+      ],
+      "quote": "One swing low. Next swing low is higher.",
+      "description": "The latest confirmed swing low is above the one before it (short: lower swing high).",
+      "pseudocode": "long = haveLo && el_gt(lo1, lo2);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "HigherSwingLow",
+      "library_check": {
+        "verdict": "exists",
+        "rule": "HigherSwingLow",
+        "origin": "Brooks",
+        "evidence": "HigherSwingLow is exactly this, at strength 2."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P13-b",
+      "name": "SwingLowRejection",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P13",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P13-a"
+      ],
+      "pages": [
+        36
+      ],
+      "quote": "Bar rejects off the second swing low (wick near the swing low, close higher",
+      "description": "The bar's low comes within tol x ATR of the latest swing low (either side) and the bar closes above that swing low with a lower wick of at least w of its range: long. Short mirrors at the latest swing high.",
+      "pseudocode": "long = haveLo && el_le(absvalue(low[0] - lo1), tol * atr) && el_gt(close[0], lo1)\n       && el_ge(minlist(open[0], close[0]) - low[0], w * (high[0] - low[0]));",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "tol": 0.25,
+        "w": 0.33,
+        "maxBarsBack": 60,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "SwingPointTestHolds",
+      "library_check": {
+        "verdict": "near",
+        "rule": "SwingPointTestHolds",
+        "origin": "Brooks",
+        "evidence": "SwingPointTestHolds: low within tol x ATR ABOVE the swing low without trading below; FailedSwingBreakoutReversal: trades below and closes back above (no depth bound). P13-b is their union with a bounded undercut plus a wick test, so no single placement reproduces it."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Close higher' read as close above the swing low; the wick fraction is a concretization of 'rejects'."
+      ]
+    },
+    {
+      "id": "P14",
+      "name": "BearBarTopHalfUntouchedLong",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P14",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        38,
+        39
+      ],
+      "quote": "Strong bearish bar (>1 ATR, body significant fraction of candle) No prices in top half of bar for last ~10-15 bars. Enter long counter trend",
+      "description": "The bar W bars ago is a strong bear bar (range >= K x ATR, body >= F of range, close < open), and none of the W bars after it traded into its top half (every high below its midpoint). On the bar the window completes: long (counter-trend). Short mirrors on a strong bull bar whose bottom half stays untouched.",
+      "pseudocode": "// long as written: bear bar at offset W\nmidW = (high[W] + low[W]) / 2;\nstrong = el_lt(close[W], open[W]) && el_ge(open[W] - close[W], F * (high[W] - low[W])) && el_ge(high[W] - low[W], K * atrAt(W));\nclean = true; for (i = 0; i < W; ++i) if (el_ge(high[i], midW)) clean = false;\nlong = strong && clean;",
+      "sides": "mirrored (as written the long fades a bear bar; the short fades a bull bar)",
+      "parameters": {
+        "W": 12,
+        "K": 1.0,
+        "F": 0.6,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "lagged bar test with an ATR as of that bar"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ClimaxBar",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ClimaxBar",
+        "origin": "Brooks",
+        "evidence": "ClimaxBar is the strong-bar half at lag 0; nothing waits W bars for the bar's top half to stay untraded. Delayed by construction (Decision 9)."
+      },
+      "confidence": "high",
+      "notes": [
+        "atrAt(W) is the ATR as of the bear bar; reading the current ATR instead would be simpler (a choice to confirm in authoring).",
+        "Pseudocode is the as-written long side; here the long condition is the one that reads a BEAR bar."
+      ]
+    },
+    {
+      "id": "P14-b",
+      "name": "TargetAtSignalBarOpen",
+      "role": "Exit",
+      "pane": "exit",
+      "triage_row": "P14",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        40
+      ],
+      "quote": "Enter long counter trend with target of bearish bars open",
+      "description": "Long profit target at the open of the bar W+1 bars before the fill bar (P14's bear bar), frozen at entry: exit when the high reaches it. Short mirrors at the bull bar's open.",
+      "pseudocode": "if (ctx.BarsSinceEntry() == 0) target = open[W + 1];   // read every bar, freeze conditionally\nexitLong = ctx.MarketPosition() > 0 && el_ge(high[0], target);",
+      "sides": "mirrored",
+      "parameters": {
+        "W": 12
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "captures a level on the fill bar"
+      },
+      "el_words_needed": [
+        "BarsSinceEntry",
+        "MarketPosition"
+      ],
+      "likely_existing_rule": "EntryBarExtremeTarget",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EntryBarExtremeTarget",
+        "origin": "Brooks",
+        "evidence": "EntryBarExtremeTarget captures the signal bar's far extreme on the fill bar ([1]); this captures the open of a bar W+1 back. Coupled to P14's W, so the pair must share the value."
+      },
+      "confidence": "high",
+      "notes": [
+        "A long needs the open above the entry for this to be a target; it is by construction (the bear bar opened near its high, above its untouched midpoint)."
+      ]
+    },
+    {
+      "id": "P15",
+      "name": "LevelPairPivotBreakout",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P15",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        42,
+        43
+      ],
+      "quote": "Non-alternating swing highs (2 bars per side) Second and third most recent highs were at same level (.05 ATR or something). Most recent high breaks to the upside by at least 1 x ATR-10. Enter long",
+      "description": "Strength-2 swing highs: the 2nd and 3rd most recent are within eq x ATR of each other and the most recent is at least m x ATR(10) above the higher of them. Long on the bar the newest high is confirmed. Short mirrors on swing lows.",
+      "pseudocode": "long = foundHighs >= 3 && hb1 == strength && el_le(absvalue(h2 - h3), eqAtr * atr)\n       && el_ge(h1, maxlist(h2, h3) + breakAtr * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "eqAtr": 0.05,
+        "breakAtr": 1.0,
+        "atrLookback": 10,
+        "pivotLookback": 100
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange",
+        "MaxList"
+      ],
+      "likely_existing_rule": "DoubleExtremeBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "DoubleExtremeBreakout",
+        "origin": "Brooks",
+        "evidence": "DoubleExtremeBreakout breaks a two-pivot double top by ticks on any bar's extreme within a failure window; P15 requires the break to be itself a confirmed pivot by an ATR multiple. P9 is the 3+-touch close-break relative (TRIAGE)."
+      },
+      "confidence": "high",
+      "notes": [
+        "Fires at confirmation (2 bars after the pivot bar), the only time the newest pivot is known."
+      ]
+    },
+    {
+      "id": "P16",
+      "name": "DonchianOutsizedBreakoutFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P16",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        45,
+        46
+      ],
+      "quote": "Donchian channel with look back length of 20. One (large) bar with a low below the midline and a high that shifts the top channel up. Enter short",
+      "description": "Against the 20-bar Donchian channel of the bars ending one bar ago: the bar's high exceeds the channel top while its low is below the channel midline: short (fade). Long mirrors (low below the bottom, high above the midline).",
+      "pseudocode": "// long mirror\ntop = highest(high, N)[1]; bot = lowest(low, N)[1]; mid = (top + bot) / 2;\nlong = el_lt(low[0], bot) && el_gt(high[0], mid) && el_ge(high[0] - low[0], minRangeAtr * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "N": 20,
+        "minRangeAtr": 0.0,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extremes"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "AtrBandBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AtrBandBreakout",
+        "origin": "unknown (August 2026 authoring batch)",
+        "evidence": "AtrBandBreakout and the Donchian breakout family (HighestHighBreakout, CloseAbovePriorHighestHigh) trade WITH the channel break; OutsideBarInMidRange tests an outside bar's midpoint in the range. None fades a bar that spans from below the midline through the top."
+      },
+      "confidence": "high",
+      "notes": [
+        "'Large' is implied by spanning half the channel; minRangeAtr (default 0, off) makes it explicit."
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "PriceVisitScan",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        1
+      ],
+      "quote": "What is typical of previous times this price was reached? Mostly wicks or bodies? Volume? Trending or not (adx?)? Big candles or small candles?",
+      "description": "A VISIT is a past bar i in M..N bars ago whose high-low range contains the current close. The scan returns the visit count and per-visit statistics for P1a-P1f; every rule needs at least K visits. A difference test, so back-adjustment does not affect it.",
+      "pseudocode": "nv = 0;\nfor (i = M; i <= N; ++i) {\n    if (el_le(low[i], close[0]) && el_ge(high[i], close[0])) {\n        nv = nv + 1;\n        // accumulate per rule: upper/lower wick hit, in-body hit, adx[i], high[i]-low[i], ticks[i], forward move\n    }\n}\nenough = nv >= minVisits;",
+      "sides": "same",
+      "parameters": {
+        "M": 20,
+        "N": 500,
+        "minVisits": 5
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a long window loop with per-visit accumulation"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "NearAnyLevel",
+      "library_check": {
+        "verdict": "near",
+        "rule": "NearAnyLevel",
+        "origin": "Brooks",
+        "evidence": "No rule scans history for bars containing the current price; NearAnyLevel tests three magnets, LevelTouchCount one pivot level."
+      },
+      "confidence": "high",
+      "notes": [
+        "Reaches back N (plus H for P1b, plus ADX history for P1e); Max Bars Back must cover it.",
+        "Definition confirmed by Brian (TRIAGE 'P1 rules')."
+      ]
+    },
+    {
+      "id": "P1a",
+      "name": "LevelRejectedFromAbove",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Mostly wicks or bodies?",
+      "description": "Of the visits, at least a fraction F were upper-wick visits (the current close lies between the visit's body top and its high): short. Mirror: lower-wick visits (between its low and body bottom): long.",
+      "pseudocode": "// long (mirror): lower-wick visits\nif (visit && el_lt(close[0], minlist(open[i], close[i]))) lw = lw + 1;\nlong = enough && el_ge(lw, F * nv);",
+      "sides": "mirrored",
+      "parameters": {
+        "F": 0.6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule classifies past bars at the current price level."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1b",
+      "name": "LevelForwardDrift",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "What is typical of previous times this price was reached?",
+      "description": "Over visits at least H bars old, the mean H-bar move after the visit (close[i - H] - close[i]), divided by the current ATR, is at least +D: long; at most -D: short. No look-ahead because i >= H.",
+      "pseudocode": "if (visit && i >= H) { s = s + (close[i - H] - close[i]); nf = nf + 1; }\nlong = nf >= minVisits && el_ge(s / nf, D * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "H": 10,
+        "D": 0.5,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule measures what price did after earlier visits to the current level."
+      },
+      "confidence": "high",
+      "notes": [
+        "The move is measured from the visit bar's close; measuring from the current close (the level) is the other reading.",
+        "M >= H keeps every visit's forward window strictly in the past."
+      ]
+    },
+    {
+      "id": "P1c",
+      "name": "LevelThinAir",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Pair with signals for direction (price relative to ma, momentum, candlestick patterns)",
+      "description": "At most Kthin visits in the window (price is in thin air), entered in the direction of the last J-bar move: long when close > close[J].",
+      "pseudocode": "long = nv <= maxVisits && el_gt(close[0], close[J]);",
+      "sides": "mirrored (the visit count is identical both sides)",
+      "parameters": {
+        "maxVisits": 2,
+        "J": 10
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [],
+      "likely_existing_rule": "Momentum",
+      "library_check": {
+        "verdict": "near",
+        "rule": "Momentum",
+        "origin": "original corpus (Davey momentum)",
+        "evidence": "The direction half is Momentum(J); the thin-air count has no library match. Kept as TRIAGE's pane-1 rule; it could equally be authored as a same-sided pane-2 count plus a Momentum placement."
+      },
+      "confidence": "high",
+      "notes": [
+        "Also covers 20250524.1's 'vertical roadmap' (TRIAGE)."
+      ]
+    },
+    {
+      "id": "P1d",
+      "name": "LevelBodyDominated",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Mostly wicks or bodies?",
+      "description": "At least a fraction F of the visits had the current close inside the visit's body.",
+      "pseudocode": "if (visit && el_ge(close[0], minlist(open[i], close[i])) && el_le(close[0], maxlist(open[i], close[i]))) nb = nb + 1;\npass = enough && el_ge(nb, F * nv);",
+      "sides": "same",
+      "parameters": {
+        "F": 0.6
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "MinList",
+        "MaxList"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule classifies past bars at the current price level by body versus wick."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1e",
+      "name": "LevelWasTrending",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Trending or not (adx?)?",
+      "description": "The mean ADX(14) on the visit bars is at least T; negate for at most.",
+      "pseudocode": "if (visit) sa = sa + adx[i];\npass = enough && el_ge(sa / nv, T);",
+      "sides": "same",
+      "parameters": {
+        "adxLength": 14,
+        "T": 25
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "reads ADX's history at arbitrary depth"
+      },
+      "el_words_needed": [
+        "WFSafe_ADX"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "AdxBelowThreshold reads the current ADX only."
+      },
+      "confidence": "high",
+      "notes": [
+        "adx[i] needs a mirrored ADX buffer N deep; zero-filled before the first evaluated bar (CLAUDE.md convention), so early visits read 0."
+      ]
+    },
+    {
+      "id": "P1f-a",
+      "name": "LevelBigBars",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Big candles or small candles?",
+      "description": "The mean range of the visit bars divided by the current ATR is at least R; negate for small.",
+      "pseudocode": "if (visit) sr = sr + (high[i] - low[i]);\npass = enough && el_ge(sr / nv, R * atr);",
+      "sides": "same",
+      "parameters": {
+        "R": 1.2,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "BarRangeAtrMultiple / LargeBarCountInWindow test recent bars against ATR; nothing averages the bars at the current price level."
+      },
+      "confidence": "high",
+      "notes": []
+    },
+    {
+      "id": "P1f-b",
+      "name": "LevelHighVolume",
+      "role": "Entry",
+      "pane": 2,
+      "triage_row": "P1",
+      "is_filter": true,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "P1"
+      ],
+      "pages": [
+        1
+      ],
+      "quote": "Volume?",
+      "description": "The mean total ticks of the visit bars is at least R x the mean ticks over the last L bars; negate for low.",
+      "pseudocode": "if (visit) sv = sv + (double)ticks[i];\npass = enough && el_ge(sv / nv, R * average((double)ticks, L));",
+      "sides": "same",
+      "parameters": {
+        "R": 1.2,
+        "volumeLookback": 50
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "depends on the visit scan"
+      },
+      "el_words_needed": [
+        "Ticks",
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "VolumeAboveAverageMultiple compares the current bar's ticks with their average; nothing averages ticks over the visit set."
+      },
+      "confidence": "high",
+      "notes": [
+        "Total ticks, not the up-tick `volume` series (EL_FEATURES: Volume is UpTicks); TRIAGE's 'same rule on volume'. Split from P1f-a to keep one measure per candidate."
+      ]
+    }
+  ],
+  "not_specced": [],
+  "open_questions": [
+    {
+      "ids": [
+        "ON-50-a"
+      ],
+      "question": "A bar that is both a swing high and a swing low (an outside-bar pivot) enters the pivot sequence twice at the same bar. Which goes first for the fractal-order rules (#50, #51, #53, #59), or should such a bar be dropped from the sequence?"
+    },
+    {
+      "ids": [
+        "ON-53",
+        "ON-50",
+        "ON-59"
+      ],
+      "question": "Fire on the bar the pattern completes (event, specced) or on every bar until the next pivot changes the pattern (state)? It matters with stop-and-reverse exits."
+    },
+    {
+      "ids": [
+        "ON-50"
+      ],
+      "question": "#50's box is stated only as low, high, low, high. Should the mirror ordering (high, low, high, low, also contracting) qualify too, as Brian ruled for the #1-3 channels?"
+    },
+    {
+      "ids": [
+        "ON-57-b"
+      ],
+      "question": "Coefficient of variation of which series? CV of close is std/mean of price and fails the shift test; specced on true range. Bar range or close-to-close changes are the alternatives."
+    },
+    {
+      "ids": [
+        "ON-64-a"
+      ],
+      "question": "Is a 'touch' each bar at or above the upper band, or one episode per run of consecutive touching bars (specced)? Bar-by-bar fires on most bars of a strong rally."
+    },
+    {
+      "ids": [
+        "P4",
+        "P8"
+      ],
+      "question": "Under TRIAGE's wording P8 is P4 at F = 1 (same bars). What makes them distinct: does P4 count breakouts within a fixed bar window rather than the last Y events, or do they differ in what counts as a breakout (high/low vs close)?"
+    },
+    {
+      "ids": [
+        "P11"
+      ],
+      "question": "How is the breakaway move delimited? Specced as the run of consecutive up-close bars ending at the move's high, with the pullback after it; alternatives are the lowest low before the high or a fixed window."
+    },
+    {
+      "ids": [
+        "I2-a"
+      ],
+      "question": "Which swing lows form a zone: the M most recent consecutive ones (specced), or any M of the last P that fit the spread test? And what pane-2 condition should the zone feed: price at support (specced as I2-b) or price inside it?"
+    },
+    {
+      "ids": [
+        "ON-80-b"
+      ],
+      "question": "How long does a confirmed isolated wick stay armed for the 'first close below'? Specced with maxWaitBars = 30."
+    },
+    {
+      "ids": [
+        "P6"
+      ],
+      "question": "'Fractal low length ~3': strength 3 (specced, per the MINING convention) or a 3-bar fractal (strength 1)?"
+    }
+  ],
+  "summary": "Brian's KEEP ideas from Strategies.pdf rows #50-#85, Indicators I1-I5, phone notes P2-P16 and the P1 visit family. Fractal-order rules (#50, #51, #53, #59, P6) share the ON-50-a pivot-sequence primitive built on the measured SwingHigh/SwingLow port; one-sided pivot rules (#52, #58, P9, P13, P15, I2-I4) read the per-side occurrences. Several filters resolve to existing Brooks rules by algebra (I5 and the Choppiness Index to RangeWidthBelowAtrMultiple, P3 to AvgBodyBelowRangeFraction, #76a/b to StrongBodyBarCountInWindow / AverageTailFractionBelow, #73 to EmaSlope).",
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ],
+  "resolutions_note": "These answers override any conflicting assumption in candidates[].notes or open_questions."
+}

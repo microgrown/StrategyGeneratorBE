@@ -1,0 +1,671 @@
+{
+  "slice": "04_bar_shape",
+  "rules": [
+    {
+      "id": "ON-12-b",
+      "name": "LargeBarTightPauseNearHigh",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "12",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-12-a"
+      ],
+      "pages": [
+        12
+      ],
+      "quote": "3-5 subsequent bars are small (< .5 the size of the large bullish bar) and are contained entirely within the range that extends .4*range_of_large_bar above and below the high of the large bar. Enter long",
+      "description": "A large bull bar (ON-12-a) N bars ago, and each of the N bars since is smaller than half its range and lies entirely within +/- 0.4 x its range of its high: long on the Nth such bar. Short mirrors around a large bear bar's low.",
+      "pseudocode": "n = (int)pauseBars;\nif (!LargeShapedBarAtLag(lag = n)) return false;\nR = high[n] - low[n]; H = high[n];\nfor (j = 0; j < n; ++j)\n  if (!(high[j] - low[j] < smallFraction * R && high[j] <= H + bandFraction * R && low[j] >= H - bandFraction * R)) return false;\nreturn true;",
+      "sides": "mirrored",
+      "parameters": {
+        "pauseBars": 3,
+        "smallFraction": 0.5,
+        "bandFraction": 0.4,
+        "minRangeAtr": 2.0,
+        "maxRangeAtr": 7.0,
+        "openFraction": 0.25,
+        "closeFraction": 0.25,
+        "atrLength": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Fixed-offset loop over pauseBars bars against one lagged bar."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "MultiSessionPauseBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "MultiSessionPauseBreakout",
+        "origin": "Brooks",
+        "evidence": "MultiSessionPauseBreakout: a strong leg, a shallow pause inside it, entry on the close beyond the leg extreme. ON-12-b enters on the pause itself (no breakout), from a single large bar, with a size cap on each pause bar and a band centred on the big bar's high (so pause bars may trade above it)."
+      },
+      "confidence": "high",
+      "notes": [
+        "'3-5 subsequent bars' is the pauseBars range; it fires exactly pauseBars bars after the big bar.",
+        "Range ideas for the grid: pauseBars 3..5, bandFraction 0.3..0.5."
+      ]
+    },
+    {
+      "id": "ON-13",
+      "name": "LargeBarHoldThenCloseThroughMidpoint",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "13",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-12-a"
+      ],
+      "pages": [
+        14
+      ],
+      "quote": "Price holds between the 50% retracement level and 50% extension level for at least 5 bars. Enter short on the first candle to close below the 50% retracement level.",
+      "description": "Long side (mirror of the note's short): a large bear bar (ON-12-a, short shape) k bars ago; every close since stayed between its 50% extension below the low and its midpoint, for at least minHoldBars bars; this bar is the first to close above the midpoint: long. The note's trade: a large bull bar holds between midpoint and 50% extension above, short on the first close below the midpoint.",
+      "pseudocode": "for (k = minHoldBars + 1; k <= maxBars; ++k) {\n  if (!LargeShapedBarAtLag(lag = k, bear shape)) continue;\n  R = high[k] - low[k]; mid = low[k] + 0.5 * R; ext = low[k] - extFraction * R;\n  if (any j in 1..k-1 with close[j] > mid || close[j] < ext) continue;\n  if (close[0] > mid) return true;\n}\nreturn false;",
+      "sides": "mirrored",
+      "parameters": {
+        "minHoldBars": 5,
+        "maxBars": 30,
+        "extFraction": 0.5,
+        "minRangeAtr": 2.0,
+        "maxRangeAtr": 100.0,
+        "openFraction": 0.25,
+        "closeFraction": 0.25,
+        "atrLength": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Bounded backward scan for the anchor bar and a loop over closes since."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "DeepPullbackRetracementFilter",
+      "library_check": {
+        "verdict": "near",
+        "rule": "DeepPullbackRetracementFilter",
+        "origin": "Brooks",
+        "evidence": "DeepPullbackRetracementFilter measures how far the close has retraced a window leg; nothing anchors on one large bar's midpoint and requires a hold band of closes for a minimum time before the first close through it."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Price holds between' concretized on CLOSES (the trigger is a close); holding on whole-bar highs and lows is the alternative.",
+        "The midpoint (50% retracement) is the bar's midpoint for either colour; the 50% extension lies beyond the bar's close-side extreme.",
+        "No upper size cap in this note; maxRangeAtr 100 disables it.",
+        "maxBars bounds the scan (none in the note)."
+      ]
+    },
+    {
+      "id": "ON-21",
+      "name": "LargeBarAtExtremeNextBarExtendsWeakClose",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "21",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-12-a"
+      ],
+      "pages": [
+        23
+      ],
+      "quote": "Large (>1.5 ATR) standard ... bearish bar that closes at or near the 20 bar low. Next bar makes a lower low but closes in the bottom 20% of the large standard bar's range. Enter short.",
+      "description": "Long side (mirror of the note): the prior bar is a large standard bull bar (ON-12-a at lag 1: range over 1.5 ATR, open in its bottom third, close in its top third) closing at or near the 20-bar high; this bar makes a higher high and closes in the top 20% of that bar's range (or above it): long.",
+      "pseudocode": "if (!LargeShapedBarAtLag(lag = 1, minRangeAtr = 1.5, maxRangeAtr = inf, openFraction = 1/3, closeFraction = 1/3)) return false;\nR = high[1] - low[1];\nif (close[1] < highest(high, extremeLookback)[1] - nearAtr * atrVal[1]) return false;   // at or near the 20-bar high\nreturn high[0] > high[1] && close[0] >= high[1] - closeZone * R;",
+      "sides": "mirrored",
+      "parameters": {
+        "minRangeAtr": 1.5,
+        "maxRangeAtr": 100.0,
+        "openFraction": 0.333,
+        "closeFraction": 0.333,
+        "atrLength": 20,
+        "extremeLookback": 20,
+        "nearAtr": 0.25,
+        "closeZone": 0.2
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Fixed-lag bar arithmetic plus one Highest window."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest"
+      ],
+      "likely_existing_rule": "ClimaxBar",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ClimaxBar",
+        "origin": "Brooks",
+        "evidence": "ClimaxBar tests one large trend bar at lag 0 with a body fraction. ON-21 reads the large bar at lag 1, places its close near the window extreme, and needs a follow-through bar that extends AND closes strong. BreakoutBarLargeBodyLargeRange (Brooks) is a lag-0 size and body test only."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The note's 'open and high near opposite extremes' is read as open and CLOSE (a 'standard' trend bar), about 1/3 each.",
+        "'At or near the 20 bar low' concretized as within nearAtr ATRs of the 20-bar low (window ending at the large bar, inclusive).",
+        "Kept as one pane-1 rule: the near-extreme test and the follow-through bar are both anchored on the lag-1 bar, so they cannot be split into independent placements."
+      ]
+    },
+    {
+      "id": "ON-24",
+      "name": "HugeBarOppositeInsideBarThenResume",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "24",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-12-a"
+      ],
+      "pages": [
+        26
+      ],
+      "quote": "Huge bearish bar with open near the high and close near the low that takes out X bar low ... Before the high of that bar gets taken out there is a bullish inside bar with open near low and close near the high. ... Enter short on the close of the first red candle.",
+      "description": "Long side (mirror): a huge bull bar b bars ago (ON-12-a shape, range at least K x ATR) whose high took out the prior X-bar high; later a bearish inside bar (open near its high, close near its low); since then nothing has traded below the huge bar's low; this bar is the first green bar after the inside bar: long. The note's trade is the short.",
+      "pseudocode": "for (b = 2; b <= maxBars; ++b) {\n  if (!LargeShapedBarAtLag(lag = b, minRangeAtr = hugeAtr, maxRangeAtr = inf, openFraction = nearFraction, closeFraction = nearFraction)) continue;\n  if (!(high[b] > highest(high, breakLookback)[b + 1])) continue;   // took out the X-bar high\n  if (lowest(low, b)[0] < low[b]) continue;                         // invalidated: huge bar's far extreme taken out\n  i = most recent j in 1..b-1 that is inside bar j+1 (high[j] < high[j+1] && low[j] > low[j+1]),\n      with close[j] < open[j], high[j] - open[j] <= nearFraction * (high[j]-low[j]), close[j] - low[j] <= nearFraction * (high[j]-low[j]);\n  if (!i found) continue;\n  if (any j in 1..i-1 with close[j] > open[j]) continue;              // first green after the inside bar\n  return close[0] > open[0];\n}\nreturn false;",
+      "sides": "mirrored",
+      "parameters": {
+        "hugeAtr": 2.0,
+        "nearFraction": 0.25,
+        "breakLookback": 20,
+        "maxBars": 20,
+        "atrLength": 20
+      },
+      "book_order_type": "enter on the first red candle's close; mechanized as next open",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "Bounded backward scan with a lagged pattern anchor, an inside-bar search and an invalidation level."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "InsideBar",
+      "library_check": {
+        "verdict": "near",
+        "rule": "InsideBar",
+        "origin": "Davey EEC #32 (InsideBar); Brooks (ClimaxBar, IoiPattern)",
+        "evidence": "InsideBar is the strict single-bar inside test. No rule chains a large breakout bar, a counter-coloured inside bar and a first resumption bar while the large bar's far extreme holds."
+      },
+      "confidence": "medium",
+      "notes": [
+        "'Huge' has no number: hugeAtr default 2 ATR (the note's other 'large' bars are 1.5-2 ATR).",
+        "X (the taken-out window) is 10-50 in the note's two examples; default 20.",
+        "'Inside bar' read as inside its immediately preceding bar (strict, the InsideBar convention); inside the huge bar itself is the alternative.",
+        "Note: the invalidation is the huge bar's OPEN-side extreme being taken out (the short's 'high of the bearish bar')."
+      ]
+    },
+    {
+      "id": "ON-40-a",
+      "name": "LargeBarInsideRunCloseBeyond",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "40",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        43,
+        44
+      ],
+      "quote": "Bar 1 is a large (>1 ATR) bearish bar with body > .5x the range. Bars 2-X are contained entirely within the range of bar 1. Bar X+1 does not break the high of bar 1 but does close below it.",
+      "description": "Long side (mirror): bar 1, X bars ago, is a large bull bar (range over K x ATR, body over half its range); bars 2..X lie entirely within bar 1's range; this bar (X+1) does not trade below bar 1's low but closes above bar 1's high: long. The note's .3 is the short; .4 trades the same bear pattern long (reverse placement).",
+      "pseudocode": "n = (int)containedBars;   // bars 2..X, so X = n + 1 and bar 1 is at offset n + 1\nm = n + 1; R = high[m] - low[m];\nif (!(close[m] > open[m] && close[m] - open[m] > bodyFraction * R && R > minRangeAtr * atrVal[m])) return false;\nfor (j = 1; j <= n; ++j) if (!(high[j] <= high[m] && low[j] >= low[m])) return false;\nreturn low[0] >= low[m] && close[0] > high[m];",
+      "sides": "mirrored",
+      "parameters": {
+        "containedBars": 2,
+        "minRangeAtr": 1.0,
+        "bodyFraction": 0.5,
+        "atrLength": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Fixed-offset loop against one lagged bar."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ConsecutiveInsideBars",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ConsecutiveInsideBars",
+        "origin": "Brooks",
+        "evidence": "ConsecutiveInsideBars chains inside relations bar-to-previous-bar; ON-40-a needs every bar contained in the FIRST bar (a mother-bar box), a large trend-bodied mother bar, and a close beyond the mother bar's far side. The mother-bar test alone is ClimaxBar(1, N, 0.5) (Brooks) at a lag."
+      },
+      "confidence": "high",
+      "notes": [
+        "'Closes below it' read as below bar 1's LOW (TRIAGE; the drawing shows the entry there).",
+        "Containment inclusive (high <= high1, low >= low1); 'does not break the high' read as high <= high1 (short case).",
+        "Exactly containedBars inside bars; range 1-4. 'At least' would be a scan.",
+        "ATR length unstated; 20 assumed, read at bar 1."
+      ]
+    },
+    {
+      "id": "ON-29-a",
+      "name": "NewWindowLowAboveLongerLow",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "29",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        31
+      ],
+      "quote": "Signal candle is a large bar (>= 2 ATR14) with a low below the X bar low but above the Y*X (Y ~ 2) low.",
+      "description": "This bar's low is below the lowest low of the prior X bars but above the lowest low of the prior Y x X bars: a new short-window low that is not a new long-window low. Long. Short mirrors at highs. 20250208.1b is this rule alone; .1 adds ON-29-b and ON-29-c.",
+      "pseudocode": "longN = (int)(longFactor * lookback);\nreturn low[0] < lowest(low, lookback)[1] && low[0] > lowest(low, longN)[1];",
+      "sides": "mirrored",
+      "parameters": {
+        "lookback": 25,
+        "longFactor": 2.0
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Two window extremes."
+      },
+      "el_words_needed": [
+        "Lowest"
+      ],
+      "likely_existing_rule": "HighestHighBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "HighestHighBreakout",
+        "origin": "Davey EEC (HighestHighBreakout, added with the EEC batch 0b6dea8)",
+        "evidence": "HighestHighBreakout's short side is low at or below the N-bar lowest low (window including the current bar); placed flipped it is the 'new X-bar low' half. ON-29-a is strict against the window ending one bar ago and adds the outer bound (not a Y x X low), which no rule has. BullReversalBarAtNewLow and FailedBreakoutBeyondExtreme (Brooks) read the same new-low term with other second halves."
+      },
+      "confidence": "high",
+      "notes": [
+        "X 25-50 (default 25), Y 2-3 (default 2) from the note. Y x X is truncated to an integer bar count.",
+        "Split per 'parameterize, don't author twice': .1b = ON-29-a alone, .1 = ON-29-a + ON-29-b + ON-29-c."
+      ]
+    },
+    {
+      "id": "P14",
+      "name": "BearBarTopHalfUntouchedLong",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P14",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        38,
+        39
+      ],
+      "quote": "Strong bearish bar (>1 ATR, body significant fraction of candle) No prices in top half of bar for last ~10-15 bars. Enter long counter trend",
+      "description": "The bar W bars ago is a strong bear bar (range >= K x ATR, body >= F of range, close < open), and none of the W bars after it traded into its top half (every high below its midpoint). On the bar the window completes: long (counter-trend). Short mirrors on a strong bull bar whose bottom half stays untouched.",
+      "pseudocode": "// long as written: bear bar at offset W\nmidW = (high[W] + low[W]) / 2;\nstrong = el_lt(close[W], open[W]) && el_ge(open[W] - close[W], F * (high[W] - low[W])) && el_ge(high[W] - low[W], K * atrAt(W));\nclean = true; for (i = 0; i < W; ++i) if (el_ge(high[i], midW)) clean = false;\nlong = strong && clean;",
+      "sides": "mirrored (as written the long fades a bear bar; the short fades a bull bar)",
+      "parameters": {
+        "W": 12,
+        "K": 1.0,
+        "F": 0.6,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "lagged bar test with an ATR as of that bar"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "ClimaxBar",
+      "library_check": {
+        "verdict": "near",
+        "rule": "ClimaxBar",
+        "origin": "Brooks",
+        "evidence": "ClimaxBar is the strong-bar half at lag 0; nothing waits W bars for the bar's top half to stay untraded. Delayed by construction (Decision 9)."
+      },
+      "confidence": "high",
+      "notes": [
+        "atrAt(W) is the ATR as of the bear bar; reading the current ATR instead would be simpler (a choice to confirm in authoring).",
+        "Pseudocode is the as-written long side; here the long condition is the one that reads a BEAR bar."
+      ]
+    },
+    {
+      "id": "P14-b",
+      "name": "TargetAtSignalBarOpen",
+      "role": "Exit",
+      "pane": "exit",
+      "triage_row": "P14",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        40
+      ],
+      "quote": "Enter long counter trend with target of bearish bars open",
+      "description": "Long profit target at the open of the bar W+1 bars before the fill bar (P14's bear bar), frozen at entry: exit when the high reaches it. Short mirrors at the bull bar's open.",
+      "pseudocode": "if (ctx.BarsSinceEntry() == 0) target = open[W + 1];   // read every bar, freeze conditionally\nexitLong = ctx.MarketPosition() > 0 && el_ge(high[0], target);",
+      "sides": "mirrored",
+      "parameters": {
+        "W": 12
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "captures a level on the fill bar"
+      },
+      "el_words_needed": [
+        "BarsSinceEntry",
+        "MarketPosition"
+      ],
+      "likely_existing_rule": "EntryBarExtremeTarget",
+      "library_check": {
+        "verdict": "near",
+        "rule": "EntryBarExtremeTarget",
+        "origin": "Brooks",
+        "evidence": "EntryBarExtremeTarget captures the signal bar's far extreme on the fill bar ([1]); this captures the open of a bar W+1 back. Coupled to P14's W, so the pair must share the value."
+      },
+      "confidence": "high",
+      "notes": [
+        "A long needs the open above the entry for this to be a target; it is by construction (the bear bar opened near its high, above its untouched midpoint)."
+      ]
+    },
+    {
+      "id": "P11",
+      "name": "BreakawayPullbackBreak",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P11",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        28
+      ],
+      "quote": "Big breakaway move (multiple bars OR ATR cutoff). Measured from open of first breakaway bar to high of the move. Pullback consisting of multiple bars (3-5) which do not break the high of the move but only pullback a small fraction (top 20-30%). Enter long on break above the high.",
+      "description": "Move = the run of consecutive up-close bars ending at the bar t that holds the highest high of the last (maxRun + maxPullback) bars; height = H - open[first bar of the run]. Breakaway if the run is at least minRunBars long OR height >= A x ATR. Pullback = bars t-1..1, between minPullback and maxPullback of them, all with high < H and low >= H - f x height. Long on the close above H. Short mirrors.",
+      "pseudocode": "t = bar of highest(high, maxRun + maxPullback) in 1..; H = high[t];\nrun: s = t; while (s + 1 <= t + maxRun - 1 && el_gt(close[s + 1], open[s + 1])) s = s + 1;   // requires el_gt(close[t], open[t])\nheight = H - open[s];\nbreakaway = (s - t + 1 >= minRunBars) || el_ge(height, A * atr);\npb = t - 1; ok = pb >= minPullback && pb <= maxPullback;\nfor (i = 1; i < t; ++i) if (el_ge(high[i], H) || el_lt(low[i], H - f * height)) ok = false;\nlong = breakaway && ok && el_gt(close[0], H);",
+      "sides": "mirrored",
+      "parameters": {
+        "minRunBars": 3,
+        "maxRun": 10,
+        "A": 2.0,
+        "minPullback": 3,
+        "maxPullback": 5,
+        "f": 0.25,
+        "atrLookback": 14
+      },
+      "book_order_type": "buy stop above the move high; mechanized as a close above it",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "variable-length move recognition plus a bounded pullback"
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange",
+        "Highest"
+      ],
+      "likely_existing_rule": "BreakoutPullbackEntry",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutPullbackEntry",
+        "origin": "Brooks",
+        "evidence": "BreakoutPullbackEntry (breakout bar, 1-10 bar pullback, close above the pullback high) and FirstPullbackAfterSpike (strong-bar spike, first pullback) are the Brooks relatives; neither bounds the pullback to the top fraction of the move or breaks the move's own high."
+      },
+      "confidence": "low",
+      "notes": [
+        "The move definition (consecutive up-close run) is a concretization; see open_questions."
+      ]
+    },
+    {
+      "id": "P12",
+      "name": "ExtremePairRetraceEntry",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P12",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        31,
+        32,
+        33
+      ],
+      "quote": "First signal bar makes highest high of last X (5-10) bars with no higher bar since. Second signal bars occurs within next X bars and makes the lowest low in last X bars and is lowest bar since. Enter short on retracement to top Y (~50)% of second signal bar.",
+      "description": "Short as written; pseudocode is the long mirror: bar a made the lowest low of X bars with no lower low since; bar b, 1..X bars after a, made the highest high of X bars with no higher high since; enter long on the first close inside the bottom Y of bar b's range.",
+      "pseudocode": "// long mirror; a > b >= 1 (bars ago)\nsig1(a) = el_le(low[a], lowest(low, X)[a]) && no bar in 0..a-1 has el_lt(low[i], low[a]);\nsig2(b) = a - b >= 1 && a - b <= X && el_ge(high[b], highest(high, X)[b]) && no bar in 0..b-1 has el_gt(high[i], high[b]);\nzoneTop = low[b] + Y * (high[b] - low[b]);\nfirst = no close in 1..b-1 inside [low[b], zoneTop];\nlong = sig1 && sig2 && first && el_le(close[0], zoneTop) && el_ge(close[0], low[b]);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 7,
+        "Y": 0.5,
+        "maxWaitBars": 10
+      },
+      "book_order_type": "limit into the top Y of bar 2; mechanized as a close inside the zone, next open (TRIAGE)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two anchored window extremes and an armed zone"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "FibonacciRetracementLevel",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FibonacciRetracementLevel",
+        "origin": "Brooks",
+        "evidence": "FibonacciRetracementLevel retraces a fixed window's span; this retraces into the second signal bar's own range after a high-then-low sequence. Nothing matches the two-signal-bar structure."
+      },
+      "confidence": "medium",
+      "notes": [
+        "maxWaitBars bounds how old bar b may be (not in the note).",
+        "'Within the next X bars' read as 1..X bars after bar a."
+      ]
+    },
+    {
+      "id": "P16",
+      "name": "DonchianOutsizedBreakoutFade",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P16",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        45,
+        46
+      ],
+      "quote": "Donchian channel with look back length of 20. One (large) bar with a low below the midline and a high that shifts the top channel up. Enter short",
+      "description": "Against the 20-bar Donchian channel of the bars ending one bar ago: the bar's high exceeds the channel top while its low is below the channel midline: short (fade). Long mirrors (low below the bottom, high above the midline).",
+      "pseudocode": "// long mirror\ntop = highest(high, N)[1]; bot = lowest(low, N)[1]; mid = (top + bot) / 2;\nlong = el_lt(low[0], bot) && el_gt(high[0], mid) && el_ge(high[0] - low[0], minRangeAtr * atr);",
+      "sides": "mirrored",
+      "parameters": {
+        "N": 20,
+        "minRangeAtr": 0.0,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extremes"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "AtrBandBreakout",
+      "library_check": {
+        "verdict": "near",
+        "rule": "AtrBandBreakout",
+        "origin": "unknown (August 2026 authoring batch)",
+        "evidence": "AtrBandBreakout and the Donchian breakout family (HighestHighBreakout, CloseAbovePriorHighestHigh) trade WITH the channel break; OutsideBarInMidRange tests an outside bar's midpoint in the range. None fades a bar that spans from below the midline through the top."
+      },
+      "confidence": "high",
+      "notes": [
+        "'Large' is implied by spanning half the channel; minRangeAtr (default 0, off) makes it explicit."
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "BreakoutClearsByHalfBar",
+      "role": "Entry",
+      "pane": 1,
+      "triage_row": "P7",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        18
+      ],
+      "quote": "X bar breakout high where the high of the last X bars is below the midpoint of the breakout bar",
+      "description": "The prior X-bar high is below the current bar's midpoint, so the bar breaks out by at least half its own range. Long; short mirrors (prior X-bar low above the midpoint).",
+      "pseudocode": "long = el_lt(highest(high, X)[1], (high[0] + low[0]) / 2);",
+      "sides": "mirrored",
+      "parameters": {
+        "X": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "window extreme"
+      },
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "BreakoutClearsPriorExtremeByMargin",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutClearsPriorExtremeByMargin",
+        "origin": "Brooks",
+        "evidence": "BreakoutClearsPriorExtremeByMargin clears Highest(High, N)[1] by a fixed tick margin; here the margin is half the breakout bar's own range, so the two fire on different bars at any fixed margin. CloseAbovePriorHighestHigh (EEC) is the close-through form."
+      },
+      "confidence": "high",
+      "notes": [
+        "midpoint > prior high implies high > prior high, so no separate breakout test is needed."
+      ]
+    }
+  ],
+  "primitives_to_inline": [
+    {
+      "id": "ON-12-a",
+      "name": "LargeShapedBarAtLag",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "12",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        12,
+        14,
+        23,
+        26
+      ],
+      "quote": "A large bullish bar (> 2 ATR but less than 7 just to avoid weird case with huge bar ; Open in bottom quarter ; close in top quarter)",
+      "description": "The bar `lag` bars ago is a large bull bar of a given shape: range between minRangeAtr and maxRangeAtr x ATR (ATR as of that bar), open in the bottom openFraction of its range, close in the top closeFraction. Short side: a bear bar, open in the top, close in the bottom. Shared by ON-12-b and ON-13, and at other defaults by ON-21 (standard bar) and ON-24 (huge bar).",
+      "pseudocode": "r = high[lag] - low[lag];\na = atrVal[lag];                       // ATR series variable read at the bar's own offset\nreturn r > minRangeAtr * a && r < maxRangeAtr * a\n    && open[lag] - low[lag]   <= openFraction  * r\n    && high[lag] - close[lag] <= closeFraction * r;",
+      "sides": "mirrored",
+      "parameters": {
+        "lag": 0,
+        "minRangeAtr": 2.0,
+        "maxRangeAtr": 7.0,
+        "openFraction": 0.25,
+        "closeFraction": 0.25,
+        "atrLength": 20
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "simple",
+        "reason": "Single-bar arithmetic against an ATR read from a series variable."
+      },
+      "el_words_needed": [
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "OpenNearBarLow",
+      "library_check": {
+        "verdict": "near",
+        "rule": "OpenNearBarLow",
+        "origin": "Brooks (OpenNearBarLow, BarRangeAtrMultiple); Davey EEC #38 (CloseRangePosition)",
+        "evidence": "At lag 0 and maxRangeAtr large this is OpenNearBarLow(0.25) AND CloseRangePosition(0.75) AND BarRangeAtrMultiple(2, N) - three existing rules ANDed. The cap, and reading all three at a lag against the ATR as of that bar, are what the pattern rules need and the existing rules lack. ClimaxBar (Brooks) tests a body fraction instead of open/close positions."
+      },
+      "confidence": "high",
+      "notes": [
+        "ATR length is not given in #12/#13 (the note lists per-timeframe ATR lookbacks for the stops); 20 assumed.",
+        "Strict > / < for the size band per the note ('> 2 ATR but less than 7').",
+        "CloseRangePosition, one of the three rules this decomposes into at lag 0, is a Davey (EEC) rule: provenance to surface if the authoring pass reuses it."
+      ]
+    }
+  ],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

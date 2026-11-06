@@ -1,0 +1,525 @@
+{
+  "slice": "01_swing_channel",
+  "rules": [
+    {
+      "id": "ON-1-b",
+      "name": "ChannelFailedSwingFromHitSide",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-1-a"
+      ],
+      "pages": [
+        1,
+        2
+      ],
+      "quote": "start at channel top (flip) and look for 2-bar swings that are first low ... and then a high which is lower than the channel high. Once the swing high forms enter short.",
+      "description": "Inside a live ON-1-a box, the side hit most recently is the BOTTOM (long side). After that hit a small (2-bar) swing high forms toward the middle, then the first small swing low after it holds above the box bottom; on the bar that confirms that higher small swing low, buy. The short is the mirror: top hit most recently, small swing low, then a small swing high that fails short of the top.",
+      "pseudocode": "if (!active) return false;\ntol = touchTolAtr * atr(atrLength);\nhitB = most recent j in 0..barA with low[j]  <= chanLow + tol;   // bottom hit (bars ago)\nhitT = most recent j in 0..barA with high[j] >= chanHigh - tol;  // top hit\nif (!(hitB < hitT)) return false;                                // bottom is the most recently hit side\nh2 = the FIRST innerStrength-bar swing high whose bar is newer than hitB;\nl2 = the FIRST innerStrength-bar swing low whose bar is newer than h2;\nreturn h2 found && l2 found && barsAgo(l2) == innerStrength      // l2 confirmed on this bar\n    && low[l2] > chanLow + tol;                                  // fails short of the hit side",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 5,
+        "anchorLookback": 30,
+        "innerStrength": 2,
+        "touchTolAtr": 0.0,
+        "atrLength": 14
+      },
+      "book_order_type": "enter on the bar the swing confirms (market)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Two pivot strengths, a latched box, and ordering of hit / swing-high / swing-low events in time."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "No rule reads a failed small swing after a box-side hit. Nearest: ChannelStartRetestEntry (Brooks, a sloped channel's start level retested) and HigherSwingLow (Brooks, two consecutive pivots, no box)."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The note describes the short case (top hit most recently); pseudocode is the long mirror per convention.",
+        "'Hit' concretized as a bar reaching the box side within touchTolAtr ATRs; default 0 means an exact touch, which on tick-grid data is a bar's extreme equal to the anchor price (the box cannot be exceeded while live).",
+        "'2-bar swing' = non-alternating pivot of strength 2 (innerStrength).",
+        "Fires once per hit: only the first small swing high after the hit and the first small swing low after it are considered."
+      ]
+    },
+    {
+      "id": "ON-2",
+      "name": "ChannelInnerSwingBreakFade",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "2",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-1-a"
+      ],
+      "pages": [
+        2
+      ],
+      "quote": "Wait for an X bar (same variable as channel i.e 5-7) swing to form. If it is a high, enter short the first time a bar touches the line.",
+      "description": "Once an ON-1-a box is live, the first X-bar pivot to form inside it (pivot bar newer than anchor B) is examined. Long side: the box has ordering HL (its more recent anchor is the swing LOW) and that first inner pivot is a swing low above the box bottom; buy the first time a bar's low goes below it. Short side (the note): ordering LH, first inner pivot a swing high below the top, short the first time a bar's high goes above it.",
+      "pseudocode": "if (!active || ordering != HL) return false;\np = the FIRST X-bar pivot (either type) whose bar is newer than barB;\nif (!p found || p is not a swing low || !(low[p] > chanLow)) return false;\nreturn low[0] < low[p]\n    && lowest(low, barsAgo(p) - 1)[1] >= low[p];   // no earlier bar since the pivot broke it: first time",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 5,
+        "anchorLookback": 30
+      },
+      "book_order_type": "stop (the bar touching the line); mechanized as signal-bar close, next open",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Depends on the latched pivot box and on the order of pivots after its second anchor."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar"
+      ],
+      "likely_existing_rule": "FailedSwingBreakoutReversal",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FailedSwingBreakoutReversal",
+        "origin": "Brooks",
+        "evidence": "FailedSwingBreakoutReversal fires when the low trades below the most recent confirmed swing low AND the bar closes back above it. ON-2 fades the break itself (no close-back requirement), only for the first inner pivot of a live box, and only the side opposite the box's more recent anchor. SwingPointUndercut (Brooks, low at/below the most recent swing low) is the bare form without the box."
+      },
+      "confidence": "high",
+      "notes": [
+        "Reading confirmed by Brian 2026-11-05: 'short the first time a bar's high goes above that swing high'.",
+        "If the first inner pivot is of the other type, there is no setup on that side (the box's ordering picks the side).",
+        "Stop-style entry mechanized as: the bar whose low breaks the pivot closes, enter at the next open."
+      ]
+    },
+    {
+      "id": "ON-3",
+      "name": "InnerBoxFalseBreakReclaim",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "3",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "ON-1-a"
+      ],
+      "pages": [
+        2
+      ],
+      "quote": "Price closes below ... the inner box but above the outer box. Enter long the first time price closes above the low of the inner box. Inner box must be at least 3x ATR-50 high.",
+      "description": "Inside a live ON-1-a box, an inner box is formed by the first X-bar pivot after anchor B and the first opposite-type pivot after that (latched). Its height must be at least K x ATR(50). Long: a close below the inner box low (still inside the outer box), then the first close back above the inner box low. Short mirrors at the inner box high.",
+      "pseudocode": "if (!active) return false;\np1 = FIRST X-bar pivot newer than barB; p2 = FIRST pivot of the opposite type newer than p1;  // latched\ninnerLow = low of the swing-low one; innerHigh = high of the swing-high one;\nif (!(innerLow > chanLow && innerHigh < chanHigh)) return false;\nif (innerHigh - innerLow < minBoxAtr * atr(boxAtrLength)) return false;\n// most recent close below the inner low, after p2 was confirmed, within maxWaitBars\nk = most recent j in 1..min(maxWaitBars, barsAgo(p2) - X) with close[j] < innerLow;\nreturn k found\n    && no j in 1..k-1 with close[j] > innerLow   // first close back above\n    && close[0] > innerLow;",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 5,
+        "anchorLookback": 30,
+        "minBoxAtr": 3.0,
+        "boxAtrLength": 50,
+        "maxWaitBars": 20
+      },
+      "book_order_type": "close-based",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Nested latched pivot boxes plus a close-below / close-back sequence."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "FailedBreakoutReversal",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FailedBreakoutReversal",
+        "origin": "Brooks",
+        "evidence": "FailedBreakoutReversal: some bar in the last failBars closed below the lowest low of a fixed window and this bar closes back above it. ON-3's level is a latched inner pivot box inside a pivot channel, with a minimum ATR height, and the break must stay inside the outer box. The close-back trigger is the same shape."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Concretized the 'pair' as the first pivot after the outer box's second anchor and the first opposite-type pivot after it, latched, so pivots made during the false break cannot move the inner box.",
+        "'But above the outer box' is implied while the outer box is live (a close below chanLow would need a low below it, which kills the box).",
+        "maxWaitBars bounds the scan for the earlier close below; the note gives no bound."
+      ]
+    },
+    {
+      "id": "ON-4",
+      "name": "DoubleSwingLevelBreakRetestFail",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "4",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        3
+      ],
+      "quote": "Support zone defined by two 7-bar swing lows at similar price ... There is a close below the support line. The very first bar that reenters the area above the support line is the setup bar ... If there is a red candle that closes below the support, that is the signal bar.",
+      "description": "Long side (mirror of the note's short): resistance from the two most recent 7-bar swing highs within an ATR tolerance of each other, level R = the higher of the two, not yet closed above. A close above R (the break bar). The first later bar whose low comes back below R is the setup bar. The first green bar closing above R, at or after the setup bar and no later than the 5th bar after the break, is the signal; long. A close below R by any bar after the setup bar (before the signal) invalidates.",
+      "pseudocode": "for (b = 1; b <= maxBarsAfterBreak; ++b) {\n  // pivots as of the break bar: scan strength-S swing highs from offset b + S (inlined, not SwingHigh at an offset)\n  ph1, ph2 = the two most recent confirmed swing highs as of bar b;\n  if (abs(ph1 - ph2) > levelTolAtr * atr(atrLength)) continue;\n  R = max(ph1, ph2);\n  if (!(close[b] > R)) continue;\n  if (any close[j] > R for j in b+1..barsAgo(ph1)-1) continue;   // b is the FIRST close above\n  s = first j in b-1..0 (oldest first) with low[j] < R;          // setup bar\n  if (!s found) continue;\n  if (any j in s-1..1 with close[j] < R) continue;                // invalidated after the setup bar\n  if (any j in s..1 with close[j] > open[j] && close[j] > R) continue;  // an earlier signal already fired\n  if (close[0] > open[0] && close[0] > R) return true;\n}\nreturn false;",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 7,
+        "pivotLookback": 100,
+        "levelTolAtr": 0.25,
+        "atrLength": 14,
+        "maxBarsAfterBreak": 5
+      },
+      "book_order_type": "enter on the signal bar's close; mechanized as next open",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Two pivots read as of a past bar, then a four-stage break / re-entry / invalidation / signal sequence."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "BreakoutLevelRetest",
+      "library_check": {
+        "verdict": "near",
+        "rule": "BreakoutLevelRetest",
+        "origin": "Brooks",
+        "evidence": "BreakoutLevelRetest: a close within maxWaitBars broke above the most recent swing high and this bar's low pulls back to within a tolerance and holds. ON-4 needs a two-pivot level, requires the retest to trade back THROUGH the level, enters on a green close back beyond it, and is invalidated by a close back inside after the setup bar. DoubleExtremeBreakout (Brooks) has the two-pivot level but enters with the break, in ticks, with no retest."
+      },
+      "confidence": "medium",
+      "notes": [
+        "The note gives the short (support) case; pseudocode is the long mirror.",
+        "'Similar price' concretized as an ATR tolerance (levelTolAtr), per MINING. The support line is concretized as the LOWER of the two swing lows (resistance: the higher high); the mean of the two is the alternative.",
+        "'Can be high or close that reenters' collapses to the low (short case: high) crossing back, since a close back across implies it.",
+        "The setup bar may itself be the signal bar, as the note says.",
+        "The pivots are read as of the break bar so that pivots confirmed after the break cannot move the level; EL twin needs an inlined scan (a lagged SwingHigh read is unregistered)."
+      ]
+    },
+    {
+      "id": "ON-11",
+      "name": "UndercutOfLowerSwingBelowLevelPair",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "11",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        11
+      ],
+      "quote": "Look for 2 swing lows to form at around the same level ... Look for an earlier swing low which is lower but not too much lower (maybe 1-3 ATR?) that has not yet been taken out. Enter long if a bar has a low below the earliest swing low and a close above it.",
+      "description": "The two most recent swing lows sit at about the same level (within an ATR tolerance); the swing low before them is 1-3 ATR lower and has not been traded below since. This bar's low goes below that earlier swing low and the bar closes back above it: long. Short mirrors at swing highs.",
+      "pseudocode": "p1 = SwingLow(1, low, S, L); p2 = SwingLow(2, low, S, L); p3 = SwingLow(3, low, S, L);  // -1 guarded via SwingLowBar\na = atr(atrLength);\nif (abs(p1 - p2) > pairTolAtr * a) return false;\ngap = min(p1, p2) - p3;\nif (gap < minBelowAtr * a || gap > maxBelowAtr * a) return false;\nif (lowest(low, barsAgo(p3) - 1)[1] < p3) return false;   // not yet taken out\nreturn low[0] < p3 && close[0] > p3;",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "pivotLookback": 100,
+        "pairTolAtr": 0.25,
+        "minBelowAtr": 1.0,
+        "maxBelowAtr": 3.0,
+        "atrLength": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Three pivot occurrences with ATR-scaled relations and an untaken-level test."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange",
+        "Lowest"
+      ],
+      "likely_existing_rule": "FailedSwingBreakoutReversal",
+      "library_check": {
+        "verdict": "near",
+        "rule": "FailedSwingBreakoutReversal",
+        "origin": "Brooks",
+        "evidence": "FailedSwingBreakoutReversal is the same undercut-and-close-back trigger on the MOST RECENT swing low. ON-11 aims it at the THIRD pivot and requires the two newer pivots to form a level 1-3 ATR above it."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Swing strength is not stated (the note says 'identify ATR threshold by eye'); 2 assumed.",
+        "'Around the same level' concretized as pairTolAtr; 'lower but not too much lower' as the 1-3 ATR band below the lower of the pair.",
+        "'Earlier swing low' concretized as occurrence 3, the pivot immediately before the pair."
+      ]
+    },
+    {
+      "id": "ON-43",
+      "name": "SupportBreakResistanceThenReclaim",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "43",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        49
+      ],
+      "quote": "Support level as identified by lots of wicks (3 or more) with no closes below. Price moves below and then finds resistance at the same level (2 or more touches) without moving far below. Price moves back over the level and reclaims resistance.",
+      "description": "A support level L touched by at least 3 lower wicks with no close below it. Price then closes below L, stays within an ATR bound below it while at least 2 bars test L from below (high near L, close below), and then closes back above L: long. Short is the mirror (resistance of upper wicks, break above, tests from above, close back below), the note's 'second example'.",
+      "pseudocode": "// state machine; tol = tolAtr * atr, depth = maxDepthAtr * atr\nif (state == 0) {\n  L = SwingLow(1, low, S, pivotLookback) as of bar 1;               // level anchor (open question)\n  touches = count j in 1..supportLookback with abs(low[j] - L) <= tol && close[j] >= L;\n  clean = no j in 1..supportLookback with close[j] < L;\n  if (touches >= minSupportTouches && clean && close[0] < L) { state = 1; level = L; since = 0; resTouches = 0; }\n  return false;\n}\n++since;\nif (low[0] < level - depth || since > maxBarsBelow) { state = 0; return false; }\nif (close[0] > level) { fire = resTouches >= minResistanceTouches; state = 0; return fire; }\nif (high[0] >= level - tol) ++resTouches;                            // a test from below that closed below\nreturn false;",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "pivotLookback": 40,
+        "supportLookback": 40,
+        "minSupportTouches": 3,
+        "minResistanceTouches": 2,
+        "tolAtr": 0.15,
+        "maxDepthAtr": 1.0,
+        "maxBarsBelow": 20,
+        "atrLength": 14
+      },
+      "book_order_type": "close-based",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "A persistent multi-stage state machine over a latched level, plus the level detector itself."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "LevelTouchCount",
+      "library_check": {
+        "verdict": "near",
+        "rule": "LevelTouchCount",
+        "origin": "Brooks",
+        "evidence": "LevelTouchCount counts held touches of the most recent swing pivot level - ON-43's first stage. Nothing follows it through a break, tests from the other side and a reclaim. FailedBreakoutReversal and FailedSwingBreakoutReversal (Brooks) are the one-bar break-and-close-back forms."
+      },
+      "confidence": "low",
+      "notes": [
+        "The level definition is the open design decision: anchoring on the most recent confirmed swing low follows the corpus precedent (LevelTouchCount, SwingPointTestHolds) but the note's drawing shows a line through clustered wicks, which I2's spread test fits better. Open question.",
+        "A close back above L before 2 resistance touches resets the setup (concretized).",
+        "Chart: EUR/CHF TradingView, own drawings."
+      ]
+    },
+    {
+      "id": "ON-26",
+      "name": "RedRunThroughStackedSupportFade",
+      "role": "Entry",
+      "pane": "1",
+      "triage_row": "26",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "I2"
+      ],
+      "pages": [
+        28
+      ],
+      "quote": "Price is trading in a range (see indicators 20250103.1 and 20250116.2) Contiguous series of red bars break through and close below two support lines. Enter long.",
+      "description": "Two stacked support zones (indicator I2: the upper zone entirely above the lower), both valid as of the start of the run. An unbroken run of red bars starts at or above the upper zone, and this bar, still red, is the first in the run to close below the lower zone: long (a fade). Short mirrors with a green run up through two stacked resistance zones. The range condition is pane 2 (I3 / I1).",
+      "pseudocode": "k = number of consecutive red bars ending at bar 0 (close[j] < open[j], j = 0..k-1), k <= maxRunBars; if (k == 0) return false;\nzU, zL = the two most recent valid I2 support zones as of bar k (zL.high < zU.low);\nif (!(zU && zL)) return false;\nreturn open[k-1] >= zU.low                     // run starts at or above the upper zone\n    && close[0] < zL.low\n    && (k == 1 || close[1] >= zL.low);       // first close of the run below the lower zone",
+      "sides": "mirrored",
+      "parameters": {
+        "maxRunBars": 10
+      },
+      "book_order_type": "next bar",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Needs the I2 swing-cluster zone detector twice, read as of a past bar, plus a run counter."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "Depends on the I2 support-zone indicator, which has no library equivalent. LevelTouchCount (Brooks) reads one pivot level, not clustered zones; no rule fades a one-colour run through two levels."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Reading confirmed by Brian 2026-11-05 (TRIAGE #26).",
+        "I2 is specced elsewhere (indicators); this candidate assumes it exposes each valid zone's low and high, newest first.",
+        "'Starts at or above' read as the run's first open at or above the upper zone's LOW (inside the zone counts as 'at').",
+        "Fires on the first close below the lower zone during the run rather than waiting for the run to end, which is the only way to enter on a bar-close signal.",
+        "Pane-2 companions: I3 (swing-regression range) or I1 (consolidation bar), not in this file."
+      ]
+    }
+  ],
+  "primitives_to_inline": [
+    {
+      "id": "I2-a",
+      "name": "SwingLowSupportZone",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "I2",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        2
+      ],
+      "quote": "Look for prices which have multiple nearby (within X-ATR) swing lows with a horizontal line R^2 value below a threshold. Close well (.5 ATR?) below the bottom of the zone invalidates it.",
+      "description": "A support zone is the M most recent non-alternating 1-bar swing lows when they all lie within X x ATR of each other (max - min) and their population standard deviation is at most k x ATR (Brian's spread test, replacing the identically-zero horizontal R^2). Zone = [min, max]. It is invalidated once any close since the newest of them is below min - margin x ATR. Mirror: resistance from swing highs.",
+      "pseudocode": "// y[0..M-1]: the M most recent swing lows (strength 1), newest-first\nok = foundLows >= M && el_le(max(y) - min(y), X * atr);\nmu = mean(y); sd = sqrt(sum((y - mu)^2) / M);\nok = ok && el_le(sd, k * atr);\nfor (i = 1; i <= newestBarsAgo; ++i) if (el_lt(close[i], min(y) - margin * atr)) ok = false;\nzoneLo = min(y); zoneHi = max(y);",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 1,
+        "M": 3,
+        "X": 1.0,
+        "k": 0.3,
+        "margin": 0.5,
+        "pivotLookback": 100,
+        "atrLookback": 14
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot detection and a spread test over a pivot set"
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "WFSafe_AvgTrueRange",
+        "SquareRoot"
+      ],
+      "likely_existing_rule": "LevelTouchCount",
+      "library_check": {
+        "verdict": "near",
+        "rule": "LevelTouchCount",
+        "origin": "Brooks",
+        "evidence": "LevelTouchCount counts bar touches of one level; DoubleExtremePullback builds a level from two pivots within matchTicks. Neither clusters M pivots with a dispersion test."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Cluster = the M MOST RECENT swing lows (consecutive in the low sequence) is a concretization; 'any M of the last P' is the alternative (open question).",
+        "Row #26 (strategies_a) uses two stacked I2 zones; this primitive is offered for it."
+      ]
+    },
+    {
+      "id": "ON-1-a",
+      "name": "SwingBoxChannel",
+      "role": "Entry",
+      "pane": "primitive",
+      "triage_row": "1",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        1,
+        2
+      ],
+      "quote": "Non-alternating swing low (X = 5-7 bars) that is also the low of last 20-40 bars. Next swing is a swing high (X bars). Channel is identified by neither of those swings being taken out",
+      "description": "Horizontal channel (box) from an anchor pair of confirmed X-bar pivots: anchor A is a swing low that is also the lowest low of the Y bars ending at it, and B is the NEXT X-bar pivot after A and is a swing high (ordering LH); or the mirror, A a swing high that is the Y-bar highest high and B the next pivot, a swing low (ordering HL). The box is [chanLow, chanHigh] = the two anchor prices. It is live while no bar since A has traded below chanLow or above chanHigh. Exposes chanLow, chanHigh, ordering, barsAgo(A), barsAgo(B), active.",
+      "pseudocode": "// pivots: non-alternating, strength X, EL SwingHigh/SwingLow semantics (mixed >= older / > newer)\nif (active && (low[0] < chanLow || high[0] > chanHigh)) active = false;\nif (!active) {\n  // scan confirmed X-bar pivots newest-first inside maxLookback for the most recent pair (A, B):\n  //   B = the first X-bar pivot (either type) whose bar is newer than A, and B is of the OPPOSITE type to A;\n  //   A swing low:  low[a]  == lowest(low, Y)[a]   (ordering LH: chanLow = low[a],  chanHigh = high[b])\n  //   A swing high: high[a] == highest(high, Y)[a] (ordering HL: chanHigh = high[a], chanLow = low[b])\n  //   and lowest(low, a + 1)[0] >= chanLow && highest(high, a + 1)[0] <= chanHigh  (nothing since A took either side out)\n  if (found) { active = true; latch chanLow, chanHigh, ordering, barA, barB; }\n}\n// barA/barB advance by one each bar while latched",
+      "sides": "same",
+      "parameters": {
+        "swingStrength": 5,
+        "anchorLookback": 30,
+        "maxLookback": 150
+      },
+      "book_order_type": "n/a",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "Pivot detection plus a latched pivot pair that must persist across bars while inner pivots form inside it."
+      },
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "SwingHighBar",
+        "SwingLowBar",
+        "Highest",
+        "Lowest"
+      ],
+      "likely_existing_rule": "",
+      "library_check": {
+        "verdict": "none",
+        "rule": "",
+        "origin": "",
+        "evidence": "The library's channel rules (ChannelStartRetestEntry, ChannelLineBreakoutFailure, ChannelWidthConvergence, ...; Brooks) project SLOPED trend/channel lines through pivot pairs. Nothing builds a horizontal box from an anchor pivot that is also a window extreme plus the next opposite pivot. RangeWidthBelowAtrMultiple is a fixed-window height test, not a pivot box."
+      },
+      "confidence": "medium",
+      "notes": [
+        "Swing ranges from the note: X 5-7 (default 5), Y 20-40 (default 30). The ~50-bar hold is explicitly not required ('don't require 50 bar waiting time').",
+        "Concretized 'also the low of last 20-40 bars' as: the anchor's low is the lowest low of the Y bars ENDING AT the anchor bar.",
+        "Concretized 'taken out' as a bar trading beyond the level (low below chanLow / high above chanHigh); a bar equal to the level is a hit, not a break.",
+        "Either ordering per Brian 2026-11-05 (TRIAGE Decision 7).",
+        "LATCHED: once live, a newer qualifying pair does not replace it until it breaks. This is needed by ON-2 and ON-3, whose inner pivots would otherwise re-anchor the box; the replacement policy is an open question.",
+        "EL twin: SwingHigh/SwingLow are VERIFIED, but the pair scan needs pivots of either type in time order, so it inlines the pivot scan (the SwingHigh.json construction) rather than calling SwingHigh at variable occurrences."
+      ]
+    }
+  ],
+  "resolutions": [
+    {
+      "applies_to": "ON-25",
+      "answer": "HIGH candle = CLOSE above the 50-bar high (symmetric with LOW). Every bar between the two L's (H's) must be a C candle.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-43",
+      "answer": "Level = a cluster of wick lows within a tolerance, built like the I2 support zone (not the most recent swing low).",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "I2",
+      "answer": "Zone: scanning back N bars, the K+ most recent 1-bar swing lows all within X*ATR of each other, with std dev of those lows <= k*ATR; bottom = lowest of them; a close more than 0.5*ATR below the bottom kills it. #26 needs two distinct stacked zones. No pane-2 'near zone' condition for now.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "pivot-order (ON-50, ON-53, ON-59)",
+      "answer": "A bar that is both a swing high and a swing low counts as both, ordered by bar direction: a green bar (close > open) is low-then-high, a red bar high-then-low.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-50",
+      "answer": "The mirror order (high, low, high, low with the last two inside the first two) also counts.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P11",
+      "answer": "Breakaway move = a run of consecutive bull bars each with range >= k*ATR; measured from the first run bar's open to the run's highest high.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "ON-80",
+      "answer": "Cancel the armed setup if a later bar trades back into the band. Add a window input W, counted from the wick bar, constrained W > Z.",
+      "by": "Brian 2026-11-05"
+    },
+    {
+      "applies_to": "P6",
+      "answer": "'Fractal low length ~3' = swing strength 3 (three bars each side); the pullback must be at least 3 bars.",
+      "by": "Brian 2026-11-05"
+    }
+  ]
+}

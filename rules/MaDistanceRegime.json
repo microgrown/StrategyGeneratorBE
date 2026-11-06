@@ -1,0 +1,69 @@
+{
+    "name": "MaDistanceRegime",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "50",
+        "longWindow": "100",
+        "shortWindow": "10",
+        "minLongAtr": "1.0",
+        "maxShortAtr": "0.25",
+        "atrLookback": "20"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dist": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "distHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "distCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "distDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "dLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        },
+        "distReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MA DISTANCE REGIME (Brian's notes ON-68, #68): mean of (close - EMA)\n// over longWindow >= minLongAtr ATRs and |mean over shortWindow| <=\n// maxShortAtr ATRs (long); short mirrors the long-window term.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\ndist = close[0] - emaVal;\n// EL: Average(dist, N) over a VARIABLE reads its zero-filled history and\n// recomputes fresh every bar, summing NEWEST-FIRST ([0] .. [N-1]). Mirrored in\n// a zero-initialized ring buffer deep enough for both windows, read from the\n// newest slot backwards; re-seeded if the depth changes.\ndistDepth = (int)longWindow;\nif ((int)shortWindow > distDepth) {\n    distDepth = (int)shortWindow;\n}\nif (distDepth < 1) {\n    distDepth = 1;\n}\nif (distHistory.size() != (std::size_t)distDepth) {\n    distHistory.assign((std::size_t)distDepth, 0.0);\n    distCursor = 0;\n}\ndistHistory[distCursor] = dist;\ndLong = 0.0;\nfor (int i = 0; i < (int)longWindow; ++i) {\n    dLong += distHistory[(distCursor + distHistory.size() - (std::size_t)i) % distHistory.size()];\n}\ndLong /= (int)longWindow;\ndShort = 0.0;\nfor (int i = 0; i < (int)shortWindow; ++i) {\n    dShort += distHistory[(distCursor + distHistory.size() - (std::size_t)i) % distHistory.size()];\n}\ndShort /= (int)shortWindow;\ndistCursor = (distCursor + 1) % distHistory.size();\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right.\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\ndistReady = ctx.CurrentBar() > (int)longWindow - 1;",
+    "longCondition": "distReady && el_ge(dLong, minLongAtr * atrValue) && el_le(std::fabs(dShort), maxShortAtr * atrValue)",
+    "shortCondition": "distReady && el_ge(-dLong, minLongAtr * atrValue) && el_le(std::fabs(dShort), maxShortAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,126 @@
+{
+    "name": "BreakawayPullbackBreak",
+    "type": "Entry",
+    "inputVariables": {
+        "minRunBars": "2",
+        "maxRun": "10",
+        "k": "1.0",
+        "minPullback": "3",
+        "maxPullback": "5",
+        "f": "0.25",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "atrIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "winN": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "tHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "tLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "sHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "sLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "runHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "runLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "onRun": {
+            "type": "bool",
+            "init": "false"
+        },
+        "heightHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "heightLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireShort": {
+            "type": "bool",
+            "init": "false"
+        },
+        "barAtr": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Breakaway move, shallow pullback, break (Brian's phone notes P11, p. 28).\n// H = highest high of bars 1..maxRun+maxPullback (ties keep the most recent,\n// strict el_gt scan), at tHi. Move (Brian 2026-11-05): consecutive bull bars,\n// each with range >= k x the ATR as of that bar, ending at tHi, at most maxRun,\n// at least minRunBars; height = H - open of the oldest run bar. Pullback = bars\n// 1..tHi-1, minPullback..maxPullback of them, none reaching H, none below\n// H - f x height. LONG on the close above H; short mirrors. Not\n// BreakoutPullbackEntry (no top-fraction bound, breaks the pullback high).\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, SwingLowRejection's\n// block verbatim -- seeded with a full N-term sum on the first calculated bar or\n// when the length changes, and after that TWO statements (S += in; S -= out;) --\n// EL evaluates S[1] + in - out left to right. It stays in the hook, which the\n// generator emits unconditionally.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\n// EL reads atrValue[k], the VARIABLE's own history: 0 for every bar before the\n// strategy's first evaluated one, the stored value after. Mirrored as a growing\n// history (StochasticCross's push_back form), so atrHist[size-1-k] is atrValue[k]\n// and k past the start reads 0 -- and an input change mid-run never discards it,\n// as a resized ring buffer would.\natrHist.push_back(atrValue);\nfireLong = false;\nfireShort = false;\nwinN = (int)maxRun + (int)maxPullback;\ntHi = 1;\ntLo = 1;\nfor (ii = 2; ii <= winN; ++ii) {\n    if (el_gt(high[ii], high[tHi])) tHi = ii;\n    if (el_lt(low[ii], low[tLo])) tLo = ii;\n}\nif (tHi - 1 >= (int)minPullback && tHi - 1 <= (int)maxPullback) {\n    runHi = 0;\n    sHi = tHi;\n    onRun = true;\n    for (ii = tHi; ii <= tHi + (int)maxRun - 1; ++ii) {\n        atrIdx = (int)atrHist.size() - 1 - (ii);\n        barAtr = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\n        if (onRun && el_gt(close[ii], open[ii]) && el_ge(high[ii] - low[ii], k * barAtr)) {\n            runHi = runHi + 1;\n            sHi = ii;\n        } else {\n            onRun = false;\n        }\n    }\n    heightHi = high[tHi] - open[sHi];\n    pbOk = true;\n    for (ii = 1; ii <= tHi - 1; ++ii) {\n        if (el_ge(high[ii], high[tHi]) || el_lt(low[ii], high[tHi] - f * heightHi)) pbOk = false;\n    }\n    if (runHi >= (int)minRunBars && pbOk && el_gt(close[0], high[tHi])) fireLong = true;\n}\nif (tLo - 1 >= (int)minPullback && tLo - 1 <= (int)maxPullback) {\n    runLo = 0;\n    sLo = tLo;\n    onRun = true;\n    for (ii = tLo; ii <= tLo + (int)maxRun - 1; ++ii) {\n        atrIdx = (int)atrHist.size() - 1 - (ii);\n        barAtr = atrIdx >= 0 ? atrHist[(std::size_t)atrIdx] : 0.0;\n        if (onRun && el_lt(close[ii], open[ii]) && el_ge(high[ii] - low[ii], k * barAtr)) {\n            runLo = runLo + 1;\n            sLo = ii;\n        } else {\n            onRun = false;\n        }\n    }\n    heightLo = open[sLo] - low[tLo];\n    pbOk = true;\n    for (ii = 1; ii <= tLo - 1; ++ii) {\n        if (el_le(low[ii], low[tLo]) || el_gt(high[ii], low[tLo] + f * heightLo)) pbOk = false;\n    }\n    if (runLo >= (int)minRunBars && pbOk && el_lt(close[0], low[tLo])) fireShort = true;\n}",
+    "longCondition": "fireLong",
+    "shortCondition": "fireShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

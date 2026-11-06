@@ -1,0 +1,58 @@
+{
+    "name": "MaSideFlipRun",
+    "type": "Entry",
+    "inputVariables": {
+        "emaLength": "50",
+        "recentBars": "3",
+        "priorBars": "10"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "upNow": {
+            "type": "int",
+            "init": "0"
+        },
+        "downNow": {
+            "type": "int",
+            "init": "0"
+        },
+        "upBefore": {
+            "type": "int",
+            "init": "0"
+        },
+        "downBefore": {
+            "type": "int",
+            "init": "0"
+        },
+        "flipReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MA SIDE FLIP RUN (Brian's notes P5): last recentBars closes above the\n// EMA, the priorBars closes before them below it (long); short mirrored.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// LAGGED EMA READS (MEASURED, XAVERAGE_LAG_FINDINGS.md): ema[k] is bit for\n// bit the value k bars earlier and reads 0.0 before that history exists, so\n// the zero-initialized ring buffer below is exact and the rule guards its\n// first k bars on the bar counter instead of comparing against the zero.\n// Re-seeded if the depth changes.\nemaDepth = (int)recentBars + (int)priorBars;\nif (emaDepth < 1) {\n    emaDepth = 1;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nupNow = 0;\ndownNow = 0;\nupBefore = 0;\ndownBefore = 0;\nfor (int ii = 0; ii <= (int)recentBars - 1; ++ii) {\n    double lagged = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)(ii)) % emaHistory.size()];\n    if (el_gt(close[ii], lagged)) {\n        upNow = upNow + 1;\n    }\n    if (el_lt(close[ii], lagged)) {\n        downNow = downNow + 1;\n    }\n}\nfor (int ii = (int)recentBars; ii <= (int)recentBars + (int)priorBars - 1; ++ii) {\n    double lagged = emaHistory[(emaCursor + emaHistory.size() - (std::size_t)(ii)) % emaHistory.size()];\n    if (el_gt(close[ii], lagged)) {\n        upBefore = upBefore + 1;\n    }\n    if (el_lt(close[ii], lagged)) {\n        downBefore = downBefore + 1;\n    }\n}\nemaCursor = (emaCursor + 1) % emaHistory.size();\nflipReady = ctx.CurrentBar() > (int)recentBars + (int)priorBars - 1;",
+    "longCondition": "flipReady && el_ge((double)upNow, recentBars) && el_ge((double)downBefore, priorBars)",
+    "shortCondition": "flipReady && el_ge((double)downNow, recentBars) && el_ge((double)upBefore, priorBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,138 @@
+{
+    "name": "SupportBreakResistanceThenReclaim",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "1",
+        "pivotLookback": "40",
+        "minSupportTouches": "3",
+        "zoneWidthAtr": "1",
+        "zoneStdAtr": "0.3",
+        "closeMarginAtr": "0",
+        "minResistanceTouches": "2",
+        "tolAtr": "0.15",
+        "maxDepthAtr": "1",
+        "maxBarsBelow": "20",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "tolPx": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "depthPx": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fireL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "fireS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "stL": {
+            "type": "int",
+            "init": "0"
+        },
+        "stS": {
+            "type": "int",
+            "init": "0"
+        },
+        "wasL": {
+            "type": "int",
+            "init": "0"
+        },
+        "wasS": {
+            "type": "int",
+            "init": "0"
+        },
+        "lvlL": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlS": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sinceL": {
+            "type": "int",
+            "init": "0"
+        },
+        "sinceS": {
+            "type": "int",
+            "init": "0"
+        },
+        "resL": {
+            "type": "int",
+            "init": "0"
+        },
+        "resS": {
+            "type": "int",
+            "init": "0"
+        },
+        "doneL": {
+            "type": "bool",
+            "init": "false"
+        },
+        "doneS": {
+            "type": "bool",
+            "init": "false"
+        },
+        "zN": {
+            "type": "int",
+            "init": "0"
+        },
+        "zMin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zMax": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zMu": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zSS": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "zOld": {
+            "type": "int",
+            "init": "0"
+        },
+        "zOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okP": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SUPPORT BREAK, RESISTANCE, RECLAIM (Brian's notes ON-43, #43, p.49). A\n// support level made of wicks -- the I2 zone (below) of the minSupportTouches\n// most recent swingStrength-bar swing lows in the last pivotLookback bars, per\n// Brian's resolution (2026-11-05: a cluster of wick lows built like I2, not\n// the most recent swing low); the level L is its bottom, and no bar from the\n// oldest of those wicks to bar 1 closed more than closeMarginAtr ATRs below\n// it (default 0: \"no closes below\"). A close below L starts the setup. While\n// it runs, price must not go more than maxDepthAtr ATRs below L, nor stay\n// below more than maxBarsBelow bars; each bar whose high comes within tolAtr\n// ATRs of L from below and closes back below it is a resistance touch. The\n// first close back above L ends the setup and is a long if at least\n// minResistanceTouches touches came first; a reclaim with fewer touches, a\n// deep move or a timeout resets it, and the next bar may start a new one. The\n// short is the note's \"second example\": the mirror at a resistance cluster of\n// swing highs, broken upward, tested from above, lost again.\n//\n// State per side: stL 0 waiting for the break, 1 below the level. wasL holds\n// the state at the start of the bar, so the break bar does not count itself\n// as a test. The level is latched at the break; the ATR bounds read the\n// current ATR. Both sides run independently.\n//\n//\n// I2 SUPPORT ZONE (Brian's indicator 20250116.1, settled 2026-11-05), inlined.\n// A support zone is M (minSupportTouches) CONSECUTIVE swing lows (consecutive in the swing-low\n// sequence) of strength S (swingStrength), non-alternating, that all lie within W (zoneWidthAtr) ATRs of each\n// other (max - min <= W x ATR) and whose POPULATION standard deviation is at\n// most K (zoneStdAtr) ATRs -- Brian's spread test, replacing the identically-zero\n// horizontal-line R^2. Bottom = the lowest of them, top = the highest. A close\n// more than a margin (closeMarginAtr) of ATRs below the bottom kills it. Resistance mirrors:\n// swing highs, killed by a close more than the margin above the top. Sums run\n// newest-first, mean first and squared deviations second (two passes). The\n// members are found by re-scanning the window, because EasyLanguage arrays\n// have no row in the register. Pivot test hand-rolled as in SwingPivotTarget\n// (EL_Swing_Probe.txt): AT OR ABOVE the S OLDER bars, STRICTLY ABOVE the S\n// NEWER bars (the smaller index), lag exactly S; the low side mirrors. No\n// Break -- not a registered word.\n//\n// Scratch below is declared in localVariables, not at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration\n// is a redefinition when this rule is placed twice in one strategy.\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently. The local counter is\n// atrLen, not the input.\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\ntolPx = tolAtr * atrVal;\ndepthPx = maxDepthAtr * atrVal;\nfireL = false;\nfireS = false;\nwasL = stL;\nwasS = stS;\n// long: support cluster of swing lows\nif (wasL == 0) {\n    zN = 0;\n    zMin = 0.0;\n    zMax = 0.0;\n    zSum = 0.0;\n    zOld = 0;\n    for (int jj = (int)swingStrength; jj <= (int)pivotLookback - 1; ++jj) {\n        okP = true;\n        for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n            if (el_ge(low[jj], low[kk])) okP = false;\n        }\n        for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n            if (el_gt(low[jj], low[kk])) okP = false;\n        }\n        if (okP && zN < (int)minSupportTouches) {\n            zN = zN + 1;\n            if (zN == 1) {\n                zMin = low[jj];\n                zMax = low[jj];\n            }\n            if (el_lt(low[jj], zMin)) zMin = low[jj];\n            if (el_gt(low[jj], zMax)) zMax = low[jj];\n            zSum = zSum + low[jj];\n            zOld = jj;\n        }\n    }\n    if (zN >= 1 && zN == (int)minSupportTouches) {\n        zMu = zSum / zN;\n        zSS = 0.0;\n        for (int jj = (int)swingStrength; jj <= zOld; ++jj) {\n            okP = true;\n            for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n                if (el_ge(low[jj], low[kk])) okP = false;\n            }\n            for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n                if (el_gt(low[jj], low[kk])) okP = false;\n            }\n            if (okP) zSS = zSS + (low[jj] - zMu) * (low[jj] - zMu);\n        }\n        zOk = el_le(zMax - zMin, zoneWidthAtr * atrVal) && el_le(std::sqrt(zSS / zN), zoneStdAtr * atrVal);\n        for (int kk = 1; kk <= zOld; ++kk) {\n            if (el_lt(close[kk], zMin - closeMarginAtr * atrVal)) zOk = false;\n        }\n        if (zOk && el_lt(close[0], zMin)) {\n            stL = 1;\n            lvlL = zMin;\n            sinceL = 0;\n            resL = 0;\n        }\n    }\n}\nif (wasL == 1) {\n    sinceL = sinceL + 1;\n    doneL = false;\n    if (el_lt(low[0], lvlL - depthPx) || sinceL > (int)maxBarsBelow) {\n        stL = 0;\n        doneL = true;\n    }\n    if (!doneL && el_gt(close[0], lvlL)) {\n        fireL = resL >= (int)minResistanceTouches;\n        stL = 0;\n        doneL = true;\n    }\n    if (!doneL && el_ge(high[0], lvlL - tolPx)) resL = resL + 1;\n}\n// short: resistance cluster of swing highs\nif (wasS == 0) {\n    zN = 0;\n    zMin = 0.0;\n    zMax = 0.0;\n    zSum = 0.0;\n    zOld = 0;\n    for (int jj = (int)swingStrength; jj <= (int)pivotLookback - 1; ++jj) {\n        okP = true;\n        for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n            if (el_le(high[jj], high[kk])) okP = false;\n        }\n        for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n            if (el_lt(high[jj], high[kk])) okP = false;\n        }\n        if (okP && zN < (int)minSupportTouches) {\n            zN = zN + 1;\n            if (zN == 1) {\n                zMin = high[jj];\n                zMax = high[jj];\n            }\n            if (el_lt(high[jj], zMin)) zMin = high[jj];\n            if (el_gt(high[jj], zMax)) zMax = high[jj];\n            zSum = zSum + high[jj];\n            zOld = jj;\n        }\n    }\n    if (zN >= 1 && zN == (int)minSupportTouches) {\n        zMu = zSum / zN;\n        zSS = 0.0;\n        for (int jj = (int)swingStrength; jj <= zOld; ++jj) {\n            okP = true;\n            for (int kk = jj - (int)swingStrength; kk <= jj - 1; ++kk) {\n                if (el_le(high[jj], high[kk])) okP = false;\n            }\n            for (int kk = jj + 1; kk <= jj + (int)swingStrength; ++kk) {\n                if (el_lt(high[jj], high[kk])) okP = false;\n            }\n            if (okP) zSS = zSS + (high[jj] - zMu) * (high[jj] - zMu);\n        }\n        zOk = el_le(zMax - zMin, zoneWidthAtr * atrVal) && el_le(std::sqrt(zSS / zN), zoneStdAtr * atrVal);\n        for (int kk = 1; kk <= zOld; ++kk) {\n            if (el_gt(close[kk], zMax + closeMarginAtr * atrVal)) zOk = false;\n        }\n        if (zOk && el_gt(close[0], zMax)) {\n            stS = 1;\n            lvlS = zMax;\n            sinceS = 0;\n            resS = 0;\n        }\n    }\n}\nif (wasS == 1) {\n    sinceS = sinceS + 1;\n    doneS = false;\n    if (el_gt(high[0], lvlS + depthPx) || sinceS > (int)maxBarsBelow) {\n        stS = 0;\n        doneS = true;\n    }\n    if (!doneS && el_lt(close[0], lvlS)) {\n        fireS = resS >= (int)minResistanceTouches;\n        stS = 0;\n        doneS = true;\n    }\n    if (!doneS && el_le(low[0], lvlS + tolPx)) resS = resS + 1;\n}\n",
+    "longCondition": "fireL",
+    "shortCondition": "fireS",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,58 @@
+{
+    "name": "DoubleEmaTouchRun",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLength": "25",
+        "slowLength": "50",
+        "runBars": "3"
+    },
+    "localVariables": {
+        "emaFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaFastSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSlowSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "fastHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "slowHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "histCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "histDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "touchCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "runReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// DOUBLE EMA TOUCH RUN (Brian's notes ON-38-a, #38): each of the last\n// runBars bars contains both EMAs in its range. Direction-agnostic.\n// EL counts with CountIF; four comparisons, no MaxList/MinList.\n// MultiWalk's WFSafe_Xaverage, ported unchanged from EmaGapBar (the EMA\n// reference, with the measurements): price seed on the first calculated bar\n// (ctx.CurrentBar() == 1), recurrence x + sf*(p - x) in ONE statement,\n// sf = 2/(Length+1) from the raw input every bar, state carried on a length\n// change (EL_XAverage_Lag_Probe.txt, 2026-09-17).\nemaFastSf = 2.0 / (fastLength + 1.0);\nemaSlowSf = 2.0 / (slowLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaFast = close[0];\n    emaSlow = close[0];\n} else {\n    emaFast = emaFast + emaFastSf * (close[0] - emaFast);\n    emaSlow = emaSlow + emaSlowSf * (close[0] - emaSlow);\n}\n// LAGGED EMA READS (MEASURED, XAVERAGE_LAG_FINDINGS.md): ema[k] is bit for\n// bit the value k bars earlier and reads 0.0 before that history exists, so\n// the zero-initialized ring buffer below is exact and the rule guards its\n// first k bars on the bar counter instead of comparing against the zero.\n// Re-seeded if the depth changes.\nhistDepth = (int)runBars;\nif (histDepth < 1) {\n    histDepth = 1;\n}\nif (fastHistory.size() != (std::size_t)histDepth) {\n    fastHistory.assign((std::size_t)histDepth, 0.0);\n    slowHistory.assign((std::size_t)histDepth, 0.0);\n    histCursor = 0;\n}\nfastHistory[histCursor] = emaFast;\nslowHistory[histCursor] = emaSlow;\ntouchCount = 0;\nfor (int i = 0; i < (int)runBars; ++i) {\n    double fLag = fastHistory[(histCursor + fastHistory.size() - (std::size_t)(i)) % fastHistory.size()];\n    double sLag = slowHistory[(histCursor + slowHistory.size() - (std::size_t)(i)) % slowHistory.size()];\n    if (el_le(low[i], fLag) && el_le(low[i], sLag) && el_ge(high[i], fLag) && el_ge(high[i], sLag)) {\n        touchCount = touchCount + 1;\n    }\n}\nhistCursor = (histCursor + 1) % fastHistory.size();\nrunReady = ctx.CurrentBar() > (int)runBars - 1;",
+    "longCondition": "runReady && el_ge((double)touchCount, runBars)",
+    "shortCondition": "runReady && el_ge((double)touchCount, runBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

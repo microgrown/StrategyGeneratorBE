@@ -1,0 +1,58 @@
+{
+    "name": "RsiTightBandExitBarColour",
+    "type": "Entry",
+    "inputVariables": {
+        "rsiLength": "14",
+        "bandHalfWidth": "5",
+        "bandBars": "5"
+    },
+    "localVariables": {
+        "netChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "totChgAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sfRsi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgRatio": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rsiHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "bandLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bandHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "held": {
+            "type": "bool",
+            "init": "false"
+        },
+        "leftBand": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RsiTightBandExitBarColour (Brian's notes ON-20, #20). RSI was inside\n// [50 - bandHalfWidth, 50 + bandHalfWidth] on each of the previous bandBars\n// bars and this bar's RSI is outside it, on EITHER side. A green signal bar\n// is a long, a red one a short; the reverse (.1) is the flip toggle.\n// MultiWalk's WFSafe_RSI (el_wf_safe_rsi.txt in the engine repo) -- TS's RSI\n// with SF = 1/Length recomputed every bar so a walkforward length change takes\n// effect; NO re-seed on a length change, the averages carry over (same shape\n// as WFSafe_ADX). Seeded at the study's first calculated bar (function\n// CurrentBar == study CurrentBar, as measured for WFSafe_ADX):\n//   NetChgAvg = (Price - Price[Length]) / Length\n//   TotChgAvg = Average(AbsValue(Price - Price[1]), Length)   -- fresh mean\n// then EMA-form updates Avg = Avg[1] + SF * (X - Avg[1]).\n// `TotChgAvg <> 0` is an EL relational, so it carries the 2.22e-12 tolerance.\n// VERIFIED with EL_WFSafeRsi_Probe.txt on @OJ 240min, two chart starts:\n// drift 0 on 9,834/9,834 and 8,327/8,327 bars against an open-coded twin,\n// RSI[1] == 0 on bar 1 and the prior value after, WFSafe_RSI == plain RSI at\n// a fixed length (ovr 0 everywhere). scripts/rsi_replica.py replays this hook\n// from the store: 9,794/9,794 and 8,287/8,287 at print precision.\n// sfRsi and chgRatio are declared locals, not hook temporaries: hooks share\n// one function scope and only declared names get the placement prefix, so two\n// RSI rules in one strategy would otherwise redefine them.\nsfRsi = 1 / rsiLength;\nif (ctx.CurrentBar() == 1) {\n    netChgAvg = (close[0] - close[(int)rsiLength]) / rsiLength;\n    double totChg = 0.0;\n    for (int i = 0; i < (int)rsiLength; ++i) {\n        totChg += std::fabs(close[i] - close[i + 1]);\n    }\n    totChgAvg = totChg / rsiLength;\n} else {\n    double change = close[0] - close[1];\n    netChgAvg = netChgAvg + sfRsi * (change - netChgAvg);\n    totChgAvg = totChgAvg + sfRsi * (std::fabs(change) - totChgAvg);\n}\nchgRatio = 0.0;\nif (el_ne(totChgAvg, 0.0)) chgRatio = netChgAvg / totChgAvg;\nrsiVal = 50 * (chgRatio + 1);\n// EL: rsiVal = WFSafe_RSI(close, rsiLength), read as rsiVal[k]: a read of the\n// rsiVal VARIABLE's own history, which holds its initial 0 for every bar\n// before the strategy's first evaluated one (WFSafe_RSI(...)[1] reads 0 on\n// bar 1, measured). Mirrored as a zero-seeded history kept NEWEST-FIRST --\n// rsiHist[k] is EL's rsiVal[k] -- of depth bandBars + 1, re-seeded if the depth\n// changes.\nif (rsiHist.size() != (std::size_t)((int)bandBars + 1)) {\n    rsiHist.assign((std::size_t)((int)bandBars + 1), 0.0);\n}\nfor (std::size_t k = rsiHist.size() - 1; k > 0; --k) {\n    rsiHist[k] = rsiHist[k - 1];\n}\nrsiHist[0] = rsiVal;\nbandLo = 50 - bandHalfWidth;\nbandHi = 50 + bandHalfWidth;\nheld = true;\nfor (int jj = 1; jj <= (int)bandBars; ++jj) {\n    if (el_lt(rsiHist[jj], bandLo) || el_gt(rsiHist[jj], bandHi)) held = false;\n}\nleftBand = held && (el_lt(rsiVal, bandLo) || el_gt(rsiVal, bandHi));",
+    "longCondition": "leftBand && el_gt(close[0], open[0])",
+    "shortCondition": "leftBand && el_lt(close[0], open[0])",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}
