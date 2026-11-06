@@ -149,7 +149,11 @@ Four rules cover the range of the corpus; read the closest one before writing:
 
 Every rule here has a twin in `StrategyGeneratorTS/rules/<Name>.json` that emits
 EasyLanguage for MultiWalk, and the two are compared unit by unit against real
-MW runs. **EasyLanguage's behaviour is the specification.** Matching the formula
+MW runs. **The two libraries stay in sync, always.** Authoring a rule means
+authoring both twins in the same pass: same file name, same inputs with the same
+defaults, same role and behaviour. The same goes for editing, renaming or deleting a rule. A
+rule that exists on only one side is unfinished, not "done, TS later". It is not
+saved, catalogued or used in a template until its twin exists (§5 gives the checks). **EasyLanguage's behaviour is the specification.** Matching the formula
 is not enough; match what EL actually does, including warm-up and reset timing.
 Where EL's behaviour is unknown, say so and ask — do not pick the more
 defensible numerical choice.
@@ -286,6 +290,20 @@ cd C:/Users/brian/source/repos/StrategyGeneratorBE && python lintElFeatures.py <
 
 Errors block the save the same way `validateRule`'s do — and the same check runs
 again at Make Strategy, so a rule that slips past here will not reach the engine.
+
+Then prove the libraries are still in sync. The listing must print nothing but
+the two BE-only docs (`CATALOG.md`, `EL_FEATURES.md`):
+
+```
+cd C:/Users/brian/source/repos && diff <(ls StrategyGeneratorBE/rules) <(ls StrategyGeneratorTS/rules)
+```
+
+Once a strategy uses the rule, run `<engineDir>/scripts/compare_el_strategy.py` on
+the generated header against its EasyLanguage counterpart. It is the
+version-by-version check that the twins agree.
+
+**Commit and push both repos together.** If the BE commit is pushed and the TS twin
+is not, the libraries are out of sync on every other machine, even when they agree here.
 
 Then update `rules/CATALOG.md` with a row per rule added, and report:
 
