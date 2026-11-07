@@ -30,7 +30,8 @@ in the main window; the last two are file-only knobs.
 | `specOutputSubdir` | Where specs are written. Default `specs/generated`. |
 
 The engine needs a one-time change (already committed) so `registry.cpp`
-includes the two generated `.inc` files. See PLAN.md §1.
+includes the generated `families.inc` and `CMakeLists.txt` includes
+`families.cmake`. Each generated batch compiles as its own translation unit.
 
 ## The workflow
 
@@ -59,7 +60,7 @@ includes the two generated `.inc` files. See PLAN.md §1.
 
 `makeStrategy.py` is the Make Strategy button as a command: it loads a saved
 template from `templates/` (or any template `.json` path) and runs the same
-pipeline — header, registry `.inc` files, manifest, one spec per version, and
+pipeline — header, batch source, registration lists, manifest, one spec per version, and
 the template re-saved under the strategy name. Output is byte-identical to the
 GUI's.
 
@@ -442,8 +443,9 @@ Per Make Strategy click, into `engineDir`:
 | File | Contents |
 |---|---|
 | `src/bt/strategies/generated/gen_<name>.h` | One class per version |
-| `src/bt/strategies/generated/headers.inc` | One `#include` per generated header |
-| `src/bt/strategies/generated/registry.inc` | One registry entry per version |
+| `src/bt/strategies/generated/gen_<name>.cpp` | The batch's own translation unit: its header plus a table of its registry entries |
+| `src/bt/strategies/generated/families.inc` | One `BT_GENERATED_FAMILY(...)` line per batch, read by `registry.cpp` |
+| `src/bt/strategies/generated/families.cmake` | Every batch source, read by the engine's `CMakeLists.txt` |
 | `src/bt/strategies/generated/manifest.json` | Which entries belong to which header |
 | `specs/generated/<name>_v<n>.json` | One spec per version |
 

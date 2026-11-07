@@ -14,8 +14,9 @@ from strategyWriter import GenerationResult
 def result(entries=(("Momentum Clone V1", "Gen_Momentum_Clone_V1"),)):
     return GenerationResult(
         headerPath=r"C:\engine\src\bt\strategies\generated\gen_momentum_clone.h",
-        headersIncPath=r"C:\engine\src\bt\strategies\generated\headers.inc",
-        registryIncPath=r"C:\engine\src\bt\strategies\generated\registry.inc",
+        sourcePath=r"C:\engine\src\bt\strategies\generated\gen_momentum_clone.cpp",
+        familiesIncPath=r"C:\engine\src\bt\strategies\generated\families.inc",
+        familiesCmakePath=r"C:\engine\src\bt\strategies\generated\families.cmake",
         generatedDir=r"C:\engine\src\bt\strategies\generated",
         entries=list(entries),
     )

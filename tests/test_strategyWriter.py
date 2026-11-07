@@ -396,7 +396,7 @@ class TestManifestAndIncFiles(unittest.TestCase):
         with open(os.path.join(self.dir, name), "w") as f:
             f.write("// header\n")
 
-    def testIncFilesListEveryBatch(self):
+    def testRegistrationListsEveryBatch(self):
         manifest = {
             "Alpha": self._batch("gen_alpha.h", [("Alpha V1", "Gen_Alpha_V1")]),
             "Beta": self._batch("gen_beta.h", [("Beta V1", "Gen_Beta_V1")]),
@@ -406,20 +406,71 @@ class TestManifestAndIncFiles(unittest.TestCase):
         with open(sw.manifestPath(self.dir), "w") as f:
             json.dump(manifest, f)
 
-        headersPath, registryPath = sw.rebuildIncFiles(self.dir)
-        headers = readText(headersPath)
-        registry = readText(registryPath)
+        incPath, cmakePath = sw.rebuildIncFiles(self.dir)
+        families = readText(incPath)
+        cmake = readText(cmakePath)
 
-        self.assertIn('#include "bt/strategies/generated/gen_alpha.h"', headers)
-        self.assertIn('#include "bt/strategies/generated/gen_beta.h"', headers)
-        self.assertIn(
-            '{"Alpha V1", [] { return std::make_unique<Gen_Alpha_V1>(); }},', registry
-        )
-        # Every entry line must be comma-terminated: it lands inside a braced
-        # initializer in registry.cpp.
-        for line in registry.splitlines():
-            if not line.startswith("//"):
-                self.assertTrue(line.endswith(","), line)
+        self.assertIn("BT_GENERATED_FAMILY(entries_gen_alpha)", families)
+        self.assertIn("BT_GENERATED_FAMILY(entries_gen_beta)", families)
+        self.assertIn("set(BT_GENERATED_SOURCES", cmake)
+        self.assertIn("${CMAKE_CURRENT_LIST_DIR}/gen_alpha.cpp", cmake)
+        self.assertIn("${CMAKE_CURRENT_LIST_DIR}/gen_beta.cpp", cmake)
+
+    def testEachBatchGetsItsOwnSource(self):
+        manifest = {
+            "Alpha": self._batch("gen_alpha.h", [("Alpha V1", "Gen_Alpha_V1"),
+                                                 ("Alpha V2", "Gen_Alpha_V2")]),
+            "Beta": self._batch("gen_beta.h", [("Beta V1", "Gen_Beta_V1")]),
+        }
+        self._touch("gen_alpha.h")
+        self._touch("gen_beta.h")
+        with open(sw.manifestPath(self.dir), "w") as f:
+            json.dump(manifest, f)
+
+        sw.rebuildIncFiles(self.dir)
+        alpha = readText(os.path.join(self.dir, "gen_alpha.cpp"))
+
+        # The batch's own header only -- that is what keeps each compile small.
+        self.assertIn('#include "bt/strategies/generated/gen_alpha.h"', alpha)
+        self.assertNotIn("gen_beta.h", alpha)
+        self.assertIn("std::span<const RegistryEntry> entries_gen_alpha()", alpha)
+        self.assertIn('{"Alpha V1", &make_strategy<Gen_Alpha_V1>},', alpha)
+        self.assertIn('{"Alpha V2", &make_strategy<Gen_Alpha_V2>},', alpha)
+        self.assertNotIn("Beta V1", alpha)
+        self.assertIn('{"Beta V1", &make_strategy<Gen_Beta_V1>},',
+                      readText(os.path.join(self.dir, "gen_beta.cpp")))
+
+    def testUnchangedSourcesAreNotRewritten(self):
+        # A rewrite would bump the mtime and recompile a batch nothing changed in.
+        manifest = {"Alpha": self._batch("gen_alpha.h", [("Alpha V1", "Gen_Alpha_V1")])}
+        self._touch("gen_alpha.h")
+        with open(sw.manifestPath(self.dir), "w") as f:
+            json.dump(manifest, f)
+        sw.rebuildIncFiles(self.dir)
+        source = os.path.join(self.dir, "gen_alpha.cpp")
+        os.utime(source, (1_000_000_000, 1_000_000_000))
+        sw.rebuildIncFiles(self.dir)
+        self.assertEqual(os.path.getmtime(source), 1_000_000_000)
+
+    def testOrphanedSourceIsRemovedAndForeignFilesKept(self):
+        manifest = {
+            "Alpha": self._batch("gen_alpha.h", [("Alpha V1", "Gen_Alpha_V1")]),
+            "Gone": self._batch("gen_gone.h", [("Gone V1", "Gen_Gone_V1")]),
+        }
+        self._touch("gen_alpha.h")
+        self._touch("gen_gone.h")
+        with open(sw.manifestPath(self.dir), "w") as f:
+            json.dump(manifest, f)
+        sw.rebuildIncFiles(self.dir)
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "gen_gone.cpp")))
+        with open(os.path.join(self.dir, "gen_handwritten.cpp"), "w") as f:
+            f.write("// not the generator's\n")
+
+        os.remove(os.path.join(self.dir, "gen_gone.h"))
+        sw.rebuildIncFiles(self.dir)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "gen_gone.cpp")))
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "gen_alpha.cpp")))
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "gen_handwritten.cpp")))
 
     def testBatchWithAMissingHeaderIsPruned(self):
         manifest = {
@@ -430,16 +481,17 @@ class TestManifestAndIncFiles(unittest.TestCase):
         with open(sw.manifestPath(self.dir), "w") as f:
             json.dump(manifest, f)
 
-        headersPath, registryPath = sw.rebuildIncFiles(self.dir)
-        self.assertNotIn("gen_gone.h", readText(headersPath))
-        self.assertNotIn("Gone V1", readText(registryPath))
+        incPath, cmakePath = sw.rebuildIncFiles(self.dir)
+        self.assertNotIn("entries_gen_gone", readText(incPath))
+        self.assertNotIn("gen_gone.cpp", readText(cmakePath))
         self.assertNotIn("Gone", sw.loadManifest(self.dir))
 
-    def testEmptyManifestWritesCommentOnlyFiles(self):
-        headersPath, registryPath = sw.rebuildIncFiles(self.dir)
-        for path in (headersPath, registryPath):
-            for line in readText(path).splitlines():
-                self.assertTrue(line.startswith("//"), line)
+    def testEmptyManifestWritesEmptyLists(self):
+        incPath, cmakePath = sw.rebuildIncFiles(self.dir)
+        for line in readText(incPath).splitlines():
+            self.assertTrue(line.startswith("//"), line)
+        body = [l for l in readText(cmakePath).splitlines() if not l.startswith("#")]
+        self.assertEqual(body, ["set(BT_GENERATED_SOURCES", ")"])
 
     def testDuplicateRegistryNameAcrossBatchesIsRejected(self):
         manifest = {
@@ -493,7 +545,7 @@ class TestGenerate(unittest.TestCase):
             self.engineDir, "src", "bt", "strategies", "generated"
         )
 
-    def testWritesHeaderManifestAndIncFiles(self):
+    def testWritesHeaderSourceManifestAndRegistration(self):
         result = sw.generate("Momentum Clone", [momentumPane()], self.cfg)
 
         self.assertTrue(os.path.exists(result.headerPath))
@@ -505,30 +557,29 @@ class TestGenerate(unittest.TestCase):
 
         manifest = sw.loadManifest(self.generatedDir())
         self.assertEqual(manifest["Momentum Clone"]["header"], "gen_momentum_clone.h")
-        self.assertIn(
-            "Momentum Clone V1", readText(result.registryIncPath)
-        )
-        self.assertIn("gen_momentum_clone.h", readText(result.headersIncPath))
+        self.assertEqual(os.path.basename(result.sourcePath), "gen_momentum_clone.cpp")
+        self.assertIn("Momentum Clone V1", readText(result.sourcePath))
+        self.assertIn("entries_gen_momentum_clone", readText(result.familiesIncPath))
+        self.assertIn("gen_momentum_clone.cpp", readText(result.familiesCmakePath))
 
     def testRegeneratingReplacesTheStrategysOwnBatch(self):
         pane = Pane("Entry", [Item("Momentum"), DELIMITER, Item("Momentum")])
         sw.generate("Momentum Clone", [pane], self.cfg)
         result = sw.generate("Momentum Clone", [momentumPane()], self.cfg)
 
-        registry = readText(result.registryIncPath)
-        self.assertIn("Momentum Clone V1", registry)
-        self.assertNotIn("Momentum Clone V2", registry)
+        source = readText(result.sourcePath)
+        self.assertIn("Momentum Clone V1", source)
+        self.assertNotIn("Momentum Clone V2", source)
 
     def testASecondStrategyCoexists(self):
         sw.generate("Alpha", [momentumPane()], self.cfg)
         result = sw.generate("Beta", [momentumPane()], self.cfg)
 
-        registry = readText(result.registryIncPath)
-        self.assertIn("Alpha V1", registry)
-        self.assertIn("Beta V1", registry)
-        headers = readText(result.headersIncPath)
-        self.assertIn("gen_alpha.h", headers)
-        self.assertIn("gen_beta.h", headers)
+        families = readText(result.familiesIncPath)
+        self.assertIn("entries_gen_alpha", families)
+        self.assertIn("entries_gen_beta", families)
+        self.assertIn("Alpha V1", readText(os.path.join(result.generatedDir, "gen_alpha.cpp")))
+        self.assertIn("Beta V1", readText(result.sourcePath))
 
     def testBadParameterRangeLeavesTheEngineTreeUntouched(self):
         pane = momentumPane({"Length": {"start": "5", "stop": "50", "step": "7"}})
@@ -549,7 +600,7 @@ class TestGenerate(unittest.TestCase):
             sw.generate("Momentum Clone", [momentumPane()], {"engineDir": ""})
 
     def testDefaultSubdirLandsUnderSrc(self):
-        # The include path in headers.inc is relative to the engine's `src`
+        # The include path in the batch sources is relative to the engine's `src`
         # include root, but the write path is relative to the repo root, so the
         # fallback must not reuse the include path verbatim.
         result = sw.generate("Momentum Clone", [momentumPane()],

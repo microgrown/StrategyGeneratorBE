@@ -10,8 +10,11 @@ have to be unique within a version (E1_, X1_, S1_), with no V-part.
 
 Registration is manifest-driven: `manifest.json` records which registry entries
 belong to which generated header, so several strategy batches can coexist in the
-engine tree and `headers.inc` / `registry.inc` can be rewritten wholesale on
-every run.
+engine tree and the registration files can be rewritten wholesale on every run.
+Each batch is its own translation unit -- `gen_x.cpp` includes only `gen_x.h`
+and exposes that batch's entries -- so no single compile holds every generated
+strategy; `families.inc` lists the batches for registry.cpp and
+`families.cmake` lists their sources for CMake.
 """
 
 import os
@@ -30,12 +33,13 @@ from rule import CPP_KEYWORDS
 ILLEGAL_NAME_CHARS = re.compile(r'[\\/:*?"<>|]')
 
 MANIFEST_NAME = "manifest.json"
-HEADERS_INC = "headers.inc"
-REGISTRY_INC = "registry.inc"
+FAMILIES_INC = "families.inc"
+FAMILIES_CMAKE = "families.cmake"
 
-# How registry.cpp includes the generated headers: relative to the engine's
-# `src` include root (CMakeLists target_include_directories(btcore PUBLIC src)),
-# always forward slashes. Must match the two #include lines in registry.cpp.
+# How the generated sources include their headers, and registry.cpp includes
+# families.inc: relative to the engine's `src` include root (CMakeLists
+# target_include_directories(btcore PUBLIC src)), always forward slashes. Must
+# match the #include in registry.cpp.
 INCLUDE_DIR = "bt/strategies/generated"
 
 # Where the generator writes, relative to the engine repo root. Same directory as
@@ -74,6 +78,18 @@ def sanitizeIdentifier(name):
 
 def headerFileName(strategyName):
     return "gen_" + sanitizeIdentifier(strategyName).lower() + ".h"
+
+
+def sourceFileName(headerName):
+    """The batch's own translation unit, beside its header: gen_x.h -> gen_x.cpp."""
+    return os.path.splitext(headerName)[0] + ".cpp"
+
+
+def entriesFunction(headerName):
+    """The function a batch's source defines and registry.cpp calls. The header
+    stem is already an identifier (headerFileName), and unique per batch
+    (_checkCollisions)."""
+    return "entries_" + os.path.splitext(headerName)[0]
 
 
 def className(strategyName, version):
@@ -517,42 +533,106 @@ def _checkCollisions(manifest):
             seenEntries[name] = strategy
 
 
-def _writeIncFiles(generatedDir, manifest):
-    headerLines = [
+def buildSourceText(strategyName, batch):
+    """Pure text of a batch's translation unit: its header plus a static table of
+    its registry entries, which registry.cpp reads through entriesFunction()."""
+    lines = [
+        f"// {strategyName}",
         f"// {_AUTOGEN}",
         "//",
-        "// Included at file scope by registry.cpp: one #include per generated header.",
+        "// This batch's registry entries, compiled as its own translation unit so",
+        "// that no one compile holds every generated strategy. registry.cpp calls",
+        "// the function below through families.inc.",
+        "",
+        "#include <span>",
+        "",
+        '#include "bt/strategies/registry_entry.h"',
+        f'#include "{INCLUDE_DIR}/{batch["header"]}"',
+        "",
+        "namespace bt::generated {",
+        "",
+        f"std::span<const RegistryEntry> {entriesFunction(batch['header'])}() {{",
+        "    static constexpr RegistryEntry entries[] = {",
     ]
-    registryLines = [
+    for entry in batch["entries"]:
+        lines.append(f'        {{"{entry["name"]}", &make_strategy<{entry["class"]}>}},')
+    lines.extend([
+        "    };",
+        "    return entries;",
+        "}",
+        "",
+        "}  // namespace bt::generated",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+def _writeIfChanged(path, text):
+    """Leave an identical file untouched, so regenerating a batch does not bump
+    the mtime of every other batch's source and recompile it."""
+    try:
+        with open(path) as f:
+            if f.read() == text:
+                return path
+    except (OSError, UnicodeDecodeError):
+        pass
+    with open(path, "w") as f:
+        f.write(text)
+    return path
+
+
+def _removeOrphanSources(generatedDir, manifest):
+    """Delete batch sources whose batch has been pruned: a gen_*.cpp left behind
+    by a deleted header would #include a file that no longer exists. Only files
+    carrying the generator's own marker are touched."""
+    live = {sourceFileName(batch["header"]) for batch in manifest.values()}
+    for name in os.listdir(generatedDir):
+        if not (name.startswith("gen_") and name.endswith(".cpp")) or name in live:
+            continue
+        path = os.path.join(generatedDir, name)
+        with open(path) as f:
+            head = f.read(512)
+        if _AUTOGEN in head:
+            os.remove(path)
+
+
+def _writeRegistration(generatedDir, manifest):
+    """Every batch's source, families.inc and families.cmake, from the manifest.
+    Returns (familiesIncPath, familiesCmakePath)."""
+    incLines = [
         f"// {_AUTOGEN}",
         "//",
-        "// Included inside the braced initializer of the strategy table in",
-        "// registry.cpp, so every line is a comma-terminated map entry.",
+        "// One BT_GENERATED_FAMILY(<entries function>) per generated batch.",
+        "// registry.cpp includes this twice: once to declare the functions, once",
+        "// to call them.",
+    ]
+    cmakeLines = [
+        f"# {_AUTOGEN}",
+        "#",
+        "# One translation unit per generated batch; CMakeLists.txt includes this.",
+        "set(BT_GENERATED_SOURCES",
     ]
     for strategy in sorted(manifest):
         batch = manifest[strategy]
-        headerLines.append(f'#include "{INCLUDE_DIR}/{batch["header"]}"')
-        for entry in batch["entries"]:
-            registryLines.append(
-                f'{{"{entry["name"]}", [] {{ return std::make_unique<{entry["class"]}>(); }}}},'
-            )
+        source = sourceFileName(batch["header"])
+        _writeIfChanged(os.path.join(generatedDir, source), buildSourceText(strategy, batch))
+        incLines.append(f"BT_GENERATED_FAMILY({entriesFunction(batch['header'])})")
+        cmakeLines.append(f"  ${{CMAKE_CURRENT_LIST_DIR}}/{source}")
+    cmakeLines.append(")")
+    _removeOrphanSources(generatedDir, manifest)
 
-    headersPath = os.path.join(generatedDir, HEADERS_INC)
-    registryPath = os.path.join(generatedDir, REGISTRY_INC)
-    with open(headersPath, "w") as f:
-        f.write("\n".join(headerLines) + "\n")
-    with open(registryPath, "w") as f:
-        f.write("\n".join(registryLines) + "\n")
-    return headersPath, registryPath
+    incPath = _writeIfChanged(os.path.join(generatedDir, FAMILIES_INC), "\n".join(incLines) + "\n")
+    cmakePath = _writeIfChanged(os.path.join(generatedDir, FAMILIES_CMAKE), "\n".join(cmakeLines) + "\n")
+    return incPath, cmakePath
 
 
 def rebuildIncFiles(generatedDir):
-    """Rewrite headers.inc and registry.inc from the manifest, dropping batches
-    whose header has been deleted. Returns (headersPath, registryPath)."""
+    """Rewrite every batch's source, families.inc and families.cmake from the
+    manifest, dropping batches whose header has been deleted (and their
+    sources). Returns (familiesIncPath, familiesCmakePath)."""
     manifest = _prune(loadManifest(generatedDir), generatedDir)
     _checkCollisions(manifest)
     _saveManifest(generatedDir, manifest)
-    return _writeIncFiles(generatedDir, manifest)
+    return _writeRegistration(generatedDir, manifest)
 
 
 # --- top-level generation ---------------------------------------------------
@@ -560,8 +640,9 @@ def rebuildIncFiles(generatedDir):
 @dataclass
 class GenerationResult:
     headerPath: str
-    headersIncPath: str
-    registryIncPath: str
+    sourcePath: str
+    familiesIncPath: str
+    familiesCmakePath: str
     generatedDir: str
     entries: list = field(default_factory=list)  # [(registryName, className)]
 
@@ -579,8 +660,9 @@ def generatedDirFor(cfg):
 
 
 def generate(strategyName, panes, cfg):
-    """Write the strategy header into the engine tree and refresh the registry
-    includes. Raises GenerationError with a message fit for a dialog."""
+    """Write the strategy header and its source into the engine tree and refresh
+    the registration files. Raises GenerationError with a message fit for a
+    dialog."""
     strategyName = (strategyName or "").strip()
     if not strategyName:
         raise GenerationError("Strategy name is required.")
@@ -618,16 +700,15 @@ def generate(strategyName, panes, cfg):
     _checkCollisions(manifest)
 
     os.makedirs(generatedDir, exist_ok=True)
-    headerPath = os.path.join(generatedDir, headerName)
-    with open(headerPath, "w") as f:
-        f.write(text)
+    headerPath = _writeIfChanged(os.path.join(generatedDir, headerName), text)
     _saveManifest(generatedDir, manifest)
-    headersIncPath, registryIncPath = _writeIncFiles(generatedDir, manifest)
+    familiesIncPath, familiesCmakePath = _writeRegistration(generatedDir, manifest)
 
     return GenerationResult(
         headerPath=headerPath,
-        headersIncPath=headersIncPath,
-        registryIncPath=registryIncPath,
+        sourcePath=os.path.join(generatedDir, sourceFileName(headerName)),
+        familiesIncPath=familiesIncPath,
+        familiesCmakePath=familiesCmakePath,
         generatedDir=generatedDir,
         entries=entries,
     )

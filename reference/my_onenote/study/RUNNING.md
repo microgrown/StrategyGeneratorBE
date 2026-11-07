@@ -45,8 +45,8 @@ families between the two machines if Brooks finishes first.
 
 ## 1. Generate the 64 families (specs; headers come from git)
 
-The C++ headers, `registry.inc`, `headers.inc` and `manifest.json` for OWN-01..64 are
-committed in BacktestEngine. The walkforward specs (`BacktestEngine/specs/generated/`) are
+The C++ headers, their per-batch `.cpp` sources, `families.inc`, `families.cmake` and
+`manifest.json` for OWN-01..64 are committed in BacktestEngine. The walkforward specs (`BacktestEngine/specs/generated/`) are
 gitignored, so each machine writes its own. `makeStrategy.py` writes both. Re-writing the
 committed headers is the determinism check:
 
@@ -68,11 +68,15 @@ The spec template is `BacktestEngine/specs/Futures_Swing.json` (config.json's `s
 
 ```
 cd BacktestEngine
+$env:CMAKE_BUILD_PARALLEL_LEVEL = 8
 .\scripts\build.ps1 -Config Release
 ```
 
-This compiles every generated family (BAS, BRK and OWN), so it is a long build.
-`build\release\bt_walkforward.exe` must exist afterwards.
+This compiles every generated family (BAS, BRK and OWN), each as its own translation unit,
+so it is a long build. Cap the parallelism on a 16 GB machine: at the default (cores + 2) the
+build was stopped for low system memory. On 2026-11-07 at 8 it took 26 minutes. Compiles
+peaked at about 2.6 GB in total, and system commit reached 27.9 GB while the ~370 MB
+executables linked. `build\release\bt_walkforward.exe` must exist afterwards.
 
 ## 3. Run
 

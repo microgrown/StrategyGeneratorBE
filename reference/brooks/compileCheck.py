@@ -62,10 +62,12 @@ WHAT IT DOES
 
 5. Prints a summary (rules checked, batches, build result, per-rule
    errors/warnings) and exits 1 on any error. Unless ``--keep``, every file
-   this run created in the engine repo (generated headers, their specs) is
-   removed and ``manifest.json``/``headers.inc``/``registry.inc`` are rewritten
-   via ``strategyWriter.rebuildIncFiles`` to drop the now-missing headers --
-   the same prune path a hand-deleted header already goes through.
+   this run created in the engine repo (generated headers and their batch
+   sources, their specs) is removed and ``manifest.json``/``families.inc``/
+   ``families.cmake`` are rewritten via ``strategyWriter.rebuildIncFiles`` to
+   drop the now-missing headers -- the same prune path a hand-deleted header
+   already goes through. Each batch is its own translation unit, so the build
+   recompiles only the check batches and registry.cpp.
 
 This never modifies anything under ``rules/`` or ``templates/``; it only reads
 rule JSON and writes into the engine repo's generated tree (cleaned up
@@ -297,6 +299,10 @@ def parseDiagnostics(buildOutput, batches):
     are unique enough that basename matching is unambiguous."""
     headerToBatch = {os.path.basename(b.headerPath).lower(): b
                      for b in batches if b.generated}
+    # A diagnostic in a batch's own source (gen_x.cpp: its entry table) has no
+    # class to map to, so it is reported against the batch.
+    sourceToBatch = {strategyWriter.sourceFileName(base): b
+                     for base, b in headerToBatch.items()}
     classRangesCache = {}
     perRule = {}
     batchLevel = {}
@@ -306,12 +312,15 @@ def parseDiagnostics(buildOutput, batches):
         if not m:
             continue
         base = os.path.basename(m.group("file")).lower()
+        sev = m.group("sev")
+        msg = f'{m.group("code")}: {m.group("msg")}'
+        if base in sourceToBatch:
+            batchLevel.setdefault(sourceToBatch[base].strategyName, []).append((sev, msg))
+            continue
         batch = headerToBatch.get(base)
         if batch is None:
             continue  # not one of ours -- pre-existing engine issue, not our concern
         lineNo = int(m.group("line"))
-        sev = m.group("sev")
-        msg = f'{m.group("code")}: {m.group("msg")}'
         if base not in classRangesCache:
             classRangesCache[base] = _headerClassRanges(batch.headerPath)
         rule = ruleForLine(classRangesCache[base], lineNo)
@@ -343,9 +352,13 @@ def attributeGenError(batch):
 
 def cleanupBatch(batch, engineDir):
     removed = []
-    if batch.headerPath and os.path.exists(batch.headerPath):
-        os.remove(batch.headerPath)
-        removed.append(batch.headerPath)
+    if batch.headerPath:
+        source = os.path.join(os.path.dirname(batch.headerPath),
+                              strategyWriter.sourceFileName(os.path.basename(batch.headerPath)))
+        for p in (batch.headerPath, source):
+            if os.path.exists(p):
+                os.remove(p)
+                removed.append(p)
     for p in batch.specPaths:
         if os.path.exists(p):
             os.remove(p)

@@ -140,7 +140,8 @@ class TestMakeStrategyEndToEnd(unittest.TestCase):
         # Two delimiter groups -> two versions.
         self.assertEqual(result.versionCount, 2)
         self.assertTrue(os.path.exists(result.headerPath))
-        self.assertTrue(os.path.exists(result.registryIncPath))
+        self.assertTrue(os.path.exists(result.sourcePath))
+        self.assertTrue(os.path.exists(result.familiesIncPath))
         self.assertEqual(len(specResult.paths), 2)
         with open(specResult.paths[1]) as f:
             spec = json.load(f)
