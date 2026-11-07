@@ -1,0 +1,117 @@
+{
+    "name": "SwingTrailCappedAtMaxRisk",
+    "type": "Exit",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotIndex": "1",
+        "trailOffsetTicks": "1",
+        "lookbackBars": "40",
+        "maxRiskAtr": "2",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "needP": {
+            "type": "int",
+            "init": "0"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLo1": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi1": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "stopLevelLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopLevelShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "riskFloor": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SwingTrailCappedAtMaxRisk -- Grimes A list (G08-21, key\n// SwingTrailCappedAtMaxRisk; also G08-09, key SwingPointTrailingStopAtRank, as\n// pivotIndex). Authored 2026-09-22 as new inputs on SwingPointTrailingStop and\n// split out 2026-11-07, because the 202611 BRK and OWN templates place\n// SwingPointTrailingStop, so that rule stays exactly as those families run it.\n// Code otherwise unchanged.\n//\n// DEFAULTS: maxRiskAtr(2) is Grimes's \"about 2 ATR\", the merged candidate's\n// value; pivotIndex(1) trails the most recent pivot; the other inputs are\n// SwingPointTrailingStop's. At maxRiskAtr 0 the cap is off, and at pivotIndex 1\n// with maxRiskAtr 0 this is SwingPointTrailingStop's behaviour exactly.\n//\n// GUARD (2026-09-17): a level's EXISTENCE is a COUNT of pivots the scan found,\n// never a test of the price against -1 -- a back-adjusted series can print\n// -1.00 (or 0.00) as a real price. The EL twin counts the same way. Mentions of\n// the -1 SENTINEL below describe what EL's SwingLow / SwingHigh return, not how\n// this rule guards it.\n// THE HEADLINE BROOKS TRAIL. While long, the protective stop sits just below the\n// pivotIndex-th most recent CONFIRMED swing low and moves with each new pivot;\n// mirrored above the swing high while short. Nine mined candidates from all\n// three volumes collapse into this one rule.\n//\n// Not TrailingStop / AtrTrailingStop, which trail a dollar or ATR distance below\n// the position's PEAK PROFIT: on a trend that pauses the dollar trail tightens\n// with every new high while this one does not move until a new pivot confirms.\n// Not StopBeyondRecentRangeExtreme, whose level is an N-bar lowest low taken\n// through the previous bar -- a Donchian floor that moves every bar the window\n// rolls, where a pivot is a chart structure that only changes when one forms.\n// Not SwingPivotTarget, which is a profit target at the OPPOSING pivot (a long\n// exits at the swing high); this is a stop at the SAME-side pivot. Not\n// InitialStopBeyondSwingAtEntry, which freezes the pivot that existed at entry.\n//\n// FOUR SOURCES ADD \"only after the market makes a new high\", which is dropped as\n// redundant: a fresh swing low only becomes the most recent one after a rally, so\n// the trigger adds no bars and would cost a Highest() call site.\n//\n// THE LEVEL IS READ FRESH EVERY BAR AND IS NOT RATCHETED. Brooks phrases it as\n// \"raise the stop\", but the merged pseudocode is the plain read, and a per\n// position monotone ratchet is exactly the machinery TrailStopBehindStrongBar and\n// StopBeyondExtremeSinceEntry already carry -- adding it here would make this the\n// same machine at a different reference and would need an at-entry seed the\n// sources do not give. A deeper pullback that prints a LOWER swing low therefore\n// widens the stop; maxRiskAtr below is the only bound on that.\n//\n// TWO GRIMES READINGS, one rule.\n//\n// (1) pivotIndex (G08-09, key SwingPointTrailingStopAtRank). \"In an uptrend a\n// tight stop could be trailed under the highest pivot low of the trend; slightly\n// wider stops could go under the second-highest, probably working both on a\n// close-only basis.\" The highest pivot low of an uptrend IS the most recent one,\n// so RANK is the only new degree of freedom, and SwingPointTrailingStop was\n// already close-only. At pivotIndex 1, the default, the pivot is\n// SwingPointTrailingStop's. THE SCAN IS THE THREE-PIVOT FORM SwingPivotTarget\n// ALREADY CARRIES, because the register lists SwingLow / SwingHigh Occurrence 3+\n// as UNMEASURED -- the deeper ranks are found by hand, pivotIndex is CLAMPED to\n// the three pivots kept, and there is no early break, so the scan can reach\n// them. The equivalence at pivotIndex 1 is BEHAVIOURAL, not textual: the first\n// pivot found scanning newest-first is the same bar SwingPointTrailingStop's\n// scan, which breaks at the first pivot, returns; the EL twin spells the same\n// hand-rolled scan and its pivot count where SwingPointTrailingStop calls\n// SwingLow(1, ...) / SwingLowBar(1, ...).\n//\n// (2) maxRiskAtr and atrLength (G08-21, key SwingTrailCappedAtMaxRisk). A HARD\n// FLOOR AT THE INITIAL RISK: the long stop becomes the HIGHER of (the pivot less\n// the offset) and (EntryPrice - maxRiskAtr ATRs), so the trail may widen to\n// emerging structure but never past 1R; the short is the mirror LOWER of the two.\n// maxRiskAtr 0 MEANS UNBOUNDED, not \"a floor at the entry price\": at 0 the cap\n// is off and the trail is SwingPointTrailingStop's, and a floor at EntryPrice\n// would be a breakeven stop, a different rule. The engine has no initial-risk accessor, so\n// the cap is stated in ATRs rather than in the stop placement's own distance --\n// the SwingPivotTarget substitution. Grimes's value is about 2 ATR.\n// MaxList IS DELIBERATELY NOT USED: the register's maxlist / minlist row is\n// ACCEPTED only for selection among TICK-GRID PRICE operands, and\n// EntryPrice - maxRiskAtr * ATR is a COMPUTED operand whose tolerance behaviour\n// is unmeasured. An explicit comparison is plain EL and carries the measured\n// relational tolerance, so el_gt mirrors it exactly.\n// THE PIVOT GUARD STILL LEADS: with no pivot in the window the rule does not\n// fire at all, cap or no cap, exactly as SwingPointTrailingStop behaves.\n// EntryPrice is 0.0 while flat (VERIFIED), so the level is only trusted behind\n// the MarketPosition guard in the conditions.\n//\n// THE PIVOT SCAN IS INLINED from SwingHigh per the B-list decision. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot test is\n// MIXED -- at-or-beyond the pivotStrength OLDER bars, STRICTLY beyond the\n// pivotStrength NEWER bars, and bars-ago indexing makes the SMALLER index the\n// NEWER bar, so the strict half is the kk < jj loop; the confirmation lag is\n// exactly pivotStrength bars, never 0 or 1, so the level is knowable without\n// lookahead and during the lag the PREVIOUS pivot is reported; lookbackBars is\n// EL's Length, offsets 0..lookbackBars-1 inclusive, and the neighbourhood test\n// reaches pivotStrength bars PAST the window, so the deepest pivot bar touched is\n// lookbackBars - 1 + pivotStrength; an empty window returns the -1 SENTINEL,\n// guarded by the pivot counts because -1 as a PRICE sits under every real price\n// and would take every long off; the comparisons carry the 2.22e-12 relational\n// tolerance, hence el_lt / el_le / el_gt / el_ge. The low side's tie sense is the\n// mirror of the measured high-side rule. No WFSafe_SwingLow exists, so plain EL\n// governs. The scan runs unconditionally every bar, so Max Bars Back covers it\n// and the EasyLanguage twin advances on the same bars.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not the built-in it\n// resembles: seeded with a full N-term sum on the first calculated bar and again\n// whenever the length changes, thereafter updated as TWO statements -- EL\n// evaluates S[1] + in - out left to right and folding it to S += in - out rounds\n// differently. Ported from AtrProfitTarget / SwingPivotTarget, read once per bar\n// into a local (EL does not short-circuit and/or). The local counter is atrLen,\n// not atrLength: atrLength is this rule's INPUT.\n//\n// lookbackBars is not in the merged parameter list and is what makes the pivot\n// window addressable; 40 is the corpus default (SwingPivotTarget,\n// ShrinkingSwingIncrementsExit). Offsets are one tick everywhere in the sources,\n// and the tick is written division-first, trailOffsetTicks * (ctx.MinMove() /\n// ctx.PriceScale()), read once per bar into a local since MinMove and PriceScale\n// are per-symbol constants for the whole run.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\n//\n// Deepest bar touched: max(lookbackBars - 1 + pivotStrength, atrLength + 1).\ntickSize = ctx.MinMove() / ctx.PriceScale();\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (jj = (int)pivotStrength; jj <= (int)lookbackBars - 1; ++jj) {\n    okHi = true;\n    okLo = true;\n    for (kk = jj - (int)pivotStrength; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (kk = jj + 1; kk <= jj + (int)pivotStrength; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[jj];\n        if (nHiPiv == 2) hiPx2 = high[jj];\n        if (nHiPiv == 3) hiPx3 = high[jj];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[jj];\n        if (nLoPiv == 2) loPx2 = low[jj];\n        if (nLoPiv == 3) loPx3 = low[jj];\n    }\n}\nneedP = (int)pivotIndex;\nif (needP < 1) needP = 1;\nif (needP > 3) needP = 3;\nhi1 = hiPx3;\nlo1 = loPx3;\nif (needP == 1) { hi1 = hiPx1; lo1 = loPx1; }\nif (needP == 2) { hi1 = hiPx2; lo1 = loPx2; }\nhaveLo1 = (nLoPiv >= needP);\nhaveHi1 = (nHiPiv >= needP);\nstopLevelLong = lo1 - trailOffsetTicks * tickSize;\nstopLevelShort = hi1 + trailOffsetTicks * tickSize;\nif (el_gt(maxRiskAtr, 0.0)) {\n    riskFloor = ctx.EntryPrice() - maxRiskAtr * atrVal;\n    if (el_gt(riskFloor, stopLevelLong)) stopLevelLong = riskFloor;\n    riskFloor = ctx.EntryPrice() + maxRiskAtr * atrVal;\n    if (el_lt(riskFloor, stopLevelShort)) stopLevelShort = riskFloor;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveLo1 && el_le(close[0], stopLevelLong)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveHi1 && el_ge(close[0], stopLevelShort)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

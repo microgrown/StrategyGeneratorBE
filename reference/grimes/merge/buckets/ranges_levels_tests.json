@@ -1,0 +1,1825 @@
+[
+  {
+    "id": "G01-10",
+    "name": "LargeRangeBarRelativeToRecent",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      39,
+      40
+    ],
+    "quote": "Large bars relative to recent bars on one time frame most likely contain trends on the lower time frame... Small bars on one time frame are probably trading ranges on lower time frames.",
+    "description": "The current bar's range is large relative to recent bars' ranges, read as evidence the (unobserved) lower time frame inside this bar trended; a small bar reads as an LTF trading range. A multi-timeframe-inference idea approximated on the single observed timeframe as a plain range-vs-recent-average test.",
+    "pseudocode": "(high[0]-low[0]) > largeBarMultiple * average(highLowRange, lookback)",
+    "sides": "same",
+    "parameters": {
+      "largeBarMultiple": 1.5,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window-average comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "The book's actual claim (that a large HTF bar implies a lower-timeframe trend) cannot be verified from the bars the engine sees; only the size comparison itself is mechanizable."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G01-11",
+    "name": "FailureTestAtNewExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "G01-01"
+    ],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      40,
+      41
+    ],
+    "quote": "There are multiple failure tests above the highs, as the market spikes to new extremes and is unable to find the buying pressure to support itself there.",
+    "description": "The bar makes a new high beyond the recent swing high but closes back inside the prior range (fails to hold the extreme) -- an early warning of loss of trend momentum. Mirrored at new lows.",
+    "pseudocode": "high[0] > highest(high[1], lookback) AND close[0] < highest(high[1], lookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window-max lookup plus a close comparison against that computed level"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal, FailedSwingBreakoutReversal",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G02-01",
+    "name": "AccumulationDistributionRangeContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      48,
+      49,
+      53,
+      54
+    ],
+    "quote": "prices move sideways in a trading range bounded by rough areas of support and resistance, an intermediate-term moving average is flat, and price chops back and forth on both sides of that moving average... Eventually, higher prices will bring increased supply into the market, balance is achieved, and prices will stop rising.",
+    "description": "Defines two of the cycle's four phases precisely enough to test: a market is in a sideways range (recent range width tight relative to volatility) with a flat intermediate-term moving average that price repeatedly crosses. Whether that range is accumulation (base before a markup, long context) or distribution (top before a markdown, short context) is distinguished by the direction of the swing structure leading into the range: a prior decline precedes accumulation, a prior advance precedes distribution.",
+    "pseudocode": "rangeWidth = highest(high, rangeLookback) - lowest(low, rangeLookback)\nisTight = rangeWidth <= tightMultiple * atr(atrLookback)\nemaSlope = ema(close, emaLength) - ema(close, emaLength)[emaSlopeLag]\nisFlat = abs(emaSlope) <= flatSlopeAtrFraction * atr(atrLookback)\npriorTrendDown = close[rangeLookback] < close[rangeLookback + priorTrendLookback]\naccumulationContext = isTight AND isFlat AND priorTrendDown",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "tightMultiple": 1.5,
+      "emaLength": 50,
+      "emaSlopeLag": 10,
+      "flatSlopeAtrFraction": 0.1,
+      "atrLookback": 20,
+      "priorTrendLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'flat', 'tight', and 'prior trend direction' each need a numeric design decision Grimes does not supply; distinguishing accumulation from distribution mechanically also requires deciding how far back to look for the prior trend"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "EmaFlat, TightChannel, Barbwire",
+    "confidence": "low",
+    "notes": [
+      "This is the phase-1/phase-3 definition of Wyckoff's four-phase cycle (accumulation, markup, distribution, markdown), which is the chapter's central framework per the mining brief's steering."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/02_the_market_cycle_and_the_four_trades.json",
+    "chapter_title": "The Market Cycle and the Four Trades"
+  },
+  {
+    "id": "G02-03",
+    "name": "SpringUpthrustFailureTest",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      49,
+      50,
+      51,
+      53
+    ],
+    "quote": "The most common of these is what Wyckoff called a spring, which is called a failure test at the bottom of the range in modern terminology... Candles with long shadows extending below support but with few or no closes below that support are a sign of accumulation... This pattern is the opposite of the Wyckoff spring, and is usually called an upthrust.",
+    "description": "The named support-holding pattern for the accumulation phase and its mirror for distribution: a spring is a bar whose low probes below the recent range's low (a stop run / liquidity test) but whose close finishes back at or above that level, showing the probe was immediately rejected; an upthrust is the mirror at the top of the range, a pop above resistance that fails to hold.",
+    "pseudocode": "rangeLow = lowest(low[1], rangeLookback)\nspring = low[0] < rangeLow - marginAtrFraction * atr(atrLookback) AND close[0] >= rangeLow",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "marginAtrFraction": 0.1,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window-min/max lookup plus a margin and a close comparison, no cross-bar persistent state"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal, StopRunReversalBar, NearMissLevelReversal",
+    "confidence": "medium",
+    "notes": [
+      "Grimes's own description is qualitative ('few or no closes below support' over a span of bars, and that intrabar excursions below support typically last less than a quarter of the bar's own timeframe on a lower time frame -- an unobservable-from-this-timeframe detail, so only the single-bar close-back-inside form is mechanized here). This is the pattern the mining brief explicitly names ('springs', 'upthrusts') as a support/resistance-holding candidate."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/02_the_market_cycle_and_the_four_trades.json",
+    "chapter_title": "The Market Cycle and the Four Trades"
+  },
+  {
+    "id": "G02-08",
+    "name": "SupportRangeBounceEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G01-01"
+    ],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      59,
+      60
+    ],
+    "quote": "It is easy to find examples of well-defined trading ranges on historical charts where you could buy and risk a very small amount as the market bounces off the magic price at the bottom of the range.",
+    "description": "The support/resistance-holding trade: buy near the low of an identified, well-defined trading range, with a small stop just beyond the range low. Grimes cautions this is only the cleanest subset of support-holding trades and that support usually does not hold this cleanly in practice (see G02-03 spring for the more common, messier form).",
+    "pseudocode": "rangeLow = lowest(low[1], rangeLookback)\nclose[0] <= rangeLow + proximityAtrFraction * atr(atrLookback) AND close[0] > rangeLow",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "proximityAtrFraction": 0.25,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (assumed market/limit at close-then-next-open per convention)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a rolling lowest-low is a crude proxy for what Grimes means by a genuinely 'well-defined' range; real range-boundary identification needs pivot/structure detection, not just a fixed window minimum"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "RangeMidpointZone, BreakoutLevelRetest, TradingRangeDay",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/02_the_market_cycle_and_the_four_trades.json",
+    "chapter_title": "The Market Cycle and the Four Trades"
+  },
+  {
+    "id": "G03-04",
+    "name": "LargeRangeBarVsAverage",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      72
+    ],
+    "quote": "the range of the bars in the blow-off becomes much larger than previous bars as the trend steepens and the bars pull away from the average",
+    "description": "Bar range is much larger than the recent average bar range -- one of Grimes's climax markers.",
+    "pseudocode": "(high[0]-low[0]) > rangeMultiple * average(high-low, rangeLookback)",
+    "sides": "same",
+    "parameters": {
+      "rangeMultiple": 2,
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window average of bar range"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd, LargeRangeBarInWindow",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-25",
+    "name": "FailureAtConsolidationLowReversalEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      90,
+      91
+    ],
+    "quote": "There was no momentum and no selling conviction below the level. Within two days, the market was solidly back above the consolidation",
+    "description": "Price breaks decisively below a pullback/consolidation's low, but within a few bars closes back above that same low -- a failed breakdown that offers a with-trend long entry at a favorable price.",
+    "pseudocode": "anyOf(k in 1..failBars, low[k] < consolidationLow) AND close[0] > consolidationLow",
+    "sides": "mirrored",
+    "parameters": {
+      "failBars": 3
+    },
+    "book_order_type": "market at close, next-bar-open fill per convention",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a defined consolidation low, itself a swing/window construct"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal, StopRunReclaimReentry",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G04-01",
+    "name": "PotentialSupportResistanceLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      114
+    ],
+    "quote": "the best we can say about a support area is that it is an area where price may have a higher probability of pausing",
+    "description": "Primitive: approximate a 'potential' support/resistance level as the extreme (highest high / lowest low) of the last N bars. Downstream candidates test price behavior around this level; this is a design decision, not the book's own precise algorithm, since Grimes deliberately declines to give one.",
+    "pseudocode": "level = lowest(low, levelLookback) [support case]; level = highest(high, levelLookback) [resistance case]",
+    "sides": "mirrored",
+    "parameters": {
+      "levelLookback": 20
+    },
+    "book_order_type": "n/a (context/indicator primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Grimes explicitly treats support/resistance as a probabilistic zone, not a rule ('always attach the qualifier potential'); the authoring pass must choose a concrete level definition (recent swing extreme, session extreme, round Donchian window, etc.)"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Grimes stresses S/R should be zones, not exact lines ('a crayon, not a drafting pen'); a band around the rolling extreme is left as a parameter for the authoring pass."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-02",
+    "name": "PriceRejectionFromLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-01"
+    ],
+    "pages": [
+      125
+    ],
+    "quote": "when price reaches a support area that will hold, there is an immediate (in the context of the time frame) and sharp movement away from the level",
+    "description": "A sharp, immediate move away from a tested level: the bar (or next bar) closing well away from the level touch by more than a multiple of ATR -- the archetypal sign that a level holds.",
+    "pseudocode": "low[1] <= level + touchMargin AND (close[0] - level) > rejectionMultiple * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "touchMargin": 0.5,
+      "rejectionMultiple": 1,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the rejection test itself is an ATR-scaled bar-range comparison once a level is given; the level input carries G04-01's research-grade design decision"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes contrasts this with a slow trend grinding down into support (no rejection, more likely to break) -- see G04-07."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-03",
+    "name": "SpringUpthrustFakeout",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-01"
+    ],
+    "pages": [
+      123
+    ],
+    "quote": "A spring is a quick drop below support, which immediately finds enough demand to push prices back above support",
+    "description": "Wyckoff spring (long side): a quick dip below the support level that immediately recovers back above it within a bar or two. Mirrored on the top side is the upthrust: a push above resistance followed by an immediate failure back below it.",
+    "pseudocode": "low[0] < level - marginPoints AND close[0] > level",
+    "sides": "mirrored",
+    "parameters": {
+      "marginPoints": 0.25
+    },
+    "book_order_type": "market at next open once confirmed, per convention",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a bar-range comparison against G04-01's level"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "DipBelowPriorLowCloseBackAbove, SmallBreakoutTrapReversal, StopRunReclaimReentry, StopRunReversalBar",
+    "confidence": "high",
+    "notes": [
+      "Grimes's own naming: spring = bottom-side fakeout, upthrust = top-side; the mirrored sides field already captures both, so they are recorded as one candidate rather than two."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-04",
+    "name": "BrokenLevelRetestHolds",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-01"
+    ],
+    "pages": [
+      114
+    ],
+    "quote": "support, once violated, becomes resistance",
+    "description": "A level that was broken (price closed through it) is later retested from the other side and holds -- broken support acting as new resistance (mirrored: broken resistance acting as new support).",
+    "pseudocode": "anyOf(k in 1..breakLookback, close[k] < level) AND high[0] >= level - retestMargin AND close[0] < level",
+    "sides": "mirrored",
+    "parameters": {
+      "breakLookback": 20,
+      "retestMargin": 0.25
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs to track a level across time from break to retest, on top of G04-01's design decision"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "BreakoutLevelRetest, GapLevelRetest",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-06",
+    "name": "MultipleTestsWeakensLevel",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-01"
+    ],
+    "pages": [
+      126,
+      127
+    ],
+    "quote": "If price is able to return to the level three or more times, probabilities begin to shift in favor of the level breaking",
+    "description": "A level that has been touched three or more times within a lookback window is more likely to fail than hold -- bias entries toward an eventual break rather than continuing to fade the level.",
+    "pseudocode": "touchCount(level, touchLookback, touchMargin) >= 3",
+    "sides": "mirrored",
+    "parameters": {
+      "touchLookback": 40,
+      "touchMargin": 0.5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a persistent touch counter against G04-01's level"
+    },
+    "el_words_needed": [
+      "CountIF"
+    ],
+    "likely_existing_rule": "LevelTouchCount, TrendLineTouchCount",
+    "confidence": "medium",
+    "notes": [
+      "Grimes explicitly rejects the traditional view that more tests strengthen a level: 'this is one of those pieces of the conventional wisdom that is absolutely wrong.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-07",
+    "name": "NoRejectionAtLevelPrecedesFailure",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-01"
+    ],
+    "pages": [
+      128,
+      129
+    ],
+    "quote": "Price quickly found itself back up against the level, and consolidated there for many bars ... This is not what we should see if a level is going to hold",
+    "description": "Price consolidates in a narrow range right at a level (small bar ranges, little movement away) rather than showing G04-02's price rejection -- precedes the level failing; bias toward a break rather than a bounce.",
+    "pseudocode": "countIf((high[k]-low[k]) < tightMultiple*average(high-low, rangeLookback) AND abs(close[k]-level) < nearLevelMargin, consolidateBars) >= consolidateBars - allowedMisses",
+    "sides": "mirrored",
+    "parameters": {
+      "tightMultiple": 0.6,
+      "rangeLookback": 20,
+      "nearLevelMargin": 0.5,
+      "consolidateBars": 5,
+      "allowedMisses": 1
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a persistent multi-bar narrow-range-near-level counter, on top of G04-01's level"
+    },
+    "el_words_needed": [
+      "Average",
+      "CountIF"
+    ],
+    "likely_existing_rule": "TightRangeBlocksEntries, NarrowRangeBar",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-10",
+    "name": "TradingRangeRandomWalkContext",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      129,
+      130
+    ],
+    "quote": "Because markets in trading ranges tend to approximate random walks, most traders are well advised to avoid trading within the randomness of these structures and to limit any involvement to the margins",
+    "description": "Primitive/context filter: identify a 'trading range' state -- price contained within a band for N bars without net directional progress -- and suppress mid-range entries, restricting entries to the margins (support/resistance tests).",
+    "pseudocode": "(highest(high,rangeLookback) - lowest(low,rangeLookback)) < rangeAtrMultiple*atr(atrLength) AND abs(close[0]-close[rangeLookback]) < netMoveAtrMultiple*atr(atrLength)",
+    "sides": "same",
+    "parameters": {
+      "rangeLookback": 20,
+      "rangeAtrMultiple": 4,
+      "atrLength": 14,
+      "netMoveAtrMultiple": 1
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'trading range' is a design decision about how much net directional progress and containment counts as 'ranging'; the pseudocode is one reasonable proxy, not Grimes's own algorithm"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "TradingRangeDay, TightRangeBlocksEntries",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-13",
+    "name": "TightConsolidationAgainstRangeEdgePrecedesBreak",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G04-10"
+    ],
+    "pages": [
+      134
+    ],
+    "quote": "a tighter consolidation against resistance often leads to a break of that resistance ... this is more indicative of pressure building against that side of the range",
+    "description": "Price consolidates in a narrow band pressed against one edge of a larger range (small bar ranges clustered near the range's upper or lower boundary) -- a precursor to a breakout in that direction, rather than the price-rejection pattern expected of a level that will hold.",
+    "pseudocode": "countIf((high[k]-low[k]) < tightMultiple*average(high-low, rangeLookback) AND close[k] within nearEdgeFraction*(rangeHigh-rangeLow) of rangeHigh, consolidateBars) >= consolidateBars - allowedMisses",
+    "sides": "mirrored",
+    "parameters": {
+      "tightMultiple": 0.6,
+      "rangeLookback": 20,
+      "nearEdgeFraction": 0.2,
+      "consolidateBars": 5,
+      "allowedMisses": 1
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "combines a rolling range boundary, a positioning-within-range test, and a persistent narrow-bar counter"
+    },
+    "el_words_needed": [
+      "Average",
+      "Highest",
+      "Lowest",
+      "CountIF"
+    ],
+    "likely_existing_rule": "NarrowRangeBar, RangeMidpointZone",
+    "confidence": "low",
+    "notes": [
+      "Also the basis for the classic 'cup and handle' pattern per Grimes; not separately recorded since it reduces to this same test."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-14",
+    "name": "ConvergingRangeVolatilityCompression",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      134,
+      135
+    ],
+    "quote": "the market making successively smaller swings, as if zeroing in on a target price level. The edges of this range appear to converge",
+    "description": "The average bar range over a recent window is smaller than the average bar range over the window preceding it -- volatility compression (a symmetrical/converging triangle), sets up a breakout-mode filter.",
+    "pseudocode": "average(high-low, recentWindow) < contractionMultiple*average(high-low, priorWindow)",
+    "sides": "same",
+    "parameters": {
+      "recentWindow": 10,
+      "priorWindow": 10,
+      "contractionMultiple": 0.6
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "two trailing window averages compared"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "ChannelWidthConvergence",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-16",
+    "name": "AscendingTriangleHigherLowsIntoResistance",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      135
+    ],
+    "quote": "price holds successively smaller declines (higher lows) into a clearly defined resistance level ... typically shows strengthening conviction on the part of buyers ... usually leading to a breakout above that resistance",
+    "description": "A series of successively higher swing lows forms against a flat resistance level -- strengthening buyer conviction, biasing toward an eventual upside breakout (mirrored: successively lower swing highs into flat support, a descending triangle).",
+    "pseudocode": "swingLow[0] > swingLow[1] AND swingLow[1] > swingLow[2] AND abs(swingHighLevel - resistanceLevel) < levelTolerance",
+    "sides": "mirrored",
+    "parameters": {
+      "levelTolerance": 0.5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and a flat-level test on the opposite side"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "HigherSwingLow, HigherLowCount",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-17",
+    "name": "ExpandingRangeVolatilityAvoidEntries",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      136
+    ],
+    "quote": "widening triangles where each swing, both up and down, is bigger than the preceding swings ... I avoid these types of environments or at least significantly reduce risk in them",
+    "description": "Each with-trend and countertrend swing is larger than the swing preceding it, in both directions (an expanding range) -- volatility is growing unpredictably; block new entries or reduce size.",
+    "pseudocode": "swingLength[0] > swingLength[1] AND swingLength[1] > swingLength[2] AND signAlternates(swing[0], swing[1], swing[2])",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection with alternating-direction and growing-amplitude tests"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-18",
+    "name": "SpikeReverseSpikeTriangleWarning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      135,
+      136
+    ],
+    "quote": "Whenever a market makes a very large, sharp movement in one direction, followed by a similar move in the other direction ... the normal expectation ... is for the market to spend a period of time consolidating",
+    "description": "A very large-range bar (or short run of bars) in one direction quickly followed by a similar-sized move in the opposite direction predicts a period of directionless, triangle-like consolidation -- block new entries for N bars after this pattern.",
+    "pseudocode": "((high[k1]-low[k1]) > rangeMultiple*average(high-low,rangeLookback) AND close[k1] > open[k1]) AND ((high[k2]-low[k2]) > rangeMultiple*average(high-low,rangeLookback) AND close[k2] < open[k2]) for k1, k2 within spikePairLookback of each other",
+    "sides": "same",
+    "parameters": {
+      "rangeMultiple": 2,
+      "rangeLookback": 20,
+      "spikePairLookback": 10,
+      "coolOffBars": 10
+    },
+    "book_order_type": "n/a (filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses a large-range-bar test (as G03-04) paired in opposite directions within a lookback"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "OppositeLargeBarPair, OppositeLargeBarsInWindow",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-21",
+    "name": "SpringNearSupportInLargerUptrendEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G04-03",
+      "G04-12"
+    ],
+    "depends_on": [],
+    "pages": [
+      133
+    ],
+    "quote": "Be on guard for springs near support in larger-scale uptrends, and for upthrusts near the highs of these patterns in downtrends. These offer exceptional entries into higher time frame trends",
+    "description": "A spring (G04-03) occurring near the support edge of a diagonal, higher-timeframe-trend-aligned range (G04-12) -- an especially strong with-trend entry.",
+    "pseudocode": "G04-03 AND G04-12",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market at next open once confirmed, per convention",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits G04-12's higher-timeframe and range-slope design decisions"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G05-06",
+    "name": "TightRangeNearLargerRangeExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      140,
+      141
+    ],
+    "quote": "a tight range near the edge of a larger, established trading range. This tight range is often less than 25 percent of the height of the larger range.",
+    "description": "The height of a short recent window is less than a fraction of the height of a longer prior window, and that short window sits near the top (long) / bottom (short) of the longer window -- prebreakout accumulation base.",
+    "pseudocode": "tightHigh = highest(high, tightLookback); tightLow = lowest(low, tightLookback); rangeHigh = highest(high, rangeLookback); rangeLow = lowest(low, rangeLookback); (tightHigh - tightLow) < tightFraction * (rangeHigh - rangeLow) AND (rangeHigh - tightHigh) < proximityFraction * (rangeHigh - rangeLow)",
+    "sides": "mirrored",
+    "parameters": {
+      "tightLookback": 10,
+      "rangeLookback": 50,
+      "tightFraction": 0.25,
+      "proximityFraction": 0.1
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "two window highest/lowest comparisons, no pivots"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "TightChannel",
+    "confidence": "medium",
+    "notes": [
+      "25% is the book's own figure for the tight range's height relative to the larger range; proximityFraction has no stated number, default chosen."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-08",
+    "name": "SpringAtRangeSupport",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      139,
+      140
+    ],
+    "quote": "Violations of support and resistance in well-defined ranges are important areas to watch. If excursions beyond the range are short-lived, printing springs and upthrusts at the edges of the range, this becomes strong evidence that large traders are positioning.",
+    "description": "A Wyckoff spring: the bar's low trades below the recent range's support (lowest low of the prior N bars) but the bar closes back above that support level. Mirrored as an upthrust at resistance for shorts. Reused as a primitive by several later candidates in this file.",
+    "pseudocode": "low[0] < lowest(low[1], rangeLookback) AND close[0] > lowest(low[1], rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20
+    },
+    "book_order_type": "n/a (close-based pattern, no order placement of its own)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window low plus a close comparison"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "medium",
+    "notes": [
+      "Shared primitive, first defined here; also used by G05-26 (last gasp)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-09",
+    "name": "BeyondLevelBriefExcursion",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      145,
+      146
+    ],
+    "quote": "a rule of thumb might be that you want to see no more than two or three bars on your time frame outside the breakout level and then strong momentum reversing the move.",
+    "description": "No more than maxBarsBeyond consecutive bars have closed beyond a significant level -- a running count since the level was first breached.",
+    "pseudocode": "barsBeyondLevel <= maxBarsBeyond, where barsBeyondLevel counts consecutive bars with close[i] on the far side of level",
+    "sides": "same",
+    "parameters": {
+      "maxBarsBeyond": 3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar persistent counter"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "medium",
+    "notes": [
+      "Shared primitive; composes into G05-11 (failure test of a level)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-10",
+    "name": "CloseBackWithStrongReversalMomentum",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      146
+    ],
+    "quote": "once a bar closes back on the other side of the breakout level, strong momentum steps in and we see good price rejection from the breakout level.",
+    "description": "The bar that closes back on the origin side of a broken level has a body at least a multiple of the recent average range -- a strong reversal/rejection bar.",
+    "pseudocode": "abs(close[0] - open[0]) > bodyMultiple * average(high[1..lookback] - low[1..lookback])",
+    "sides": "same",
+    "parameters": {
+      "lookback": 20,
+      "bodyMultiple": 1.0
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "single-bar body vs. window-average range"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "StrongTrendBar",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-11",
+    "name": "FailureTestOfLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G05-09",
+      "G05-10"
+    ],
+    "depends_on": [],
+    "pages": [
+      145,
+      146,
+      147
+    ],
+    "quote": "As a pure price pattern, a failure test is a brief excursion beyond a level, followed by an immediate reversal.",
+    "description": "Composite failure test: a brief excursion beyond a level (G05-09) that closes back across the level on a strong-momentum bar (G05-10). Enter against the excursion direction on the close of that bar.",
+    "pseudocode": "G05-09 AND G05-10 AND close[0] crosses back to the origin side of level",
+    "sides": "mirrored",
+    "parameters": {
+      "maxBarsBeyond": 3,
+      "lookback": 20,
+      "bodyMultiple": 1.0
+    },
+    "book_order_type": "market/stop entry on the close of the reversal bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines two moderate/simple primitives"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "high",
+    "notes": [
+      "Also called the 'turkey shoot' in the text (page 146)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-12",
+    "name": "WeakFailureTestLowConviction",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      146,
+      147
+    ],
+    "quote": "lower time frame price action shows a lack of conviction beyond the breakout level... a market that may be holding at higher levels without strong underlying conviction.",
+    "description": "A weaker variant of the failure test: the bar closes very near the level with a small body relative to its range (instead of a strong reversal bar). Flagged as a lower-confidence context that still warns of failure momentum within the next several bars.",
+    "pseudocode": "abs(close[0] - level) < nearFraction * (high[0] - low[0]) AND abs(close[0] - open[0]) < bodyMultiple * average(high[1..lookback] - low[1..lookback])",
+    "sides": "mirrored",
+    "parameters": {
+      "nearFraction": 0.25,
+      "bodyMultiple": 0.5,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'lack of conviction' is a qualitative lower-time-frame read; here approximated by a single-bar proxy on the trading time frame"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "WeakFollowThroughBarRequiresPullback",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-19",
+    "name": "FailureTestAtPriorTrendExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [],
+    "depends_on": [
+      "G05-09",
+      "G05-10"
+    ],
+    "pages": [
+      150,
+      151,
+      152
+    ],
+    "quote": "Pullbacks may also fail on a test of the pivot that defines the previous trend extreme.",
+    "description": "Same failure-test mechanics as G05-11, but the level tested is the pivot that defined the trend's own prior extreme (a highest-high/lowest-low over the trend's lookback) rather than a breakout level -- ends the trend.",
+    "pseudocode": "level = highest(high, trendLookback); BeyondLevelBriefExcursion(level) AND CloseBackWithStrongReversalMomentum",
+    "sides": "mirrored",
+    "parameters": {
+      "trendLookback": 50,
+      "maxBarsBeyond": 3,
+      "bodyMultiple": 1.0,
+      "lookback": 20
+    },
+    "book_order_type": "market/stop entry on the close of the reversal bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the failure-test primitives with a different level source"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Average"
+    ],
+    "likely_existing_rule": "TouchOfRecentExtreme",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-25",
+    "name": "ConsolidationDurationBeforeExtremeTest",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      157,
+      158
+    ],
+    "quote": "the key is that it is preceded by sufficient consolidation to set up the potential for another trend leg up.",
+    "description": "A range-bound period of at least minConsolidationBars bars (high-low envelope not expanding) occurs immediately before a spring/upthrust test at the trend extreme -- required for the 'last gasp' pattern to carry its full reliability.",
+    "pseudocode": "highest(high, consolidationLookback) - lowest(low, consolidationLookback) < consolidationFraction * priorTrendRange, measured over the consolidationLookback bars immediately preceding the test",
+    "sides": "same",
+    "parameters": {
+      "consolidationLookback": 10,
+      "consolidationFraction": 0.3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'sufficient consolidation' is a design-level judgment, mechanized here as a range-contraction proxy"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G06-01",
+    "name": "FailureTestOfLevelTrigger",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      166
+    ],
+    "quote": "For a short entry, the market trades above a clearly defined resistance area, but immediately reverses on the same or the following bar and closes back under the resistance. ... Enter short on the close of the bar that closes back below resistance.",
+    "description": "Primitive: price trades beyond a significant level, then within maxBarsBeyond bars closes back on the origin side of that level. Enter on the close of the bar that closes back across the level.",
+    "pseudocode": "barsBeyondLevel <= maxBarsBeyond AND close[0] crosses back to the origin side of level (where barsBeyondLevel counts consecutive bars with a high/low beyond level since it was first breached)",
+    "sides": "mirrored",
+    "parameters": {
+      "maxBarsBeyond": 1
+    },
+    "book_order_type": "market/stop entry on the close of the reversal bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar persistent counter since the level was breached"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "high",
+    "notes": [
+      "The book's default is 'same or the following bar' (maxBarsBeyond = 1), tighter than Chapter 5's rule-of-thumb 'two or three bars'."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-04",
+    "name": "SupportResistanceBounceEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      172,
+      173
+    ],
+    "quote": "The second entry trigger is actually buying against the support at the bottom of the pullback.",
+    "description": "Primitive pullback trigger 2: buy (sell) directly against the support (resistance) level defined by the pullback's own recent low (high), on a limit basis.",
+    "pseudocode": "low[0] <= lowest(low[1], pullbackLookback) + touchTolerance * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "pullbackLookback": 10,
+      "touchTolerance": 0.25,
+      "atrLookback": 14
+    },
+    "book_order_type": "limit entry at the support/resistance level -> mechanized as close-and-next-open once the bar touches the level",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window low/high plus an ATR-scaled touch tolerance"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "PullbackNearMissesEntryPrice",
+    "confidence": "medium",
+    "notes": [
+      "Stop placement is problematic for this trigger per the book, because support can break before recovering -- see G06-17."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-05",
+    "name": "SpringUpthrustAtRangeExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      193,
+      194
+    ],
+    "quote": "wait for springs (i.e., drops below the support at the bottom of the base that immediately recover back above the support level) and enter on the close of those bars.",
+    "description": "Primitive: a spring at range support -- the bar's low trades below the recent range low but closes back above it. Mirrored as an upthrust at resistance for shorts.",
+    "pseudocode": "low[0] < lowest(low[1], rangeLookback) AND close[0] > lowest(low[1], rangeLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20
+    },
+    "book_order_type": "market/stop entry on the close of the spring/upthrust bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window low plus a close comparison"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-08",
+    "name": "ConsolidationBelowResistanceSetup",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      166
+    ],
+    "quote": "Another common variation occurs in an extended consolidation just under resistance. This type of consolidation would normally have a high expectation of producing another trend leg above that resistance, so many traders are monitoring the area.",
+    "description": "Failure Test setup condition 2: a tight recent range sits just under (over) a longer-window's resistance (support) extreme -- primes a failure test if the eventual breakout fails.",
+    "pseudocode": "tightHigh = highest(high, tightLookback); tightLow = lowest(low, tightLookback); rangeHigh = highest(high, rangeLookback); (tightHigh - tightLow) < tightFraction * (rangeHigh - lowest(low, rangeLookback)) AND (rangeHigh - tightHigh) < proximityFraction * (rangeHigh - lowest(low, rangeLookback))",
+    "sides": "mirrored",
+    "parameters": {
+      "tightLookback": 10,
+      "rangeLookback": 50,
+      "tightFraction": 0.25,
+      "proximityFraction": 0.1
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "two window highest/lowest comparisons, no pivots"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "TightChannel",
+    "confidence": "medium",
+    "notes": [
+      "Same mechanics as the Chapter 5 'tight range near the edge of a larger range' primitive, redefined here as a Failure Test precondition."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-11",
+    "name": "FailureTestStallWarningExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      168
+    ],
+    "quote": "if you enter short on B in Figure 6.1 and the market spends two to three days trading above 105, this is most likely a precursor of a losing trade. Reduce exposure or close out these trades if they do not work quickly in your favor.",
+    "description": "If the position has been held for stallBars bars without reaching the first profit target and price has consolidated near the entry level (small range since entry), exit or reduce exposure.",
+    "pseudocode": "ctx.BarsSinceEntry() >= stallBars AND ctx.OpenPositionProfit() < riskMultiple * abs(ctx.EntryPrice() - initialStopPrice) AND (highest(high, stallBars) - lowest(low, stallBars)) < stallFraction * abs(ctx.EntryPrice() - initialStopPrice)",
+    "sides": "same",
+    "parameters": {
+      "stallBars": 3,
+      "riskMultiple": 1.0,
+      "stallFraction": 0.5
+    },
+    "book_order_type": "n/a (management exit)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state on bars-since-entry plus a range-contraction test"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "EntryPrice",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "NumBarsIfLosing",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-13",
+    "name": "FailureTestTemplate",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G06-07",
+      "G06-08",
+      "G06-01",
+      "G06-09",
+      "G06-10",
+      "G06-11",
+      "G06-12"
+    ],
+    "depends_on": [],
+    "pages": [
+      166,
+      167,
+      168,
+      169
+    ],
+    "quote": "The failure test pattern is the classic Wyckoff spring and upthrust; the only adaptation is the addition of a firm stop level and a concrete trading plan.",
+    "description": "The book's named Failure Test template in full: setup (mature-trend momentum divergence, G06-07, OR consolidation under resistance, G06-08) + trigger (G06-01) + stop (G06-09) + first target (G06-10) + stall-warning management (G06-11) + reentry-on-second-failure (G06-12).",
+    "pseudocode": "(G06-07 OR G06-08) AND G06-01, managed by G06-09/G06-10/G06-11, with G06-12 as a standing reentry rule",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market/stop entry on the close of the reversal bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "aggregates several moderate primitives; no swing-pivot detection required"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "high",
+    "notes": [
+      "Also known as Victor Sperandeo's '2B' trade (page 169)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-41",
+    "name": "LevelTestedMultipleCleanTimes",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      190
+    ],
+    "quote": "there are levels that have been tested cleanly multiple times, and it is obvious to even a casual chart reader that price has been unable to penetrate the level.",
+    "description": "A resistance (support) level -- the highest high (lowest low) of a longer window -- has been approached within a tolerance at least minTests times without closing beyond it, over the window.",
+    "pseudocode": "count(i = 1..windowBars, high[i] within touchTolerance * atr(atrLookback) of highest(high, windowBars) AND close[i] <= highest(high, windowBars)) >= minTests",
+    "sides": "mirrored",
+    "parameters": {
+      "windowBars": 50,
+      "touchTolerance": 0.5,
+      "atrLookback": 14,
+      "minTests": 2
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a touch counter against a window extreme"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "LevelTouchCount",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-43",
+    "name": "HigherLowsIntoResistanceBase",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      192,
+      193
+    ],
+    "quote": "Another variation of this same idea has a market holding successively higher highs into the resistance level... buyers have been willing to buy the market at higher prices on each decline.",
+    "description": "An alternate breakout-base form: successive pullback lows into resistance are each higher than the last, without a tight flat base.",
+    "pseudocode": "swingLow[0] > swingLow[1] > swingLow[2]",
+    "sides": "mirrored",
+    "parameters": {
+      "numSwings": 3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and multi-leg comparison"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "HigherLowCount",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-46",
+    "name": "SpringEntryInBase",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G06-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      193,
+      194
+    ],
+    "quote": "wait for springs (i.e., drops below the support at the bottom of the base that immediately recover back above the support level) and enter on the close of those bars.",
+    "description": "Breakout-base entry trigger 2: enter on the close of a spring (G06-05) at the bottom of the base.",
+    "pseudocode": "SpringUpthrustAtRangeExtreme, with rangeLookback set to the base's own lookback",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 10
+    },
+    "book_order_type": "market/stop entry on the close of the spring bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the spring primitive"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "medium",
+    "notes": [
+      "Not every base features a spring or upthrust, per the book."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G07-28",
+    "name": "HigherTimeframeRangeFailureTestEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      240
+    ],
+    "quote": "the strongest trends often emerge in higher time frame consolidation areas... one of the cleanest trades in a range is the test beyond the confines of the range that immediately reverses, as in the classic Wyckoff spring or upthrust, we can trade reactions off those higher time frame ranges with some degree of confidence.",
+    "description": "A bar dips below the higher-time-frame-approximated range low (a rangeLookback*htfMultiplier-bar lowest low) and closes back inside the range on the same or a following bar (an HTF spring); treat this as a green light for a with-trend long entry on the trading timeframe. Mirrored: HTF upthrust for shorts.",
+    "pseudocode": "low[1] < lowest(low[2], rangeLookback * htfMultiplier) && close[0] > lowest(low[2], rangeLookback * htfMultiplier)",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "htfMultiplier": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a higher-time-frame-approximated range (rolling highest/lowest over a long lookback) and a two-bar failure-test pattern"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "StopRunReversalBar",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G08-26",
+    "name": "CloseInSessionRangeExtremeDecile",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      274
+    ],
+    "quote": "Calculate the close as percent of day's range = [(last print - day's low)/day's range] x 100 ... color code the entire indicator red for any values where close as percent of day's range <= 20, and green if >= 80",
+    "description": "Flags when the current close sits in the bottom or top decile-scale fraction of the session's range so far, a ratio-of-differences quantity (close minus session low, over session range) used to judge trade strength.",
+    "pseudocode": "(close[0] - sessionLow(0)) / (sessionHigh(0) - sessionLow(0)) >= highDecile / 100",
+    "sides": "mirrored",
+    "parameters": {
+      "highDecile": 80,
+      "lowDecile": 20
+    },
+    "book_order_type": "n/a (monitoring/context test)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs running session high/low accessors"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "SessionCloseStrengthBias",
+    "confidence": "medium",
+    "notes": [
+      "Grimes presents this as a monitoring/visualization tool (a text graph), not explicitly a trade trigger, but the underlying quantity is a legitimate bar-level ratio test; on a daily bar this degenerates to CloseRangePosition since the session equals the bar."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-27",
+    "name": "OpenInSessionRangeExtremeDecile",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G08-26"
+    ],
+    "pages": [
+      274
+    ],
+    "quote": "Calculate the open as percent of day's range = [(open - day's low)/day's range] x 100",
+    "description": "Same construction as G08-26 but measuring the session's open location within the session's range instead of the close.",
+    "pseudocode": "(open[0] - sessionLow(0)) / (sessionHigh(0) - sessionLow(0)) >= highDecile / 100",
+    "sides": "mirrored",
+    "parameters": {
+      "highDecile": 80,
+      "lowDecile": 20
+    },
+    "book_order_type": "n/a (monitoring/context test)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs running session high/low accessors"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "SessionCloseStrengthBias",
+    "confidence": "low",
+    "notes": [
+      "Minor variant of G08-26; Grimes describes this only as one step of the same text-graph tool, not as an independent signal."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G10-07",
+    "name": "LongConsolidationNearExtremeFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      334
+    ],
+    "quote": "Many times a market will show a series of consistent consolidations (say five to eight bars), and then will consolidate near the trend extreme in a much longer consolidation, perhaps three or four times the normal length... it often sets up a good countertrend trade on a failure test.",
+    "description": "Context filter for countertrend failure-test entries: favor the setup when the consolidation near the trend extreme is markedly longer (a multiple of the typical recent consolidation length) than the consolidations that preceded it earlier in the trend.",
+    "pseudocode": "// ratio of the current consolidation's bar count to the typical recent consolidation length; both are bar counts, so this passes the shift test\ncurrentConsolidationLength >= extremeLengthMultiple * typicalConsolidationLength",
+    "sides": "same",
+    "parameters": {
+      "typicalConsolidationLength": 6,
+      "extremeLengthMultiple": 3
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a consolidation/range detector to measure consolidation length at all, plus tracking the typical length of prior consolidations in the trend"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "notes": [
+      "'consolidation length' itself needs a working definition (e.g. runs of overlapping bars or bars inside a tight range); this candidate assumes that primitive exists elsewhere in the corpus."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  },
+  {
+    "id": "G10-11",
+    "name": "SpringMinimumPenetrationDepth",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      353,
+      354
+    ],
+    "quote": "Note that this is a classic Wyckoff spring, though the best examples of springs should penetrate previous support more decisively... E is a small spring, and may not be a realistic entry as it penetrates previous support by only a few cents.",
+    "description": "A spring (dip below prior support followed by recovery) is a more reliable entry when the penetration below support is a meaningful distance (scaled to volatility) rather than a token few ticks. This is a quality filter on the Spring primitive defined elsewhere in the corpus, not a redefinition of Spring itself.",
+    "pseudocode": "// long spring at prior support level S\npenetrationDepth = S - low[0]\npenetrationDepth >= minPenetrationAtrFraction * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "minPenetrationAtrFraction": 0.25,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (quality filter on an existing entry pattern)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a difference (penetration distance) compared against a fraction of ATR, once the Spring's support level and low are known"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "notes": [
+      "Assumes 'Spring' (dip below support, then recovery) is already defined as a primitive elsewhere in the Grimes corpus (Chapter 6's trading templates, per this chapter's summary); minPenetrationAtrFraction of 0.25 ATR is a guessed threshold since Grimes only says 'a few cents' is too little."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  },
+  {
+    "id": "G16-04",
+    "name": "FailureTestPenetrationThenReject",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      447,
+      448
+    ],
+    "quote": "A type of trade in which price penetrates previous support or resistance, and then fails to continue beyond that level. This is a potentially volatile trade, but it also offers very clear risk points and profit targets.",
+    "description": "Price trades through a prior support/resistance level and then closes back on the original side of it, signalling the level is holding.",
+    "pseudocode": "low[0] < supportLevel and close[0] > supportLevel",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (context test); actual entry mechanized as close-then-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an identified support/resistance level (a recent swing pivot) plus a same-bar penetrate-and-reject test"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "FailedBreakoutReversal",
+    "confidence": "high",
+    "notes": [
+      "\"Holding\" (page 448: a level the market is unable to trade beyond) and \"failing\" (page 447: a level failing to contain prices) are this same test's two named outcomes, not separate candidates."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-13",
+    "name": "SessionOpenLocationInRange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      451
+    ],
+    "quote": "O%Rng A measure of where the open lies within the trading session's range, expressed as a percentage of that range. For instance, O%Rng of 100 percent means the open is at the high of the day's range, while 0 percent indicates the open is the low tick of that session.",
+    "description": "The session's open sits in the top (or bottom) fraction of the full session's high-low range.",
+    "pseudocode": "(open[0] - sessionLow(0)) / (sessionHigh(0) - sessionLow(0)) >= highThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "highThreshold": 0.8,
+      "lowThreshold": 0.2
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs running session high/low accessors, and compares against the FULL session range rather than the range-so-far"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "SessionCloseStrengthBias",
+    "confidence": "medium",
+    "notes": [
+      "Same construction as OpenInSessionRangeExtremeDecile (G08-27) mined in 08_trade_management.json; recorded again here since the glossary names the metric explicitly as O%Rng. Full-session range is only knowable in hindsight, so a live version must use the range-to-date as an approximation, as G08-27 does."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-15",
+    "name": "PriceRejectionStrongOppositeBarAtLevel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      453
+    ],
+    "quote": "Price makes an immediate (in the context of the time frame) and sharp move away from the level. The absence of price rejection suggests a higher probability of the level breaking.",
+    "description": "At a support level, the bar that tests the level shows a sharp move back away from it (a long lower tail relative to the bar's range), indicating the level is holding.",
+    "pseudocode": "low[0] <= supportLevel and (close[0] - low[0]) > rejectionFraction * (high[0] - low[0])",
+    "sides": "mirrored",
+    "parameters": {
+      "rejectionFraction": 0.5,
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (context/reversal-bar test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an identified support/resistance level plus a bar-shape (tail fraction) test"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "ReversalBarTailFraction",
+    "confidence": "medium",
+    "notes": [
+      "Close cousin of G16-04 (failure test); price rejection is the bar-shape evidence for that same holding/failing outcome."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-18",
+    "name": "SpringSupportPenetrationRecovery",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      455
+    ],
+    "quote": "The opposite of upthrusts: Price trades below support and immediately fails to carry lower. The quick recovery shows underlying buying pressure and potential accumulation.",
+    "description": "Price dips below a support level and closes back above it on the same bar, a Wyckoff spring.",
+    "pseudocode": "low[0] < supportLevel and close[0] > supportLevel",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (context test); actual entry mechanized as close-then-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an identified support level (a recent confirmed swing low) plus a same-bar penetrate-and-close-back-above test"
+    },
+    "el_words_needed": [
+      "SwingLow"
+    ],
+    "likely_existing_rule": "DipBelowPriorLowCloseBackAbove",
+    "confidence": "high",
+    "notes": [
+      "The mirrored (short) side of this same rule IS Grimes's \"upthrust\" (page 457: \"price thrusts above resistance and immediately fails to carry through... a sign of classic distribution\"); recorded as one mirrored candidate rather than two separate ones, per the convention that sides mirror rather than duplicate."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-20",
+    "name": "ConfluenceMultiTimeframeLevelAlignment",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      445
+    ],
+    "quote": "Some methodologies assume that support and resistance levels are more meaningful if levels from several different time frames line up at a specific price. This lining-up of levels is called confluence.",
+    "description": "A support/resistance level identified on a shorter pivot window sits close to a level identified on a longer (higher-timeframe-approximating) pivot window.",
+    "pseudocode": "abs(swingLow(1, strengthLTF) - swingLow(1, strengthHTF)) <= toleranceAtr * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "strengthLTF": 2,
+      "strengthHTF": 10,
+      "toleranceAtr": 0.5,
+      "atrLength": 14
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "needs a design decision on how many pivot ranks/windows count as separate 'timeframes' and how close is 'lined up'"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Per the brief's multi-timeframe convention, the higher-timeframe pivot is approximated by a stronger swingStrength/longer lookback on the same bar series rather than a literal resample."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  }
+]

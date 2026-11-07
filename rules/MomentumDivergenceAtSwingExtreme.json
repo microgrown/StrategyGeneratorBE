@@ -1,0 +1,66 @@
+{
+    "name": "MomentumDivergenceAtSwingExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10",
+        "divLookback": "20"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "oscDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "pHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscPeak": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscTrough": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "divReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffer below mirrors. Copied from\n// OscillatorAboveZero and OscillatorNewExtreme, the family's reference pair.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// MOMENTUM DIVERGENCE, merge decision 3: WINDOW MAXIMA, never a pivot scan.\n// Price makes a new divLookback-bar extreme while the 3/10 oscillator falls\n// short of its OWN window extreme. VolumeDivergenceAfterClimax is the shape\n// and was re-read against its JSON before this rule was written.\n//\n// SIDES: the long side is the upper-extreme (classically bearish) divergence, the\n// merged pseudocode read literally as the long side. That keeps this rule and\n// NoMomentumDivergenceInWindow on one computation -- Grimes's use is \"after a\n// divergence at the high, do not buy the next pullback\", a LONG-PANE reading.\n// Place it negated in a long pane to block.\n//\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated one.\n// Mirrored here as a zero-seeded ring buffer, re-seeded if the depth ever\n// changes -- what AwesomeOscillatorSlope, OscillatorNewExtreme and AtrRising\n// do for the same reason. Depth divLookback + 1 so lag 0 and lag divLookback\n// both live in the buffer.\noscDepth = (int)divLookback + 1;\nif (oscDepth < 2) {\n    oscDepth = 2;\n}\nif (oscHistory.size() != (std::size_t)oscDepth) {\n    oscHistory.assign((std::size_t)oscDepth, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\n// The window extremes, mirroring EasyLanguage's Extremes(): seed on the\n// window's first bar -- the one-bar shift -- and scan the rest with a STRICT\n// comparison, so a tie keeps the seed. Extremes is EL SOURCE, so its\n// comparison carries the EL relational tolerance: el_gt / el_lt.\npHigh = high[1];\npLow = low[1];\noscPeak = oscHistory[(oscCursor + oscHistory.size() - 2) % oscHistory.size()];\noscTrough = oscPeak;\nfor (ii = 2; ii <= (int)divLookback; ++ii) {\n    if (el_gt(high[ii], pHigh)) {\n        pHigh = high[ii];\n    }\n    if (el_lt(low[ii], pLow)) {\n        pLow = low[ii];\n    }\n    double v = oscHistory[(oscCursor + oscHistory.size() - 1 - (std::size_t)ii) % oscHistory.size()];\n    if (el_gt(v, oscPeak)) {\n        oscPeak = v;\n    }\n    if (el_lt(v, oscTrough)) {\n        oscTrough = v;\n    }\n}\n// Warm-up: against the zero-filled osc history the divergence term would pass\n// for free over the first divLookback bars, so the rule waits until every bar\n// of the window is a real reading rather than comparing against a zero.\ndivReady = ctx.CurrentBar() > (int)divLookback;",
+    "longCondition": "divReady && el_ge(high[0], pHigh) && el_lt(osc, oscPeak)",
+    "shortCondition": "divReady && el_le(low[0], pLow) && el_gt(osc, oscTrough)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,56 @@
+{
+    "name": "StopBeyondRangeExtremeAtrBuffer",
+    "type": "Exit",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "stopBuffer": "0",
+        "bufferAtrMultiple": "0.25",
+        "atrLookback": "14",
+        "confirmBars": "1"
+    },
+    "localVariables": {
+        "lowestLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highestHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "okLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// StopBeyondRangeExtremeAtrBuffer -- Grimes A list (G06-17 / G06-25 / G08-03,\n// key StopBeyondRangeExtremeAtrBuffer; also G06-49, key\n// StopAfterConsecutiveClosesBeyondLevel, as confirmBars). Authored 2026-09-22 as\n// new inputs on StopBeyondRecentRangeExtreme and split out 2026-11-07, because\n// the 202611 BRK and OWN templates place StopBeyondRecentRangeExtreme, so that\n// rule stays exactly as those families run it. Code otherwise unchanged.\n//\n// DEFAULTS: bufferAtrMultiple(0.25) is the miner's number (Grimes names no\n// multiple), and stopBuffer(0) makes the default the PURE ATR form, as the merged\n// pseudocode has it; confirmBars(1) judges the current close alone;\n// rangeLookback(20) and atrLookback(14) are unchanged. At bufferAtrMultiple 0\n// and confirmBars 1 this is StopBeyondRecentRangeExtreme's behaviour exactly.\n//\n// Lowest(low[ii+1], rangeLookback) / Highest(high[ii+1], rangeLookback): the\n// window ENDS ONE BAR BEFORE THE BAR BEING JUDGED, so no bar can define the\n// level it is being tested against. At confirmBars 1 only ii = 0 runs and the\n// window is bars 1..rangeLookback, exactly StopBeyondRecentRangeExtreme's.\n// Mirrors EasyLanguage's Extremes(): seeded on the first bar of the window,\n// scanning the rest, strict comparison so a tie keeps the earliest bar.\n// Extremes is EL SOURCE, so its comparisons carry the relational tolerance and\n// these use el_lt/el_gt rather than < and >.\n//\n// TWO GRIMES READINGS, one rule.\n//\n// (1) bufferAtrMultiple and atrLookback (G06-17 / G06-25 / G08-03, key\n// StopBeyondRangeExtremeAtrBuffer). Grimes wants the buffer past the obvious\n// level SCALED BY VOLATILITY, not fixed: \"a few ticks beyond the obvious\n// levels\" still gets swept in extra volatility. THE TWO BUFFERS ARE ADDITIVE.\n// The merge notes call them alternatives rather than a sum, so the default runs\n// the pure ATR form with stopBuffer 0; bufferAtrMultiple 0 turns the ATR buffer\n// off and leaves StopBeyondRecentRangeExtreme's fixed price-point buffer. 0.25\n// ATR is the miner's number -- Grimes names no multiple. G06-17's extra random\n// jitter is NOT carried: strategies must be deterministic.\n//\n// (2) confirmBars (G06-49, key StopAfterConsecutiveClosesBeyondLevel). \"Once\n// the market consolidated below that support level the probabilities favoured\n// a breakdown, so there was no sense riding the trade to the initial stop.\"\n// A CONSOLIDATION beyond the level, not a poke through it: confirmBars\n// consecutive closes each beyond ITS OWN bar's level. confirmBars 1, the\n// default, is the single-close test StopBeyondRecentRangeExtreme makes. Grimes\n// gives no count; 3 is the miner's.\n// EACH BAR IS JUDGED AGAINST THE WINDOW ENDING ONE BAR BEFORE IT, not against\n// one frozen level and not against the CURRENT bar's level. The current-level\n// reading is unusable: low[1] is inside this bar's window, so\n// close[1] <= level - stopBuffer would require close[1] <= low[1] - stopBuffer,\n// which no bar can satisfy with a positive buffer -- confirmBars 2 would never\n// fire. The at-fill capture the merged pseudocode suggests would make this a\n// different machine (an at-entry freeze, which is InitialStopBeyondSwingAtEntry's\n// convention), so the rule's own rolling level is kept and simply re-read per\n// bar. confirmBars 0 leaves okLong true and fires every bar, so the grid starts\n// at 1.\n//\n// The negated form is exact, not approximate: el_gt is the precise complement\n// of el_le under the relational tolerance (el_gt(a,b) is a - b > tol and\n// el_le(a,b) is b - a >= -tol), so at confirmBars 1 and bufferAtrMultiple 0\n// the long test returns exactly what StopBeyondRecentRangeExtreme's\n// el_le(close[0], lowestLow - stopBuffer) does (subtracting 0.0 * atrVal is\n// exact).\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not the built-in it\n// resembles: seeded with a full N-term sum on the first calculated bar and\n// again whenever the length changes, thereafter updated as TWO statements --\n// EL evaluates S[1] + in - out left to right and folding it to S += in - out\n// rounds differently. Ported from AtrProfitTarget / SwingPivotTarget. Read once\n// per bar into a local, never inside a condition: EL does not short-circuit\n// and/or, so an accumulator in a condition would advance on every bar in EL and\n// only on some bars here. The local counter is atrLen, not atrLookback:\n// atrLookback is this rule's INPUT.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(confirmBars - 1 + rangeLookback, atrLookback + 1).\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLookback;\nokLong = true;\nokShort = true;\nfor (ii = 0; ii <= (int)confirmBars - 1; ++ii) {\n    lowestLow = low[ii + 1];\n    highestHigh = high[ii + 1];\n    for (kk = ii + 2; kk <= ii + (int)rangeLookback; ++kk) {\n        if (el_lt(low[kk], lowestLow)) lowestLow = low[kk];\n        if (el_gt(high[kk], highestHigh)) highestHigh = high[kk];\n    }\n    if (el_gt(close[ii], lowestLow - stopBuffer - bufferAtrMultiple * atrVal)) okLong = false;\n    if (el_lt(close[ii], highestHigh + stopBuffer + bufferAtrMultiple * atrVal)) okShort = false;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && okLong",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && okShort",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

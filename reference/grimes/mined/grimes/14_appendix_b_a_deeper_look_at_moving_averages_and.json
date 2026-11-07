@@ -1,0 +1,277 @@
+{
+  "source": {
+    "book": "The Art and Science of Technical Analysis",
+    "book_key": "grimes",
+    "author": "Adam Grimes",
+    "chapter": 14,
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD",
+    "text_file": "reference/grimes/text/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.txt",
+    "pdf_pages": [
+      425,
+      440
+    ],
+    "mined": "2026-09-21"
+  },
+  "conventions": "stop and limit entries mechanized as bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode; price-level conditions rejected (shift test)",
+  "candidates": [
+    {
+      "id": "G14-01",
+      "name": "ModifiedMacdFastLineZeroCross",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [
+        432,
+        433,
+        434
+      ],
+      "quote": "For each bar, calculate: Fast line: 3-period SMA minus 10-period SMA. Signal line: 16-period SMA of the fast line. Histogram: none. Plot a zero line for reference.",
+      "description": "This is the book's most precise statement of the modified MACD: fastLen-period SMA of close minus slowLen-period SMA of close, no histogram. The fast line crosses from negative to positive (the two SMAs cross), marking a shift to positive short-term momentum. Mirrored: crosses from positive to negative.",
+      "pseudocode": "(sma(close, fastLen)[0] - sma(close, slowLen)[0]) > 0 && (sma(close, fastLen)[1] - sma(close, slowLen)[1]) <= 0",
+      "sides": "mirrored",
+      "parameters": {
+        "fastLen": 3,
+        "slowLen": 10
+      },
+      "book_order_type": "n/a (context test)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "the fast line is a two-SMA difference; the zero-cross itself is a one-bar sign-change check on that derived series"
+      },
+      "el_words_needed": [
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": [
+        "This is the reference definition for the modified MACD; matches chapter 7 (G07) exactly (fastLen=3, slowLen=10 SMAs, no histogram) which uses the same construction under the name 'macdFast' -- no discrepancy to reconcile between the two chapters.",
+        "'The fast line of the MACD will register zero when the two averages cross; this highlights a condition of relative equilibrium.'"
+      ]
+    },
+    {
+      "id": "G14-02",
+      "name": "MacdSlowLineDefinition",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "G14-01"
+      ],
+      "pages": [
+        432
+      ],
+      "quote": "Figure B.10 shows the slow line (sometimes called the signal line) of the MACD, which is simply a 16-period moving average of the fast line.",
+      "description": "Reference definition: the MACD slow (signal) line is a signalLen-period SMA of the fast line. Recorded here as the precise definition; the actual reads of the slow line (slope, position vs zero, fast/slow disagreement) are mined in chapter 7 (G07-21/22/23), which this reconciles with exactly.",
+      "pseudocode": "sma(macdFast, signalLen)[0]",
+      "sides": "same",
+      "parameters": {
+        "signalLen": 16
+      },
+      "book_order_type": "n/a (definition only)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a single moving average of an already-derived series; not itself a boolean condition"
+      },
+      "el_words_needed": [
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": [
+        "Definitional candidate, not a standalone entry/exit test; depended on by any slow-line read."
+      ]
+    },
+    {
+      "id": "G14-03",
+      "name": "MacdFastLineImmediateHookAtInflection",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "G14-01"
+      ],
+      "pages": [
+        434,
+        435,
+        436
+      ],
+      "quote": "A: The fast line responds immediately to the change in the market by hooking higher on the first price bar of the uptrend... C: The fast line again responds immediately to the shift in the market by hooking down on the first bar that breaks the trend pattern.",
+      "description": "The fast line turns in the same bar that price shifts from a flat/opposite state into a new directional move (its most responsive read, shown on idealized data and confirmed on an actual AAPL chart). This is the same 'fast line hook' concept as chapter 7's G07-19, restated here with a cleaner idealized-data proof that the turn occurs on the very first bar of the new move.",
+      "pseudocode": "macdFast[0] > macdFast[1] && macdFast[1] <= macdFast[2]",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a (context test)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a bare offset comparison on the derived fast-line series"
+      },
+      "el_words_needed": [
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "high",
+      "notes": [
+        "Reconciles exactly with G07-19 (MacdFastLineHookUp); Appendix B additionally proves, via a synthetic dataset (Figure B.12), that the hook fires on the first bar of the new trend and that the following ~slowLen bars of curvature are a construction artifact, not new information (see G14-04)."
+      ]
+    },
+    {
+      "id": "G14-04",
+      "name": "IgnoreMacdFastLineSlowLenArtifactWindow",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "G14-03"
+      ],
+      "pages": [
+        434,
+        435,
+        436
+      ],
+      "quote": "B: Everything between points A and B is an artifact of the indicator. Though the slope of the fast line changes in a curve, this does not reflect any change in the rate of trend in the market, which is trending steadily higher. At B, 10 bars into the uptrend, the 10-period moving average is now trending steadily with prices... so the indicator goes flat.",
+      "description": "For roughly slowLen bars after a genuine trend inflection, the fast line's curvature is a construction artifact of the slowLen-period SMA entering the new trend, not a new momentum signal; suppresses divergence/hook reads that would otherwise fire inside that window. Applies symmetrically to both sides.",
+      "pseudocode": "ctx.BarsSinceEntry() > slowLen || barsSinceLastGenuineInflection() > slowLen",
+      "sides": "same",
+      "parameters": {
+        "slowLen": 10
+      },
+      "book_order_type": "n/a (context test)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "research",
+        "reason": "the artifact window's length (slowLen bars) is precise and explicit, but detecting 'a genuine trend inflection' to measure from is itself the unresolved design problem -- circular without a separate inflection detector"
+      },
+      "el_words_needed": [
+        "Average"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "low",
+      "notes": [
+        "slowLen=10 matches the book's own modified-MACD slow-average length, and the mechanism (the fast line only fully reflects a new trend once the slower SMA has rolled entirely into the new regime, i.e. after slowLen bars) is stated precisely; recorded as research-grade because a robust 'genuine inflection' detector is the missing piece, not the window length.",
+        "Confirmed on real data too: 'much of the downturn in the line at point B in Figure B.13 is due to this 10-bar artifact.'"
+      ]
+    },
+    {
+      "id": "G14-05",
+      "name": "MacdDivergenceFromLowerLegRateOfChange",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "G14-01"
+      ],
+      "pages": [
+        438
+      ],
+      "quote": "Specifically, the down legs (BC and DA) are the same rate and length, while the up leg CD moves at a rate equal to 75 percent of AB's changes. The indicator registers a lower peak at D compared to B, which would suggest... that trend leg CD, though it made a new high relative to the point B, did so on lower momentum.",
+      "description": "Precise mechanism for momentum divergence: if the second of two same-direction swing legs advances at a smaller average per-bar rate of change than the first leg (even though price sets a new extreme), the fast line registers a lower peak/trough there -- a momentum divergence. Same concept as chapter 7's G07-14, with the underlying arithmetic spelled out.",
+      "pseudocode": "swingHigh[0] && high[0] > high[priorSwingHighBar] && (close[0] - close[legStartBar]) / (0 - legStartBar) < (close[priorSwingHighBar] - close[priorLegStartBar]) / (priorLegStartBar - priorSwingHighBar) && macdFast[0] < macdFast[priorSwingHighBar]",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a (context test)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs swing-leg pivot detection for two successive legs plus a per-bar rate-of-change comparison between them, on top of the divergence check itself"
+      },
+      "el_words_needed": [
+        "Average",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": [
+        "Reconciles with G07-14 (MacdBearishDivergencePresent): same divergence concept, this candidate is the book's explicit statement of why it happens (a shallower per-bar rate of change on the second leg), which G07-14 states only as an observed indicator/price mismatch without the mechanism."
+      ]
+    },
+    {
+      "id": "G14-06",
+      "name": "MacdDivergenceFromShorterLegDuration",
+      "role": "Entry",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [
+        "G14-01"
+      ],
+      "pages": [
+        438,
+        439
+      ],
+      "quote": "Here, the second leg (CD) is shorter, including fewer bars than the longer leg, and the indicator again registers a divergence... divergences will register with trend legs that either move at a lower rate of change or extend for fewer bars relative to the higher-momentum leg.",
+      "description": "Second precise mechanism for momentum divergence: if the second of two same-direction swing legs has the same per-bar rate of change as the first but runs for fewer bars (shorter duration) while still reaching a new price extreme, the fast line still registers a lower peak/trough -- a momentum divergence driven purely by leg length rather than by rate of change.",
+      "pseudocode": "swingHigh[0] && high[0] > high[priorSwingHighBar] && (0 - legStartBar) < (priorLegStartBar - priorSwingHighBar) && macdFast[0] < macdFast[priorSwingHighBar]",
+      "sides": "mirrored",
+      "parameters": {},
+      "book_order_type": "n/a (context test)",
+      "timeframe": "any",
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs swing-leg pivot detection for two successive legs plus a bar-count comparison between them"
+      },
+      "el_words_needed": [
+        "Average",
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": [
+        "Companion to G14-05; together they are the two exhaustive ways a same-rate-or-better price extreme can still divergence on this fast line (shallower rate of change, or fewer bars), per 'this is fundamental to divergence on momentum indicators.'"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "pages": [
+        426,
+        427
+      ],
+      "quote": "For an SMA and an EMA of the same length: The EMA will react faster to a large price change because it front-weights the data. However, the EMA is also slower to react to stabilizing prices because it has a very long look-back window.",
+      "reason": "comparative indicator behavior used to choose a smoothing-type parameter elsewhere, not itself an if-X-then-enter/exit bar-level condition"
+    },
+    {
+      "pages": [
+        427,
+        428
+      ],
+      "quote": "If the rate of a trend is constant (arithmetically, not geometrically), a moving average will eventually settle into a consistent visual relationship with that market... Are the Moving Averages Supporting Prices?",
+      "reason": "explains why moving averages appear to give support/resistance as a mathematical artifact of constant-rate trends; a debunking observation, not a trading condition"
+    },
+    {
+      "pages": [
+        429,
+        430
+      ],
+      "quote": "Few traders realize that simple moving averages are low-pass filters... an SMA will always hide any cycles that are whole-number multiples of the SMA length.",
+      "reason": "a mathematical curiosity about SMA behavior on periodic data with no real-market trading application stated"
+    },
+    {
+      "pages": [
+        430,
+        431,
+        432
+      ],
+      "quote": "The natural language of the market is percentage changes and growth rates... a market appreciating at a constant growth rate will describe a curve, not a straight line [on a linear chart]... moving averages lag a constant percentage behind prices.",
+      "reason": "charting-scale (linear vs log) guidance for longer-term investors, not a bar-level condition; also touches percent-of-price framing which the shift-test convention disfavors"
+    },
+    {
+      "pages": [
+        437
+      ],
+      "quote": "Figure B.14 shows a situation that would be absurd in a real market: an otherwise absolutely flat market with a single large price shock, immediately reversed the following day. Note that the MACD's two lines have 12 inflections in response to this single bar!",
+      "reason": "a synthetic worst-case illustration of indicator noise with no new bar-level condition beyond the artifact-window concept already recorded (G14-04)"
+    }
+  ],
+  "chapter_summary": "Appendix B is the book's most precise statement of Grimes's modified MACD: fast line = 3-period SMA of close minus 10-period SMA of close, slow (signal) line = 16-period SMA of the fast line, no histogram, zero line for reference -- this reconciles exactly with chapter 7's use of the same tool (no numeric discrepancy found). It adds two things chapter 7 states only qualitatively: the fast line's hook is proven to fire on the very first bar of a genuine trend inflection while the following ~10 bars of curvature are a pure construction artifact of the slow SMA rolling into the new regime, and momentum divergence is shown to arise from exactly two mechanisms -- a shallower per-bar rate of change on the second leg, or a shorter (fewer-bar) second leg -- rather than being defined loosely by a lower indicator peak. Most of the SMA-vs-EMA and log-scale material is comparative/descriptive indicator behavior with no stated bar-level trading condition and was rejected."
+}

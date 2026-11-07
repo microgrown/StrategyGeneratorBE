@@ -1,0 +1,34 @@
+{
+    "name": "PullbackRangeBelowLegRange",
+    "type": "Entry",
+    "inputVariables": {
+        "pullbackBars": "5",
+        "legBars": "10",
+        "reducedFraction": "0.75"
+    },
+    "localVariables": {
+        "pbSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legMean": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// REDUCED ACTIVITY IN THE PULLBACK (G03-22, G06-15): \"good pullbacks almost\n// always show reduced activity\". The mean high-low range over the pullbackBars\n// bars ending at this bar is smaller than reducedFraction of the mean high-low\n// range over the legBars bars IMMEDIATELY BEFORE THEM -- the setup leg -- so the\n// leg is out of the pullback's own benchmark.\n//\n// NOT TrueRangeAvgRatio, which nests a fast TrueRange mean INSIDE a slow one\n// (lookback against lookback x slowFactor, SAME END BAR), so the fast window's\n// bars are counted twice and the leg cannot be isolated. NOT\n// BarRangeBelowAverageMultiple, which sizes ONE bar against a window mean.\n//\n// THE MEANS ARE WRITTEN AS EXPLICIT LOOPS in both twins rather than as\n// Average(High - Low, n) and Average(High - Low, n)[pullbackBars]. Average is\n// VERIFIED as recomputing from scratch every bar over a series with real\n// history, which an explicit loop reproduces exactly; what is NOT measured is\n// reading a function call's own history at an offset, and the second window\n// needs exactly that. The loops carry the identical summation ORDER in both\n// twins -- newest bar first -- so the two accumulate the same rounding.\n//\n// Both windows are high-low RANGES, not TrueRange: the merged pseudocode says\n// high - low, and a range difference passes the shift test on its own.\n//\n// SIDES ARE IDENTICAL TEXT: the test carries no direction at all.\n//\n// Scratch below is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; every one is fully assigned each bar before it is\n// read.\npbSum = 0.0;\nfor (int kk = 0; kk <= (int)pullbackBars - 1; ++kk) {\n    pbSum = pbSum + (high[kk] - low[kk]);\n}\nlegSum = 0.0;\nfor (int kk = (int)pullbackBars; kk <= (int)pullbackBars + (int)legBars - 1; ++kk) {\n    legSum = legSum + (high[kk] - low[kk]);\n}\npbMean = pbSum / pullbackBars;\nlegMean = legSum / legBars;",
+    "longCondition": "el_lt(pbMean, reducedFraction * legMean)",
+    "shortCondition": "el_lt(pbMean, reducedFraction * legMean)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

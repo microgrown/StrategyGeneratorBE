@@ -1,0 +1,29 @@
+{
+    "name": "OscillatorAboveZero",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word:\n// Appendix B spells the construction out as plain moving averages, and the\n// chapter 16 restatement in exponential terms loses to it.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffers below mirror.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// THE STANDING STATE of the zero line, not the cross event: true on every bar\n// the fast average is above the slow one. MovingAverageCross is the EVENT,\n// and goes through EL's `crosses` STATE MACHINE (bridges equality runs, fires\n// against the most recent non-equal side), so the two fire on different bars.\n// No history of osc is read, so there is no warm-up to guard.",
+    "longCondition": "el_gt(osc, 0.0)",
+    "shortCondition": "el_lt(osc, 0.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

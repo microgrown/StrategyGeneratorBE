@@ -1,0 +1,382 @@
+{
+  "bucket": "climax_termination",
+  "merged": "2026-09-21",
+  "rules": [
+    {
+      "key": "ConsecutiveShavedTopBars",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars closed within a small offset of its own high (long) / its own low (short) -- Grimes reads a run of closes on the absolute extreme as short-term exhaustion, not strength, so the natural placement is negated as a block on a fresh with-trend entry.",
+      "pseudocode": "every k in 0..consecutiveBars-1: high[k] - close[k] <= shaveOffsetPoints",
+      "sides": "mirrored",
+      "parameters": {
+        "consecutiveBars": 3,
+        "shaveOffsetPoints": 0.25
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a fixed-length all-of-N run of the existing single-bar shaved-top test; no indicator"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ShavedTopBar",
+        "relation": "parameterization",
+        "note": "ShavedTopBar IS this rule at consecutiveBars = 1 (close within shaveOffsetPoints of the high). Add a consecutiveBars(1) input to it rather than author a near-duplicate; at the default every existing placement is bit for bit unchanged, the MicroChannelRunLength/minTicks precedent. Not ConsecutiveUpBars, which tests the close against the bar's own OPEN; not CloseRangePosition, a fraction of the bar's range."
+      },
+      "sources": [
+        "G01-09"
+      ],
+      "merge_notes": "One source. The miner's ATR-fraction tolerance (0.1 ATR) lost to ShavedTopBar's price-point offset, which is the corpus spelling for exactly this test; Grimes's own words are 'close on their absolute highs', i.e. offset 0, so 0.25 (one Emini tick) is the loose reading and is instrument-specific.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShrinkingSwingIncrements",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each successive new swing extreme extends less beyond the previous one than the one before it -- Grimes's 'reluctant highs', waning momentum inside a trend that is still making new extremes.",
+      "sides": "mirrored",
+      "pseudocode": "pivotHigh(1) - pivotHigh(2) < pivotHigh(2) - pivotHigh(3)",
+      "parameters": {
+        "pivotStrength": 2,
+        "pivotLookback": 50,
+        "shrinkLegs": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "three confirmed same-side swing pivots and two successive increments"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "ShrinkingStairs",
+        "relation": "duplicate",
+        "note": "ShrinkingStairs at shrinkLegs = 2 is this test bar for bar -- three pivots, one comparison, each successive gap between swing highs smaller than the one before it, with the long side reading the swing HIGHS exactly as Grimes states it. ShrinkingSwingIncrementsExit is the same test in the Exit role with a shrinkFraction (Grimes's strict 'smaller' is shrinkFraction 1.0), and ThreePushAcceleration negated is the same idea over a three-push pattern."
+      },
+      "sources": [
+        "G01-12",
+        "G03-30"
+      ],
+      "merge_notes": "Two restatements. G03-30 spells it as successive swing LENGTHS (pivot low up to pivot high) rather than pivot-to-pivot increments; the increment form won on mechanizability -- it reads ONE pivot series where leg lengths need alternating pivots -- and it is the form already on disk. Nothing to author.",
+      "variants_kept_separate": [
+        "ShrinkingConsecutiveBarRanges"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ShrinkingConsecutiveBarRanges",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "Each of the last N bars has a strictly smaller high-low range than the bar before it -- trading interest drying up, the bar-scale companion to the reluctant-highs reading.",
+      "sides": "same",
+      "pseudocode": "every k in 0..barCount-2: (high[k] - low[k]) < (high[k+1] - low[k+1])",
+      "parameters": {
+        "barCount": 3
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a short run of consecutive bar-range comparisons, all-of-N in the ConsecutiveUpBars shape"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ShrinkingBodies",
+        "relation": "variant",
+        "note": "ShrinkingBodies compares BODIES and also requires every bar of the run to close with the trend, so it is directional -- a run of shrinking ranges with mixed closes fires here and not there, and no parameter of that rule drops its body-colour term. Not ShrinkingConsecutiveRanges, which compares the SPANS of two adjacent fixed-length windows rather than bar-to-bar ranges; not NarrowRangeBar, one bar against a window mean."
+      },
+      "sources": [
+        "G01-13"
+      ],
+      "merge_notes": "One source, stated over three bars ('the bars are becoming smaller ... no more large trend bars'). Direction-agnostic: a range carries no direction. The book states it beside the reluctant-highs reading, so the two are meant to be placed together.",
+      "variants_kept_separate": [
+        "ShrinkingSwingIncrements"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MomentumBeyondAtrMultiple",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close is at least K ATRs above the close N bars ago (long) / below it (short) -- Grimes's 'run up too far too fast', the overextension that invites a countertrend scalp.",
+      "sides": "mirrored",
+      "pseudocode": "close[0] > close[extensionLookback] + extensionAtrMultiple * atr(atrLookback)",
+      "parameters": {
+        "extensionLookback": 3,
+        "extensionAtrMultiple": 2,
+        "atrLookback": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one ATR call site added to a close-against-close comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AvgTrueRange"
+      ],
+      "catalog_match": {
+        "rule": "Momentum",
+        "relation": "parameterization",
+        "note": "Momentum is close[0] > close[lookback] with no threshold; add minMoveAtr(0) and atrLookback(14), and at the default 0 every existing placement is unchanged. Not TightChannel, whose netAtr term is ANDed with a pullback cap and a running-extreme walk; not EmaSlope, which measures the EMA against its own value N bars ago; not SessionMoveExhaustsDailyRange, which is session-anchored."
+      },
+      "sources": [
+        "G02-06"
+      ],
+      "merge_notes": "Grimes's use is the FADE of the overextension -- the short-side condition driving a long entry. That is a side exchange, which the negate toggle cannot supply (the DistanceAboveRecentLow / PullbackFromRecentHigh precedent), so the fade needs a second file; recorded, not authored. G02-02's trend-phase term is a separate pane. 3 bars / 2 ATR is the miner's reading; the book gives no number.",
+      "variants_kept_separate": [
+        "AcceleratingLegsClimax"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "NumBars",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The position has been open at least N bars -- the time exit both of Grimes's fixed-duration trades reduce to.",
+      "sides": "same",
+      "pseudocode": "ctx.BarsSinceEntry() >= numBarsExit",
+      "parameters": {
+        "numBarsExit": 2
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "one position-age comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "BarsSinceEntry"
+      ],
+      "catalog_match": {
+        "rule": "NumBars",
+        "relation": "duplicate",
+        "note": "the catalog rule exactly; only the default moves."
+      },
+      "sources": [
+        "G02-07",
+        "G07-18"
+      ],
+      "merge_notes": "Two placements of one rule at two book values: G02-07 covers the overextension scalp ('cover one to three bars later', default 2) and G07-18 retires a divergence trade ('an extended period of time, 10+ bars'). Nothing to author; both are grid values on NumBars, whose own default is 50.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "ThreePushSymmetry",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The three pushes are roughly symmetric in BOTH price and time: the two push-to-push increments within a tolerance band of each other, and the two inter-pivot bar gaps within a few bars of each other -- Grimes's qualifier on the three-pushes termination pattern.",
+      "sides": "mirrored",
+      "pseudocode": "AbsValue(inc2 - inc1) <= symmetryTol * inc1 && AbsValue(bars2 - bars1) <= timeSymmetryTol, inc/bars measured between the three most recent confirmed same-side pivots",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40,
+        "symmetryTol": 0.3,
+        "timeSymmetryTol": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "three confirmed pivots, a two-sided price band and a bar-count comparison between pivots"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "ThreePushAcceleration",
+        "relation": "variant",
+        "note": "that rule is a ONE-SIDED multiple on the two increments (accelerating; negated, shrinking), so no setting of it expresses 'the two increments are about equal'; and nothing in the ThreePush* family measures TIME symmetry -- ThreePushDurationWindow bounds the pattern's TOTAL bars, not the evenness of its legs. Intended as a filter ANDed beside ThreePushPattern / ThreePushReversalEntry, not as a trigger."
+      },
+      "sources": [
+        "G03-19",
+        "G16-19"
+      ],
+      "merge_notes": "Two restatements. The pattern itself is ThreePushPattern (shapeMode 0) and is not re-authored -- the ThreePush* family covers detection, shape, entry, slope, duration and exit. What Grimes adds is symmetry in price AND time; his 'the third push breaks the trend line across pushes one and two' is TrendLineBreak in the pane. Both tolerances are the miner's readings: the book says only 'roughly symmetric'.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "ThreePushPattern"
+      ]
+    },
+    {
+      "key": "ChangeOfCharacterSwingExceedsPrior",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The countertrend move has now travelled at least the full height of the leg it is correcting -- Grimes's simplest change of character, 'a downswing that is bigger than the preceding upswing'.",
+      "sides": "mirrored",
+      "pseudocode": "close[0] - legLow >= retracementThreshold * (legHigh - legLow), legHigh/legLow over the legLookback bars ending one bar ago",
+      "parameters": {
+        "legLookback": 30,
+        "retracementThreshold": 1.0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "two window extremes and a multiplication; already on disk"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Highest",
+        "Lowest"
+      ],
+      "catalog_match": {
+        "rule": "DeepPullbackRetracementFilter",
+        "relation": "parameterization",
+        "note": "nothing to author: at retracementThreshold = 1.0 the close has travelled the whole height of the window leg the other way, which IS 'the countertrend swing is bigger than the with-trend swing before it'. The rule's 0.75 default is Brooks's trend-bias flip; 1.0 and above is Grimes's change of character and belongs in the grid."
+      },
+      "sources": [
+        "G05-27"
+      ],
+      "merge_notes": "The pivot spelling (the last countertrend swing's magnitude against the prior with-trend swing's) lost to the window form per the mechanizability rule -- the window is on disk and needs no alternating pivots. Grimes's novelty clause, 'the first time this has happened in many swings', is DROPPED: it needs a persisted history of per-swing comparisons and the book gives no count.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MovingAverageTarget",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Price returns to the 20-period moving average, which Grimes treats as the divergence having reset or fulfilled its expectation -- take the countertrend trade off.",
+      "sides": "mirrored",
+      "pseudocode": "ctx.MarketPosition() > 0 && high[0] >= ema(close, emaLength) - toleranceTicks * tick",
+      "parameters": {
+        "emaLength": 20,
+        "toleranceTicks": 1
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one EMA read plus a position-state guard"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "MovingAverageTarget",
+        "relation": "duplicate",
+        "note": "the catalog exit exactly, at its own default length of 20 -- 'the moving average is the minimum target of a countertrend scalp'."
+      },
+      "sources": [
+        "G07-16"
+      ],
+      "merge_notes": "The candidate's `MarketPosition > 0 && close <= ema` has the side backwards for a long taken on a bullish divergence; the catalog rule's high-against-the-EMA form is kept, with its stated trap (a long entered above the average exits at once). Grimes's 'e.g. 20-period' is the rule's own default. One of his three divergence resets; exits are ORed, so all three are placed together.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "OscillatorZeroCrossSinceEntry",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The 3/10 oscillator's fast line has changed sign at least once since the trade was entered -- the divergence has reset, so close the position.",
+      "sides": "same",
+      "pseudocode": "sign(osc[0]) <> signAtEntry, osc = Average(close, fastLen) - Average(close, slowLen), the sign captured on the fill bar (ctx.BarsSinceEntry() == 0)",
+      "parameters": {
+        "fastLen": 3,
+        "slowLen": 10
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a derived two-average series plus one per-position latch; no window indexing"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Average",
+        "BarsSinceEntry",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "MovingAverageCross",
+        "relation": "variant",
+        "note": "decision 2 settles that a zero cross of the 3/10 fast line IS MovingAverageCross at 3/10 -- but that is an ENTRY firing only on the crossing bar, through EL's bridging cross state machine, where this is an EXIT that stays true for the rest of the position once the sign has flipped. An Entry rule cannot sit in the exit pane (the ConsecutiveCloseExit / MomentumConsecutiveBars precedent), and a since-entry latch is not a crossing."
+      },
+      "sources": [
+        "G07-17"
+      ],
+      "merge_notes": "The candidate's `macdFast[0] * macdFast[BarsSinceEntry] <= 0` reads the series at a VARIABLE lag; replaced by capturing the sign once on the fill bar (BarsSinceEntry = 0, VERIFIED), the StopAtSignalBarRangeMultiple convention. el_words is `Average`, never MACD (decision 2).",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "MomentumDivergenceAtSwingExtreme"
+      ]
+    },
+    {
+      "key": "AcceleratingLegsClimax",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The most recent leg has travelled more than K times the leg before it -- Grimes's accelerating, parabolic climax near the end of an extended trend, carried as a context flag.",
+      "sides": "mirrored",
+      "pseudocode": "(close[0] - close[legBars]) > accelMultiple * (close[legBars] - close[2 * legBars]) && (close[legBars] - close[2 * legBars]) > 0",
+      "parameters": {
+        "legBars": 5,
+        "accelMultiple": 1.5
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "two fixed-bar net moves compared; no indicator and no state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "ParabolicAccelerationExit",
+        "relation": "variant",
+        "note": "identical two-leg arithmetic in the ENTRY role. Brooks is explicit (p376) that his is an exit and NOT a countertrend entry, while Grimes states it as a climax context test, and an Exit rule cannot sit in an entry pane -- the ConsecutiveCloseExit / MomentumConsecutiveBars precedent, which is the corpus's standing reason for role twins. Book defaults differ: 4 bars / 1.5 there, 5 / 1.5 here."
+      },
+      "sources": [
+        "G16-02"
+      ],
+      "merge_notes": "The volume half ('usually accompanied by an increase in volume') is VolumeAboveAverageMultiple in a separate pane -- atomic beats composite. The candidate's AbsValue spelling covers both directions at once; the mirrored SIGNED form on disk is kept, so a bull climax fires the long side and the prior-leg sign term is what makes the comparison mean 'steeper'. Grimes glosses exhaustion as a synonym of climax.",
+      "variants_kept_separate": [
+        "MomentumBeyondAtrMultiple",
+        "LargeRangeBarInWindow"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "G03-08",
+      "reason": "stray from pullbacks_continuation. Grimes's climax checklist, a composition of TrendRateAcceleration (G03-05) + BarRangeExceedsAverageMultiple (G03-04) + FreeBarOutsideKeltnerBand (G03-02) + CloseRangePositionRun (G03-06) + a prior-leg count of at least 2 (LegCountAtLeast, decision 18); every atom is already merged in this bucket or its siblings and the entry pane ANDs them"
+    },
+    {
+      "id": "G04-20",
+      "reason": "composition of RangeWidthBelowAtrMultiple (decision 8) + CloseBeyondEma read at the x5 higher-timeframe lookbacks (decisions 1, 4) + MomentumDivergenceAtSwingExtreme; a generic 'any factor that ends a trend on one time frame applies to all of them' remark rather than a bar test, and the entry pane ANDs the parts"
+    },
+    {
+      "id": "G05-26",
+      "reason": "composition of SpringWithMinimumPenetration (decision 11) + a consolidation run of RangeWidthBelowAtrMultiple (decision 10) + the trend context; the named 'last gasp' adds only the consolidation precondition, which the pane ANDs"
+    },
+    {
+      "id": "G06-33",
+      "reason": "composition (an OR) of MomentumDivergenceAtSwingExtreme, LargeRangeBarInWindow and FailureTest -- the Anti's first setup condition, carried by the named Anti template rather than as a rule; its 'double top or bottom' sub-case is the DoubleExtreme* family"
+    }
+  ],
+  "cross_bucket": [
+    { "id": "G03-07", "belongs_in": "breakouts.json", "note": "reconciliation pass: this bucket's VolumeAboveAverageMultiple row was the same catalog duplicate as breakouts', so the climax volume spike (4-5x) is merged there beside the breakout reading (1.5x) -- one rule, the multiple a grid value" },
+    { "id": "G06-06", "belongs_in": "breakouts.json", "note": "reconciliation pass: this bucket's LargeRangeBarInWindow row was identical to breakouts', so the climax bar (2.0x the exclusive window mean) is merged there beside the breakout range expansion (1.5x)" },
+    { "id": "G03-13", "belongs_in": "indicators_bands.json", "note": "reconciliation pass: MomentumDivergenceAtSwingExtreme is owned by indicators_bands (decision 3), so this bucket's four divergence sources are merged into that row" },
+    { "id": "G05-21", "belongs_in": "indicators_bands.json", "note": "as G03-13; the 'momentum at the prior extreme' spelling lost to the window maximum there" },
+    { "id": "G06-07", "belongs_in": "indicators_bands.json", "note": "as G03-13" },
+    { "id": "G16-12", "belongs_in": "indicators_bands.json", "note": "as G03-13" }
+  ],
+  "design_decisions": [],
+  "bucket_summary": "Twenty-two candidates collapsed to thirteen rules, ten after the reconciliation pass folded three duplicate keys into their owning buckets (LargeRangeBarInWindow and VolumeAboveAverageMultiple into breakouts, MomentumDivergenceAtSwingExtreme into indicators_bands per decision 3) and took the G03-08 climax-checklist stray as a drop; nine of which the corpus already answers: the Brooks-derived family covers Grimes's climax bar (LargeRangeBarInWindow at window 1), climax volume, shrinking swing increments (ShrinkingStairs at shrinkLegs 2), the divergence-reset moving-average target, the fixed-bar exit and the change-of-character swing (DeepPullbackRetracementFilter at retracementThreshold 1.0). Four restatements of momentum divergence collapse onto the settled MomentumDivergenceAtSwingExtreme key owned by indicators_bands, and the bucket's real job -- deciding which termination rules build on it -- yields three: the moving-average return, the oscillator zero cross since entry, and the elapsed-bar retirement, ORed in the exit pane as the book states them. The A list is ConsecutiveShavedTopBars (a consecutiveBars input on ShavedTopBar), ShrinkingConsecutiveBarRanges, MomentumBeyondAtrMultiple (a minMoveAtr input on Momentum), OscillatorZeroCrossSinceEntry and AcceleratingLegsClimax; B holds the divergence detector and ThreePushSymmetry, the one thing the large ThreePush* family does not measure."
+}

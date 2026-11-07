@@ -1,0 +1,33 @@
+{
+    "name": "GapHoldsUnfilled",
+    "type": "Entry",
+    "inputVariables": {
+        "fillLookback": "5",
+        "gapBarOffset": "1"
+    },
+    "localVariables": {
+        "gapHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sinceLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sinceHi": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A GAP THAT HAS NOT FILLED (G03-34, \"are there gaps up that do not fill\").\n// The bar fillLookback bars ago gapped in the trade's direction -- its whole\n// range sat clear of the bar gapBarOffset bars before it, TrueGapBar's own\n// non-overlap relation -- and no bar since has traded back into it: the LOWEST\n// LOW of the fillLookback bars since is still above the pre-gap bar's high. The\n// short mirrors: a gap DOWN whose highest high since is still below the pre-gap\n// bar's low.\n//\n// MECHANIZED AT A FIXED LAG rather than by scanning backwards for the most\n// recent gap, which keeps it a plain window rule; the scanned form is\n// GapFilledExit's construction and is the recorded alternative. fillLookback\n// therefore does double duty by construction: it is BOTH how many bars ago the\n// gap printed AND the span of the not-filled test, and those are the same set\n// of bars -- Lowest(Low, fillLookback) covers offsets 0..fillLookback-1,\n// exactly the bars after the gap bar.\n//\n// gapBarOffset is the SPAN OF THE NON-OVERLAP TEST: at the default 1 it is\n// TrueGapBar's relation (the gap bar clear of the bar immediately before it),\n// and a larger value asks the gap bar to stand clear of an earlier bar instead.\n//\n// NOT GapHoldsAbovePriorSessionClose, whose reference is the PRIOR SESSION's\n// close and which needs the session machinery; this reference is a BAR gap, so\n// it works on any bar scale and is what Grimes asks for on a daily chart. NOT\n// GapFilledExit, an Exit anchored to a scanned-for gap. NOT\n// PostGapFadeBlockWindow, which asks only whether ANY gap printed in a window\n// and carries no fill test.\n//\n// SHIFT TEST: every term is a price compared with a price from the same series.\n//\n// The window scan mirrors EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at the window's first bar (offset 0), scanning the rest with a\n// STRICT comparison so a tie keeps the earliest bar. Extremes is EL SOURCE, so\n// its comparisons carry the relational tolerance and use el_lt / el_gt.\n//\n// Scratch below is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; every one is fully assigned each bar before it is\n// read.\ngapHi = high[fillLookback + gapBarOffset];\ngapLo = low[fillLookback + gapBarOffset];\nsinceLo = low[0];\nsinceHi = high[0];\nfor (int i = 1; i < (int)fillLookback; ++i) {\n    if (el_lt(low[i], sinceLo)) sinceLo = low[i];\n    if (el_gt(high[i], sinceHi)) sinceHi = high[i];\n}",
+    "longCondition": "el_gt(low[fillLookback], gapHi) && el_gt(sinceLo, gapHi)",
+    "shortCondition": "el_lt(high[fillLookback], gapLo) && el_lt(sinceHi, gapLo)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

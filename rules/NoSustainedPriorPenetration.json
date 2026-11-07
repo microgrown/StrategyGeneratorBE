@@ -1,0 +1,76 @@
+{
+    "name": "NoSustainedPriorPenetration",
+    "type": "Entry",
+    "inputVariables": {
+        "preLookback": "20",
+        "levelLookback": "20",
+        "maxBarsBeyond": "2",
+        "tolAtr": "0.1",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "runLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "maxRunHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "maxRunLo": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// NO SUSTAINED PRIOR PENETRATION OF THE LEVEL THE BREAKOUT IS ABOUT TO CLEAR\n// (G06-44): \"penetrations of levels before the breakout usually seem to expend\n// some of the energy behind the breakout, and often lead to poor trades\".\n// STATED IN THE PASSING SENSE so it ANDs into the pane -- the corpus's\n// convention for every \"do not trade while X\" claim (PostGapFadeBlockWindow,\n// FailedNewExtremeBlock) -- and the expected placement is NEGATED.\n//\n// The LONG reads the resistance the breakout is about to clear: the highest\n// high of the levelLookback bars ENDING ONE BAR AGO, plus tolAtr ATRs (merge\n// decision 7 -- the one-bar-shifted window extreme, tolerance always an ATR\n// fraction, never ticks). The rule passes when the LONGEST RUN of CONSECUTIVE\n// closes above that level anywhere in the last preLookback bars is at most\n// maxBarsBeyond. Grimes forgives small failure-test probes, which\n// maxBarsBeyond 2 does; what he does not forgive is a sustained excursion.\n// Short mirrors on the support side.\n//\n// RUN LENGTH, NOT A COUNT AND NOT AN EVENT. Not TwiceFailedBreakoutAttempt,\n// which COUNTS failed breakout EVENTS (a poke beyond a PER-CANDIDATE window\n// extreme, and a close back inside) and reads them as a reason to expect the\n// OTHER direction; this caps the LENGTH of any excursion beyond ONE level read\n// once at bar 0. Not FailedNewExtremeBlock, a standing block also written\n// positively but requiring a bear trend bar closing back through the level --\n// an event test, not a run length. Three scattered single-bar pokes pass here\n// and one three-bar excursion does not, which is the distinction the book\n// draws.\n//\n// THE LEVEL IS READ ONCE, AT BAR 0, and every scanned bar is measured against\n// that same level rather than against its own trailing window.\n//\n// THE LOOP IS GUARDED at preLookback >= 1 in the EL twin: EasyLanguage's For\n// counts DOWN when the end value is below the start, so `for kk = 1 to 0`\n// would execute at kk = 1 and kk = 0 and read the CURRENT bar, where this\n// for-loop would not run at all. The guard makes the twins agree at every\n// setting; the grid still starts at 1.\n//\n// SHIFT TEST: the level is a high plus an ATR multiple and every comparison is\n// a close against it, so a constant added to the series moves both sides\n// equally. maxBarsBeyond is compared against a COUNT.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh mean:\n// AtrProfitTarget's block verbatim, including the TWO separate accumulator\n// statements and the re-seed when the length changes.\n//\n// The window scan mirrors EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at the window's first bar (offset 1), scanning the rest with a\n// STRICT comparison so a tie keeps the earliest bar, under the EL relational\n// tolerance -- hence el_gt / el_lt, as in Breakout.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(preLookback, levelLookback, atrLookback + 1).\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nlvlHi = high[1];\nlvlLo = low[1];\nfor (int i = 2; i <= (int)levelLookback; ++i) {\n    if (el_gt(high[i], lvlHi)) lvlHi = high[i];\n    if (el_lt(low[i], lvlLo)) lvlLo = low[i];\n}\nlvlHi = lvlHi + tolAtr * atrValue;\nlvlLo = lvlLo - tolAtr * atrValue;\nrunHi = 0;\nrunLo = 0;\nmaxRunHi = 0;\nmaxRunLo = 0;\nfor (int kk = 1; kk <= (int)preLookback; ++kk) {\n    if (el_gt(close[kk], lvlHi)) {\n        runHi = runHi + 1;\n        if (runHi > maxRunHi) maxRunHi = runHi;\n    } else {\n        runHi = 0;\n    }\n    if (el_lt(close[kk], lvlLo)) {\n        runLo = runLo + 1;\n        if (runLo > maxRunLo) maxRunLo = runLo;\n    } else {\n        runLo = 0;\n    }\n}",
+    "longCondition": "el_le((double)maxRunHi, maxBarsBeyond)",
+    "shortCondition": "el_le((double)maxRunLo, maxBarsBeyond)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

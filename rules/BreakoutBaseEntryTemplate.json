@@ -1,0 +1,157 @@
+{
+    "name": "BreakoutBaseEntryTemplate",
+    "type": "Entry",
+    "inputVariables": {
+        "baseBars": "10",
+        "rangeBars": "50",
+        "strength": "2",
+        "minTouches": "2",
+        "maxTouches": "3",
+        "tolAtr": "0.2",
+        "tightFraction": "0.25",
+        "proximityFraction": "0.1",
+        "riseAtr": "0.5",
+        "preLookback": "20",
+        "maxBarsBeyond": "2",
+        "triggerMode": "1",
+        "minPenetrationAtr": "0.25",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "touchHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "touchLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "tightHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tightLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "baseFloor": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "baseCeil": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "runLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "maxRunHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "maxRunLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "baseUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "baseDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "riseUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "riseDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trigUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trigDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S NAMED \"BREAKOUTS, ENTERING IN THE PRECEDING BASE\" TEMPLATE\n// (G06-51), carried as the book states it and with its parts INLINED, as the\n// corpus does for a named setup (FinalFlagReversalBreakoutEntry is the\n// precedent). The LONG anticipates an UPSIDE break of resistance and is taken\n// INSIDE the base, before the break -- functionally a support-holding trade,\n// which is why it is not in the BreakoutPullback* family.\n//\n// FOUR PARTS, ANDed, the second an OR:\n//   1. CLEAN LEVEL TOUCH BAND (G06-41 = LevelTouchCount with its maxTouches\n//      amendment): the level has been tested at least minTouches and at most\n//      maxTouches times and held every time -- \"tested cleanly multiple times\",\n//      not worn out.\n//   2. A BASE PRESSED AGAINST IT: a tight base near the level (G06-42 =\n//      BreakoutBase) OR higher lows running into a flat ceiling (G06-43 =\n//      RisingLowsIntoFlatCeiling). THIS OR IS WHY THE TEMPLATE IS ONE FILE.\n//   3. NO SUSTAINED PRIOR PENETRATION (G06-44 = NoSustainedPriorPenetration),\n//      measured against THE SAME level part 1 counted touches on.\n//   4. AN ENTRY TRIGGER inside the base, selected by triggerMode.\n//\n// SIDE ASSIGNMENT IS THE REASON PANES CANNOT ASSEMBLE THIS. The long side needs\n// LevelTouchCount's RESISTANCE reading, which lives on that rule's SHORT side,\n// and it needs BreakoutBase's and RisingLowsIntoFlatCeiling's LONG sides -- the\n// same obstruction AscendingTriangleIntoLevel carries. A placement cannot\n// borrow the other side's condition (the DistanceAboveRecentLow /\n// PullbackFromRecentHigh precedent), so no pane-AND reaches this.\n//\n// THE LEVEL IS SHARED STATE, not three separate levels: the most recent\n// confirmed swing pivot high (on the support side, low) inside the rangeBars\n// window is what parts 1 and 3 both read, which is what the book means by \"the\n// level\". The base's own floor and ceiling -- the shifted baseBars window\n// extremes -- are what the triggers read. That sharing is the other reason this\n// is one file.\n//\n// TRIGGERMODE, NOT AN OR, FOR THE THREE TRIGGERS. The book gives three (G06-45\n// bid near the base's floor, G06-46 enter on a spring through it, G06-47 \"just\n// get the position on, anywhere in the range\"), but as BAR TESTS they are\n// NESTED, not alternatives: every spring bar (a bar trading below the floor\n// by minPenetrationAtr ATRs) also satisfies the floor-touch test (a bar trading\n// at or below the floor plus tolAtr ATRs), and G06-47 has no bar test at all, so an OR of\n// the three collapses to \"true\". They differ only in ORDER TYPE -- a resting\n// limit bid, a stop or market order on the spring's close, a market order --\n// which the engine does not model. So they are SELECTED: triggerMode 0 enters\n// on the base alone (G06-47), 1 bids at the base floor (G06-45), 2 or more\n// waits for the spring (G06-46). Default 1, the book's first. The\n// requirePriorBreakout input on FinalFlagReversalBreakoutEntry is the precedent\n// for a structural input on a named setup.\n//\n// INPUTS ARE SHARED WHERE THE PARTS SHARE A WINDOW, which is what keeps the\n// count at 14 rather than 22: baseBars is the tight base, the recent half of\n// the rising-lows test and the trigger window at once; rangeBars is the larger\n// range, the pivot search window and the touch-count window; one tolAtr is\n// every level tolerance (decision 7's 0.1 to 0.25 band) and one atrLength every\n// ATR read. Grimes's own values that were dropped in favour of a shared input\n// are recorded in the catalog row.\n//\n// MEASURED SWING PIVOT (decision 14, EL_Swing_Probe.txt): Occurrence 1 is the\n// most recent CONFIRMED pivot, lag exactly strength bars, rangeBars is EL's\n// Length with offsets 0..rangeBars-1 and a neighbourhood test reaching strength\n// bars past the window, and an empty window returns the -1 SENTINEL. THE\n// SENTINEL IS GUARDED ON THE BAR INDEX (SwingHighBar / SwingLowBar <> -1),\n// never on the returned price: a back-adjusted series can print -1.00.\n//\n// THE TWO For LOOPS ARE GUARDED at >= 1. EasyLanguage's For counts DOWN when\n// the end value is below the start, so `for kk = 1 to 0` would execute at\n// kk = 1 and kk = 0 and read the CURRENT bar into windows meant to exclude it,\n// where the C++ for-loop would not run at all.\n//\n// SHIFT TEST: every comparison is a price against a price from the same series\n// or against an ATR multiple; touches and run lengths are COUNTS.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, a different function\n// from the built-in it resembles; the C++ twin reproduces that form.\n//\n// Deepest bar touched:\n// max(rangeBars - 1 + strength, 2 * baseBars - 1, preLookback, atrLength + 1).\n//\n// THE C++ TWIN WRITES OUT BY HAND what the EL twin says with built-ins. Highest/Lowest\n// bottom out in Extremes(), EL SOURCE, so each window is a scan SEEDED ON THE\n// WINDOW'S FIRST BAR and continued with a STRICT comparison under the EL\n// relational tolerance (el_gt / el_lt), which is what keeps a tie on the\n// EARLIEST bar -- Breakout is the reference. The swing-pivot scan is\n// LevelTouchCount's inlined Occurrence-1 form: MIXED tie sense -- STRICTLY\n// beyond the strength NEWER bars (the pk < pj loop, since bars-ago indexing\n// makes the smaller index the newer bar) and AT OR BEYOND the strength OLDER\n// bars -- with the confirmation lag built in by starting the candidate scan at\n// pj = strength. Existence is a BOOL set where the scan finds the pivot, never\n// a price compared with -1.\n//\n// Every scratch value is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement; loop counters and\n// per-candidate flags are block-scoped inside their loops.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\nlvlHi = 0.0;\nhaveHi = false;\nfor (int pj = (int)strength; pj <= (int)rangeBars - 1; ++pj) {\n    bool pok = true;\n    for (int pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_gt(high[pj], high[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (int pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_ge(high[pj], high[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lvlHi = high[pj]; haveHi = true; break; }\n}\nlvlLo = 0.0;\nhaveLo = false;\nfor (int pj = (int)strength; pj <= (int)rangeBars - 1; ++pj) {\n    bool pok = true;\n    for (int pk = pj - (int)strength; pk < pj; ++pk) {\n        if (!el_lt(low[pj], low[pk])) { pok = false; break; }\n    }\n    if (pok) {\n        for (int pk = pj + 1; pk <= pj + (int)strength; ++pk) {\n            if (!el_le(low[pj], low[pk])) { pok = false; break; }\n        }\n    }\n    if (pok) { lvlLo = low[pj]; haveLo = true; break; }\n}\ntouchHi = 0;\ntouchLo = 0;\nfor (int kk = 1; kk <= (int)rangeBars; ++kk) {\n    if (el_ge(high[kk], lvlHi - tolAtr * atrValue) && el_lt(close[kk], lvlHi + tolAtr * atrValue)) {\n        touchHi = touchHi + 1;\n    }\n    if (el_le(low[kk], lvlLo + tolAtr * atrValue) && el_gt(close[kk], lvlLo - tolAtr * atrValue)) {\n        touchLo = touchLo + 1;\n    }\n}\ntightHigh = high[0];\ntightLow = low[0];\nfor (int i = 1; i <= (int)baseBars - 1; ++i) {\n    if (el_gt(high[i], tightHigh)) tightHigh = high[i];\n    if (el_lt(low[i], tightLow)) tightLow = low[i];\n}\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i <= (int)rangeBars - 1; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}\npriHi = high[(int)baseBars];\npriLo = low[(int)baseBars];\nfor (int i = (int)baseBars + 1; i <= 2 * (int)baseBars - 1; ++i) {\n    if (el_gt(high[i], priHi)) priHi = high[i];\n    if (el_lt(low[i], priLo)) priLo = low[i];\n}\nbaseFloor = low[1];\nbaseCeil = high[1];\nfor (int i = 2; i <= (int)baseBars; ++i) {\n    if (el_lt(low[i], baseFloor)) baseFloor = low[i];\n    if (el_gt(high[i], baseCeil)) baseCeil = high[i];\n}\nrunHi = 0;\nrunLo = 0;\nmaxRunHi = 0;\nmaxRunLo = 0;\nfor (int kk = 1; kk <= (int)preLookback; ++kk) {\n    if (el_gt(close[kk], lvlHi + tolAtr * atrValue)) {\n        runHi = runHi + 1;\n        if (runHi > maxRunHi) maxRunHi = runHi;\n    } else {\n        runHi = 0;\n    }\n    if (el_lt(close[kk], lvlLo - tolAtr * atrValue)) {\n        runLo = runLo + 1;\n        if (runLo > maxRunLo) maxRunLo = runLo;\n    } else {\n        runLo = 0;\n    }\n}\nbaseUp = el_le(tightHigh - tightLow, tightFraction * (rangeHigh - rangeLow))\n    && el_le(rangeHigh - tightHigh, proximityFraction * (rangeHigh - rangeLow));\nbaseDn = el_le(tightHigh - tightLow, tightFraction * (rangeHigh - rangeLow))\n    && el_le(tightLow - rangeLow, proximityFraction * (rangeHigh - rangeLow));\nriseUp = el_gt(tightLow, priLo + riseAtr * atrValue)\n    && el_le(std::fabs(tightHigh - priHi), tolAtr * atrValue);\nriseDn = el_lt(tightHigh, priHi - riseAtr * atrValue)\n    && el_le(std::fabs(tightLow - priLo), tolAtr * atrValue);\ntrigUp = false;\ntrigDn = false;\nif (el_le(triggerMode, 0.0)) {\n    trigUp = true;\n    trigDn = true;\n}\nif (el_gt(triggerMode, 0.0) && el_lt(triggerMode, 2.0)) {\n    trigUp = el_le(low[0], baseFloor + tolAtr * atrValue);\n    trigDn = el_ge(high[0], baseCeil - tolAtr * atrValue);\n}\nif (el_ge(triggerMode, 2.0)) {\n    trigUp = el_lt(low[0], baseFloor - minPenetrationAtr * atrValue) && el_ge(close[0], baseFloor);\n    trigDn = el_gt(high[0], baseCeil + minPenetrationAtr * atrValue) && el_le(close[0], baseCeil);\n}",
+    "longCondition": "haveHi && el_ge((double)touchHi, minTouches) && (el_le(maxTouches, 0.0) || el_le((double)touchHi, maxTouches)) && (baseUp || riseUp) && el_le((double)maxRunHi, maxBarsBeyond) && trigUp",
+    "shortCondition": "haveLo && el_ge((double)touchLo, minTouches) && (el_le(maxTouches, 0.0) || el_le((double)touchLo, maxTouches)) && (baseDn || riseDn) && el_le((double)maxRunLo, maxBarsBeyond) && trigDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

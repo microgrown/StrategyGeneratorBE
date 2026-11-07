@@ -1,0 +1,111 @@
+{
+    "name": "SwingLegExceedsAverageLeg",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "maxBarsBack": "60",
+        "legMultiple": "2",
+        "numLegs": "2"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "legNew": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ordUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ordDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLegs": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE NEWEST COMPLETED SWING LEG IS AT LEAST legMultiple TIMES THE MEAN of the\n// `numLegs` legs before it on the same side -- an overextension / climax\n// warning read with the trend (G03-32, 2 to 3x over five swings) and the\n// Anti's change-of-character read against it (G06-34, 1.5x over three). Both\n// long sides are \"the up-leg exceeds K times the mean of the recent up-legs\",\n// the same bars, so they are one rule; which context the placement sits in is\n// another pane's job. Default 2.0.\n//\n// LEGS ARE PIVOT TO PIVOT and the ALTERNATION IS GUARDED. On the long side the\n// pivots alternate with a swing high NEWEST, so in bars-ago counts (the older\n// pivot carries the LARGER count) they descend hiB1 < loB1 < hiB2 < loB2, and\n// at numLegs 2 the chain continues < hiB3 < loB3; leg k is\n// hiPx(k) - loPx(k). The short side is the same pivots read the other way\n// round -- a swing pivot low newest, loB1 < hiB1 < loB2 < hiB2 -- where the\n// SAME hiPx(k) - loPx(k) terms are the down-legs. Exactly one ordering can\n// hold on any bar, so the two sides never fire together.\n//\n// THE MEAN IS WRITTEN AS A PRODUCT, division-free:\n// legNew * numLegs >= legMultiple * priorSum, with priorSum required POSITIVE\n// so the inequality keeps its meaning.\n//\n// numLegs IS THE NUMBER OF PRIOR LEGS AVERAGED, so numLegs + 1 pivots are\n// needed per series and the scan's three-pivot cap (merge decision 14) puts\n// numLegs at 1 or 2. A larger value never reaches its pivot count and the rule\n// never fires; numLegs below 1 is rejected by the same guard. G03-32's five\n// swings and G06-34's three are out of reach and are recorded, not\n// approximated.\n//\n// NOT ShrinkingSwingIncrementsExit, which is the same three-pivot machinery in\n// the opposite sense, an EXIT, and a comparison of pivot-to-pivot INCREMENTS\n// on ONE series rather than of whole legs across the two. Not\n// UpLegsLongerThanDownLegs, which compares with-trend legs against COUNTER\n// legs instead of against their own recent mean.\n//\n// THE PIVOT SCAN IS HAND-ROLLED, not SwingHigh(3, ...): Occurrence 3 and\n// beyond is UNMEASURED in the register and numLegs 2 needs a third pivot.\n// MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot\n// bar is AT OR BEYOND the `strength` OLDER bars and STRICTLY BEYOND the\n// `strength` NEWER bars -- bars-ago indexing makes the SMALLER kk the NEWER\n// bar, so the strict half is the kk < jj loop; the confirmation lag is exactly\n// `strength` bars, so jj starts there; candidate offsets run 0..Length-1\n// inclusive so jj stops at maxBarsBack - 1, while the neighbourhood test\n// reaches `strength` bars PAST the window -- deepest bar touched\n// maxBarsBack - 1 + strength; scanning newest-first and recording the first\n// three hits reproduces Occurrence 1, 2, 3; the comparisons carry the\n// 2.22e-12 relational tolerance; the low side's tie sense is the mirror of the\n// measured high-side rule. No WFSafe_SwingHigh exists, so plain EL governs.\n// Written WITHOUT break, matching the twin statement for statement, and the\n// < 3 guards stop a fourth pivot being recorded.\n//\n// THE SENTINEL IS GUARDED BY THE COUNTS, never by a price test: -1.00 and 0.00\n// are legitimate prices in a back-adjusted series. The bar slots carry -1 too,\n// and they are bar indices, where -1 is safe.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched: maxBarsBack - 1 + strength.\npivS = (int)strength;\npivW = (int)maxBarsBack;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nhiB1 = -1.0;\nhiB2 = -1.0;\nhiB3 = -1.0;\nloB1 = -1.0;\nloB2 = -1.0;\nloB3 = -1.0;\nfor (int jj = pivS; jj <= pivW - 1; ++jj) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int kk = jj - pivS; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (int kk = jj + 1; kk <= jj + pivS; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) { hiPx1 = high[jj]; hiB1 = (double)jj; }\n        if (nHiPiv == 2) { hiPx2 = high[jj]; hiB2 = (double)jj; }\n        if (nHiPiv == 3) { hiPx3 = high[jj]; hiB3 = (double)jj; }\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) { loPx1 = low[jj]; loB1 = (double)jj; }\n        if (nLoPiv == 2) { loPx2 = low[jj]; loB2 = (double)jj; }\n        if (nLoPiv == 3) { loPx3 = low[jj]; loB3 = (double)jj; }\n    }\n}\nlegNew = hiPx1 - loPx1;\npriorSum = hiPx2 - loPx2;\nordUp = el_lt(hiB1, loB1) && el_lt(loB1, hiB2) && el_lt(hiB2, loB2);\nordDn = el_lt(loB1, hiB1) && el_lt(hiB1, loB2) && el_lt(loB2, hiB2);\nif (el_ge(numLegs, 2.0)) {\n    priorSum = priorSum + (hiPx3 - loPx3);\n    ordUp = ordUp && el_lt(loB2, hiB3) && el_lt(hiB3, loB3);\n    ordDn = ordDn && el_lt(hiB2, loB3) && el_lt(loB3, hiB3);\n}\nhaveLegs = el_ge(numLegs, 1.0) && el_ge((double)nHiPiv, numLegs + 1)\n    && el_ge((double)nLoPiv, numLegs + 1) && el_gt(priorSum, 0.0);\nhaveUp = haveLegs && ordUp;\nhaveDn = haveLegs && ordDn;",
+    "longCondition": "haveUp && el_ge(legNew * numLegs, legMultiple * priorSum)",
+    "shortCondition": "haveDn && el_ge(legNew * numLegs, legMultiple * priorSum)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

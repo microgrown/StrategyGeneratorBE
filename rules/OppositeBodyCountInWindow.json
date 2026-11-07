@@ -3,7 +3,8 @@
     "type": "Entry",
     "inputVariables": {
         "lookback": "10",
-        "maxOpposite": "3"
+        "maxOpposite": "3",
+        "minOpposite": "0"
     },
     "localVariables": {
         "bearBodies": {
@@ -17,9 +18,9 @@
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// CountIF counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true series (EL_FEATURES `countif`, VERIFIED). The counted\n// condition is on PRICES, which have real history back to the chart start, so\n// no zero-filled variable mirror is needed -- the same arrangement\n// SpikeWithoutPullback uses.\n// A tie bar (close == open within the EL tolerance) counts for neither side.\n// The counts are EL numeric variables, so they are doubles here and the\n// threshold comparison is an ordinary EL relational.\nbearBodies = 0.0;\nbullBodies = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_lt(close[i], open[i])) bearBodies += 1;\n    if (el_gt(close[i], open[i])) bullBodies += 1;\n}",
-    "longCondition": "el_le(bearBodies, maxOpposite)",
-    "shortCondition": "el_le(bullBodies, maxOpposite)",
+    "preConditionHook": "// CountIF counts bars 0..N-1 INCLUDING the current bar and the counted\n// condition is a true series (EL_FEATURES `countif`, VERIFIED). The counted\n// condition is on PRICES, which have real history back to the chart start, so\n// no zero-filled variable mirror is needed -- the same arrangement\n// SpikeWithoutPullback uses.\n// A tie bar (close == open within the EL tolerance) counts for neither side.\n// The counts are EL numeric variables, so they are doubles here and the\n// threshold comparison is an ordinary EL relational.\nbearBodies = 0.0;\nbullBodies = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    if (el_lt(close[i], open[i])) bearBodies += 1;\n    if (el_gt(close[i], open[i])) bullBodies += 1;\n}\n\n//\n// AMENDED 2026-09-22 (Grimes A list, HiddenComplexPullbackBodyCount): the new\n// minOpposite input turns the cap into a BAND. Long: between minOpposite and\n// maxOpposite of the last lookback bars closed below their own open -- Grimes's\n// \"hidden\" complex pullback, where one or two with-trend bodies sit inside an\n// otherwise against-trend run, so the pullback looks simple on the trading\n// timeframe (G01-15, G06-28). Grimes's own reading is lookback 6 with the band\n// 4 to 5; those values live in the catalog row and the grid, NOT in the\n// defaults.\n//\n// A BAND IS NOT THIS RULE NEGATED -- a window with NO bear bodies at all fails\n// the band and passes the negation -- which is the PullbackNearMissesEntryPrice\n// / ShallowDipBelowPriorBarLow precedent and merge decision 19: both bounds on\n// one quantity are a new input on the rule that computes the quantity, never a\n// second file.\n//\n// minOpposite DEFAULTS TO 0, which is inert: a CountIF result is never\n// negative, so every existing placement and template is unchanged.\n//\n// RECORDED LOSS: the count does not require the with-trend bars to be\n// contiguous or central.",
+    "longCondition": "el_ge(bearBodies, minOpposite) && el_le(bearBodies, maxOpposite)",
+    "shortCondition": "el_ge(bullBodies, minOpposite) && el_le(bullBodies, maxOpposite)",
     "postConditionHook": "",
     "endOfFileHook": ""
 }

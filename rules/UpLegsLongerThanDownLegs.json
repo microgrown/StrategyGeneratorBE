@@ -1,0 +1,114 @@
+{
+    "name": "UpLegsLongerThanDownLegs",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "maxBarsBack": "60",
+        "numLegs": "2"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "legSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oppUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oppDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ordUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ordDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLegs": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// BUYERS IN CONTROL, MEASURED IN PRICE: the recent up-legs are longer than the\n// recent down-legs that separate them. Grimes's trend asymmetry (G01-04), the\n// claim Chapter 2's four trades and Chapter 3's trend structure both build on.\n// Short is the mirror -- the down-legs longer than the up-legs.\n//\n// LEGS ARE PIVOT TO PIVOT. On the long side the pivots must alternate with a\n// swing high NEWEST, so in bars-ago counts (the older pivot carries the LARGER\n// count) they descend hiB1 < loB1 < hiB2 < loB2, and at numLegs 3 the chain\n// continues < hiB3 < loB3. The `numLegs` up-legs are hiPx(k) - loPx(k)\n// and the numLegs-1 down-legs between them are hiPx(k+1) - loPx(k). The short\n// side is the same pivots read the other way round -- a swing pivot low\n// newest, so loB1 < hiB1 < loB2 < hiB2 -- where the same hiPx(k) - loPx(k)\n// terms are the DOWN-legs and the opposing up-legs are hiPx(k) - loPx(k+1).\n// Exactly one of the two orderings can hold on any bar, whichever pivot is\n// newer, so the two sides never fire together.\n//\n// THE COMPARISON IS OF MEANS, WRITTEN AS A PRODUCT to keep it division-free:\n// mean(with-trend) > mean(counter) is\n// legSum * (numLegs - 1) > oppSum * numLegs, since there are numLegs\n// with-trend legs and numLegs - 1 counter legs. At numLegs 2 that is the\n// source's \"upSum / 2 > downSum / 1\".\n//\n// numLegs IS CAPPED AT 3 BY THE SCAN, which keeps three pivots per series\n// (merge decision 14). A larger value never reaches its pivot count and the\n// rule never fires; numLegs below 2 is rejected by the same guard, because one\n// leg has no counter-leg to compare against. Default 2.\n//\n// NOT SwingLegLengthAtLeast, which sizes the last two legs in BARS and puts a\n// floor on them; this compares up-leg against down-leg in PRICE. The TIME form\n// of the same asymmetry is already CorrectionBarsVsTrendLegBars.\n//\n// THE PIVOT SCAN IS HAND-ROLLED, not SwingHigh(3, ...): Occurrence 3 and\n// beyond is UNMEASURED in the register and numLegs 3 needs a third pivot.\n// MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot\n// bar is AT OR BEYOND the `strength` OLDER bars and STRICTLY BEYOND the\n// `strength` NEWER bars -- bars-ago indexing makes the SMALLER kk the NEWER\n// bar, so the strict half is the kk < jj loop; the confirmation lag is exactly\n// `strength` bars, so jj starts there; candidate offsets run 0..Length-1\n// inclusive so jj stops at maxBarsBack - 1, while the neighbourhood test\n// reaches `strength` bars PAST the window -- deepest bar touched\n// maxBarsBack - 1 + strength; scanning newest-first and recording the first\n// three hits reproduces Occurrence 1, 2, 3; the comparisons carry the\n// 2.22e-12 relational tolerance; the low side's tie sense is the mirror of the\n// measured high-side rule. No WFSafe_SwingHigh exists, so plain EL governs.\n// Written WITHOUT break, matching the twin statement for statement, and the\n// < 3 guards stop a fourth pivot being recorded.\n//\n// THE SENTINEL IS GUARDED BY THE COUNTS (nHiPiv / nLoPiv reaching numLegs),\n// never by a price test: -1.00 and 0.00 are legitimate prices in a\n// back-adjusted series. The bar slots carry -1 too, and they are bar indices,\n// where -1 is safe.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched: maxBarsBack - 1 + strength.\npivS = (int)strength;\npivW = (int)maxBarsBack;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nhiB1 = -1.0;\nhiB2 = -1.0;\nhiB3 = -1.0;\nloB1 = -1.0;\nloB2 = -1.0;\nloB3 = -1.0;\nfor (int jj = pivS; jj <= pivW - 1; ++jj) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int kk = jj - pivS; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (int kk = jj + 1; kk <= jj + pivS; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) { hiPx1 = high[jj]; hiB1 = (double)jj; }\n        if (nHiPiv == 2) { hiPx2 = high[jj]; hiB2 = (double)jj; }\n        if (nHiPiv == 3) { hiPx3 = high[jj]; hiB3 = (double)jj; }\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) { loPx1 = low[jj]; loB1 = (double)jj; }\n        if (nLoPiv == 2) { loPx2 = low[jj]; loB2 = (double)jj; }\n        if (nLoPiv == 3) { loPx3 = low[jj]; loB3 = (double)jj; }\n    }\n}\nlegSum = (hiPx1 - loPx1) + (hiPx2 - loPx2);\noppUp = hiPx2 - loPx1;\noppDn = hiPx1 - loPx2;\nordUp = el_lt(hiB1, loB1) && el_lt(loB1, hiB2) && el_lt(hiB2, loB2);\nordDn = el_lt(loB1, hiB1) && el_lt(hiB1, loB2) && el_lt(loB2, hiB2);\nif (el_ge(numLegs, 3.0)) {\n    legSum = legSum + (hiPx3 - loPx3);\n    oppUp = oppUp + (hiPx3 - loPx2);\n    oppDn = oppDn + (hiPx2 - loPx3);\n    ordUp = ordUp && el_lt(loB2, hiB3) && el_lt(hiB3, loB3);\n    ordDn = ordDn && el_lt(hiB2, loB3) && el_lt(loB3, hiB3);\n}\nhaveLegs = el_ge(numLegs, 2.0) && el_ge((double)nHiPiv, numLegs) && el_ge((double)nLoPiv, numLegs);\nhaveUp = haveLegs && ordUp;\nhaveDn = haveLegs && ordDn;",
+    "longCondition": "haveUp && el_gt(legSum * (numLegs - 1), oppUp * numLegs)",
+    "shortCondition": "haveDn && el_gt(legSum * (numLegs - 1), oppDn * numLegs)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

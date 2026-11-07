@@ -1,0 +1,69 @@
+{
+    "name": "SwingTrendHigherHighsAndLows",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveAll": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// DOW'S UPTREND, THE STRUCTURAL TREND TEST: the most recent confirmed swing\n// high is ABOVE the one before it AND the most recent confirmed swing low is\n// ABOVE the one before it. Grimes's markup phase (G02-02) and his Dow-theory\n// uptrend (G03-26) are the same bars, so they are one rule. Short is the\n// mirror: lower highs and lower lows, the markdown phase.\n//\n// NOT a placement of HigherSwingLow. That rule tests ONE series per side --\n// higher lows on the long, lower highs on the short -- and neither a placement\n// of it nor its per-placement negation asks for BOTH series on the SAME side,\n// which is the whole content of Dow's definition. Merge decision 15 names this\n// rule the pivot alternative to EmaSlope, not the default trend test.\n//\n// numLegsToConfirm is not an input: the pivot count is fixed at two per series\n// by merge decision 14's newest-first scan, and the run form is already\n// HigherSwingLowRun's `legs` input.\n//\n// THE PIVOT SCAN IS INLINED, mirroring the twin's SwingHigh / SwingHighBar /\n// SwingLow / SwingLowBar at Occurrence 1 and 2 -- rules in this corpus never\n// reference each other. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt,\n// @ES 60 min): the pivot test is MIXED -- AT OR BEYOND the `strength` OLDER\n// bars, STRICTLY BEYOND the `strength` NEWER bars, and bars-ago indexing makes\n// the SMALLER index the NEWER bar, so the strict half is the k < j loop; the\n// confirmation lag is exactly `strength` bars, never 0 or 1, so j starts there\n// and the read is lookahead-safe; maxBarsBack is EL's Length with candidate\n// offsets 0..maxBarsBack-1 inclusive while the neighbourhood test reaches\n// `strength` bars PAST the window, so the deepest index touched is\n// maxBarsBack - 1 + strength; an empty window is the -1 SENTINEL, guarded here\n// on the BAR INDEX and never on a price -- a back-adjusted series can print\n// -1.00 as a real price. The comparisons carry the 2.22e-12 relational\n// tolerance. Occurrence 3+ is UNMEASURED and never asked for. The low side's\n// tie sense is the mirror of the measured high-side rule. No WFSafe_SwingLow\n// exists, so plain EL governs.\n//\n// Written WITHOUT break and with the < 2 counters, statement for statement with\n// the twin's Occurrence 1 / 2 reads.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched: maxBarsBack - 1 + strength.\npivS = (int)strength;\npivW = (int)maxBarsBack;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nhaveAll = (hiBar1 != -1.0) && (hiBar2 != -1.0) && (loBar1 != -1.0) && (loBar2 != -1.0);",
+    "longCondition": "haveAll && el_gt(hiPx1, hiPx2) && el_gt(loPx1, loPx2)",
+    "shortCondition": "haveAll && el_lt(hiPx1, hiPx2) && el_lt(loPx1, loPx2)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

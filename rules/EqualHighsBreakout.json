@@ -1,0 +1,37 @@
+{
+    "name": "EqualHighsBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "equalBarsCount": "2",
+        "toleranceTicks": "2"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "eqHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "eqLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EQUAL HIGHS, THEN THE CLOSE THROUGH THEM (G06-23) -- Grimes's precise entry\n// timing inside a pullback. The equalBarsCount bars ENDING ONE BAR AGO all\n// share the same high to within toleranceTicks, and THIS bar closes above the\n// highest of them. The short is the mirror: equal lows, and a close below them.\n//\n// KEPT WHOLE LIKE A CROSSING. The flat level and the close through it are one\n// event, and no pane-AND reaches it: MicroDoubleExtreme states the\n// matching-extremes half alone AND assigns the sides the other way round\n// (matching LOWS on the long side, the micro double bottom), so an AND of that\n// rule with a breakout would pair the wrong level with the wrong trigger.\n// Ledge is the anchored multi-bar form of the same flat level and is likewise\n// not the trigger.\n//\n// THE TOLERANCE STAYS IN TICKS, as MicroDoubleExtreme's does: Grimes means\n// literally equal highs, and a tick count passes the shift test because a tick\n// is a constant of the symbol, not a fraction of the price. THE TICK is EL's\n// own MinMove / PriceScale, both VERIFIED and per-symbol constant for the whole\n// run, written DIVISION-FIRST in both twins so the C++ reads token for token\n// against its EasyLanguage (README \"N ticks\", TICKSIZE_FINDINGS.md).\n//\n// THE WINDOW ENDS ONE BAR AGO so the breakout bar's own high cannot be one of\n// the equal highs it is breaking. At the default equalBarsCount 2 the test is\n// fabs(high[1] - high[2]) <= toleranceTicks * tickSize and the level is the\n// higher of those two bars.\n//\n// The equality is measured against high[1], the NEWEST bar of the run, so the\n// run is a band of width toleranceTicks around that bar rather than a chain of\n// pairwise comparisons that could drift.\n//\n// The level loop is Extremes()' seeded strict-comparison scan over the same\n// shifted window; Extremes is EL SOURCE, so el_gt / el_lt carry the relational\n// tolerance. AbsValue is ACCEPTED pure scalar arithmetic, std::fabs here.\n//\n// Written WITHOUT an early exit so the loop matches the EL twin statement for\n// statement: EasyLanguage has no loop break, and the flag is cleared rather\n// than the scan abandoned.\n//\n// Scratch below is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; every one is fully assigned each bar before it is\n// read.\ntickSize = ctx.MinMove() / ctx.PriceScale();\neqHi = true;\neqLo = true;\nlvlHi = high[1];\nlvlLo = low[1];\nfor (int kk = 2; kk <= (int)equalBarsCount; ++kk) {\n    if (el_gt(std::fabs(high[kk] - high[1]), toleranceTicks * tickSize)) eqHi = false;\n    if (el_gt(std::fabs(low[kk] - low[1]), toleranceTicks * tickSize)) eqLo = false;\n    if (el_gt(high[kk], lvlHi)) lvlHi = high[kk];\n    if (el_lt(low[kk], lvlLo)) lvlLo = low[kk];\n}",
+    "longCondition": "eqHi && el_gt(close[0], lvlHi)",
+    "shortCondition": "eqLo && el_lt(close[0], lvlLo)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

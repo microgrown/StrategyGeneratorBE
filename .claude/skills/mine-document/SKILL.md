@@ -418,8 +418,79 @@ everything that is not A already.
   suspected duplicate CLUSTER in one slice and say so in the brief (the four dip-below
   variants collapsed cleanly); when an agent finds a merged key that is an existing rule
   plus a tolerance, resolve it as a new input on the existing rule with a default that
-  preserves behaviour character for character, and have the same agent do the edit; a
+  preserves behaviour character for character, and have the same agent do the edit
+  (**superseded 2026-09-27 for any rule a template places** -- see the Grimes entry); a
   rule the agent authored that turns out to be another new rule at a fixed parameter is
   dropped before the roll-up, not kept "for grids". The trivial slice was still given to
   Opus because it carried the existing-rule amendment; a pure trivial slice is the place
   to try Sonnet next time.
+- **2026-09-21, Grimes, *The Art and Science of Technical Analysis*.** 1 PDF, 480 pages,
+  ~260k tokens extracted. Outline had page boundaries but bare labels (c01, bapp01), so
+  `reference/grimes/extractText.py` uses a hand-written CHAPTER_PLAN with titles from the
+  printed TOC; running heads are mixed-case on odd pages, so HEAD_RE was widened. 20 text
+  files, 17 mined in 7 assignments (25k–40k tokens each) at **3 concurrent Sonnet** (Brian
+  asked for fewer than five); no failures, 125k–210k tokens per miner, ~5–13 min each, about
+  an hour wall clock. Result: 277 candidates (202 Entry, 68 Exit, 7 Switch), 139 rejected;
+  complexity trivial 12 / simple 35 / moderate 118 / hard 81 / research 31; 6 intraday-only.
+  Yield is concentrated: ch 3–8 and the glossary hold 232 of 277; ch 0, 11, 13, 15 yielded
+  zero (recorded as rejects). Front matter here was publisher boilerplate, not a glossary;
+  the glossary is a back-matter chapter (16) and was the densest primitive source. Brief
+  gained the shift-test reject rule and a multi-timeframe convention (longer lookback on
+  the same bars, never rejected). Pass 2 not started; Brian to be consulted first.
+- **2026-09-21, Grimes merge.** 277 candidates, 10 topic buckets (misc 0), 7 Opus merge
+  agents at 3 concurrent (160k–320k tokens, 10–14 min each) plus one reconciliation agent;
+  no failures. Pre-merge triage found only `MACD` and `FastK/SlowK` unregistered, and the
+  3/10 oscillator is Average(3)-Average(10) so MACD is not needed; post-merge only the
+  stochastic Anti is blocked. 277 → 155 rules (A 70, B 24, C 3, D 58), 42 dropped, strict
+  roll-up clean. 25 of the 70 A rules are a new input on an existing rule, 38 variants, 7
+  new. Decisions were written to `merge/DECISIONS.md` after each bucket and pasted into
+  later prompts; the last five buckets raised zero C rules as a result. Scripts copied from
+  brooks with sed; bucketize had a hardcoded 1635 in its sanity check and rollup did not
+  tolerate `.json` on `belongs_in` (agents write it that way despite the brief), both fixed
+  in the grimes copies. Lesson: agents that "reject" a stray in prose do not record it in
+  the file; the reconciliation agent needs the list. Heavy catalog overlap (58 D + 25
+  parameterizations) is the expected outcome for a second price-action author after Brooks.
+- **2026-09-21/22, Grimes pass 3.** No probes needed (only the stochastic Anti blocked). 70 A
+  rules in 6 family slices (`makeQueue.py` builds queue, slices and A_KEYS from merged/*.json,
+  with an OVERRIDE map that puts suspected near-neighbour clusters and every amendment of one
+  existing rule into one slice). New in the brief: a **Parameterizations** procedure, since 25 of
+  the 70 were "existing rule plus one input": amend both twins with an inert default, full
+  replacement row under `## Amended`, `applyRows.py` swaps the catalog row in place. Result: 42
+  new rules with twins, 20 existing rules amended (all confirmed inert by a review agent; two
+  reverted 2026-09-27, below), 8
+  keys collapsed as duplicates or carried as inputs; corpus 463 -> 505, lint clean, 325 tests,
+  compileCheck --double clean. Seven Opus agents in a row died on API 529/500 overload one
+  evening (six wave-1 launches plus a probe); the work resumed the next day with no loss because
+  agents write rows files incrementally and each rule's two twins land before the next starts.
+  A background `sleep` timer was killed by Claude Code for low system memory; do not rely on
+  timers, wait for Brian. A locked `bt_walkforward.exe` (Brian's run) failed the wave-2 LINK
+  only; compiler diagnostics were clean, the link was redone after the run ended. Cross-slice
+  hand-offs worked via SendMessage to a running agent (ImpulseLegNetMove became a `searchBars`
+  input on Momentum in the slice that owned Momentum). Per-slice cost 160k-210k Opus tokens,
+  9-16 min.
+- **2026-09-22, Grimes B and C lists.** 27 rules (24 B, 3 C) in 3 slices via `makeQueue.py
+  --list B` (explicit per-key slice map; templates in their own slice run AFTER the slice that
+  authors their parts). All 3 C rules resolved without a probe: the "blocked" stochastic Anti was a
+  triage artifact (FastK/SlowK tokens vs the VERIFIED `stochastic` row; `SYNONYM_TOKENS` in
+  makeQueue maps them), the other two were settled by merge decisions. Result: 25 new rules, 2 not
+  written (FailureTest = pure AND of two on-disk panes; TimeDecayStopTightening per dec 23);
+  corpus 505 -> 530, compileCheck --double clean, 325 tests. Lessons: (1) `applyRows.py` must
+  apply ONLY the main rows table and `## Amended`; a B02 "depends_on_keys, resolved" table whose
+  rows also began with a backticked key landed 10 phantom rows in the catalog (caught by
+  comparing row count to file count; now the script skips every other section, and a
+  rows-vs-files check belongs after every apply). (2) EasyLanguage `For` counts DOWN when end <
+  start, so `for k = 0 to n-1` at n = 0 reads a FUTURE bar (`Close[-1]`); the review found 8 EL
+  twins unguarded and two pre-existing rules (TrendLineBrokenRecently, MicroTrendLineFailedBreakout)
+  with the same hazard. Put "guard every loop whose end can fall below its start, in both twins"
+  in the brief before the first slice. (3) `depends_on_keys` on merged templates cite merge-agent
+  working names that exist nowhere; the addendum must tell agents to trace them through the
+  merged `dropped` lists and the mined candidates. (4) A `sed -i` with `\n` in the replacement
+  corrupts a Python file on this shell; use the Edit tool or a Python patch for code edits.
+- **2026-09-27, amendments to placed rules reversed (Brian).** An inert new input on a rule
+  that templates already place still changes the MultiWalk strategy code of every family that
+  places it, so the next MW validation would compile code the engine families never ran.
+  `Momentum` and `AtrAboveAverage` (Grimes) and `VolumeBelowAverage` (Brooks) were reverted;
+  their amendments are now the new rules `MomentumBeyondAtrMultiple`,
+  `AtrAboveAverageMultiple` and `VolumeBelowAverageFraction`. RULE FOR FUTURE PASSES: before
+  amending an existing rule, `grep -l '"name": "<Rule>"' templates/*.json`; if anything
+  places it, author the parameterization as a new rule under its merged key instead.

@@ -2,7 +2,8 @@
     "name": "CloseNearSessionExtreme",
     "type": "Entry",
     "inputVariables": {
-        "nearExtremeFraction": "0.2"
+        "nearExtremeFraction": "0.2",
+        "strengthMode": "0"
     },
     "localVariables": {
         "sessHigh": {
@@ -12,13 +13,25 @@
         "sessLow": {
             "type": "double",
             "init": "0.0"
+        },
+        "nearBand": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "longGap": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "shortGap": {
+            "type": "double",
+            "init": "0.0"
         }
     },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// THE BAR CLOSES IN THE BOTTOM FRACTION OF THE DAY'S RANGE SO FAR (long\n// side), the top fraction (short) -- the session-scoped form of the\n// range-position test, which is how Brooks states it for trading-range days.\n// V25-01 states it as a block (\"do not buy near the top of the day's range\")\n// and RP4-21 as a permission (look for a reversal at the day's extreme going\n// into the last hour or two); one is the other flipped, so they are one rule.\n//\n// RP4-21's final-hours term is the catalog's TimeWindow ANDed alongside and\n// is not carried here; V25-01's day-type gate is TradingRangeDay, likewise a\n// separate pane.\n//\n// Kept apart from RangeExtremeFade and CloseInRangePosition because the\n// window is the SESSION, not a bar count -- early in a session the day's\n// range is a handful of bars and late in one it may be wider than any 20-bar\n// window, so the two disagree constantly. Not CloseNearSessionRangeMidpoint,\n// which bands the MIDDLE of the same window and is direction-agnostic.\n//\n// Written MULTIPLIED, never as a ratio, so a session whose high equals its\n// low fires on both sides rather than raising EL's runtime divide-by-zero.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)), with the running\n// extremes held in locals reset on that change. Intraday bars only. On the\n// session's first bar sessHigh/sessLow are that bar's own extremes, so the\n// test degenerates to CloseRangePosition on that bar alone.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}",
-    "longCondition": "el_le(close[0] - sessLow, nearExtremeFraction * (sessHigh - sessLow))",
-    "shortCondition": "el_le(sessHigh - close[0], nearExtremeFraction * (sessHigh - sessLow))",
+    "preConditionHook": "// WHERE THE CLOSING PRICE SITS IN THE DAY'S RANGE SO FAR. At strengthMode = 0 (the\n// default, and the original rule) the long side wants the close in the BOTTOM\n// nearExtremeFraction of the range -- the FADE read, which is how Brooks states\n// it for trading-range days -- and the short the top fraction. V25-01 states it\n// as a block (\"do not buy near the top of the day's range\") and RP4-21 as a\n// permission (look for a reversal at the day's extreme going into the last hour\n// or two); one is the other flipped, so they are one rule.\n//\n// AT strengthMode != 0 THE TWO SIDES SWAP: the long wants the close in the TOP\n// fraction, the STRENGTH read (added 2026-09-22 for the A-list\n// CloseInTopOfSessionRange, G08-26). Grimes's own 80/20 thresholds are this\n// rule at strengthMode = 1 and nearExtremeFraction = 0.2, because\n// close - sessLow >= 0.8 * range IS sessHigh - close <= 0.2 * range. Same\n// statistic, opposite polarity, and the per-placement negate toggle gives\n// \"not A\", never the mirror side (merge decision 12) -- which is why this is a\n// boolean input and not a second file. At the default 0, longGap and shortGap\n// are the original two expressions and nearBand the original right-hand side,\n// computed in the same order, so nothing changes by a single bar.\n//\n// RP4-21's final-hours term is the catalog's TimeWindow ANDed alongside and is\n// not carried here; V25-01's day-type gate is TradingRangeDay, likewise a\n// separate pane.\n//\n// Kept apart from RangeExtremeFade and CloseInRangePosition because the\n// window is the SESSION, not a bar count -- early in a session the day's\n// range is a handful of bars and late in one it may be wider than any 20-bar\n// window, so the two disagree constantly. Not CloseNearSessionRangeMidpoint,\n// which bands the MIDDLE of the same window and is direction-agnostic. Not\n// SessionOpenPositionInRange, which places the session's OPENING price in the\n// same window.\n//\n// Written MULTIPLIED, never as a ratio, so a session whose high equals its\n// low fires on both sides rather than raising EL's runtime divide-by-zero.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1],\n// mirrored as day_of(ctx.Time(0)) > day_of(ctx.Time(1)), with the running\n// extremes held in locals reset on that change. Intraday bars only. On the\n// session's first bar sessHigh/sessLow are that bar's own extremes, so the\n// test degenerates to CloseRangePosition on that bar alone.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}\nnearBand = nearExtremeFraction * (sessHigh - sessLow);\nif (el_eq(strengthMode, 0.0)) {\n    longGap = close[0] - sessLow;\n    shortGap = sessHigh - close[0];\n} else {\n    longGap = sessHigh - close[0];\n    shortGap = close[0] - sessLow;\n}",
+    "longCondition": "el_le(longGap, nearBand)",
+    "shortCondition": "el_le(shortGap, nearBand)",
     "postConditionHook": "",
     "endOfFileHook": ""
 }

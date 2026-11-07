@@ -1,0 +1,32 @@
+{
+    "name": "SessionOpenPositionInRange",
+    "type": "Entry",
+    "inputVariables": {
+        "highFraction": "0.8"
+    },
+    "localVariables": {
+        "sessOpen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sessBand": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S O%Rng (G08-27, G16-13): the session's OPENING price sits in the top\n// `highFraction` of the session's range SO FAR (long), the bottom fraction\n// (short). The book's full-session range is knowable only in hindsight, so the\n// range TO DATE is used, as the mined candidate itself proposes.\n//\n// Not SessionOpenNearSessionExtreme, which bands the open against the running\n// low in ATRs and reads open-near-low as strength: a different tolerance basis\n// AND the opposite polarity, which no negate or flip toggle reaches (merge\n// decision 12). Not CloseInTopOfSessionRange (the amended\n// CloseNearSessionExtreme), which places the closing price in the same window.\n//\n// SESSION MODEL, per the standing decision: the twin's date > date[1], mirrored\n// as day_of(ctx.Time(0)) > day_of(ctx.Time(1)), with the running open/high/low\n// held in locals reset on that change. Intraday bars only.\n//\n// Written MULTIPLIED, never as a ratio, so a session whose high equals its low\n// fires both sides rather than raising EL's runtime divide-by-zero. On the\n// session's first bar the running extremes are that bar's own, so the test is\n// the first bar's own open position in its own range.\n//\n// Deepest bar touched: 1.\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    sessOpen = open[0];\n    sessHigh = high[0];\n    sessLow = low[0];\n} else {\n    if (el_gt(high[0], sessHigh)) sessHigh = high[0];\n    if (el_lt(low[0], sessLow)) sessLow = low[0];\n}\nsessBand = highFraction * (sessHigh - sessLow);",
+    "longCondition": "el_ge(sessOpen - sessLow, sessBand)",
+    "shortCondition": "el_ge(sessHigh - sessOpen, sessBand)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

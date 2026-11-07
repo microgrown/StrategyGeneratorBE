@@ -1,0 +1,79 @@
+{
+    "name": "NoMomentumDivergenceInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10",
+        "divLookback": "20",
+        "sinceDivergenceBars": "20"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "oscDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "pHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscPeak": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscTrough": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "divReady": {
+            "type": "bool",
+            "init": "false"
+        },
+        "divUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "divDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffer below mirrors. Copied from\n// OscillatorAboveZero and OscillatorNewExtreme, the family's reference pair.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// NO MOMENTUM DIVERGENCE IN THE LAST sinceDivergenceBars BARS -- Grimes's\n// \"long trades should not be entered on the next pullback\" after a divergence.\n// Stated POSITIVELY: true when no divergence fired anywhere in the window.\n//\n// The divergence test is MomentumDivergenceAtSwingExtreme's, term for term\n// (merge decision 3, window maxima, no pivot scan), evaluated at each of the\n// last sinceDivergenceBars bars with its own one-bar-shifted window. A single\n// negated placement of that rule cannot express this -- it tests the current\n// bar only -- which is why the bounded OR is its own file, the same relation\n// NoClimaxBarInWindow has to its primitive.\n//\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated one.\n// Mirrored as a zero-seeded ring buffer, re-seeded if the depth ever changes\n// (AwesomeOscillatorSlope / OscillatorNewExtreme / AtrRising). Depth\n// sinceDivergenceBars + divLookback so lags 0 .. sinceDivergenceBars +\n// divLookback - 1 all live in the buffer.\noscDepth = (int)sinceDivergenceBars + (int)divLookback;\nif (oscDepth < 2) {\n    oscDepth = 2;\n}\nif (oscHistory.size() != (std::size_t)oscDepth) {\n    oscHistory.assign((std::size_t)oscDepth, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\n// WARM-UP: the zero-filled osc pre-history would manufacture divergences, so\n// nothing is scanned until every bar the scan can reach is a real reading.\n// While divReady is false both flags stay false and the rule reads TRUE -- an\n// all-clear filter must not block on a warm-up reading.\ndivReady = ctx.CurrentBar() > (int)sinceDivergenceBars + (int)divLookback;\ndivUp = false;\ndivDn = false;\nif (divReady) {\n    for (ii = 0; ii <= (int)sinceDivergenceBars - 1; ++ii) {\n        pHigh = high[ii + 1];\n        pLow = low[ii + 1];\n        oscPeak = oscHistory[(oscCursor + oscHistory.size() - 1 - (std::size_t)(ii + 1)) % oscHistory.size()];\n        oscTrough = oscPeak;\n        for (jj = 2; jj <= (int)divLookback; ++jj) {\n            if (el_gt(high[ii + jj], pHigh)) {\n                pHigh = high[ii + jj];\n            }\n            if (el_lt(low[ii + jj], pLow)) {\n                pLow = low[ii + jj];\n            }\n            double v = oscHistory[(oscCursor + oscHistory.size() - 1 - (std::size_t)(ii + jj)) % oscHistory.size()];\n            if (el_gt(v, oscPeak)) {\n                oscPeak = v;\n            }\n            if (el_lt(v, oscTrough)) {\n                oscTrough = v;\n            }\n        }\n        double oi = oscHistory[(oscCursor + oscHistory.size() - 1 - (std::size_t)ii) % oscHistory.size()];\n        if (el_ge(high[ii], pHigh) && el_lt(oi, oscPeak)) {\n            divUp = true;\n        }\n        if (el_le(low[ii], pLow) && el_gt(oi, oscTrough)) {\n            divDn = true;\n        }\n    }\n}",
+    "longCondition": "!divUp",
+    "shortCondition": "!divDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,35 @@
+{
+    "name": "BreakoutBase",
+    "type": "Entry",
+    "inputVariables": {
+        "tightLookback": "10",
+        "rangeLookback": "50",
+        "tightFraction": "0.25",
+        "proximityFraction": "0.1"
+    },
+    "localVariables": {
+        "tightHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tightLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S NAMED BREAKOUT BASE: a tight recent range sitting at the TOP of a\n// much larger range (long) / at its bottom (short) -- \"a small range near a\n// resistance level ... is referred to as a breakout base\", the coil that\n// builds the energy for the break.\n//\n// TWO TERMS, both on NESTED current-inclusive windows:\n//   * SIZE -- the tight window's height is at most tightFraction of the big\n//     window's height (25 percent is the book's own figure);\n//   * POSITION -- the tight window's own top sits within proximityFraction of\n//     the big window's top, so the coil is at the far end of the range and not\n//     in its middle. proximityFraction is a guess and is meant to be\n//     optimized; at a large enough value the position term is inert and the\n//     rule is the size term alone.\n//\n// WRITTEN AS MULTIPLICATIONS, never as a ratio: a zero-height outer range is\n// legal data and EasyLanguage raises a runtime divide-by-zero.\n//\n// Not RangeWidthBelowAtrMultiple (merge decision 8), which sizes ONE window\n// against ATR and has no position term at all. Not ShrinkingConsecutiveRanges,\n// which compares two ADJACENT EQUAL-LENGTH windows rather than a nested pair.\n// Not CloseInRangePosition, which places the closing price inside the big\n// range where this places the tight window's own EDGE. Not TightChannel, net progress plus\n// pullback depth. The rule being mirrored, neither half is reachable from the\n// other side's placement.\n//\n// Every comparison is a difference against a difference, so the rule passes\n// the shift test; no ATR and no state.\n//\n// The window loops mirror EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at the window's first bar, scanning the rest, strict comparison\n// under the EL relational tolerance -- hence el_gt / el_lt, as in Breakout.\n//\n// Deepest bar touched: max(tightLookback, rangeLookback) - 1.\ntightHigh = high[0];\ntightLow = low[0];\nfor (int i = 1; i < (int)tightLookback; ++i) {\n    if (el_gt(high[i], tightHigh)) tightHigh = high[i];\n    if (el_lt(low[i], tightLow)) tightLow = low[i];\n}\nrangeHigh = high[0];\nrangeLow = low[0];\nfor (int i = 1; i < (int)rangeLookback; ++i) {\n    if (el_gt(high[i], rangeHigh)) rangeHigh = high[i];\n    if (el_lt(low[i], rangeLow)) rangeLow = low[i];\n}",
+    "longCondition": "el_le(tightHigh - tightLow, tightFraction * (rangeHigh - rangeLow)) && el_le(rangeHigh - tightHigh, proximityFraction * (rangeHigh - rangeLow))",
+    "shortCondition": "el_le(tightHigh - tightLow, tightFraction * (rangeHigh - rangeLow)) && el_le(tightLow - rangeLow, proximityFraction * (rangeHigh - rangeLow))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

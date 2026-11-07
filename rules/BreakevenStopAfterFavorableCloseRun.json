@@ -1,0 +1,32 @@
+{
+    "name": "BreakevenStopAfterFavorableCloseRun",
+    "type": "Exit",
+    "inputVariables": {
+        "favorableCloses": "2"
+    },
+    "localVariables": {
+        "upRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "armedLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "armedShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// ARM THE BREAKEVEN STOP STRUCTURALLY, ON THE TRADE'S OWN PROGRESS. Once\n// favorableCloses CONSECUTIVE closes since entry have each moved in the trade's\n// favour -- close[0] > close[1] for a long -- the breakeven stop is armed, and\n// a later close back at the entry price takes the trade off. Grimes: \"once a\n// trade is working ... tighten stops to reduce open risk.\" His worked example\n// arms on 2 closes.\n//\n// BreakevenStopAfterEmaHoldingRun is the shape and the latch idiom, copied term\n// for term; only the ARMING TEST differs. The two arm on completely different\n// bars, and no input setting of either reproduces the other, so this is a\n// variant and not a parameterization of it. Kept apart from BreakevenStop,\n// whose trigger is peak profit reaching a dollar figure.\n//\n// THE COUNTERS AND THE ARMED FLAGS ARE PER POSITION and reset on\n// ctx.BarsSinceEntry() == 0 -- VERIFIED as 0 on the fill bar and as restarting\n// through a REVERSAL, which a MarketPosition() == 0 reset would miss. While\n// flat the reset repeats. The counter advances on the fill bar too, so a fill\n// bar closing above the previous close is the first of the run.\n//\n// close[0] > close[1] and close[0] <= EntryPrice are price DIFFERENCES, so the\n// rule passes the shift test. All state is in localVariables, so the rule\n// survives double placement.\nif (ctx.BarsSinceEntry() == 0) {\n    upRun = 0;\n    dnRun = 0;\n    armedLong = false;\n    armedShort = false;\n}\nif (el_gt(close[0], close[1])) {\n    upRun = upRun + 1;\n} else {\n    upRun = 0;\n}\nif (el_lt(close[0], close[1])) {\n    dnRun = dnRun + 1;\n} else {\n    dnRun = 0;\n}\nif (el_ge((double)upRun, favorableCloses)) armedLong = true;\nif (el_ge((double)dnRun, favorableCloses)) armedShort = true;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && armedLong && el_le(close[0], ctx.EntryPrice())",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && armedShort && el_ge(close[0], ctx.EntryPrice())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

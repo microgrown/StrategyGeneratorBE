@@ -1,0 +1,244 @@
+{
+  "bucket": "context_regime",
+  "merged": "2026-09-21",
+  "rules": [
+    {
+      "key": "TrendRateAcceleration",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The market's rate of travel over the last `nearBars` bars is at least K times its rate over the `farBars` bars before them — the trend is steepening. Direction-agnostic: both rates are absolute, so both sides are identical text.",
+      "pseudocode": "AbsValue(close[0] - close[nearBars]) * farBars >= accelMultiple * AbsValue(close[nearBars] - close[nearBars + farBars]) * nearBars",
+      "sides": "same",
+      "parameters": {
+        "nearBars": 10,
+        "farBars": 20,
+        "accelMultiple": 1.5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "three lagged closes and a cross-multiplied comparison; no persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "AbsValue"
+      ],
+      "catalog_match": {
+        "rule": "ParabolicAccelerationExit",
+        "relation": "variant",
+        "note": "that rule is an EXIT, requires both legs SIGNED in the trade's direction, and pins the windows equal (legBars and 2 x legBars); this is an Entry context filter on ABSOLUTE rates with independent windows, so it fires on a different set of bars and an Exit cannot sit in the entry pane anyway"
+      },
+      "sources": [
+        "G03-05"
+      ],
+      "merge_notes": "One source. Grimes gives 'trend rate' no formula; it reduces to a ratio of two displacement rates. Cross-multiplied so no division rounds, the MinRewardToRiskFilter spelling. Sides `same` because absolute values carry no direction — place it beside a directional rule. Cited as a buying-climax sign, so climax_termination may want it too.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MovingAverageSlopeTrendFilter",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The moving average is higher now than `slopeLookback` bars ago (long) / lower (short) — Grimes's trend filter, and, at a length multiplied by `htfMultiplier`, his higher-timeframe alignment filter.",
+      "pseudocode": "ema(close, emaLength)[0] > ema(close, emaLength)[slopeLookback]",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "slopeLookback": 5,
+        "htfMultiplier": 5
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an EMA compared with its own lagged value"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage"
+      ],
+      "catalog_match": {
+        "rule": "EmaSlope",
+        "relation": "parameterization",
+        "note": "EmaSlope at `slopeAtr = 0` IS this test, exactly; no input to add"
+      },
+      "sources": [
+        "G03-29",
+        "G03-35",
+        "G07-02",
+        "G07-25"
+      ],
+      "merge_notes": "RECONCILED: indicators_bands' identical row is folded in here, bringing G03-29 (the same rising-average test at maLength 50, with Grimes's flat dead zone, which is EmaSlope's slopeAtr above 0). Four restatements collapse: G07-02 is the trading-timeframe slope, G07-25 and G03-35 the same test at `emaLength x htfMultiplier` (both 5). `EmaSlope(slopeAtr = 0)` reproduces all three, so the higher-timeframe filter is a GRID choice, not a rule. G03-35 writes a simple `Average`; EmaSlope is exponential, the settled series.",
+      "variants_kept_separate": [
+        "PriceMostlyBeyondMovingAverage"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "PriceMostlyBeyondMovingAverage",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "At least a fraction of the last `lookback` closes sit above the moving average (long) / below it (short) — 'price spends a lot of time on one side of the average' as a with-trend context gate.",
+      "pseudocode": "CountIF(close > ema(close, emaLength), lookback) >= fracThreshold * lookback",
+      "sides": "mirrored",
+      "parameters": {
+        "emaLength": 20,
+        "lookback": 20,
+        "fracThreshold": 0.7
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "a CountIF over a window against an EMA read at each counted bar's own offset"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "XAverage",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "BarsBeyondEmaCount",
+        "relation": "parameterization",
+        "note": "the same K-of-N test on the same EMA; Grimes's fraction is `minBarsBeyond = round(fracThreshold x lookback)`, i.e. 14 of 20"
+      },
+      "sources": [
+        "G07-01"
+      ],
+      "merge_notes": "One source, no new content: `BarsBeyondEmaCount(lookback 20, minBarsBeyond 14, emaLength 20)` is Grimes's filter. Kept apart from the run form `ConsecutiveClosesBeyondEmaRun`, which the catalog already separates. Grimes does not commit to SMA vs EMA for this generic reference average; the catalog rule is exponential, and he says explicitly that he does not trade it mechanically.",
+      "variants_kept_separate": [
+        "MovingAverageSlopeTrendFilter"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "DailyLossLimit",
+      "role": "Switch",
+      "is_filter": false,
+      "description": "Equity lost since the first bar of the current calendar day exceeds the limit — blocks entries and forces flat for the rest of the day.",
+      "pseudocode": "if (Date[0] <> Date[1]) dayStartEquity = NetProfit + OpenPositionProfit;\n(NetProfit + OpenPositionProfit) - dayStartEquity <= -dailyLossLimit",
+      "sides": "same",
+      "parameters": {
+        "dailyLossLimit": 1000
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a persistent period-start latch plus a date-boundary reset; both are precedented — MonthlyProfitTarget captures period-start equity and mirrors the EL variable's history in endOfFileHook, MaxTradesPerSession resets on Date <> Date[1] — so no new engine accessor is needed"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "Date",
+        "NetProfit",
+        "OpenPositionProfit"
+      ],
+      "catalog_match": {
+        "rule": "MonthlyProfitTarget",
+        "relation": "variant",
+        "note": "same construction with the boundary moved from Month(Date) <> Month(Date[1]) to Date <> Date[1] and the comparison on the LOSS side; EquityDrawdownFilter is the rolling-window cousin and resets at no boundary, a different accessor pattern"
+      },
+      "sources": [
+        "G12-01"
+      ],
+      "merge_notes": "Grimes gives no figure, so 1000 is a placeholder for the grid. His week and month forms are the same rule at a different boundary test, worth a `periodSelect` input only if the grid wants them. Unlike MaxTradesPerSession, which makes its exit half inert deliberately, forcing flat is WANTED here — MonthlyProfitTarget's Switch behaviour.",
+      "variants_kept_separate": [
+        "MaxTradesPerPeriod"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MaxTradesPerPeriod",
+      "role": "Switch",
+      "is_filter": false,
+      "description": "The number of trades taken in the current session has reached the cap — blocks further entries until the period rolls over.",
+      "pseudocode": "if (Date[0] <> Date[1]) tradesToday = 0;\nif (MarketPosition <> 0 and MarketPosition <> MarketPosition[1]) tradesToday = tradesToday + 1;\ntradesToday >= maxTradesPerDay and MarketPosition = 0",
+      "sides": "same",
+      "parameters": {
+        "maxTradesPerDay": 5
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a persistent counter with a session-boundary reset — already built and measured in the corpus"
+      },
+      "timeframe": "intraday",
+      "el_words_needed": [
+        "Date",
+        "MarketPosition"
+      ],
+      "catalog_match": {
+        "rule": "MaxTradesPerSession",
+        "relation": "duplicate",
+        "note": "same cap, same counting rule, same default"
+      },
+      "sources": [
+        "G12-02"
+      ],
+      "merge_notes": "The miner graded this research for want of a per-period counter; the corpus already has one. MaxTradesPerSession counts a trade when the position CHANGES to non-flat (catching reversals, where TotalTrades ticks on the exit's fill bar), resets on the session boundary, caps at 5 — Grimes's figure too. Nothing to author.",
+      "variants_kept_separate": [
+        "DailyLossLimit"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "G07-27",
+      "reason": "stray from exits_targets. Composition of MovingAverageSlopeTrendFilter placed at emaLength x htfMultiplier (decision 15, the settled higher-timeframe read) + a measured-move target on that series not yet reached (PatternHeightMeasuredMoveTarget / LegOneEqualsLegTwoTarget, decision 26, both already catalog duplicates); entries AND, so 'the higher time frame is mid-drive to its target' adds no bar test of its own"
+    },
+    {
+      "id": "G03-10",
+      "reason": "composition of BarRangeBelowAverageMultiple (negated: range beyond K x the mean range of the window ending one bar ago) + NonOppositeClose (negated: the bar closed against the direction) — two catalog rules that AND in the entry pane through the per-placement negate toggle"
+    },
+    {
+      "id": "G07-29",
+      "reason": "composition of CloseAbovePriorHighestHigh at a short lookback + TouchOfRecentExtreme at lookback x htfMultiplier, once the higher-timeframe decision below fixes what 'already at a structural tipping point on the higher time frame' means"
+    },
+    {
+      "id": "G03-27",
+      "reason": "composition of SwingTrendHigherHighsAndLows (swing_structure) negated + CloseBeyondLastSwingPoint at swingPointsCleared 1; Grimes's intermediate 'uncertain' state has no trade in it, so the three-state machine adds nothing the two ANDed panes do not"
+    }
+  ],
+  "cross_bucket": [
+    {
+      "id": "G02-02",
+      "belongs_in": "swing_structure.json",
+      "note": "the markup/markdown phase test is the pivot HH-and-HL test, not an indicator regime read; merged there as SwingTrendHigherHighsAndLows (swing_structure is G02-02's secondary bucket, so it is already carried — no reconciliation needed)"
+    }
+  ],
+  "design_decisions": [
+    {
+      "topic": "Trend test and higher-timeframe approximation",
+      "options": [
+        "EMA slope over N bars (G07-02 / G07-25 / G03-35)",
+        "price mostly on one side of a moving average, K of N closes (G07-01)",
+        "the pivot sequence of higher highs and higher lows (G03-26 / G02-02)",
+        "Dow's latched three-state machine, up / uncertain / down (G03-27)",
+        "the corpus's always-in direction counter (TrendDurationBars)"
+      ],
+      "recommended": "ONE mechanizable trend test: `EmaSlope` (emaLength 20, slopeLookback 5, with `slopeAtr` as the optimizer input; slopeAtr = 0 is the bare slope all three Grimes restatements give). HIGHER-TIMEFRAME APPROXIMATION: the same rule at `emaLength x 5` — a second placement, not a new rule — which is the mining brief's longer-lookback-on-the-same-bars convention with the multiplier pinned at 5. Later buckets that need a structural higher-timeframe read rather than a slope should use the same 5x multiplier on a window rule (TouchOfRecentExtreme, RangeWidthBelowAtrMultiple, CloseAbovePriorHighestHigh) instead of raising a fresh decision. Any bucket meeting 'the higher time frame is trending' should cite EmaSlope at 5x length and grade the rule on its own merits rather than C. The pivot-based alternative, SwingTrendHigherHighsAndLows, is authored as a B rule but is NOT the default: it needs the pivot scan and lags by `strength` bars.",
+      "gates": [
+        "MovingAverageSlopeTrendFilter",
+        "PriceMostlyBeyondMovingAverage",
+        "G07-29 (dropped on this decision)"
+      ]
+    },
+    {
+      "topic": "Period-scoped account switches (daily loss limit, trades per period)",
+      "options": [
+        "no accessor exists; grade research and defer",
+        "design a new per-period counter and equity latch in the engine",
+        "reuse the measured MonthlyProfitTarget and MaxTradesPerSession constructions"
+      ],
+      "recommended": "Reuse. The machinery exists and is measured, so neither candidate is research. `MaxTradesPerSession` already counts entries per session with a date-boundary reset (`mp <> 0 and mp <> mp[1]`, catching reversals) and caps them — Grimes's per-period trade limit is that rule verbatim, priority D. `MonthlyProfitTarget` already captures period-start equity from NetProfit + OpenPositionProfit, blocks entries and forces flat — a daily loss limit is that construction with the boundary moved to `Date <> Date[1]` and the comparison on the loss side, priority B, no new engine accessor. Week and month variants are the same rules at a different boundary test; add a `periodSelect` input only if the grid asks for it.",
+      "gates": [
+        "DailyLossLimit",
+        "MaxTradesPerPeriod"
+      ]
+    }
+  ],
+  "bucket_summary": "Eleven candidates, five rules out, four dropped as compositions (the fourth being the G07-27 stray from exits_targets) and one sent to swing_structure; the reconciliation pass also folded indicators_bands' MovingAverageSlopeTrendFilter row into this bucket's row of that key. The bucket is dominated by one test restated three times — a moving-average slope, at the trading length and at a 5x 'higher timeframe' length — which is the catalog's EmaSlope at slopeAtr = 0, so it is D, and the higher-timeframe read becomes a grid choice rather than a rule. Grimes's price-mostly-above-the-average filter is likewise BarsBeyondEmaCount, and his per-period trade cap is MaxTradesPerSession verbatim. The A list is one rule, TrendRateAcceleration; the B list is one, DailyLossLimit."
+}

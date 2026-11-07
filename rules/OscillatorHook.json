@@ -1,0 +1,49 @@
+{
+    "name": "OscillatorHook",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "oscLag1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscLag2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word:\n// Appendix B spells the construction out as plain moving averages, and the\n// chapter 16 restatement in exponential terms loses to it.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffers below mirror.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// THE HOOK: the fast line was flat or falling and is rising on this bar's\n// close. The <= on the prior bar is the book's and is deliberate -- a\n// flat turn upward counts. Never split: an inflection is inherently a\n// three-bar reading, the exception MomentumChange carries for a crossing.\n// Not AwesomeOscillatorSlope, which reads a different series ((H+L)/2), at\n// different lengths, and compares two LAGS rather than detecting a turn.\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one. Mirrored here as a zero-seeded ring buffer, re-seeded if the depth\n// ever changes -- exactly what AwesomeOscillatorSlope, AtrRising and\n// BarRangeAboveStd do for the same reason. The rule GUARDS its own warm-up\n// on the bar counter instead of comparing against those zeros.\n// Depth 3: lags 0, 1 and 2.\nif (oscHistory.size() != (std::size_t)3) {\n    oscHistory.assign((std::size_t)3, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\noscLag1 = oscHistory[(oscCursor + oscHistory.size() - 2) % oscHistory.size()];\noscLag2 = oscHistory[(oscCursor + oscHistory.size() - 3) % oscHistory.size()];\n// The first two evaluated bars read the zero-filled pre-history, so the rule\n// guards on the bar counter rather than comparing against those zeros.\noscReady = ctx.CurrentBar() > 2;",
+    "longCondition": "oscReady && el_gt(osc, oscLag1) && el_le(oscLag1, oscLag2)",
+    "shortCondition": "oscReady && el_lt(osc, oscLag1) && el_ge(oscLag1, oscLag2)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

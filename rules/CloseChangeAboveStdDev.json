@@ -1,0 +1,37 @@
+{
+    "name": "CloseChangeAboveStdDev",
+    "type": "Entry",
+    "inputVariables": {
+        "sdMultiple": "3",
+        "lookback": "20"
+    },
+    "localVariables": {
+        "chg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgStd": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "chgHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "chgCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S STANDARD-DEVIATION SPIKE: this bar's change from the prior close\n// is at least sdMultiple population standard deviations of the bar-to-bar\n// close changes over the last lookback bars. Identical both sides -- the\n// test is on the absolute change, so it carries no direction. A difference\n// of prices throughout, so it passes the shift test.\n//\n// Not BarRangeAboveStd: same machinery, but that rule measures the bar's\n// high-low RANGE and adds the window mean back into the band. No mean term\n// here.\n//\n// EL's stddev() reads the chg VARIABLE's own history, and a variable holds\n// its initial 0 for every bar before the strategy's first evaluated one.\n// Recomputing from price instead would use warm-up bars EasyLanguage never\n// saw, so the history is mirrored as a ring buffer that starts zeroed and is\n// re-seeded if the length ever changes -- BarRangeAboveStd's port, followed\n// exactly, INCLUDING leaving the warm-up unguarded: over mostly zeros the\n// deviation is small and the rule fires easily, which is what EasyLanguage\n// does and therefore what the twin must do.\n// Scratch is declared in localVariables, never at hook scope, so the rule\n// survives being placed twice in one strategy.\nchg = close[0] - close[1];\nif (chgHistory.size() != (std::size_t)(int)lookback) {\n    chgHistory.assign((std::size_t)(int)lookback, 0.0);\n    chgCursor = 0;\n}\nchgHistory[chgCursor] = chg;\nchgCursor = (chgCursor + 1) % chgHistory.size();\nchgMean = 0.0;\nfor (double v : chgHistory) {\n    chgMean += v;\n}\nchgMean /= (int)lookback;\n// Population standard deviation (divide by N): EasyLanguage's definition.\nchgStd = 0.0;\nfor (double v : chgHistory) {\n    double d = v - chgMean;\n    chgStd += d * d;\n}\nchgStd = std::sqrt(chgStd / (int)lookback);",
+    "longCondition": "el_ge(std::fabs(chg), sdMultiple * chgStd)",
+    "shortCondition": "el_ge(std::fabs(chg), sdMultiple * chgStd)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

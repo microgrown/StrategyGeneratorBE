@@ -1,0 +1,33 @@
+{
+    "name": "MovingAverageExit",
+    "type": "Exit",
+    "inputVariables": {
+        "emaLength": "20",
+        "useTouch": "0"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "testLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "testShort": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GIVING UP THE MOVING AVERAGE: leave the trend trade when price crosses to\n// the wrong side of the average -- the long exits below it, the short above.\n// With useTouch set the bar merely has to TOUCH the average (the long tests\n// its low, the short its high) rather than close through it. The source\n// states both readings in one sentence, so they are one rule with a mode\n// input, on the corpus's precedent for boolean modes.\n//\n// Reads no position state, so it is an EXIT BY PLACEMENT, as\n// ConsecutiveCloseExit is. Not CloseBeyondEma, which is the same comparison\n// in the ENTRY role; not TrailArmedAfterEmaCloseBreak, which only ARMS a\n// trail on the break; not MovingAverageTarget, a countertrend profit target\n// AT the average taken from the other side.\n//\n// Current value only, no lagged read, so nothing to guard: WFSafe_Xaverage\n// has no warm-up hole.\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar / EmaSlope (the EMA references, which carry\n// the full measurements). From EL_XAverage_Probe.txt (@OJ 240min, two chart\n// starts):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole on the CURRENT value, so no bar-count guard\n//     returning 0;\n//   * an EMA NEVER FORGETS ITS SEED -- it decays at (1 - sf)^n, ~330 bars --\n//     so Max Bars Back and the chart start are part of this rule's spec.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, no\n// re-seed, so the length may be optimized in grids.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\nif (el_ge(useTouch, 0.5)) {\n    testLong = low[0];\n    testShort = high[0];\n} else {\n    testLong = close[0];\n    testShort = close[0];\n}",
+    "longCondition": "el_lt(testLong, emaVal)",
+    "shortCondition": "el_gt(testShort, emaVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

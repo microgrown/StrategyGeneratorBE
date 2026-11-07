@@ -1,0 +1,588 @@
+[
+  {
+    "id": "G01-01",
+    "name": "FirstOrderPivot",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      31,
+      32
+    ],
+    "quote": "A pivot high is a bar that has a higher high than the bar that came before it and the bar that comes after it... A pivot low is the same concept inverted.",
+    "description": "Shared primitive: the bar one bar ago is a first-order swing pivot -- its low (long) is below both the low two bars ago and the current bar's low, i.e. a bar lower than both neighbors. Confirmed one bar after it forms (needs the following bar to know the neighbor exists). Short side is the mirrored pivot high, used as a resistance point.",
+    "pseudocode": "low[1] < low[2] AND low[1] < low[0]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (structural definition, not an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare three-bar comparison of prices on fixed offsets"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "SwingHigh",
+    "confidence": "high",
+    "notes": [
+      "This is the book's foundational primitive; almost every later swing/pullback/channel/measured-move candidate in this book and in later chapters depends on it. The book calls it a 'first-order pivot' or 'swing high/low'."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G01-02",
+    "name": "HigherOrderPivot",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G01-01"
+    ],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      32,
+      34
+    ],
+    "quote": "Second-order pivot highs (also called intermediate-term pivots) are first-order pivot highs that are preceded and followed by lower first-order pivot highs... most of our focus is on third-order pivots, which usually mark major inflections.",
+    "description": "Recursive pivot-of-pivot: a first-order pivot (G01-01) of order K is a K-th-order pivot if it is preceded and followed by lower-order pivots of order K-1 that are themselves lower (for a low) or higher (for a high). The book uses order 2 (second-order/intermediate-term) and order 3 (third-order/major) as the practically useful levels. There is no rule that pivots of a given order must alternate high/low/high/low; runs of three or more same-type pivots in a row are possible and must be handled.",
+    "pseudocode": "isPivotOfOrder(k, i) := if k == 1 then isFirstOrderPivot(i) else nearestPriorPivotOfOrder(k-1, i) is lower AND nearestNextPivotOfOrder(k-1, i) is lower  // long/low form; mirrored for highs",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotOrder": 2
+    },
+    "book_order_type": "n/a (structural definition, not an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a maintained list of already-identified lower-order pivots and a search over that list -- not a fixed-window loop, and pivots do not have to alternate"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "SwingHigh",
+    "confidence": "medium",
+    "notes": [
+      "The book explicitly disclaims predictive power: 'this is a backward-looking analytical method... it offers fantastic explanations of past market action, but has little or no predictive power at the right edge.' Kept as a structure/context primitive, not a trade trigger by itself."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G01-04",
+    "name": "SwingLegLengthAsymmetryShowsControl",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "G01-01"
+    ],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      35
+    ],
+    "quote": "When buyers are stronger than sellers, upswings will be longer, both in price and in time, than downswings. When sellers are in control, downswings will be longer than upswings.",
+    "description": "Context filter: over the recent swing structure, the average (or most recent) up-leg (pivot low to pivot high) is longer in price and duration than the average down-leg -- read as buyers in control (long context); mirrored for sellers in control.",
+    "pseudocode": "avgUpLegLength(numLegs) > avgDownLegLength(numLegs)",
+    "sides": "mirrored",
+    "parameters": {
+      "numLegs": 3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs pivot detection (G01-01/G01-02) plus tracking and averaging leg lengths across the recent swing history"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "SwingLegLengthAtLeast",
+    "confidence": "medium",
+    "notes": [
+      "Chapter 2's 'four trades' and Chapter 3's trend-structure chapter both build directly on this asymmetry idea."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G03-26",
+    "name": "DowUptrendHigherHighsHigherLows",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      94
+    ],
+    "quote": "An uptrend is a pattern of successively higher pivot highs (HHs) and higher pivot lows (HLs) ... if a market is only making higher highs, but is not also clearly holding higher lows, the buyers are not solidly in control",
+    "description": "Primitive trend-state definition: the market is in an uptrend when the most recent confirmed swing high is above the prior swing high AND the most recent confirmed swing low is above the prior swing low (mirrored for downtrend).",
+    "pseudocode": "lastSwingHigh > priorSwingHigh AND lastSwingLow > priorSwingLow",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "requires a pivot/swing detector with a design decision for pivot strength/lookback before a state machine can track HH/HL sequences"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-28",
+    "name": "DowTrendChangeSharpReversalTakesOutPivot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      95,
+      96
+    ],
+    "quote": "prices retreat so aggressively from the highs that they take out the previous pivot low ... the trend change is not confirmed until the market again takes out the previous low",
+    "description": "A sharp reversal takes out the previous pivot low directly from a new swing high (one swing shows both a higher high and a lower low); the trend change is confirmed only after the following rally fails below the prior high and price again breaks the prior low.",
+    "pseudocode": "swingHigh0 > priorSwingHigh AND swingLow0 < priorSwingLow -> (rally1 < swingHigh0) AND close[0] < swingLow0 -> confirmedChange",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "a multi-stage pivot state machine"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-31",
+    "name": "FirstOversizedCounterSwingWarning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      99,
+      100
+    ],
+    "quote": "the first downswing in an uptrend that is longer than the preceding upswing ... this swing can indicate a distinct change of character in the market ... it may even set up a potential countertrend short on the next bounce",
+    "description": "The first countertrend swing that exceeds the preceding with-trend swing (in price or in bars) -- a trend-character warning and a possible countertrend setup on the next bounce.",
+    "pseudocode": "counterSwingLength[0] > withTrendSwingLength[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection to compare consecutive swing lengths"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-32",
+    "name": "SwingLengthExceedsAverageMultipleWarning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      109,
+      110
+    ],
+    "quote": "if, after several swings in the same direction, a swing emerges that is two to three times the length of the average swing, this may indicate an overextended market and a possible climax",
+    "description": "The current with-trend swing's length is 2-3x the average of recent swings -- an overextension/climax warning.",
+    "pseudocode": "currentSwingLength > swingMultiple * average(recentSwingLengths, swingLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "swingMultiple": 2.5,
+      "swingLookback": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and a rolling average of swing lengths"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-36",
+    "name": "StandardTrendLineDefinition",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      100,
+      101
+    ],
+    "quote": "Standard uptrend lines are drawn between higher lows in an uptrend; the standard downtrend line is a line drawn between lower highs in a downtrend",
+    "description": "Primitive: a standard trend line connects two successive swing lows in an uptrend (swing highs in a downtrend); the line's projected value at the current bar is a potential support (uptrend) or resistance (downtrend) level.",
+    "pseudocode": "trendLineValue(bar) = swingLow1 + (bar - swingLow1Index) * (swingLow2 - swingLow1) / (swingLow2Index - swingLow1Index)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context/indicator primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and a linear projection from two pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "TrendLineTouch, TrendLineBreak",
+    "confidence": "medium",
+    "notes": [
+      "Extensive existing coverage in the Brooks-derived corpus (TrendLine*, ChannelLine*); recorded here for completeness."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-39",
+    "name": "MicroTrendLineReclaimEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      106,
+      107
+    ],
+    "quote": "wait for the market to recover back above the trend line, and then to buy with a stop just under the low of the bar that broke the trend line",
+    "description": "A very short (1-3 bar) trend line inside a pullback is briefly violated, then price recovers back above it within a few bars -- the recovery is itself the entry trigger, with a stop just beyond the extreme of the break.",
+    "pseudocode": "low[k] < microTrendLineValue(k) for some recent k AND close[0] > microTrendLineValue(0)",
+    "sides": "mirrored",
+    "parameters": {
+      "microLookback": 3
+    },
+    "book_order_type": "buy stop on recovery above the micro trend line (mechanized as close-and-next-open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a short-lookback trend-line projection and a break-then-reclaim state"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "MicroTrendLineFailedBreakout",
+    "confidence": "medium",
+    "notes": [
+      "Grimes attributes the 1-3 bar trend-line concept to Al Brooks's 'Micro Trendlines' and Charles Drummond's Drummond Geometry; heavily overlapping the existing Brooks-derived MicroTrendLine* rules."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G06-34",
+    "name": "CountertrendSpikeStrongerThanPriorSwings",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      186
+    ],
+    "quote": "the market then makes a move that shows a distinct change of character, such as a shift of momentum against the old trend. In the case of an uptrend, a downswing would emerge that was much stronger than previous downswings.",
+    "description": "The Anti's second setup condition: a countertrend swing emerges that is larger (in price) than the average of the recent countertrend swings in the established trend -- a change of character.",
+    "pseudocode": "abs(currentCountertrendSwingLength) > characterMultiple * average(priorCountertrendSwingLengths, numPriorSwings)",
+    "sides": "mirrored",
+    "parameters": {
+      "numPriorSwings": 3,
+      "characterMultiple": 1.5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-leg detection and comparison against prior countertrend swings"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "SecondLegExceedsFirstLegExtreme",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G08-17",
+    "name": "TrendLineBreakStopRequiresConfirmation",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      253
+    ],
+    "quote": "If you want to use a trend line as a trailing stop, it might make sense to require significant price action under the trend line ... multiple closes, consolidation under, multiple legs under",
+    "description": "Only treat a trend-line break as a stop-out once price has closed below the projected trend line on multiple (not just one) consecutive bars.",
+    "pseudocode": "close[0] < trendLine(0) and close[1] < trendLine(1) and ... for confirmCloses consecutive bars",
+    "sides": "mirrored",
+    "parameters": {
+      "confirmCloses": 2,
+      "swingStrength": 2,
+      "pivotLookback": 20
+    },
+    "book_order_type": "close-based exit, requiring confirmation over several bars",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs trend-line projection from swing pivots plus a persistent multi-bar confirmation counter"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "TrendLineBreak",
+    "confidence": "medium",
+    "notes": [
+      "Grimes leaves the exact confirmation rule (closes vs. consolidation vs. legs) undefined; confirmCloses=2 is a reasonable default for the closes variant."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-21",
+    "name": "StopWidensToEmergingSwingStructure",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      265,
+      266
+    ],
+    "quote": "When emerging market structure suggests the need for a slightly wider stop ... the stop must remain inside the initial 1 x risk parameter; this is a hard limit established at the time of trade entry that can never be violated",
+    "description": "The initial stop may be widened, but only up to the original 1x-risk boundary, when a new swing point forms that redefines the market structure the stop is protecting.",
+    "pseudocode": "newStop = min(originalStopLevel_relaxedUp, ctx.EntryPrice() - 1 * stopDistance)  // long: newStop cannot go below entry - 1*stopDistance",
+    "sides": "mirrored",
+    "parameters": {
+      "stopDistance": 2
+    },
+    "book_order_type": "manual stop revision, capped at the original 1x risk envelope",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "\"emerging market structure\" is not defined precisely enough to code without a design decision on which new swing event triggers the widening"
+    },
+    "el_words_needed": [
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Really a modifier on whichever initial-stop rule (G08-01/G08-02/G08-03) is in play, not a standalone exit; recorded separately because Grimes calls it out as a distinct, rare, bounded exception to the never-widen rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-24",
+    "name": "LimitExitInsideSwingPivotOffset",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      252
+    ],
+    "quote": "you would place a limit to buy above $10.00 ... and a limit to sell somewhere below $20.00 ... It rarely makes sense to put your orders on the other side of a visible chart point",
+    "description": "A profit-taking limit order at a visible market-structure point (swing pivot) is placed a small offset inside the pivot rather than exactly at or beyond it, since the level may not trade through.",
+    "pseudocode": "high[0] >= swingHigh(pivotIndex, swingStrength) - offsetTicks * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotIndex": 1,
+      "swingStrength": 2,
+      "offsetTicks": 2
+    },
+    "book_order_type": "limit order placed inside the visible pivot; mechanized as a bar-extreme test",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "SwingPivotTarget",
+    "confidence": "high",
+    "notes": [
+      "SwingPivotTarget already has a toleranceAtr parameter that appears to implement exactly this inside-the-pivot offset."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G16-05",
+    "name": "FirstOrderPivotHighLow",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      447
+    ],
+    "quote": "A pivot high is a bar that is preceded and followed by lower highs; a pivot low has higher lows before and after. These pivot points are called first-order pivots to differentiate them from more significant pivots in the market structure.",
+    "description": "Definition of a confirmed swing pivot: a bar whose high (low) is higher (lower) than the N bars on either side of it.",
+    "pseudocode": "high[swingStrength] > high[swingStrength - k] for all k in prior swingStrength bars, and high[swingStrength] > high[swingStrength + k] for all k in following swingStrength bars",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 1
+    },
+    "book_order_type": "n/a (structural primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed local-extreme comparison over a small, fixed window"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "SwingHigh",
+    "confidence": "high",
+    "notes": [
+      "This is the plain-language definition of the swing pivot the corpus's SwingHigh/SwingLow primitives already implement, parameterized by strength; recorded here since several other glossary candidates (G16-06, G16-19, G16-21) depend on it explicitly."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-06",
+    "name": "SecondOrderPivot",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      455
+    ],
+    "quote": "A pivot point that is preceded and followed by lower first-order pivots for a second-order pivot high (reversed for pivot lows).",
+    "description": "A first-order swing pivot that is itself higher (for a high) than the first-order pivots immediately before and after it, i.e. a pivot of pivots.",
+    "pseudocode": "firstOrderPivotHigh(pivotIndex=1) > firstOrderPivotHigh(pivotIndex=2) and firstOrderPivotHigh(pivotIndex=1) > firstOrderPivotHigh(pivotIndex=0, future)",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (structural primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a nested pivot scan over the sequence of already-confirmed first-order pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "No exact match found in the catalog scan; existing rules take a swingStrength/pivotStrength parameter but none appear to implement a pivot-of-pivots ranking explicitly."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-10",
+    "name": "MicroTrendLineShortPivotWindow",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      450
+    ],
+    "quote": "Micro Trendlines A term used by Al Brooks to describe very small, short-term trend lines usually drawn between two to five bars.",
+    "description": "A trend line drawn between two very-close-together pivots (two to five bars apart), broken in the usual close-through-the-line way.",
+    "pseudocode": "close[0] < trendLine(pivotLookback, swingStrength)[0] where pivotLookback in [2,5]",
+    "sides": "mirrored",
+    "parameters": {
+      "pivotLookback": 4,
+      "swingStrength": 1,
+      "breakTicks": 0
+    },
+    "book_order_type": "close-based break, same as the corpus's other trend-line rules",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "trend-line projection from pivots, same mechanism as the corpus's TrendLineBreak but with a deliberately tiny pivot window"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "MicroTrendLineFailedBreakout",
+    "confidence": "high",
+    "notes": [
+      "Essentially TrendLineBreak / TightChannel with pivotLookback clamped to 2-5 bars and swingStrength=1."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  }
+]

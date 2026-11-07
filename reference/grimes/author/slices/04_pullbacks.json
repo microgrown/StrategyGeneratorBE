@@ -1,0 +1,588 @@
+{
+ "slice": "04_pullbacks",
+ "rules": [
+  {
+   "key": "HighAndTightFlagSmallBarsNearExtreme",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "In an uptrend, each of the last N bars has a small range and holds within a fraction of an ATR of the recent highest high -- the one- or two-bar 'high and tight flag' that is a complete pullback. Mirrored below the recent lowest low in a downtrend.",
+   "pseudocode": "allOf(i = 0..pullbackBars-1: (high[i]-low[i]) < smallBarAtrFraction*atr(atrLookback) AND (highest(high, swingLookback)[1] - low[i]) < nearAtrFraction*atr(atrLookback))",
+   "sides": "mirrored",
+   "parameters": {
+    "pullbackBars": 2,
+    "smallBarAtrFraction": 0.5,
+    "nearAtrFraction": 1.0,
+    "swingLookback": 20,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an all-of-N loop over an ATR-scaled range test and an ATR-scaled distance to a shifted window extreme"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "SmallBarNearRecentExtreme",
+    "relation": "variant",
+    "note": "that rule reads a small bar near the recent LOW with an up close (buying at support); this reads small bars near the recent HIGH on the long side, a SIDE EXCHANGE which decision 12 says is a separate rule, and it is an all-of-N run rather than one bar"
+   },
+   "sources": [
+    "G01-14"
+   ],
+   "merge_notes": "Level is the shifted window extreme per decision 7, not a pivot. Distance and bar size both in ATRs (shift test). Grimes gives no numbers; defaults chosen. Kept apart from ShallowPullbackFractionOfImpulse, which measures depth against the impulse instead of bar size.",
+   "variants_kept_separate": [
+    "ShallowPullbackFractionOfImpulse"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "HiddenComplexPullbackBodyCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "One or two with-trend bodies sit inside an otherwise against-trend run of bars -- the 'hidden' complex pullback that looks simple on the trading timeframe. Long side: between minOpposite and lookback-1 of the last N bars closed below their own open.",
+   "pseudocode": "countIf(close < open, lookback) >= minOpposite AND countIf(close < open, lookback) <= maxOpposite",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 6,
+    "minOpposite": 4,
+    "maxOpposite": 5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one CountIF over a window compared against two bounds"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "OppositeBodyCountInWindow",
+    "relation": "parameterization",
+    "note": "add a minOpposite input; the catalog rule already computes CountIF(Close < Open, lookback) and caps it, and a BAND is not that rule negated (the PullbackNearMissesEntryPrice / ShallowDipBelowPriorBarLow precedent)"
+   },
+   "sources": [
+    "G01-15",
+    "G06-28"
+   ],
+   "merge_notes": "Two restatements, one test. G01-15 spells it as a down-close run split by one up-close bar, G06-28 as one or two with-trend candles mid-pullback; both reduce to a count band. RECORDED LOSS: the count does not require the with-trend bars to be contiguous or central.",
+   "variants_kept_separate": [
+    "ComplexPullbackSecondLegBeyondFirst"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "CountIF"
+   ]
+  },
+  {
+   "key": "NoClimaxBarInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "No climax bar of either direction printed in the last N bars. Stated positively; the per-placement negate toggle gives Grimes's block, 'do not enter pullbacks following potential climaxes'.",
+   "pseudocode": "noneOf(i = 0..climaxLookback-1: ClimaxBar(i))",
+   "sides": "same",
+   "parameters": {
+    "climaxLookback": 10,
+    "climaxMultiple": 2,
+    "atrLength": 20,
+    "bodyFraction": 0.6
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a bounded OR over the catalog's single-bar ClimaxBar test, one ATR accumulator in the hook"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "ClimaxBar",
+    "relation": "variant",
+    "note": "the window form: ClimaxBar fires on one bar, and 'no climax in the last N bars' cannot be built by negating a single placement of it. Follows PostGapFadeBlockWindow's construction exactly, including the positive statement"
+   },
+   "sources": [
+    "G03-09",
+    "G06-29"
+   ],
+   "merge_notes": "Two restatements of one filter (ch3 'do not enter pullbacks following potential climaxes'; ch6 blocks the simple Pullback template but allows the complex one). Cool-off windows 10 both times. ConsecutiveClimaxBarCount is the count form and is not this.",
+   "variants_kept_separate": [
+    "NoMomentumDivergenceInWindow"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "ImpulseLegNetMove",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A short net directional move that is large relative to recent volatility: somewhere within the last searchBars bars, the close moved more than K ATRs over legBars bars. Grimes's 'impulse move' / 'momentum move', and the with-trend precondition for trading a pullback.",
+   "pseudocode": "anyOf(i = 0..searchBars: close[i] - close[i+legBars] > impulseAtrMult * atr(atrLength)[i])",
+   "sides": "mirrored",
+   "parameters": {
+    "legBars": 3,
+    "impulseAtrMult": 2.0,
+    "atrLength": 14,
+    "searchBars": 0
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a fixed-offset net-move comparison against an ATR, optionally scanned back over a small window"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "Momentum",
+    "relation": "variant",
+    "note": "Momentum compares close with close N bars ago against zero; this adds an ATR-scaled threshold and a search window, so it fires on a far smaller set of bars. Not EmaSlope (the EMA against its own past value), not StrongTrendBarRun (per-bar bodies, no net-move term)"
+   },
+   "sources": [
+    "G16-09",
+    "G03-15"
+   ],
+   "merge_notes": "G16-09 is the bar-0 test; G03-15 ('trade only pullbacks preceded by significant momentum', 15 bars) is the same test as a window, carried as searchBars rather than a second rule. G03-15's oscillator-extreme spelling loses to the price form on mechanizability; the oscillator rule lives in indicators_bands.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "PullbackRangeBelowLegRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The mean bar range over the pullback window is smaller than a fraction of the mean bar range over the setup leg immediately before it -- 'good pullbacks almost always show reduced activity'.",
+   "pseudocode": "average(high - low, pullbackBars) < reducedFraction * average(high - low, legBars)[pullbackBars]",
+   "sides": "same",
+   "parameters": {
+    "pullbackBars": 5,
+    "legBars": 10,
+    "reducedFraction": 0.75
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two adjacent window means of the high-low range"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "TrueRangeAvgRatio",
+    "relation": "variant",
+    "note": "that rule nests a fast TrueRange mean inside a slow one (lookback vs lookback x slowFactor, same end bar); this compares two ADJACENT windows of the high-low range, so the setup leg is out of the pullback's own benchmark. Not BarRangeBelowAverageMultiple, which sizes ONE bar against a window mean"
+   },
+   "sources": [
+    "G03-22",
+    "G06-15"
+   ],
+   "merge_notes": "Two restatements, one test; ch6's explicit two-window form wins over ch3's pivot-delimited phrasing (decision 7: windows, not pivots). Fractions 0.7 (ch3) and 0.75 (ch6); 0.75 default.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Average"
+   ]
+  },
+  {
+   "key": "GapHoldsUnfilled",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A bar gapped in the trend direction and the gap has not filled since: the lowest low of the last N bars is still above the pre-gap bar's high (long), mirrored on the short side.",
+   "pseudocode": "low[fillLookback] > high[fillLookback + 1] AND lowest(low, fillLookback) > high[fillLookback + 1]",
+   "sides": "mirrored",
+   "parameters": {
+    "fillLookback": 5,
+    "gapBarOffset": 1
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the TrueGapBar test at a fixed lag plus one window extreme"
+   },
+   "timeframe": "daily-ok",
+   "el_words_needed": [
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "GapHoldsAbovePriorSessionClose",
+    "relation": "variant",
+    "note": "that rule's reference is the PRIOR SESSION'S CLOSE and it needs the session machinery; this one's is a BAR gap (TrueGapBar's whole-range non-overlap), so it works on any bar scale and is what Grimes asks on a daily chart. Not GapFilledExit, an Exit anchored to a scanned-for gap"
+   },
+   "sources": [
+    "G03-34"
+   ],
+   "merge_notes": "Grimes's test is 'are there gaps up that do not fill'. Mechanized with the gap bar at a FIXED lag rather than a backward scan, which keeps it a plain window rule; the scanned form is GapFilledExit's construction and is the recorded alternative.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "RisingSwingLowCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The last minRisingLows confirmed swing lows each sit above the one before -- pullbacks getting shallower into a level, Grimes's ascending-triangle accumulation. Short wants successively lower swing highs.",
+   "pseudocode": "swingLow(1) > swingLow(2) AND swingLow(2) > swingLow(3)",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "maxBarsBack": 60,
+    "minRisingLows": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs three confirmed pivots of one series, the corpus's newest-first pivot scan"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "HigherSwingLow",
+    "relation": "parameterization",
+    "note": "that rule compares occurrences 1 and 2; add a minRisingLows input (default 2, so every existing placement is unchanged) to extend it to occurrence 3, which is inside decision 14's three-pivot scan and is what TrendLineSlopeFlattening already reads"
+   },
+   "sources": [
+    "G05-07"
+   ],
+   "merge_notes": "The pattern's second half -- a flat ceiling while the lows rise -- is LevelTouchCount or Ledge in its own pane, not folded in. Grimes gives no swing count; 3 is the miner's default and the parameterization's point.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "AtrAboveAverageMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The ATR stands more than K times its own N-bar average -- extremely high volatility going into a pullback, which Grimes reads as a climax/exhaustion warning that the pullback is likely to fail.",
+   "pseudocode": "atr(atrLookback) > atrMultiple * average(atr(atrLookback), lookback)",
+   "sides": "same",
+   "parameters": {
+    "atrLookback": 14,
+    "lookback": 20,
+    "atrMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an average of an ATR, already built"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AvgTrueRange",
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "AtrAboveAverage",
+    "relation": "parameterization",
+    "note": "add an atrMultiple input, default 1.0 so every existing placement is unchanged; Grimes's 'extremely high' is the same comparison with a multiple on the right-hand side"
+   },
+   "sources": [
+    "G05-22"
+   ],
+   "merge_notes": "One new input on an on-disk rule. The zero-padded warm-up caveat in the catalog line still applies and the multiple makes it bite harder early, which is worth a note when the input is added.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "AvgTrueRange",
+    "Average"
+   ]
+  },
+  {
+   "key": "TrendLineSlopeSteepening",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Successive trend lines through the confirmed pivots are getting STEEPER, not flatter -- a series of ever-steepening legs, which Grimes reads as a market priming for a parabolic blow-off.",
+   "pseudocode": "newSlope > steepenFraction * oldSlope AND oldSlope > 0",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 40,
+    "flattenFraction": 1.25,
+    "steepenSense": 1
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "three confirmed pivots and two slope quotients -- exactly the machinery already on disk"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "TrendLineSlopeFlattening",
+    "relation": "parameterization",
+    "note": "add a steepenSense boolean, default 0. Decision 12: the negate toggle gives 'not A', and negating that rule also negates its 'the older line rose' guard, so the steepening reading is not reachable from a placement -- but it is a one-line comparison flip on identical machinery, so it is an input rather than a second file"
+   },
+   "sources": [
+    "G05-23"
+   ],
+   "merge_notes": "Grimes gives no ratio; 1.25 is the suggested steepening default against the existing 0.8 flattening one. Both sides keep the sign handling the on-disk rule already has for two negative slopes.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "EqualHighsBreakout",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Two or three consecutive bars inside the pullback share nearly the same high, and this bar closes above that shared high -- Grimes's precise entry timing inside a pullback.",
+   "pseudocode": "abs(high[1] - high[2]) <= tolTicks * tick AND close[0] > highest(high, equalBarsCount)[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "equalBarsCount": 2,
+    "toleranceTicks": 2
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a small-window equality test plus one breakout comparison"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "MicroDoubleExtreme",
+    "relation": "variant",
+    "note": "that rule states the matching-extremes half alone and assigns the sides the other way (matching LOWS on the long side); this pairs matching HIGHS with a long breakout through them, a side exchange plus a trigger. Ledge is the anchored multi-bar form of the same flat level and is likewise not the trigger"
+   },
+   "sources": [
+    "G06-23"
+   ],
+   "merge_notes": "Kept whole like a crossing: the flat level and the close through it are one event, and no pane-AND pairs the HIGH-side level with the LONG trigger. Tolerance stays in TICKS, as MicroDoubleExtreme's does -- Grimes means literally equal highs.",
+   "variants_kept_separate": [
+    "LevelBreakAndRecover"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "LevelBreakAndRecover",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's first pullback trigger: the line bounding the pullback is penetrated and price recovers straight back across it. Mechanized as the previous bar trading below the pullback's shifted window low while this bar closes back above it.",
+   "pseudocode": "low[1] < lowest(low, pullbackLookback)[2] AND close[0] > lowest(low, pullbackLookback)[2]",
+   "sides": "mirrored",
+   "parameters": {
+    "pullbackLookback": 10
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one shifted window extreme read on two bars"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "StopRunReclaimReentry",
+    "relation": "variant",
+    "note": "that rule's level is a CONFIRMED SWING PIVOT and its trigger is this bar taking out the prior bar's high by a tick; this one's level is the shifted window extreme (decision 7) and the recovery is this bar's CLOSE back above it, so the two fire on different bars. Not DipBelowPriorLowCloseBackAbove, whose level is the single prior bar's low and whose dip and recovery are the SAME bar"
+   },
+   "sources": [
+    "G06-03"
+   ],
+   "merge_notes": "Stray from breakouts. The book's trigger is a drawn trend line or channel line; the window-extreme proxy wins on mechanizability (decision 7) and needs no pivot retention. TrendLineBreak with decision 17's maxAnchorSpanBars is the projected-line alternative and is a different rule.",
+   "variants_kept_separate": [
+    "EqualHighsBreakout"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "RetracementDepthWithinBand",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The pullback has retraced between minFraction and maxFraction of the leg behind it -- Grimes expects terminations around 50 percent and anywhere in the 25 to 75 percent range, so both an unusually shallow and an unusually deep pullback fail.",
+   "pseudocode": "legHigh - low[0] >= minFraction * (legHigh - legLow) AND legHigh - low[0] <= maxFraction * (legHigh - legLow)",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 20,
+    "retracementFraction": 0.25,
+    "maxRetracementFraction": 0.75,
+    "pullbackLookback": 1
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window extremes and two multiplications; written as products, so a zero-height leg cannot divide by zero"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "PullbackDepthFromRecentHigh",
+    "relation": "parameterization",
+    "note": "add a maxRetracementFraction input, default large enough to be inert so every existing placement is unchanged. A BAND is not that rule negated -- a pullback that never got near the leg fails this and passes the negation -- exactly the PullbackNearMissesEntryPrice / ShallowDipBelowPriorBarLow precedent"
+   },
+   "sources": [
+    "G03-20"
+   ],
+   "merge_notes": "Stray from swing_structure. Book values 25 / 50 / 75 percent; the band's edges are the defaults and 0.5 is the centre Grimes expects. DeepPullbackRetracementFilter measures the CLOSE over a shifted window and assigns the sides the other way, so it is not the host.",
+   "variants_kept_separate": [
+    "ShallowPullbackFractionOfImpulse"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "HigherSwingLowRun",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last `legs` confirmed swing lows is above the one before it (short: swing highs each below the one before) - successively smaller declines into a level.",
+   "pseudocode": "all k in 1..legs-1: swingLow(k) > swingLow(k + 1)",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "legs": 3,
+    "maxBarsBack": 60
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the pivot scan and `legs` confirmed pivots held at once"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "HigherSwingLow",
+    "relation": "parameterization",
+    "note": "that rule plus ONE new `legs` input; at legs 2 it is exactly that rule, which already carries the pivot scan, the -1 sentinel guard and the maxBarsBack window"
+   },
+   "sources": [
+    "G06-43"
+   ],
+   "merge_notes": "Not HigherLowCount, which counts ADJACENT BAR pairs at a fixed lag rather than structure. A third pivot slot is the only new machinery; the -1 sentinel guard must be a bool on the scan's bar index, never a price test, since back-adjusted futures can print -1.00.",
+   "variants_kept_separate": [
+    "HigherLowCount",
+    "TrendingHighsAndLows",
+    "StairsPattern"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "MicroTrendLineBreak",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The close breaks the projected trend line whose two pivot anchors lie no more than `maxAnchorSpanBars` apart \u2014 the micro-trend-line break.",
+   "pseudocode": "close[0] < bullMicroTrendLine(0) - breakTicks * (ctx.MinMove() / ctx.PriceScale())  // long side breaks the BEAR micro line from below, per TrendLineBreak's pairing",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 1,
+    "pivotLookback": 20,
+    "maxAnchorSpanBars": 5,
+    "breakTicks": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one new input on an existing rule; the line machinery and the span cap are both already built"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "MinMove",
+    "PriceScale"
+   ],
+   "catalog_match": {
+    "rule": "TrendLineBreak",
+    "relation": "parameterization",
+    "note": "add one input, `maxAnchorSpanBars`"
+   },
+   "sources": [
+    "G16-10"
+   ],
+   "merge_notes": "ADD `maxAnchorSpanBars` (0 = unbounded, which preserves every existing TrendLineBreak placement) to `TrendLineBreak`, capping the bar distance between the two pivot anchors, and run it at swingStrength 1; that is the whole of this candidate. `MicroTrendLineFailedBreakout` already carries the same cap as `microLineBars(10)`, so the construction is measured, not new. Grimes's span is 2-5 bars, Brooks's 2-10; default 5.",
+   "variants_kept_separate": [
+    "MicroTrendLineReclaim"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "MinMove",
+    "PriceScale"
+   ]
+  }
+ ]
+}

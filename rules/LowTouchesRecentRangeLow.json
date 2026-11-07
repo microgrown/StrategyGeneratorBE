@@ -1,0 +1,59 @@
+{
+    "name": "LowTouchesRecentRangeLow",
+    "type": "Entry",
+    "inputVariables": {
+        "levelLookback": "20",
+        "tolAtr": "0.25",
+        "atrLength": "14",
+        "lag": "0"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "levelLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE BAR REACHES DOWN TO THE RECENT FLOOR. Long: the low of the bar `lag`\n// bars ago comes to within tolAtr ATRs of the lowest low of the levelLookback\n// bars ENDING ONE BAR BEFORE IT -- Grimes's resting bid at the base's support.\n// Mirrored: the high reaches up to the window's highest high, his offer at\n// resistance.\n//\n// SIDES EXCHANGED FROM TouchOfRecentExtreme, which is the momentum read: ITS\n// long side is the bar's highest price reaching the window top (the magnet\n// above), where this one's long side is the bar's lowest price reaching the\n// window floor (the bid at support). A side exchange is NOT the per-placement negate toggle -- the\n// DistanceAboveRecentLow / PullbackFromRecentHigh precedent -- so neither rule\n// can be placed to do the other's job. Not SwingPointTestHolds, which needs a\n// CONFIRMED pivot and also requires the low NOT to break it; not\n// NearMissLevelReversal, a two-sided band plus a close-up term; not\n// PullbackFromRecentHigh, which measures the low DOWN FROM the window top.\n//\n// THERE IS DELIBERATELY NO CAP on how far through the level the bar trades: a\n// resting limit order fills on the way down, so the test is ONE-SIDED with a\n// tolerance band above the level, never a two-sided band.\n//\n// THE WINDOW EXCLUDES THE TESTED BAR, so the bar cannot set the level it is\n// tested against; the EL twin hands Lowest/Highest the SHIFTED price series\n// (the low series offset by lag + 1) rather than lagging the function's own\n// result -- the StopBeyondRecentRangeExtreme / TouchOfRecentExtreme spelling.\n//\n// THE TOLERANCE IS AN ATR FRACTION (merge decision 7), where\n// TouchOfRecentExtreme's is in ticks: the ATR form is the corpus's settled\n// level tolerance and is what makes the same 0.25 mean the same thing on @ES\n// and on @HO. That is the deliberate reconciliation, not an oversight.\n//\n// `lag` follows StrongTrendBar's convention: it exists so that \"touched one\n// bar ago, and is now well away from the level\" is TWO placements rather than\n// a composite rule. At lag 0 this is the merged key LowTouchesRecentLow term\n// for term (its baseLookback 10 / touchTolAtr 0.25 / atrLookback 14 are a grid\n// point of this rule), which is why that key is not a second file.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh mean:\n// AtrProfitTarget's block verbatim, including the TWO separate accumulator\n// statements and the re-seed when the length changes.\n//\n// The window loops mirror EasyLanguage's Extremes(): seeded at the window's\n// first bar, scanning the rest, strict comparison under the EL relational\n// tolerance -- hence el_gt / el_lt, as in Breakout.\n//\n// Deepest bar touched: max(lag + levelLookback, atrLength + 1).\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\nlevelLow = low[lag + 1];\nlevelHigh = high[lag + 1];\nfor (int i = 1; i < (int)levelLookback; ++i) {\n    if (el_lt(low[(int)lag + 1 + i], levelLow)) levelLow = low[(int)lag + 1 + i];\n    if (el_gt(high[(int)lag + 1 + i], levelHigh)) levelHigh = high[(int)lag + 1 + i];\n}",
+    "longCondition": "el_le(low[lag], levelLow + tolAtr * atrValue)",
+    "shortCondition": "el_ge(high[lag], levelHigh - tolAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

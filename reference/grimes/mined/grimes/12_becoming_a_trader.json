@@ -1,0 +1,109 @@
+{
+  "source": {
+    "book": "The Art and Science of Technical Analysis",
+    "book_key": "grimes",
+    "author": "Adam Grimes",
+    "chapter": 12,
+    "chapter_title": "Becoming a Trader",
+    "text_file": "reference/grimes/text/grimes/12_becoming_a_trader.txt",
+    "pdf_pages": [391, 414],
+    "mined": "2026-09-21"
+  },
+  "conventions": "stop and limit entries mechanized as bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode; price-level conditions rejected (shift test)",
+  "candidates": [
+    {
+      "id": "G12-01",
+      "name": "DailyLossLimitSwitch",
+      "role": "Switch",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [398],
+      "quote": "Is there a loss level at which you will stop trading for the day/week/month?",
+      "description": "Equity lost since the start of the current calendar day (or week/month) exceeds a dollar threshold; blocks new entries and forces flat until the period rolls over. The daily-loss-limit generalization of the existing MonthlyProfitTarget Switch, mirrored onto the loss side and onto a day/week boundary instead of a fixed calendar month.",
+      "pseudocode": "// dayStartEquity is captured once, on the first bar of each new calendar date\nif (date[0] != date[1]) dayStartEquity = netProfit[0] + openPositionProfit[0]\n(netProfit[0] + openPositionProfit[0] - dayStartEquity) <= -dailyLossLimit",
+      "sides": "same",
+      "parameters": { "dailyLossLimit": 1000 },
+      "book_order_type": "n/a (context test / global switch)",
+      "timeframe": "any",
+      "complexity": { "grade": "research", "reason": "needs a design decision for how the day/week/month boundary is detected and how starting equity is captured and held as persistent state across bars; the underlying comparison (equity change since a period start vs. a threshold) is simple once that plumbing exists, exactly as MonthlyProfitTarget already does for a calendar month" },
+      "el_words_needed": ["Date", "NetProfit", "OpenPositionProfit"],
+      "likely_existing_rule": "MonthlyProfitTarget, EquityDrawdownFilter",
+      "confidence": "medium",
+      "notes": [
+        "Grimes gives no explicit dollar figure; the phrasing is a question the trader must answer for his own plan. dailyLossLimit = 1000 is an arbitrary placeholder default, flagged for calibration by the authoring pass.",
+        "MonthlyProfitTarget already gates entries on cumulative equity gain since the start of the calendar month (Switch role, blocks entries, forces flat); this candidate is its mirror image (loss instead of gain) generalized to day/week/month instead of a fixed month boundary.",
+        "EquityDrawdownFilter is close but reads a rolling N-bar lookback rather than resetting at a calendar boundary -- a different accessor pattern (variable history vs. a captured period-start value)."
+      ]
+    },
+    {
+      "id": "G12-02",
+      "name": "TradeCountLimitSwitch",
+      "role": "Switch",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [398],
+      "quote": "How many trades a day/week/month will you allow?",
+      "description": "The number of entries already taken in the current calendar day (or week/month) reaches a cap; blocks further entries until the period rolls over.",
+      "pseudocode": "// tradesToday counts entries taken since the first bar of the current date\nif (date[0] != date[1]) tradesToday = 0\nif (ctx.MarketPosition() != 0 and ctx.BarsSinceEntry() == 0) tradesToday = tradesToday + 1\ntradesToday >= maxTradesPerDay",
+      "sides": "same",
+      "parameters": { "maxTradesPerDay": 5 },
+      "book_order_type": "n/a (context test / global switch)",
+      "timeframe": "any",
+      "complexity": { "grade": "research", "reason": "no existing ctx accessor counts entries taken since a period start; TotalTrades (used by LastTradeCooldown) is cumulative since the strategy began, not since the current day/week/month started, so a new persistent counter plus a day-boundary reset would need to be designed" },
+      "el_words_needed": ["Date", "TotalTrades"],
+      "likely_existing_rule": "",
+      "confidence": "medium",
+      "notes": [
+        "Grimes gives no explicit cap; maxTradesPerDay = 5 is an arbitrary placeholder default, flagged for calibration.",
+        "Needs a trade-count-since-period-start accessor that does not currently exist in the corpus; closest existing tool is LastTradeCooldown's use of TotalTrades, which is a lifetime counter, not a per-day/week/month one."
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "pages": [392, 393, 394],
+      "quote": "Pretrader... Novice trader... Early competent trader... Competent trader... Proficient trader... Experienced trader.",
+      "reason": "career-stage development narrative; no bar-level test"
+    },
+    {
+      "pages": [393, 394, 395, 396, 397],
+      "quote": "you must be able to devote a sufficient amount of time on a regular schedule to building trading knowledge and skills.",
+      "reason": "requirements for trading as a career (time, capital, team, mentor, technology); business/personal-development guidance, no bar-level test"
+    },
+    {
+      "pages": [397, 398],
+      "quote": "craft a business plan for your trading operations... A good plan will include all of the following: schedule for research and review, list of patterns and ideas, target activity and risk levels...",
+      "reason": "meta-planning checklist for the trader's own business/trading plan; only the two operational sub-questions on a period loss limit and a period trade-count cap reduce to bar-level/position-state tests and were mined separately as G12-01 and G12-02"
+    },
+    {
+      "pages": [399],
+      "quote": "it makes sense to keep your risk as small as possible on each trade until you have achieved consistency.",
+      "reason": "position sizing, not a bar-level rule (explicitly excluded by MINING.md)"
+    },
+    {
+      "pages": [399, 400],
+      "quote": "It is important to have a regularly scheduled time to evaluate your trading performance... expect setbacks and failures, especially in the first two years.",
+      "reason": "review-cadence and morale/perseverance guidance; no bar-level test"
+    },
+    {
+      "pages": [401, 402, 403, 404],
+      "quote": "A good journal is one of the trader's most important tools... record such trivial points as what you had for breakfast, how much you slept.",
+      "reason": "record-keeping and journaling practice; no bar-level test"
+    },
+    {
+      "pages": [404, 405, 406, 407, 408, 409],
+      "quote": "Table 12.1 shows summary statistics for an active swing trader trading four separate systems... a significance test (one-tailed t-test) for the mean P&L being >0.",
+      "reason": "statistics-of-the-book material (expectancy tables, significance testing, %R standardization); explicitly excluded by MINING.md, no bar-level test"
+    },
+    {
+      "pages": [410, 411, 412, 413],
+      "quote": "Control charts are tools used in manufacturing to monitor physical processes for early signs of degradation or failure... the Standard Deviation Control Chart.",
+      "reason": "post-hoc monitoring tools computed on the trader's own P&L series (control charts, win-ratio chart); statistics-of-the-book material, no bar-level price/position condition"
+    }
+  ],
+  "chapter_summary": "Chapter 12 covers the road map of trader development, the business/personal requirements for trading as a career, building a business and trading plan, journaling and record keeping, and statistical review of trading results (significance tests, %R standardization, control charts). Almost all of it is career, business-practice, or book-only-statistics material with no bar-level test. The trading-plan checklist buried two operational questions that do reduce to position-state tests -- a period loss limit and a cap on trades per period -- mined as Switch candidates G12-01 (DailyLossLimitSwitch) and G12-02 (TradeCountLimitSwitch); both are graded 'research' because Grimes gives no numeric threshold and the corpus has no existing accessor for equity-since-period-start or trades-since-period-start."
+}

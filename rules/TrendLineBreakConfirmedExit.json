@@ -1,0 +1,90 @@
+{
+    "name": "TrendLineBreakConfirmedExit",
+    "type": "Exit",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "20",
+        "confirmCloses": "2"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "belowRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "aboveRun": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND LINE USED AS A TRAILING STOP, BUT ONLY AFTER THE BREAK IS\n// CONFIRMED: exit the long once the closing price has been BELOW the bull\n// trend line for confirmCloses CONSECUTIVE bars, bars 0..confirmCloses-1.\n// Short is the mirror above the bear line. Grimes (G08-17) leaves the\n// confirmation open -- multiple closes, a consolidation under the line, or\n// multiple legs under it -- and only the closes form is mechanizable;\n// confirmCloses 2 is his smallest.\n//\n// THE LINE is the family's shared construction (merge decision 20 and the\n// Brooks channel decision): the BULL trend line runs through the two most\n// recent CONFIRMED swing pivot lows, the BEAR trend line through the two most\n// recent confirmed swing pivot highs, and the two are deliberately NOT\n// parallel. A long is stopped out by ITS OWN side's line -- the bull line it\n// has been riding -- which is the opposite pairing from\n// TrendLineBrokenRecently, where a long needs the BEAR line broken as\n// permission to enter countertrend.\n//\n// NOT TrendLineBrokenRecently, twofold: that rule is K-of-N over a window of\n// withinBars, this is an ALL-OF-N run of consecutive closes; and that rule is\n// an ENTRY, which cannot sit in the exit pane. ConsecutiveClosesBeyondEmaRun\n// beside BarsBeyondEmaCount is the corpus's precedent for keeping a run apart\n// from a count. The loop runs exactly confirmCloses iterations, so the count\n// reaching confirmCloses means every one of those bars closed through.\n//\n// confirmCloses IS GUARDED AT 1 OR MORE: at 0 the loop would not run and the\n// count would trivially reach the threshold, exiting on the entry bar.\n//\n// COUNTED WITH AN EXPLICIT LOOP rather than CountIF, for\n// TrendLineBrokenRecently's reason: CountIF's argument is a price SERIES, and\n// the counted predicate here compares against a line whose value differs on\n// every bar of the window.\n//\n// THE PIVOTS ARE THE CURRENT ONES, not the pivots as they stood at bar kk;\n// re-deriving the pivot set per bar is not expressible in EL, so the line is\n// re-read at each bar of the run through TLValue's free extrapolation. Same\n// simplification in both twins.\n//\n// The pivot scan is INLINED, mirroring the twin's Occurrence 1 and 2 reads.\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR BEYOND the swingStrength OLDER bars, STRICTLY BEYOND\n// the swingStrength NEWER bars, and bars-ago indexing makes the SMALLER index\n// the NEWER bar, so the strict half is the k < j loop; the confirmation lag is\n// exactly swingStrength bars, so j starts there; pivotLookback is EL's Length\n// with offsets 0..pivotLookback-1 inclusive while the neighbourhood test\n// reaches swingStrength bars PAST the window, so the deepest index the scan\n// touches is pivotLookback - 1 + swingStrength; an empty window is the -1\n// SENTINEL, guarded here on the BAR INDEX and never on a price; the\n// comparisons carry the 2.22e-12 relational tolerance. Occurrence 3+ is\n// UNMEASURED and never asked for. No WFSafe_SwingLow exists, so plain EL\n// governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: the two-point line anchored at the FIRST\n// pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * Slope,\n// extrapolating freely. Bars-ago convention, OLDER pivot as P1/B1 (the\n// zero-drift spelling). Bar1 = Bar2 silently returns 0.0 and is guarded rather\n// than relied on; the slope is hoisted out of the per-target arithmetic where\n// the twin recomputes it inside each TLValue call -- identical doubles, same\n// line -- and is computed only inside the guard.\n//\n// Scratch is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; the loop counters and per-candidate flags are\n// block-scoped. Every local is fully assigned each bar before it is read.\n//\n// Deepest bar touched:\n// max(pivotLookback - 1 + swingStrength, confirmCloses - 1).\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\nbelowRun = 0;\naboveRun = 0;\nif (el_ge(confirmCloses, 1.0)) {\n    for (int kk = 0; kk <= (int)confirmCloses - 1; ++kk) {\n        if (haveLoLine && el_lt(close[kk], loP1 + ((double)kk - loB1) * loSlope)) {\n            belowRun = belowRun + 1;\n        }\n        if (haveHiLine && el_gt(close[kk], hiP1 + ((double)kk - hiB1) * hiSlope)) {\n            aboveRun = aboveRun + 1;\n        }\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveLoLine && el_ge(confirmCloses, 1.0) && el_ge((double)belowRun, confirmCloses)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveHiLine && el_ge(confirmCloses, 1.0) && el_ge((double)aboveRun, confirmCloses)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

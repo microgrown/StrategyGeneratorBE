@@ -1,0 +1,123 @@
+{
+    "name": "ThreePushSymmetry",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "lookbackBars": "40",
+        "symmetryTol": "0.3",
+        "timeSymmetryTol": "3"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "dnInc1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnInc2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnBars1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "dnBars2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upInc1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upInc2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBars1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upBars2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "symDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "symUp": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE THREE PUSHES ARE ROUGHLY SYMMETRIC IN BOTH PRICE AND TIME -- Grimes's\n// qualifier on the three-pushes termination pattern (G03-19, G16-19). The two\n// push-to-push increments sit within symmetryTol of each other, and the two\n// inter-pivot BAR GAPS sit within timeSymmetryTol bars of each other. The book\n// says only \"roughly symmetric\"; both tolerances are the miner's readings.\n//\n// A FILTER, NOT A TRIGGER. The pattern itself is ThreePushPattern (shapeMode\n// 0) and is not re-authored -- the ThreePush* family already covers detection,\n// shape, entry, slope, duration and exit. This is meant to be ANDed beside\n// ThreePushPattern or ThreePushReversalEntry in the same pane. Grimes's other\n// qualifier, \"the third push breaks the trend line drawn across pushes one and\n// two\", is TrendLineBreak in its own pane.\n//\n// SIDES FOLLOW ThreePushPattern's: the LONG reads the three swing pivot lows\n// (three lower lows, the bottoming pattern) and the SHORT reads the three\n// swing pivot highs. Increments are written as POSITIVE magnitudes and BOTH\n// are required positive, which is ThreePushPattern's patDn monotonicity\n// restated: without it symmetryTol * inc1 can go negative and the band stops\n// meaning anything. The duplication with the pane's pattern rule is deliberate\n// and keeps this rule self-consistent when placed alone.\n//\n// NOT ThreePushAcceleration, which is a ONE-SIDED multiple on the same two\n// increments, so no setting of it says \"the two increments are about equal\";\n// and nothing in the ThreePush* family measures TIME symmetry --\n// ThreePushDurationWindow bounds the pattern's TOTAL bars, not the evenness of\n// its legs.\n//\n// THE TIME TEST IS ON BAR INDICES, a difference of bars-ago counts, so it\n// passes the shift test trivially; the price test is a band on a difference of\n// differences, likewise.\n//\n// THE PIVOT SCAN IS HAND-ROLLED, verbatim from ThreePushPattern, rather than\n// calling SwingLow(3, ...): Occurrence 3 and above is UNMEASURED in the\n// register and the third pivot is the whole point. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR BEYOND the swingStrength OLDER bars and STRICTLY BEYOND the swingStrength\n// NEWER bars -- bars-ago indexing makes the SMALLER kk the newer bar, so the\n// strict half is the kk < jj loop; the confirmation lag is exactly\n// swingStrength bars, which is why jj starts there; candidate offsets run\n// 0..Length-1 inclusive so jj stops at lookbackBars - 1, while the\n// neighbourhood test reaches swingStrength bars PAST the window -- deepest bar\n// touched lookbackBars - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; the low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingLow exists, so plain EL governs. Written\n// WITHOUT break, matching the twin statement for statement, and the < 3 guards\n// stop a fourth pivot being recorded.\n//\n// THE SENTINEL IS GUARDED BY THE COUNTS reaching three, never by a price test:\n// -1.00 and 0.00 are legitimate prices in a back-adjusted series. The bar\n// slots carry -1 too, and they are bar indices, where -1 is safe.\n//\n// AbsValue is ACCEPTED in the register; std::fabs is its counterpart and\n// <cmath> is already included by the emitter.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched: lookbackBars - 1 + swingStrength.\npivS = (int)swingStrength;\npivW = (int)lookbackBars;\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nhiB1 = -1.0;\nhiB2 = -1.0;\nhiB3 = -1.0;\nloB1 = -1.0;\nloB2 = -1.0;\nloB3 = -1.0;\nfor (int jj = pivS; jj <= pivW - 1; ++jj) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int kk = jj - pivS; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (int kk = jj + 1; kk <= jj + pivS; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) { hiPx1 = high[jj]; hiB1 = (double)jj; }\n        if (nHiPiv == 2) { hiPx2 = high[jj]; hiB2 = (double)jj; }\n        if (nHiPiv == 3) { hiPx3 = high[jj]; hiB3 = (double)jj; }\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) { loPx1 = low[jj]; loB1 = (double)jj; }\n        if (nLoPiv == 2) { loPx2 = low[jj]; loB2 = (double)jj; }\n        if (nLoPiv == 3) { loPx3 = low[jj]; loB3 = (double)jj; }\n    }\n}\ndnInc1 = loPx3 - loPx2;\ndnInc2 = loPx2 - loPx1;\ndnBars1 = loB3 - loB2;\ndnBars2 = loB2 - loB1;\nupInc1 = hiPx2 - hiPx3;\nupInc2 = hiPx1 - hiPx2;\nupBars1 = hiB3 - hiB2;\nupBars2 = hiB2 - hiB1;\nsymDn = (nLoPiv >= 3) && el_gt(dnInc1, 0.0) && el_gt(dnInc2, 0.0)\n    && el_le(std::fabs(dnInc2 - dnInc1), symmetryTol * dnInc1)\n    && el_le(std::fabs(dnBars2 - dnBars1), timeSymmetryTol);\nsymUp = (nHiPiv >= 3) && el_gt(upInc1, 0.0) && el_gt(upInc2, 0.0)\n    && el_le(std::fabs(upInc2 - upInc1), symmetryTol * upInc1)\n    && el_le(std::fabs(upBars2 - upBars1), timeSymmetryTol);",
+    "longCondition": "symDn",
+    "shortCondition": "symUp",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

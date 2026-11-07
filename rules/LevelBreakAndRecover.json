@@ -1,0 +1,24 @@
+{
+    "name": "LevelBreakAndRecover",
+    "type": "Entry",
+    "inputVariables": {
+        "pullbackLookback": "10"
+    },
+    "localVariables": {
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S FIRST PULLBACK TRIGGER (G06-03): the line bounding the pullback is\n// penetrated and price recovers straight back across it. The bounding line is\n// mechanized as the pullback's SHIFTED WINDOW EXTREME (merge decision 7 and\n// decision 20 -- the window extreme, never a drawn or projected line), so a\n// LONG needs the PREVIOUS bar to have traded below the lowest low of the\n// pullbackLookback bars ending TWO bars ago, while THIS bar closes back above\n// that same level. The short mirrors on the highs.\n//\n// The level is read at offset 2, not 1, so the breaking bar's own low cannot\n// define the level it is said to have broken.\n//\n// NOT StopRunReclaimReentry, whose level is a CONFIRMED SWING PIVOT and whose\n// trigger is this bar taking out the PRIOR BAR's high by a tick -- a different\n// level and a different bar. NOT DipBelowPriorLowCloseBackAbove, whose level is\n// the single prior bar's low and whose dip and recovery are the SAME bar. NOT\n// TrendLineBreak, which is the PROJECTED-line form (decision 20).\n//\n// KEPT WHOLE like a crossing: the break and the recovery are one event, and no\n// pane-AND pairs them because every entry pane evaluates on the SAME bar -- the\n// break is tested on bar 1 and the recovery on bar 0.\n//\n// The scan mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call:\n// seeded at the window's FIRST bar (offset 2 here, because the window is\n// shifted by two), scanning the rest with a STRICT comparison so a tie keeps\n// the earliest bar. Extremes is EL SOURCE, so its comparisons carry the\n// relational tolerance and use el_lt / el_gt rather than raw < and >.\n//\n// SHIFT TEST: every comparison is a price against a price drawn from the same\n// series, so the rule is invariant under a constant added to the whole series.\n//\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy. Every one is fully assigned\n// each bar before it is read.\nlvlLo = low[2];\nlvlHi = high[2];\nfor (int i = 3; i <= (int)pullbackLookback + 1; ++i) {\n    if (el_lt(low[i], lvlLo)) lvlLo = low[i];\n    if (el_gt(high[i], lvlHi)) lvlHi = high[i];\n}",
+    "longCondition": "el_lt(low[1], lvlLo) && el_gt(close[0], lvlLo)",
+    "shortCondition": "el_gt(high[1], lvlHi) && el_lt(close[0], lvlHi)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

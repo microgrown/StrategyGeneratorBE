@@ -1,0 +1,29 @@
+{
+    "name": "WindfallRangeExpansionExit",
+    "type": "Exit",
+    "inputVariables": {
+        "extremeRangeMultiple": "4",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// TAKE THE WINDFALL. This bar's high-low range is an extreme outlier against\n// recent volatility and the position is in profit, so leave on that bar\n// instead of assuming the move continues (Grimes G10-10, his example the 2010\n// Flash Crash).\n//\n// NOT ClimaxBarAfterTrendRunExit: that rule also demands a WITH-TREND BODY and\n// a prior run of at least minTrendBars trend bars, so an enormous bar closing\n// back against its own open -- the flash-crash shape -- fires this and not\n// that. Not ConsecutiveTrendBarsClimaxExit, which counts bars rather than\n// sizing one.\n//\n// SIDES ARE MIRRORED: the range term is direction agnostic but the profit gate\n// is not. The gate is written against ctx.EntryPrice() rather than\n// ctx.OpenPositionProfit() deliberately, so it is gross of costs and compares\n// two prices on the same scale. The MarketPosition guard is load-bearing --\n// EntryPrice() is 0.0 while flat.\n//\n// extremeRangeMultiple 4 is the miner's guess; Grimes gives no multiple.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: atrLength + 1.\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the\n// measurements; the two load-bearing details are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0] - low[0], extremeRangeMultiple * atrVal) && el_gt(close[0], ctx.EntryPrice())",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(high[0] - low[0], extremeRangeMultiple * atrVal) && el_lt(close[0], ctx.EntryPrice())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

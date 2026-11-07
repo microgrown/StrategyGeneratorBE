@@ -1,0 +1,95 @@
+{
+    "name": "OppositeLegsSimilarLength",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "40",
+        "similarityFraction": "0.25",
+        "maxLegBars": "10"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "caseA": {
+            "type": "bool",
+            "init": "false"
+        },
+        "caseB": {
+            "type": "bool",
+            "init": "false"
+        },
+        "legPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legLast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legBars": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "bigLeg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "similar": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SHARP LEG IMMEDIATELY ANSWERED BY AN ALMOST EQUALLY SHARP LEG THE OTHER\n// WAY -- Grimes (G05-24): a very high probability of an extended, low-edge\n// consolidation, so block new entries. Expected use is NEGATED; the corpus\n// states every \"do not trade while X\" claim positively and lets the\n// per-placement negate toggle give the block.\n//\n// SIDES ARE IDENTICAL TEXT. A two-legged stall is a CONTEXT, not a direction,\n// and the pattern is symmetric by construction, since the two legs point\n// opposite ways whichever came first.\n//\n// THE TWO LEGS ARE THE THREE NEWEST ALTERNATING PIVOTS, and there are exactly\n// two ways they can lie, distinguished by which series carries the NEWEST\n// pivot. Bars-ago counts, so the older anchor carries the LARGER count:\n//   caseA, a swing pivot low newest (loB2 > hiB1 > loB1): the first leg ran UP\n//     from loPx2 to hiPx1 and the second ran DOWN from hiPx1 to loPx1;\n//   caseB, a swing pivot high newest (hiB2 > loB1 > hiB1): the first leg ran\n//     DOWN from hiPx2 to loPx1 and the second ran UP from loPx1 to hiPx1.\n// The two are mutually exclusive, so at most one is taken. In BOTH cases the\n// second leg is hiPx1 - loPx1, the span between the two newest pivots, and its\n// duration is the gap between their bar indices.\n//\n// THE OPPOSITE SIGNS ARE STRUCTURAL, not tested: consecutive legs between\n// alternating pivots necessarily point opposite ways, so the merged\n// pseudocode's sign(leg1) != sign(leg2) is satisfied by the ordering guard and\n// the two legs are measured as POSITIVE magnitudes. Both are required positive\n// all the same, which is what makes the similarity band meaningful.\n//\n// THE SIMILARITY BAND IS AGAINST THE LARGER LEG, the looser of the two\n// readings, and the larger is picked with a plain comparison rather than\n// MaxList -- MaxList's register row scopes it to tick-grid PRICE operands and\n// these are computed differences, so the explicit if-form is used in both\n// twins. Grimes gives no number; 0.25 is the miner's. maxLegBars bounds the\n// SECOND leg's duration, which is what \"immediately answered\" means.\n//\n// NOT SpikeReversedBySpike, the BAR-RUN form, which carries no magnitude\n// comparison. Not OppositeLargeBarsInWindow, which needs only one large bar of\n// each sign anywhere in a window. Not ExpandingTrianglePattern, which needs\n// BOTH series diverging over five pivots. The pivot prices read here are the\n// same A/B/C anchors LegOneEqualsLegTwoTarget reads, and its ordering guard is\n// the one copied.\n//\n// THE PIVOT SCAN IS INLINED, mirroring the twin's Occurrence 1 and 2 reads.\n// MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot\n// test is MIXED -- AT OR BEYOND the swingStrength OLDER bars, STRICTLY BEYOND\n// the swingStrength NEWER bars, and bars-ago indexing makes the SMALLER index\n// the NEWER bar, so the strict half is the k < j loop; the confirmation lag is\n// exactly swingStrength bars, so j starts there; pivotLookback is EL's Length\n// with offsets 0..pivotLookback-1 inclusive while the neighbourhood test\n// reaches swingStrength bars PAST the window, so the deepest index touched is\n// pivotLookback - 1 + swingStrength; an empty window is the -1 SENTINEL,\n// guarded on the BAR INDEX and never on a price; the comparisons carry the\n// 2.22e-12 relational tolerance. Occurrence 3+ is UNMEASURED and never asked\n// for. The low side's tie sense is the mirror of the measured high-side rule.\n// No WFSafe_SwingLow exists, so plain EL governs. AbsValue is ACCEPTED and\n// std::fabs is its counterpart; <cmath> is already included by the emitter.\n//\n// Written WITHOUT break and with the < 2 counters, statement for statement\n// with the twin's Occurrence 1 / 2 reads. Every scratch value that must\n// survive the bar is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: pivotLookback - 1 + swingStrength.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiB1 = -1.0;\nhiPx2 = -1.0;\nhiB2 = -1.0;\nloPx1 = -1.0;\nloB1 = -1.0;\nloPx2 = -1.0;\nloB2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiB1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiB2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loB1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loB2 = (double)j; }\n    }\n}\ncaseA = (loB1 != -1.0) && (loB2 != -1.0) && (hiB1 != -1.0)\n    && el_gt(loB2, hiB1) && el_gt(hiB1, loB1);\ncaseB = (hiB1 != -1.0) && (hiB2 != -1.0) && (loB1 != -1.0)\n    && el_gt(hiB2, loB1) && el_gt(loB1, hiB1);\nlegPrev = 0.0;\nlegLast = 0.0;\nlegBars = 0.0;\nif (caseA) {\n    legPrev = hiPx1 - loPx2;\n    legLast = hiPx1 - loPx1;\n    legBars = hiB1 - loB1;\n}\nif (caseB) {\n    legPrev = hiPx2 - loPx1;\n    legLast = hiPx1 - loPx1;\n    legBars = loB1 - hiB1;\n}\nbigLeg = legPrev;\nif (el_gt(legLast, legPrev)) bigLeg = legLast;\nsimilar = (caseA || caseB) && el_gt(legPrev, 0.0) && el_gt(legLast, 0.0)\n    && el_lt(std::fabs(legLast - legPrev), similarityFraction * bigLeg)\n    && el_le(legBars, maxLegBars);",
+    "longCondition": "similar",
+    "shortCondition": "similar",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,58 @@
+{
+    "name": "MovingAverageCrossCountChop",
+    "type": "Switch",
+    "inputVariables": {
+        "maLength": "20",
+        "lookback": "20",
+        "maxCrosses": "4"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "emaCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "emaDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "aboveNow": {
+            "type": "bool",
+            "init": "false"
+        },
+        "abovePrev": {
+            "type": "bool",
+            "init": "false"
+        },
+        "chopReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CHOP, MEASURED BY CROSSINGS: price has crossed the moving average at least\n// maxCrosses times inside the last lookback bars. Both sides identical --\n// chop has no direction.\n//\n// Not TightRangeBlocksEntries, which shares the ROLE and the intent but\n// measures how TALL the last N bars are; the two disagree on a wide slow\n// range and on a tight trending drift.\n//\n// DIVERGENCE FROM THE BOOK, recorded rather than hidden: the generator's\n// Switch role both blocks entries AND forces an exit on the same side, while\n// Grimes asks only for the block. There is no block-without-flat role. If\n// forcing flat is not wanted, place this rule NEGATED in each entry pane\n// instead -- the same divergence TightRangeBlocksEntries records.\n//\n// No book number for \"chopping back and forth\": 4 crossings in 20 bars is a\n// chosen starting point and both are optimizer inputs.\n// MultiWalk's WFSafe_Xaverage, the function the EasyLanguage twin calls,\n// ported unchanged from EmaGapBar / EmaSlope (the EMA references, which carry\n// the full measurements). From EL_XAverage_Probe.txt (@OJ 240min, two chart\n// starts):\n//   * the wrapper is BIT-IDENTICAL to the plain XAverage built-in at a fixed\n//     length -- (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never sf*p + (1-sf)*x:\n//     the two separated on 67% of probed bars past 100. Do not re-associate;\n//   * there is NO warm-up hole on the CURRENT value, so no bar-count guard\n//     returning 0;\n//   * an EMA NEVER FORGETS ITS SEED -- it decays at (1 - sf)^n, ~330 bars --\n//     so Max Bars Back and the chart start are part of this rule's spec.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, no\n// re-seed, so the length may be optimized in grids.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\nemaSf = 2.0 / (maLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// The EMA's own lagged history, mirrored as a zero-seeded ring buffer and\n// re-seeded if the depth changes, exactly as EmaSlope does. MEASURED: a\n// series function's [k] is bit for bit the value it printed k bars earlier,\n// and BEFORE that history exists the read is 0.0 -- not the seed, not a\n// sentinel. Depth lookback + 1 covers lags 0..lookback.\nemaDepth = (int)lookback + 1;\nif (emaDepth < 2) {\n    emaDepth = 2;\n}\nif (emaHistory.size() != (std::size_t)emaDepth) {\n    emaHistory.assign((std::size_t)emaDepth, 0.0);\n    emaCursor = 0;\n}\nemaHistory[emaCursor] = emaVal;\nemaCursor = (emaCursor + 1) % emaHistory.size();\ncrossCount = 0;\nfor (ii = 0; ii < (int)lookback; ++ii) {\n    aboveNow = el_gt(close[ii], emaHistory[(emaCursor + emaHistory.size() - 1 - (std::size_t)ii) % emaHistory.size()]);\n    abovePrev = el_gt(close[ii + 1], emaHistory[(emaCursor + emaHistory.size() - 2 - (std::size_t)ii) % emaHistory.size()]);\n    if (aboveNow != abovePrev) {\n        crossCount = crossCount + 1;\n    }\n}\n// THE WARM-UP GUARD IS LOAD-BEARING, not hygiene: the mirrored EMA history\n// reads 0.0 on the first ii evaluated bars, and close[ii] > 0 is a SIGN TEST\n// ON A PRICE. These series are back-adjusted futures -- a price may\n// legitimately be negative or zero -- so that comparison would manufacture\n// crossings out of the roll offset and the rule would fail the shift test.\nchopReady = ctx.CurrentBar() > (int)lookback;",
+    "longCondition": "chopReady && el_ge(crossCount, maxCrosses)",
+    "shortCondition": "chopReady && el_ge(crossCount, maxCrosses)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

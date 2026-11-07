@@ -1,0 +1,275 @@
+{
+ "slice": "02_keltner",
+ "rules": [
+  {
+   "key": "FreeBarOutsideKeltnerBand",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A 'free bar': the whole bar sits outside the Keltner band \u2014 the low is above the upper band (long) / the high below the lower band (short). Grimes's sign of a climactic, unsustainable imbalance.",
+   "pseudocode": "low[0] > ema(close, emaLength)[0] + bandMult * atr(atrLength)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "emaLength": 20,
+    "bandMult": 2.25,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the same EMA/ATR band, tested against the bar's extreme rather than its close"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "EmaGapBar",
+    "relation": "parameterization",
+    "note": "EmaGapBar is low > emaVal with no band; add marginAtr (2.25) and atrLookback (20) to it exactly as CloseBeyondEma adds them to the close test. At marginAtr 0 it is today's EmaGapBar, so every existing placement is unchanged"
+   },
+   "sources": [
+    "G03-02",
+    "G07-06",
+    "G16-07"
+   ],
+   "merge_notes": "Three identical restatements, all on low/high rather than close, so kept apart from CloseOutsideKeltnerBand: the entire bar must clear the band. The cheapest authoring is the one input pair on EmaGapBar named above, not a new rule file.",
+   "variants_kept_separate": [
+    "CloseOutsideKeltnerBand",
+    "FreeBarCountInWindow"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "ClosesOutsideKeltnerBandCount",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Riding the band: at least rideCount of the last rideLookback bars (ending `lag` bars ago) closed beyond the Keltner band on the trade's side \u2014 a one-sided market that never pulls back to the average.",
+   "pseudocode": "countIf(close[k + lag] > ema(close, emaLength)[k + lag] + bandMult * atr(atrLength)[k + lag], rideLookback) >= rideCount",
+   "sides": "mirrored",
+   "parameters": {
+    "emaLength": 20,
+    "bandMult": 2.25,
+    "atrLength": 20,
+    "rideLookback": 10,
+    "rideCount": 5,
+    "lag": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a CountIF over the band test, which needs the EMA's own lagged history mirrored as a ring buffer (EmaSlope's precedent)"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "BarsBeyondEmaCount",
+    "relation": "variant",
+    "note": "identical count shape, but that rule counts closes beyond the bare EMA while this counts closes beyond the ATR band \u2014 a far rarer event, so the two are not the same bars at any shared parameters"
+   },
+   "sources": [
+    "G03-21",
+    "G05-02"
+   ],
+   "merge_notes": "G03-21's riding-the-band and G05-02's 'multiple free bars' (which counts closes, not whole bars) are one counter; G05-02 is this rule at rideCount = rideLookback. No book numbers; 5 of 10 chosen. `lag` is added so a pane can AND the run-as-of-the-prior-bar with a negated CloseBeyondEma, which reconstructs G05-03.",
+   "variants_kept_separate": [
+    "FreeBarCountInWindow",
+    "RidingKeltnerBandBlocksEntries"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "FreeBarCountInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "At least freeBarCount of the last freeBarLookback bars were free bars (the whole bar outside the band) \u2014 Grimes's 'many free bars' climax marker.",
+   "pseudocode": "countIf(low[k] > ema(close, emaLength)[k] + bandMult * atr(atrLength)[k], freeBarLookback) >= freeBarCount",
+   "sides": "mirrored",
+   "parameters": {
+    "emaLength": 20,
+    "bandMult": 2.25,
+    "atrLength": 20,
+    "freeBarLookback": 10,
+    "freeBarCount": 3
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a CountIF over the free-bar test, with the EMA's lagged history mirrored"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "ConsecutiveClimaxBarCount counts large trend bars against an ATR, not bars outside a band; no overlap at any parameters"
+   },
+   "sources": [
+    "G03-03"
+   ],
+   "merge_notes": "Kept apart from ClosesOutsideKeltnerBandCount: free bars test low/high, that rule tests closes. The book gives no count ('many'), so both window and threshold are optimizer inputs.",
+   "variants_kept_separate": [
+    "ClosesOutsideKeltnerBandCount",
+    "FreeBarOutsideKeltnerBand"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "RidingKeltnerBandBlocksEntries",
+   "role": "Switch",
+   "is_filter": false,
+   "description": "While the market has pressed into either Keltner band for rideCount of the last rideWindow bars, take no new position on either side \u2014 Grimes's 'difficult trading environment' override.",
+   "pseudocode": "countIf(close[k] > upperBand[k], rideWindow) >= rideCount OR countIf(close[k] < lowerBand[k], rideWindow) >= rideCount",
+   "sides": "same",
+   "parameters": {
+    "emaLength": 20,
+    "bandMult": 2.25,
+    "atrLength": 20,
+    "rideWindow": 8,
+    "rideCount": 5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two CountIFs over the band test; the OR of the two sides is what makes it a Switch rather than a mirrored filter"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "TightRangeBlocksEntries",
+    "relation": "variant",
+    "note": "same role and intent \u2014 a global block \u2014 on the opposite condition: that rule blocks in an unusually tight range, this one in an unusually one-sided market"
+   },
+   "sources": [
+    "G07-09"
+   ],
+   "merge_notes": "Kept apart from ClosesOutsideKeltnerBandCount by ROLE, on the RangeWidthBelowAtrMultiple / TightRangeBlocksEntries precedent: an OR of both sides cannot be built from ANDed directional panes. Same divergence to record: the generator's Switch also forces flat, which Grimes does not ask for.",
+   "variants_kept_separate": [
+    "ClosesOutsideKeltnerBandCount"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "SpikeThroughBothKeltnerBands",
+   "role": "Switch",
+   "is_filter": false,
+   "description": "Within a short window the market has closed beyond BOTH Keltner bands \u2014 a sharp move one way immediately reversed the other \u2014 so expect consolidation and take no new position.",
+   "pseudocode": "countIf(close[k] > upperBand[k], spikeLookback) >= 1 AND countIf(close[k] < lowerBand[k], spikeLookback) >= 1",
+   "sides": "same",
+   "parameters": {
+    "emaLength": 20,
+    "bandMult": 2.25,
+    "atrLength": 20,
+    "spikeLookback": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two window scans over the band test; no position state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "OppositeLargeBarsInWindow",
+    "relation": "variant",
+    "note": "same 'both directions spiked inside one window, so expect sideways' idea, measured against the Keltner bands rather than against two large opposite trend bars"
+   },
+   "sources": [
+    "G07-10"
+   ],
+   "merge_notes": "Not composable: an AND of an upper-band read and a lower-band read cannot be built from mirrored directional panes, and two Switch placements OR rather than AND. The mined cooldownBars is folded into spikeLookback \u2014 one window, default 10.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "AvgTrueRange",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "ChesterKeltnerTypicalPriceChannel",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The original Chester Keltner channel: the close is beyond a simple average of the typical price (H+L+C)/3 offset by a multiple of the average bar RANGE (not ATR).",
+   "pseudocode": "close[0] > average((high + low + close) / 3, maLength)[0] + bandMult * average(high - low, rangeLength)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "maLength": 10,
+    "rangeLength": 10,
+    "bandMult": 1.0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two fresh Averages over price expressions; EL's Average recomputes from scratch every bar, so no warm-up mirroring is needed"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "KeltnerChannelCross",
+    "relation": "variant",
+    "note": "that rule is Average(close) +/- ATR tested as a cross; this is Average(typical price) +/- average RANGE tested as a state. Three differences \u2014 centre series, band series, cross vs state \u2014 so not the same bars at any parameters"
+   },
+   "sources": [
+    "G16-23"
+   ],
+   "merge_notes": "Glossary-only, and the one place Grimes states the pre-modification indicator. bandMult is unspecified by the book; 1.0 chosen. Range averaging, unlike ATR, ignores gaps, which is the whole behavioural difference from the corpus's ATR bands.",
+   "variants_kept_separate": [
+    "CloseOutsideKeltnerBand"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average"
+   ]
+  }
+ ]
+}

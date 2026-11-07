@@ -1,0 +1,30 @@
+{
+    "name": "NetMoveBelowAtrMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "netAtr": "1.0",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: AbsValue(close - close[lookback]) < netAtr * WFSafe_AvgTrueRange(atrLength)\n// -- no directional progress over the window (G04-10), the second half of\n// Grimes's random-walk trading-range read (merge decision 8). The containment\n// half is RangeWidthBelowAtrMultiple at its own defaults; the two AND in one\n// pane.\n//\n// NOT Momentum negated: that rule is one-sided and mirrored, so its negation is\n// still one bound on one side. This is a two-sided band on the same lagged\n// difference with IDENTICAL text on both sides.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not a fresh mean:\n// seeded with a full N-term sum on the study's first calculated bar, thereafter\n// S += TrueRange; S -= TrueRange[Length]; as TWO statements (EasyLanguage\n// evaluates S[1] + in - out left to right and folding it rounds differently),\n// and re-seeded when the length changes. AtrProfitTarget is the reference.\n//\n// Deepest bar touched: max(lookback, atrLength + 1).\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLength;",
+    "longCondition": "el_lt(std::fabs(close[0] - close[lookback]), netAtr * atr)",
+    "shortCondition": "el_lt(std::fabs(close[0] - close[lookback]), netAtr * atr)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

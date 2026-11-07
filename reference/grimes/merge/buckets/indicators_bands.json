@@ -1,0 +1,1833 @@
+[
+  {
+    "id": "G01-16",
+    "name": "AtrMultipleZigzagSwingReversal",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      45,
+      46
+    ],
+    "quote": "it is also possible to define the reversal with other tools, such as reversing a specific multiple of the average range off the previous swing... Assume now that the market falls back to $63.00, which exceeds the $1.00 reversal threshold, so now a short horizontal line is plotted.",
+    "description": "Shared primitive: a zigzag/swing-chart pivot defined by a minimum reversal amount off the running extreme since the last confirmed swing point, rather than by neighboring-bar comparisons (G01-01). Grimes's own example uses a fixed dollar reversal (a price-level constant, rejected by the shift test); he explicitly also allows the reversal to be defined as a multiple of average range (ATR), which is used here instead.",
+    "pseudocode": "runningExtremeSinceLastSwing = highest(high, sinceLastSwing)  // long form: watching for a down-reversal off a running high\nzigzagReversal = (runningExtremeSinceLastSwing - close[0]) > reversalAtrMultiple * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "reversalAtrMultiple": 1,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (structural definition, not an order)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs a running extreme tracked since the last confirmed swing point (state that persists across a variable number of bars), not a fixed window"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "The book's literal example is a $1.00 fixed reversal (rejected by the shift test as a price-level constant); re-expressed here in ATR units per the shift-test convention, with the original dollar figure kept for reference. This is an alternative pivot-detection primitive to G01-01/G01-02 (neighbor-comparison pivots), useful where a smoother, threshold-based swing definition is wanted."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G03-01",
+    "name": "CloseBeyondKeltnerBand",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      68
+    ],
+    "quote": "modified Keltner channels set 2.25 multiples of the Average True Range (ATR) around a 20-period exponential moving average",
+    "description": "Primitive: close closes above the upper Keltner band (EMA of length L plus M times ATR of length L); mirrored below the lower band on the short side. Grimes's core indicator, used throughout the chapter as the sign of strong momentum and as the climax/free-bar reference.",
+    "pseudocode": "close[0] > ema(close, emaLength) + bandMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context/indicator test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an EMA and an ATR, both cross-bar state"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "AtrBandBreakout, KeltnerChannelCross",
+    "confidence": "high",
+    "notes": [
+      "Distinct from the catalog's KeltnerChannelCross (a state-machine cross of a plain-Average band); this is a bare close-beyond-band comparison against an EMA band, matching how Grimes actually uses it in this chapter (impulse legs, free bars, climaxes)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-02",
+    "name": "FreeBar",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-01"
+    ],
+    "pages": [
+      72
+    ],
+    "quote": "it is extremely unusual to see bars that are completely outside the Keltner channels, called free bars; the presence of these bars is another sign of potential climax",
+    "description": "A bar entirely outside the Keltner band: for a bull free bar the bar's low sits above the upper band; mirrored (high below lower band) for a bear free bar.",
+    "pseudocode": "low[0] > ema(close, emaLength) + bandMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "shares G03-01's EMA/ATR band"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-03",
+    "name": "ConsecutiveFreeBarCount",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-02"
+    ],
+    "pages": [
+      71
+    ],
+    "quote": "an accelerated trend rate, large range bars, manyfree bars (bars with a low above the upper channel), and a subsequent collapse",
+    "description": "Count of free bars (G03-02) within the last N bars meets or exceeds a threshold -- Grimes's 'many free bars' climax marker.",
+    "pseudocode": "countIf(low[k] > ema(close,emaLength)[k] + bandMult*atr(atrLength)[k], freeBarLookback) >= freeBarThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20,
+      "freeBarLookback": 10,
+      "freeBarThreshold": 3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a CountIF over a band comparison, both cross-bar state"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "CountIF"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "freeBarThreshold and freeBarLookback are the mining agent's defaults; the book gives no number ('not uncommon' four or five times average volume, but no bar count for the free-bar run)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-11",
+    "name": "ParabolicDistanceFromEma",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      72
+    ],
+    "quote": "the bars pull away from the average; this is a reflection of expanded volatility, specifically intraday volatility",
+    "description": "Close is more than K ATRs above (long) / below (short) its own EMA -- measures how far price has pulled away from the moving average, a parabolic-extension gauge.",
+    "pseudocode": "(close[0] - ema(close, emaLength)) > atrMultiple * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "atrMultiple": 3,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an EMA and an ATR"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "CloseWithinAtrOfEma (negated form)",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-12",
+    "name": "MomentumIndicatorNewExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      68
+    ],
+    "quote": "the fast line of the MACD registered a new momentum high",
+    "description": "Primitive: a momentum indicator (Grimes's modified MACD fast line, or a generic EMA-difference oscillator) reaches a new N-bar extreme (high in an uptrend, low in a downtrend) relative to its own recent history.",
+    "pseudocode": "mom(close, fastLen, slowLen)[0] >= highest(mom(close, fastLen, slowLen), momLookback)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "fastLen": 3,
+      "slowLen": 10,
+      "momLookback": 20
+    },
+    "book_order_type": "n/a (context/indicator test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an EMA-difference oscillator plus a rolling highest/lowest of its own history"
+    },
+    "el_words_needed": [
+      "MACD",
+      "XAverage",
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes's exact modified-MACD / 3-10-oscillator formula is defined precisely in Chapter 7 / Appendix B; this chapter only uses the concept 'a new momentum high or low relative to recent history'. fastLen/slowLen guessed at the book's namesake 3/10 oscillator per the mining brief -- confirm against the appendix chapter when mined."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-20",
+    "name": "RetracementDepthWithinExpectedBand",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      84,
+      85
+    ],
+    "quote": "expect retracements to terminate at about 50 percent of the preceding setup leg ... look for terminations somewhere in the 25 to 75 percent range",
+    "description": "Pullback depth, as a fraction of the preceding setup leg's length, is expected to fall within a 25-75% band; used to flag pullbacks that are unusually shallow or unusually deep relative to that band.",
+    "pseudocode": "retracementFraction = (pointB - lowSoFar) / (pointB - pointA); retracementFraction >= minFraction AND retracementFraction <= maxFraction",
+    "sides": "mirrored",
+    "parameters": {
+      "minFraction": 0.25,
+      "maxFraction": 0.75
+    },
+    "book_order_type": "n/a (context/filter test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection to locate the setup leg's endpoints"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "DeepPullbackRetracementFilter",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-21",
+    "name": "RidingTheKeltnerBandNoPullback",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-01"
+    ],
+    "pages": [
+      85
+    ],
+    "quote": "they will press against the upper channel and slide along that band as the market grinds higher",
+    "description": "An extremely strong trend where price repeatedly closes at or beyond the Keltner band for consecutive bars without pulling back to the EMA -- a 'riding the band' condition identifying trends offering no tradable pullback.",
+    "pseudocode": "countIf(close[k] > ema(close,emaLength)[k]+bandMult*atr(atrLength)[k], rideLookback) >= rideThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20,
+      "rideLookback": 10,
+      "rideThreshold": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a CountIF over G03-01's band test"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "CountIF"
+    ],
+    "likely_existing_rule": "BarsBeyondEmaCount, EmaGapBarRun",
+    "confidence": "medium",
+    "notes": [
+      "Grimes also warns these trends produce occasional large spikes against the trend, making risk hard to define -- left as a note for the authoring pass rather than a separate rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-29",
+    "name": "MovingAverageSlopeTrendFilter",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      97
+    ],
+    "quote": "One of the simplest trend indicators used by traders is the slope of a single moving average",
+    "description": "The market is in an uptrend (downtrend) when a single moving average of a chosen length is rising (falling) -- its current value is above (below) its value N bars ago.",
+    "pseudocode": "average(close, maLength)[0] > average(close, maLength)[slopeLag]",
+    "sides": "mirrored",
+    "parameters": {
+      "maLength": 50,
+      "slopeLag": 5
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an average plus a lagged self-comparison"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "EmaSlope",
+    "confidence": "high",
+    "notes": [
+      "Grimes notes many false signals when the average is flat, suggesting an optional undefined/dead zone around zero slope; left as a parameter (slopeThreshold) for the authoring pass rather than a separate candidate."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-38",
+    "name": "ParallelChannelBreakoutAcceleration",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-36"
+    ],
+    "pages": [
+      103,
+      104
+    ],
+    "quote": "it is a strong vote of confidence from the dominant group in the market ... and often leads to a new trend that proceeds at a faster rate",
+    "description": "Price closes decisively beyond the parallel channel line -- a stronger, faster new trend phase; a bullish continuation signal rather than a fade opportunity.",
+    "pseudocode": "close[0] > parallelChannelLineValue(bar) + breakMargin*atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "breakMargin": 0.25,
+      "atrLength": 20
+    },
+    "book_order_type": "market at next open once broken, per convention",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the parallel-channel projection built on G03-36's pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "SignificantChannelLineOvershoot, ChannelLineOvershoot",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G05-01",
+    "name": "KeltnerBandCloseOutside",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      154
+    ],
+    "quote": "it showed many bars trading completely outside the Keltner channels (multiplefree bars), a most unusual event.",
+    "description": "The bar closes entirely outside the Keltner channel: an EMA of length L plus/minus M times the ATR of length L. A 'free bar' in Grimes's terminology.",
+    "pseudocode": "close[0] > ema(close, emaLength) + bandMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an EMA and an ATR"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "KeltnerChannelCross",
+    "confidence": "medium",
+    "notes": [
+      "Grimes's Keltner default is a 20-period EMA with bands at 2.25 ATR (confirmed in the book's appendix elsewhere). This is a static close-outside-band state, not a cross event like the existing KeltnerChannelCross rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-02",
+    "name": "ConsecutiveKeltnerFreeBars",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "G05-01"
+    ],
+    "depends_on": [],
+    "pages": [
+      154
+    ],
+    "quote": "many bars trading completely outside the Keltner channels (multiple free bars)",
+    "description": "At least minFreeBars of the last minFreeBars bars closed outside the Keltner band (G05-01) -- unusual, unsustainable parabolic acceleration.",
+    "pseudocode": "count(i = 0..minFreeBars-1, close[i] beyond ema(close, emaLength)[i] +/- bandMult * atr(atrLength)[i]) >= minFreeBars",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20,
+      "minFreeBars": 3
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar counter over a short window of the free-bar primitive"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "ConsecutiveClimaxBarCount",
+    "confidence": "medium",
+    "notes": [
+      "'Multiple free bars' has no book-given count; minFreeBars = 3 is a reasonable default."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-03",
+    "name": "ClimaxReversalAfterFreeBars",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G05-01",
+      "G05-02"
+    ],
+    "depends_on": [],
+    "pages": [
+      154,
+      155
+    ],
+    "quote": "This type of price action is unsustainable, and the market collapsed back into the vacuum at D.",
+    "description": "After a run of consecutive Keltner free bars (G05-02), the first bar to close back inside the band is a countertrend reversal entry -- the parabolic-exhaustion reversal.",
+    "pseudocode": "ConsecutiveKeltnerFreeBars[1] == true AND close[0] <= ema(close, emaLength) + bandMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20,
+      "minFreeBars": 3
+    },
+    "book_order_type": "stop/market on the close back inside the band -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "builds on the free-bar counter"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "ClimaxBar",
+    "confidence": "medium",
+    "notes": [
+      "This is Grimes's parabolic blow-off reversal in Figure 5.12 (Wheat futures)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G06-03",
+    "name": "TrendLineChannelFailureReversalEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      171,
+      172
+    ],
+    "quote": "The entry trigger is a failure of this trend line or channel, followed by an immediate reversal; that is, the line is penetrated, but prices recover back above the trend line within a few bars.",
+    "description": "Primitive pullback trigger 1: a trend line or channel line bounding the pullback is penetrated, then price recovers back across it within a few bars. Approximated without true trend-line projection as a break-and-recover of the pullback's own recent low/high (a channel-line proxy).",
+    "pseudocode": "low[1] < lowest(low[2], pullbackLookback) AND close[0] > lowest(low[2], pullbackLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "pullbackLookback": 10
+    },
+    "book_order_type": "market/stop entry on the close back above the line -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "the book's actual trigger needs a drawn trend line or parallel channel from pivots; this is a lowest-low proxy in place of the line"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "TrendLineBreak",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-61",
+    "name": "RaschkeAntiStochasticDivergence",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      188,
+      189
+    ],
+    "quote": "she gives a specific definition of this trade in that it quantifies the momentums on two time frames using the stochastic indicator. The pattern essentially is that the fast and slow lines of the indicator are sloping against each other.",
+    "description": "Linda Raschke's original 'Anti' confirmation (cited by Grimes, who prefers pure price structure instead): a fast (shorter-lookback) stochastic is rising while a slow (longer-lookback) stochastic is falling, or vice versa -- two time frames' momentum sloping against each other.",
+    "pseudocode": "stochastic(fastLookback)[0] > stochastic(fastLookback)[1] AND stochastic(slowLookback)[0] < stochastic(slowLookback)[1]",
+    "sides": "mirrored",
+    "parameters": {
+      "fastLookback": 5,
+      "slowLookback": 20
+    },
+    "book_order_type": "n/a (alternate confirmation filter, not required by Grimes's own method)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two stochastic oscillators plus a slope comparison"
+    },
+    "el_words_needed": [
+      "FastK",
+      "SlowK"
+    ],
+    "likely_existing_rule": "StochasticCross",
+    "confidence": "medium",
+    "notes": [
+      "Cited from Linda Raschke, Street Smarts (1996); Grimes explicitly says his own preference is the price-structure form (G06-33/G06-34/G06-35), not this indicator definition, so this candidate is not included in the AntiTemplate composite."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G07-03",
+    "name": "EquilibriumChopAroundMaFilter",
+    "role": "Switch",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      208,
+      209
+    ],
+    "quote": "If the market continues to trade around that average, chopping back and forth on both sides of it, it is probably best to move on and to look for better trading opportunities.",
+    "description": "Price has crossed a moving average more than maxCrosses times in the last lookback bars, indicating the market is in equilibrium/chop; blocks all new entries while true (both directions, so it is a Switch, not a directional filter).",
+    "pseudocode": "crossCount(close, ema(close, maLength), lookback) >= maxCrosses",
+    "sides": "same",
+    "parameters": {
+      "maLength": 20,
+      "lookback": 20,
+      "maxCrosses": 4
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a moving average plus a running count of sign changes of close vs the average over a window"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "TightRangeBlocksEntries",
+    "confidence": "medium",
+    "notes": [
+      "Grimes gives no numeric threshold for 'chopping back and forth'; maxCrosses=4 in a 20-bar window is a chosen default.",
+      "Conceptually close to the catalog's TightRangeBlocksEntries; flagged for dedup to decide whether this is the same primitive or a distinct MA-cross-count version."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-05",
+    "name": "CloseOutsideKeltnerBand",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      211,
+      212,
+      214
+    ],
+    "quote": "the Keltner channels that I use are set at a level that contains between 85 and 90 percent of all trading activity (the range of the bar, not just the close) across a wide range of markets",
+    "description": "The current bar closes above the upper Keltner band: an EMA of length kEmaLength plus kBandMult times the ATR of length kAtrLength. This is the shared band primitive other Keltner-based candidates in this file reuse.",
+    "pseudocode": "close[0] > ema(close, kEmaLength) + kBandMult * atr(kAtrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an EMA and an ATR combined into a band comparison"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "KeltnerChannelCross",
+    "confidence": "medium",
+    "notes": [
+      "kBandMult=2.25 is explicit (Table 7.1's caption: '2.25 ATR Modified Keltner Channels'). Neither this chapter nor Appendix B (which covers only the plain moving average and the MACD, not Keltner channels) states whether the center line is a simple or exponential average; EMA (the standard Keltner convention) is used here as the default.",
+      "The catalog's existing KeltnerChannelCross rule uses a plain (simple) Average for the center line rather than an EMA -- flag for the dedup pass to reconcile the MA-type difference."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-06",
+    "name": "FreeBarOutsideKeltnerBand",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-05"
+    ],
+    "pages": [
+      212
+    ],
+    "quote": "'Free bars' are bars that are pushed to such a dramatic extreme that the low of the bar is above the upper band, or the high of the bar is below the bottom channel-the entire bar is outside the channel.",
+    "description": "The entire current bar (not just the close) is outside the upper Keltner band: its low is above the upper band. A stronger read of imbalance than a simple close-outside-band. Mirrored: the high is below the lower band.",
+    "pseudocode": "low[0] > ema(close, kEmaLength) + kBandMult * atr(kAtrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "same band construction as the close-outside-band primitive, applied to the bar's low/high instead of its close"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Shares the band definition of G07-05; depends_on records that reuse."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-07",
+    "name": "FadeCloseOutsideKeltnerBandEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G07-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      214,
+      215
+    ],
+    "quote": "In many markets, there actually is a slight statistical edge to fading moves to the upper or lower Keltner channel... A good rule of thumb is to not consider any fade trade unless the market is extended beyond the bands.",
+    "description": "Fade a close outside the band, expecting a reversion: on the long side, the bar closes below the lower Keltner band, then enter long at the next bar's open (mean-reversion fade). Mirrored: close above upper band, enter short.",
+    "pseudocode": "close[0] < ema(close, kEmaLength) - kBandMult * atr(kAtrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25
+    },
+    "book_order_type": "market, mechanized as bar-closes-with-condition then enter next bar's open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reuses the band primitive; the fade itself is a bare comparison plus the standard close-then-next-open mechanization"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Uses the lower-band mirror of the G07-05 band definition for the long side."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-08",
+    "name": "PullbackFromBandReturnEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G07-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      215
+    ],
+    "quote": "A market overextended outside the band will, eventually, reverse back inside the bands. At this point, it is often possible to initiate a trade in the direction of the original band touch... (In this case, the entry condition for pullbacks required a close outside the band, rather than a simple touch.)",
+    "description": "After a close outside the upper Keltner band within the last touchLookback bars (marking an extension), price returns to within innerFrac of the band's half-width of the EMA center line; enter long in the direction of the original (upward) extension. Mirrored: prior close below lower band, then short on the return.",
+    "pseudocode": "hadCloseAboveBand(kEmaLength, kAtrLength, kBandMult, touchLookback) && close[0] <= ema(close, kEmaLength) + innerFrac * kBandMult * atr(kAtrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25,
+      "touchLookback": 10,
+      "innerFrac": 0.5
+    },
+    "book_order_type": "n/a (context test), enter at next bar's open once the return condition is met",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs cross-bar state remembering a prior band touch, in addition to the band primitive"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is a trend-continuation entry (buy the pullback after an upper-band touch), the opposite intent of the G07-07 fade even though both reference the same band.",
+      "'near the middle of the bands' has no precise Grimes number; innerFrac=0.5 (halfway back toward the EMA) is a chosen default."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-09",
+    "name": "PriceRidingKeltnerBandFilter",
+    "role": "Switch",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G07-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      216,
+      217
+    ],
+    "quote": "When a market presses into the upper or lower band and stays there, this is indicative of a one-sided market with extreme pressure... this is also usually a difficult trading environment... The best course of action is almost always to have no position unless you are managing risk and profits in preexisting positions.",
+    "description": "The market has closed beyond one Keltner band at least rideBarsThreshold times in the last rideWindow bars (pressing into and riding the band with no real pullbacks); blocks new entries on either side until the condition clears.",
+    "pseudocode": "countCloseBeyondBand(kEmaLength, kAtrLength, kBandMult, upper, rideWindow) >= rideBarsThreshold || countCloseBeyondBand(kEmaLength, kAtrLength, kBandMult, lower, rideWindow) >= rideBarsThreshold",
+    "sides": "same",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25,
+      "rideWindow": 8,
+      "rideBarsThreshold": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a rolling count of band-outside closes on top of the band primitive"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes gives no numeric threshold for 'stays there'; rideWindow=8 and rideBarsThreshold=5 are chosen defaults."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-10",
+    "name": "SpikeThroughBothBandsFilter",
+    "role": "Switch",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G07-05"
+    ],
+    "depends_on": [],
+    "pages": [
+      217,
+      218
+    ],
+    "quote": "for a market to make an extremely sharp move through one side of the band that is immediately reversed and then spikes clear through the other band... whenever a market makes a sharp move in one direction immediately followed by an equally sharp move in the other direction, the normal expectation should be for that market to spend some time consolidating... this is a difficult trading environment that is best avoided.",
+    "description": "Within a short spikeLookback window, the market has closed beyond both the upper and lower Keltner bands (a sharp move through one band immediately reversed through the other); blocks new entries for cooldownBars afterward, expecting a consolidation/triangle.",
+    "pseudocode": "hadCloseBeyondBand(kEmaLength, kAtrLength, kBandMult, upper, spikeLookback) && hadCloseBeyondBand(kEmaLength, kAtrLength, kBandMult, lower, spikeLookback)",
+    "sides": "same",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25,
+      "spikeLookback": 5,
+      "cooldownBars": 10
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs cross-bar state tracking both band touches within a short window plus a cooldown counter"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes gives no numeric window for 'immediately reversed'; spikeLookback=5 and cooldownBars=10 are chosen defaults."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-11",
+    "name": "MacdFastLineNewExtremeFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      219
+    ],
+    "quote": "One of the simplest ways to use a momentum indicator is to look for it to make a significant new high or low, and then to enter the pullback following that new momentum extreme... If you are just starting to look at this indicator, use the 40-bar history as a starting point.",
+    "description": "The modified MACD fast line (fastLen-period SMA of close minus slowLen-period SMA of close) makes a new macdLookback-bar high, marking a genuine momentum extreme; used as a filter that a subsequent pullback is one worth buying. Mirrored: a new macdLookback-bar low sets up shortable pullbacks.",
+    "pseudocode": "(sma(close, fastLen)[0] - sma(close, slowLen)[0]) >= highest(sma(close, fastLen) - sma(close, slowLen), macdLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "fastLen": 3,
+      "slowLen": 10,
+      "macdLookback": 40
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the fast line itself is a two-SMA difference, and the extreme check is a rolling highest/lowest over that derived series"
+    },
+    "el_words_needed": [
+      "Average",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This candidate defines the modified MACD fast line ('macdFast') used by parameter/name in the other MACD candidates in this file: macdFast[n] = sma(close,fastLen)[n] - sma(close,slowLen)[n]. See Appendix B (G14) for the book's most precise statement of this construction (fastLen=3, slowLen=10 SMAs, no histogram); values reconcile exactly."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-12",
+    "name": "MacdAvoidEntryWhileFastLineExtendedFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      225
+    ],
+    "quote": "The rule is, very simply, to try to avoid buying when the fast line is extended into highs and try to avoid selling when it is extended into low territory... express the indicator's value as a percentile of a look-back window, and perhaps enter retracements following an excursion into either the top or the bottom decile.",
+    "description": "Blocks a long entry while the MACD fast line's current value is still within the top decile of its own macdLookback-bar range (i.e., still extended, not yet pulled back); mirrored for shorts and the bottom decile.",
+    "pseudocode": "rankPercentile(macdFast[0], macdFast, macdLookback) < topDecileThreshold",
+    "sides": "mirrored",
+    "parameters": {
+      "macdLookback": 40,
+      "topDecileThreshold": 0.9
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a rolling percentile-rank scan over the derived fast-line series, similar in cost to a rolling highest/lowest"
+    },
+    "el_words_needed": [
+      "Average",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "This is the complement of G07-11: G07-11 flags that a recent extreme happened (bullish for the coming pullback), this filter separately blocks entering while the line is still sitting at that extreme."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-13",
+    "name": "MacdClimaxDisregardFilter",
+    "role": "Switch",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      221,
+      222
+    ],
+    "quote": "If an extremely large momentum move emerges that is out of all proportion to the recent history of the market, be very careful of entering retracements... accept that it shows that the market has made such an extreme move that the indicator should be disregarded.",
+    "description": "The fast line's bar-over-bar change is climaxMult times larger than its own recent average bar-over-bar change (an indicator distortion from an extreme/climactic price move); disregards all MACD-gated entries for cooldownBars afterward.",
+    "pseudocode": "abs(macdFast[0] - macdFast[1]) > climaxMult * average(abs(macdFast[i] - macdFast[i+1]), climaxLookback)",
+    "sides": "same",
+    "parameters": {
+      "climaxMult": 3.0,
+      "climaxLookback": 20,
+      "cooldownBars": 10
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'out of all proportion to the recent history' is qualitative; a design decision (climaxMult, the averaging window) is needed before this is codeable, though the shape of the test is simple once chosen"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Grimes gives no numeric threshold here; all three parameters are chosen defaults standing in for a genuinely fuzzy criterion."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-14",
+    "name": "MacdBearishDivergencePresent",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      222,
+      223
+    ],
+    "quote": "a market makes a new high in prices that is not accompanied by a new high on the indicator, and vice versa to the downside... this is the concept of momentum divergence.",
+    "description": "Price sets a new swing high while the MACD fast line fails to make a corresponding new high versus the value it had at the prior swing high (classic bearish momentum divergence). Mirrored: a new swing low with a higher fast-line low is bullish divergence.",
+    "pseudocode": "swingHigh[0] && high[0] > high[priorSwingHighBar] && macdFast[0] < macdFast[priorSwingHighBar]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires swing-pivot detection to locate the two compared highs, plus reading the indicator's value at each pivot"
+    },
+    "el_words_needed": [
+      "Average",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes: 'divergences fail about as often as they work' and strong trends 'roll over momentum divergences' repeatedly -- record the primitive per the high-recall directive but note it is unreliable as a standalone signal; see G07-15/G07-18 for the filters he actually recommends around it."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-15",
+    "name": "AbsenceOfMacdDivergenceFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G07-14"
+    ],
+    "depends_on": [],
+    "pages": [
+      222,
+      223,
+      227,
+      228
+    ],
+    "quote": "Though every trade on this chart would have resulted in a win... enter short on the first bar whose close causes the MACD fast line to turn down after prices have penetrated below the lower band and assuming there is no momentum divergence.",
+    "description": "Gate requiring no bearish momentum divergence (G07-14) is currently present before taking a with-trend long-continuation entry. Mirrored: no bullish divergence before a with-trend short.",
+    "pseudocode": "!(swingHigh[0] && high[0] > high[priorSwingHighBar] && macdFast[0] < macdFast[priorSwingHighBar])",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "inherits the swing-pivot detection cost of the divergence primitive it negates"
+    },
+    "el_words_needed": [
+      "Average",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-19",
+    "name": "MacdFastLineHookUp",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      227,
+      228
+    ],
+    "quote": "enter short on the first bar whose close causes the MACD fast line to turn down after prices have penetrated below the lower band...",
+    "description": "The MACD fast line turns up on the current bar's close: it was falling or flat and is now rising (a one-bar inflection). Mirrored: it turns down.",
+    "pseudocode": "macdFast[0] > macdFast[1] && macdFast[1] <= macdFast[2]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the offset comparison itself is a bare check, but it operates on the derived two-SMA fast-line series"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-20",
+    "name": "MacdFastLineHookBandBreakoutEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G07-05",
+      "G07-19",
+      "G07-15"
+    ],
+    "depends_on": [],
+    "pages": [
+      227,
+      228
+    ],
+    "quote": "enter short on the first bar whose close causes the MACD fast line to turn down after prices have penetrated below the lower band and assuming there is no momentum divergence. (The inverse of this rule set could be applied to generate longs...)",
+    "description": "Long side (mirror of Grimes's stated short rule): the bar closes above the upper Keltner band, the MACD fast line turns up on that same close, and there is no bearish divergence present; enter at the next bar's open. A continuation-of-extension entry, not a fade.",
+    "pseudocode": "close[0] > ema(close, kEmaLength) + kBandMult * atr(kAtrLength) && macdFast[0] > macdFast[1] && macdFast[1] <= macdFast[2] && !(swingHigh[0] && high[0] > high[priorSwingHighBar] && macdFast[0] < macdFast[priorSwingHighBar])",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25
+    },
+    "book_order_type": "close-based signal (Grimes enters on the close itself); mechanized here as enter at the next bar's open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "combines a band primitive, an indicator-hook primitive and a swing-pivot-based divergence-absence check"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "Average",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Grimes notes this specific example chart would have won every trade but cautions 'you should be inherently suspicious of any carefully chosen example in a book' and that close-based entries 'may not be as good as they look at first glance.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-21",
+    "name": "MacdSlowLineRolloverFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      228
+    ],
+    "quote": "it is probably best to be suspicious of trades that set up against the slope of the slow line if the slow line has been extended and has turned back toward the zero line... traders initiating longs after the slow line turned down would have been frustrated as the market entered a more extended period of consolidation.",
+    "description": "Blocks a long entry when the MACD slow line (signalLen-period SMA of the fast line) is extended more than extendedAtrMult times ATR above zero and has just turned down. Mirrored for shorts.",
+    "pseudocode": "!(sma(macdFast, signalLen)[0] > extendedAtrMult * atr(atrLength) && sma(macdFast, signalLen)[0] < sma(macdFast, signalLen)[1])",
+    "sides": "mirrored",
+    "parameters": {
+      "signalLen": 16,
+      "atrLength": 20,
+      "extendedAtrMult": 1.5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a nested indicator (SMA of the fast-line series) plus an ATR-scaled extension threshold and a one-bar slope check"
+    },
+    "el_words_needed": [
+      "Average",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "signalLen=16 is explicit ('nothing more than a 16-period simple moving average of the fast line'); the raw MACD value is a price difference so it already passes the shift test, but extendedAtrMult is expressed in ATR units for volatility robustness since Grimes gives no absolute number."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-22",
+    "name": "MacdSlowLineAboveZeroTrendFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-11"
+    ],
+    "pages": [
+      228
+    ],
+    "quote": "Since the slow line is an average of the fast line, for the slow line to be far above zero, the fast line must have spent a longer time above the zero line. The only way for the fast line to get far above zero and to stay there is for the market to have made an extended move to the upside.",
+    "description": "The MACD slow line (signalLen-period SMA of the fast line) is positive, confirming an established uptrend context. Mirrored: negative for a downtrend.",
+    "pseudocode": "sma(macdFast, signalLen)[0] > 0",
+    "sides": "mirrored",
+    "parameters": {
+      "signalLen": 16
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a nested indicator (SMA of the fast-line series) compared to zero"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes calls this 'not incredibly useful' on its own, just another trend confirmation; recorded per high-recall directive and reused by G07-23."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-23",
+    "name": "MacdFastSlowDisagreementPullbackEntry",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G07-22"
+    ],
+    "depends_on": [],
+    "pages": [
+      228,
+      229
+    ],
+    "quote": "if the slow line is extended above zero but the fast line pulls back below the zero line, it often makes sense to be on the lookout for long entries. The reverse setup applies for shorting, of course.",
+    "description": "The slow line is above zero (established uptrend, G07-22) while the fast line has pulled back below zero: structural tension between short-term and intermediate-term momentum that favors a long entry. Mirrored for shorts.",
+    "pseudocode": "sma(macdFast, signalLen)[0] > 0 && macdFast[0] < 0",
+    "sides": "mirrored",
+    "parameters": {
+      "signalLen": 16
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines two already-defined indicator reads with a simple AND"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Grimes: 'this is not intended to be a complete mechanical trading system, though a system could be built on this concept.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-24",
+    "name": "HigherTimeframeKeltnerExtensionFilter",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-05"
+    ],
+    "pages": [
+      231,
+      232,
+      233
+    ],
+    "quote": "Some type of well-calibrated band or channel-for instance, the Keltner channels I use and discuss in this work-can provide a good visual and quantitative reference for overextension. On a single time frame, you would not want to make a standard practice of buying strength above the upper band or shorting weakness below the lower band... the weekly chart shows a long tail and a clear exhaustion above the channel, greatly reducing the attractiveness of the potential long entry on the daily chart.",
+    "description": "Blocks a long entry when the higher-time-frame-approximated close (same bars, EMA/ATR lengths multiplied by htfMultiplier) is already beyond its own Keltner upper band, i.e. the higher time frame looks exhausted in the trade's direction. Mirrored for shorts.",
+    "pseudocode": "!(close[0] > ema(close, kEmaLength * htfMultiplier) + kBandMult * atr(kAtrLength * htfMultiplier))",
+    "sides": "mirrored",
+    "parameters": {
+      "kEmaLength": 20,
+      "kAtrLength": 20,
+      "kBandMult": 2.25,
+      "htfMultiplier": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "same mechanic as the base Keltner band primitive, computed at a longer lookback"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Approximates a higher time frame (e.g. weekly vs daily) with a htfMultiplier-times-longer lookback on the same bars, per this brief's multi-time-frame convention; Grimes says neighboring time frames usually relate by a factor of 3 to 5, htfMultiplier=5 chosen."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G08-18",
+    "name": "MovingAverageCloseBelowExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      253
+    ],
+    "quote": "Many traders will get into a trending trade and will then stop out when price touches or, in some cases, closes below a moving average",
+    "description": "Exit a long trend trade when the close crosses below (or the bar merely touches) a chosen moving average.",
+    "pseudocode": "close[0] < ema(close, maLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "maLength": 20
+    },
+    "book_order_type": "close-based moving-average stop",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a moving average"
+    },
+    "el_words_needed": [
+      "XAverage"
+    ],
+    "likely_existing_rule": "CloseBeyondEma",
+    "confidence": "high",
+    "notes": [
+      "Grimes explicitly says the MA length choice (100/50/20) is arbitrary; 20 chosen as default to match Keltner-family conventions elsewhere. A touch-only (not close-only) variant would compare low[0] instead of close[0]."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-29",
+    "name": "VolatilitySpikeStdDevOfDailyChange",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      273,
+      274
+    ],
+    "quote": "my volatility spike indicator, which simply expresses the current day's change (last print to previous day's close) as a standard deviation of the past 20 trading days ... color codes any move larger than three standard deviations up or down",
+    "description": "Flags when the current bar's change from the prior close is an unusually large multiple of the standard deviation of daily changes over the past N bars.",
+    "pseudocode": "abs(close[0] - close[1]) >= sdMultiple * stddev(close[0] - close[1], lookback)",
+    "sides": "same",
+    "parameters": {
+      "sdMultiple": 3,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (monitoring/context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a standard deviation of a bar-to-bar difference series over a rolling window"
+    },
+    "el_words_needed": [
+      "StdDev"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "medium",
+    "notes": [
+      "Grimes originally uses this across a whole watchlist of other markets to color-code a screen; the single-symbol core calculation is what is mineable here, the cross-market screen itself is rejected."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G14-01",
+    "name": "ModifiedMacdFastLineZeroCross",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      432,
+      433,
+      434
+    ],
+    "quote": "For each bar, calculate: Fast line: 3-period SMA minus 10-period SMA. Signal line: 16-period SMA of the fast line. Histogram: none. Plot a zero line for reference.",
+    "description": "This is the book's most precise statement of the modified MACD: fastLen-period SMA of close minus slowLen-period SMA of close, no histogram. The fast line crosses from negative to positive (the two SMAs cross), marking a shift to positive short-term momentum. Mirrored: crosses from positive to negative.",
+    "pseudocode": "(sma(close, fastLen)[0] - sma(close, slowLen)[0]) > 0 && (sma(close, fastLen)[1] - sma(close, slowLen)[1]) <= 0",
+    "sides": "mirrored",
+    "parameters": {
+      "fastLen": 3,
+      "slowLen": 10
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "the fast line is a two-SMA difference; the zero-cross itself is a one-bar sign-change check on that derived series"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This is the reference definition for the modified MACD; matches chapter 7 (G07) exactly (fastLen=3, slowLen=10 SMAs, no histogram) which uses the same construction under the name 'macdFast' -- no discrepancy to reconcile between the two chapters.",
+      "'The fast line of the MACD will register zero when the two averages cross; this highlights a condition of relative equilibrium.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G14-02",
+    "name": "MacdSlowLineDefinition",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G14-01"
+    ],
+    "pages": [
+      432
+    ],
+    "quote": "Figure B.10 shows the slow line (sometimes called the signal line) of the MACD, which is simply a 16-period moving average of the fast line.",
+    "description": "Reference definition: the MACD slow (signal) line is a signalLen-period SMA of the fast line. Recorded here as the precise definition; the actual reads of the slow line (slope, position vs zero, fast/slow disagreement) are mined in chapter 7 (G07-21/22/23), which this reconciles with exactly.",
+    "pseudocode": "sma(macdFast, signalLen)[0]",
+    "sides": "same",
+    "parameters": {
+      "signalLen": 16
+    },
+    "book_order_type": "n/a (definition only)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a single moving average of an already-derived series; not itself a boolean condition"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Definitional candidate, not a standalone entry/exit test; depended on by any slow-line read."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G14-03",
+    "name": "MacdFastLineImmediateHookAtInflection",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G14-01"
+    ],
+    "pages": [
+      434,
+      435,
+      436
+    ],
+    "quote": "A: The fast line responds immediately to the change in the market by hooking higher on the first price bar of the uptrend... C: The fast line again responds immediately to the shift in the market by hooking down on the first bar that breaks the trend pattern.",
+    "description": "The fast line turns in the same bar that price shifts from a flat/opposite state into a new directional move (its most responsive read, shown on idealized data and confirmed on an actual AAPL chart). This is the same 'fast line hook' concept as chapter 7's G07-19, restated here with a cleaner idealized-data proof that the turn occurs on the very first bar of the new move.",
+    "pseudocode": "macdFast[0] > macdFast[1] && macdFast[1] <= macdFast[2]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a bare offset comparison on the derived fast-line series"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "Reconciles exactly with G07-19 (MacdFastLineHookUp); Appendix B additionally proves, via a synthetic dataset (Figure B.12), that the hook fires on the first bar of the new trend and that the following ~slowLen bars of curvature are a construction artifact, not new information (see G14-04)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G14-04",
+    "name": "IgnoreMacdFastLineSlowLenArtifactWindow",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G14-03"
+    ],
+    "pages": [
+      434,
+      435,
+      436
+    ],
+    "quote": "B: Everything between points A and B is an artifact of the indicator. Though the slope of the fast line changes in a curve, this does not reflect any change in the rate of trend in the market, which is trending steadily higher. At B, 10 bars into the uptrend, the 10-period moving average is now trending steadily with prices... so the indicator goes flat.",
+    "description": "For roughly slowLen bars after a genuine trend inflection, the fast line's curvature is a construction artifact of the slowLen-period SMA entering the new trend, not a new momentum signal; suppresses divergence/hook reads that would otherwise fire inside that window. Applies symmetrically to both sides.",
+    "pseudocode": "ctx.BarsSinceEntry() > slowLen || barsSinceLastGenuineInflection() > slowLen",
+    "sides": "same",
+    "parameters": {
+      "slowLen": 10
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "the artifact window's length (slowLen bars) is precise and explicit, but detecting 'a genuine trend inflection' to measure from is itself the unresolved design problem -- circular without a separate inflection detector"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "slowLen=10 matches the book's own modified-MACD slow-average length, and the mechanism (the fast line only fully reflects a new trend once the slower SMA has rolled entirely into the new regime, i.e. after slowLen bars) is stated precisely; recorded as research-grade because a robust 'genuine inflection' detector is the missing piece, not the window length.",
+      "Confirmed on real data too: 'much of the downturn in the line at point B in Figure B.13 is due to this 10-bar artifact.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G14-05",
+    "name": "MacdDivergenceFromLowerLegRateOfChange",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G14-01"
+    ],
+    "pages": [
+      438
+    ],
+    "quote": "Specifically, the down legs (BC and DA) are the same rate and length, while the up leg CD moves at a rate equal to 75 percent of AB's changes. The indicator registers a lower peak at D compared to B, which would suggest... that trend leg CD, though it made a new high relative to the point B, did so on lower momentum.",
+    "description": "Precise mechanism for momentum divergence: if the second of two same-direction swing legs advances at a smaller average per-bar rate of change than the first leg (even though price sets a new extreme), the fast line registers a lower peak/trough there -- a momentum divergence. Same concept as chapter 7's G07-14, with the underlying arithmetic spelled out.",
+    "pseudocode": "swingHigh[0] && high[0] > high[priorSwingHighBar] && (close[0] - close[legStartBar]) / (0 - legStartBar) < (close[priorSwingHighBar] - close[priorLegStartBar]) / (priorLegStartBar - priorSwingHighBar) && macdFast[0] < macdFast[priorSwingHighBar]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-leg pivot detection for two successive legs plus a per-bar rate-of-change comparison between them, on top of the divergence check itself"
+    },
+    "el_words_needed": [
+      "Average",
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Reconciles with G07-14 (MacdBearishDivergencePresent): same divergence concept, this candidate is the book's explicit statement of why it happens (a shallower per-bar rate of change on the second leg), which G07-14 states only as an observed indicator/price mismatch without the mechanism."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G14-06",
+    "name": "MacdDivergenceFromShorterLegDuration",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G14-01"
+    ],
+    "pages": [
+      438,
+      439
+    ],
+    "quote": "Here, the second leg (CD) is shorter, including fewer bars than the longer leg, and the indicator again registers a divergence... divergences will register with trend legs that either move at a lower rate of change or extend for fewer bars relative to the higher-momentum leg.",
+    "description": "Second precise mechanism for momentum divergence: if the second of two same-direction swing legs has the same per-bar rate of change as the first but runs for fewer bars (shorter duration) while still reaching a new price extreme, the fast line still registers a lower peak/trough -- a momentum divergence driven purely by leg length rather than by rate of change.",
+    "pseudocode": "swingHigh[0] && high[0] > high[priorSwingHighBar] && (0 - legStartBar) < (priorLegStartBar - priorSwingHighBar) && macdFast[0] < macdFast[priorSwingHighBar]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-leg pivot detection for two successive legs plus a bar-count comparison between them"
+    },
+    "el_words_needed": [
+      "Average",
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Companion to G14-05; together they are the two exhaustive ways a same-rate-or-better price extreme can still divergence on this fast line (shallower rate of change, or fewer bars), per 'this is fundamental to divergence on momentum indicators.'"
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/14_appendix_b_a_deeper_look_at_moving_averages_and.json",
+    "chapter_title": "Appendix B: A Deeper Look at Moving Averages and the MACD"
+  },
+  {
+    "id": "G16-07",
+    "name": "FreeBarOutsideBand",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      447
+    ],
+    "quote": "Bars that are entirely outside bands or channels set on price charts—that is, with the low of the bar above the upper band or the high below the lower band.",
+    "description": "The entire bar (not just the close) sits outside the Keltner band: the bar's low is above the upper band (bullish free bar).",
+    "pseudocode": "low[0] > ema(close, emaLength) + bandMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "emaLength": 20,
+      "bandMult": 2.25,
+      "atrLength": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an EMA and an ATR band, tested against the whole bar rather than just the close"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "CloseBeyondEma",
+    "confidence": "high",
+    "notes": [
+      "Stricter than a close-outside-band test (mined elsewhere as CloseOutsideKeltnerBand-style rules): here the bar's LOW must clear the band, not just its close."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-11",
+    "name": "Modified3_10MacdDefinition",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      450
+    ],
+    "quote": "The moving average convergence/divergence (MACD) is a standard technical indicator. This book advocates the use of a simplified, modified MACD based on 3/10/16-period moving averages.",
+    "description": "Defines Grimes's modified MACD oscillator: the difference between a 3-period and a 10-period moving average, with a 16-period moving average of that difference as the signal line.",
+    "pseudocode": "osc(0) = ema(close, fastLength) - ema(close, slowLength); signal(0) = ema(osc, signalLength)",
+    "sides": "same",
+    "parameters": {
+      "fastLength": 3,
+      "slowLength": 10,
+      "signalLength": 16
+    },
+    "book_order_type": "n/a (indicator primitive)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two moving averages plus a moving average of their difference"
+    },
+    "el_words_needed": [
+      "MACD",
+      "XAverage"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "This is the exact indicator the MINING brief's steering calls the '3/10 oscillator'; slope, zero-line-cross, and divergence tests built on this oscillator (per the steering note) are natural derived Entry candidates (osc(0) crosses above 0; osc(0) > osc(1)) but are not separately quoted here since this glossary page states only the periods, not those specific statements — the authoring pass should treat them as straightforward extensions of this primitive.",
+      "This glossary entry does not itself specify SMA vs EMA; XAverage/ema assumed by analogy with the rest of the corpus's moving-average convention."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-22",
+    "name": "KaufmanEfficiencyRatio",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      446
+    ],
+    "quote": "The Efficiency Ratio varies from 0 to 1 and is a measure of price movement compared to noise in the market. If price moves in an unbroken line for the period, the ER would be 1. If price returns to unchanged after moving away from the starting price, the ER would be 0.",
+    "description": "Kaufman's Efficiency Ratio: the net price change over a window divided by the sum of the absolute bar-to-bar changes over that same window, a directness-of-movement measure from 0 (pure noise) to 1 (unbroken line).",
+    "pseudocode": "er(0) = abs(close[0] - close[erLength]) / sum(abs(close[i] - close[i-1]), i, 1, erLength)",
+    "sides": "same",
+    "parameters": {
+      "erLength": 10
+    },
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a ratio of a net move to a rolling sum of absolute bar-to-bar changes"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [
+      "No length is given for ER in the glossary; 10 is Kaufman's own common default, adopted here."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-23",
+    "name": "ChesterKeltnerTypicalPriceChannel",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      448
+    ],
+    "quote": "Originally invented by Chester Keltner, these bands were drawn around a 10-day simple moving average of the typical price, and offset by a 10-day moving average of the bars' ranges. Various modifications exist today.",
+    "description": "The original Keltner band definition: an SMA of the typical price (high+low+close)/3, offset by an average of the bars' ranges (not ATR).",
+    "pseudocode": "typicalPrice(0) = (high[0] + low[0] + close[0]) / 3; close[0] > average(typicalPrice, maLength) + bandMult * average(high - low, rangeLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "maLength": 10,
+      "rangeLength": 10,
+      "bandMult": 1.0
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an SMA of a derived price series plus a separately averaged range band"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "EecClassicKeltnerChannel",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from the ATR-based Keltner (EMA of close +/- ATR multiple) mined elsewhere in the corpus and used in Grimes's own worked examples; this is Chester Keltner's original typical-price/average-range formulation. bandMult is unspecified by the glossary; defaulted to 1.0."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-26",
+    "name": "StandardDeviationSpikeCrossRef",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      455
+    ],
+    "quote": "standard deviation spike An indicator that standardizes each bar's price change for current volatility conditions.",
+    "description": "Flags when the current bar's change from the prior close is an unusually large multiple of the standard deviation of daily changes over a rolling window.",
+    "pseudocode": "abs(close[0] - close[1]) >= sdMultiple * stddev(close[0] - close[1], lookback)",
+    "sides": "same",
+    "parameters": {
+      "sdMultiple": 3,
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a standard deviation of a bar-to-bar difference series over a rolling window"
+    },
+    "el_words_needed": [
+      "StdDev"
+    ],
+    "likely_existing_rule": "BarRangeAboveStd",
+    "confidence": "high",
+    "notes": [
+      "Same construction as G08-29 (VolatilitySpikeStdDevOfDailyChange) mined in 08_trade_management.json, where Chapter 8 gives the fuller worked description (20-day window, 3-standard-deviation color-coding threshold); recorded again here since the glossary names the indicator explicitly."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  }
+]

@@ -1,0 +1,30 @@
+{
+    "name": "ParabolicSarTrailingStop",
+    "type": "Exit",
+    "inputVariables": {
+        "afStart": "0.02",
+        "afStep": "0.02",
+        "afMax": "0.2"
+    },
+    "localVariables": {
+        "sar": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ep": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "af": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// WILDER'S PARABOLIC SAR, LITERALLY, USED AS AN EXIT-ONLY TRAILING STOP --\n// Grimes's archetype of a stop that accelerates on its own schedule:\n//     sar = sar + af * (ep - sar)\n// with af starting at afStart and stepping by afStep to afMax every time the\n// position prints a new extreme point.\n//\n// NEVER STOP-AND-REVERSE. Wilder's SAR flips side when hit; this is an exit,\n// the generator's own MarketPosition guard decides which side is live, so the\n// recursion is carried once in the position's direction and restarts at the\n// next entry.\n//\n// ALL STATE IS PER POSITION and resets on ctx.BarsSinceEntry() == 0 -- VERIFIED\n// as 0 on the fill bar and as restarting through a REVERSAL, which opens a\n// position without ever passing through flat and which a MarketPosition() == 0\n// reset would miss (BreakevenStopAfterEmaHoldingRun's idiom). While flat the\n// reset repeats and neither condition can fire.\n//\n// THE SEED: on the fill bar the extreme point is that bar's own extreme and the\n// stop the opposite extreme -- there is no pre-entry trend to inherit. The stop\n// is not live on the fill bar (BarsSinceEntry >= 1 in both conditions): one bar\n// of ratcheting must happen first, or a fill bar closing on its low would be\n// stopped out on the spot.\n//\n// WILDER'S CLAMP: the SAR may never sit inside the PRIOR TWO BARS' range, so\n// after the ratchet it is pulled back to low[1] / low[2] on a long and to\n// high[1] / high[2] on a short. Real price bars, so no mirroring, no warm-up.\n//\n// ORDER OF OPERATIONS is Wilder's: advance the stop from the previous bar's af\n// and extreme point, clamp, and only afterwards let this bar's extreme update\n// the extreme point and the acceleration factor. The cap is an if, not MinList,\n// so both twins read as the same walk.\n//\n// ParabolicAccelerationExit shares only the name -- it compares two successive\n// leg magnitudes and carries no recursion. Re-read against its JSON.\n//\n// Everything is a price plus a multiple of a price DIFFERENCE, so the whole\n// recursion shifts with the series and passes the shift test.\n//\n// All state is in localVariables, never at hook scope, so the rule survives\n// double placement.\nif (ctx.BarsSinceEntry() == 0) {\n    af = afStart;\n    ep = close[0];\n    sar = close[0];\n    if (el_gt(ctx.MarketPosition(), 0)) {\n        ep = high[0];\n        sar = low[0];\n    }\n    if (el_lt(ctx.MarketPosition(), 0)) {\n        ep = low[0];\n        sar = high[0];\n    }\n} else {\n    sar = sar + af * (ep - sar);\n    if (el_gt(ctx.MarketPosition(), 0)) {\n        if (el_gt(sar, low[1])) {\n            sar = low[1];\n        }\n        if (el_gt(sar, low[2])) {\n            sar = low[2];\n        }\n        if (el_gt(high[0], ep)) {\n            ep = high[0];\n            af = af + afStep;\n            if (el_gt(af, afMax)) {\n                af = afMax;\n            }\n        }\n    }\n    if (el_lt(ctx.MarketPosition(), 0)) {\n        if (el_lt(sar, high[1])) {\n            sar = high[1];\n        }\n        if (el_lt(sar, high[2])) {\n            sar = high[2];\n        }\n        if (el_lt(low[0], ep)) {\n            ep = low[0];\n            af = af + afStep;\n            if (el_gt(af, afMax)) {\n                af = afMax;\n            }\n        }\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1) && el_le(close[0], sar)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1) && el_ge(close[0], sar)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

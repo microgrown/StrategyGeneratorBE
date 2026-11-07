@@ -1,0 +1,76 @@
+{
+    "name": "OscillatorSlowLineExtendedRollover",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10",
+        "signalLen": "16",
+        "thresholdAtr": "1.5",
+        "atrLength": "20"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSeedLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "signal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "band": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sigReady": {
+            "type": "bool",
+            "init": "false"
+        },
+        "sigHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "sigCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "sigLag1": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word:\n// Appendix B spells the construction out as plain moving averages, and the\n// chapter 16 restatement in exponential terms loses to it.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffers below mirror.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// THE SLOW LINE: a signalLen-period SIMPLE average of the fast line, which in\n// EasyLanguage is an Average over a VARIABLE -- so it reads osc's own\n// zero-filled warm-up history and the rule guards its first signalLen bars on\n// the bar counter rather than acting on a diluted average.\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one. Mirrored here as a zero-seeded ring buffer, re-seeded if the depth\n// ever changes -- exactly what AwesomeOscillatorSlope, AtrRising and\n// BarRangeAboveStd do for the same reason. The rule GUARDS its own warm-up\n// on the bar counter instead of comparing against those zeros.\n// Depth signalLen: the whole averaging window, lags 0..signalLen - 1. The\n// mean is taken over the buffer the way BarRangeAboveStd takes its own.\nif (oscHistory.size() != (std::size_t)(int)signalLen) {\n    oscHistory.assign((std::size_t)(int)signalLen, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\nsignal = 0.0;\nfor (double v : oscHistory) {\n    signal += v;\n}\nsignal = signal / (int)signalLen;\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, which carries the measurements). Seeded\n// with a full N-term sum on the study's first calculated bar or whenever the\n// length changes, and updated thereafter as TWO statements -- EL evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently and lands on the other side of a threshold (@OJ 2015-02-20).\n// The remembered length is atrSeedLen, not atrLength: atrLength is this\n// rule's INPUT, the merged parameter name.\nif (atrSeedLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrSeedLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLength;\nband = thresholdAtr * atr;\n// THE BLOCKER: true -- the trade is allowed -- unless the slow line is beyond\n// the band AND has just turned back toward zero. Kept whole because\n// NOT(extended AND turning) is an OR of two negations and ANDed entry panes\n// cannot rebuild an OR (the SmallWeakSignalBarBlock precedent, cited for its\n// shape). While sigReady is false the rule is TRUE: a blocker must not block\n// on a zero-filled warm-up reading.\n// signal is itself an EL variable, so signal[1] is the variable's own\n// history -- mirrored as a second zero-seeded ring buffer, depth 2.\nif (sigHistory.size() != (std::size_t)2) {\n    sigHistory.assign((std::size_t)2, 0.0);\n    sigCursor = 0;\n}\nsigHistory[sigCursor] = signal;\nsigCursor = (sigCursor + 1) % sigHistory.size();\nsigLag1 = sigHistory[(sigCursor + sigHistory.size() - 2) % sigHistory.size()];\nsigReady = ctx.CurrentBar() > (int)signalLen;",
+    "longCondition": "!(sigReady && el_gt(signal, band) && el_lt(signal, sigLag1))",
+    "shortCondition": "!(sigReady && el_lt(signal, -band) && el_gt(signal, sigLag1))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

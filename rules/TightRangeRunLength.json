@@ -1,0 +1,43 @@
+{
+    "name": "TightRangeRunLength",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "rangeAtrMultiple": "4",
+        "atrLookback": "14",
+        "consecutiveBars": "18"
+    },
+    "localVariables": {
+        "rangeHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tightRun": {
+            "type": "bool",
+            "init": "true"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLength": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// RangeWidthBelowAtrMultiple held for a run: the height of the last N bars is\n// no more than K times the N-bar ATR on each of the last `consecutiveBars`\n// bars -- Grimes's consolidation that has lasted markedly longer than the\n// trend's usual pauses (A-list TightRangeRunLength, G10-07, merge decision 10).\n// Authored 2026-09-22 as a `consecutiveBars` input on RangeWidthBelowAtrMultiple\n// and split out 2026-11-06, once templates placed that rule, so it stays as\n// those families ran it. Code otherwise unchanged.\n//\n// `consecutiveBars` is the CONSOLIDATION LENGTH -- Grimes wants a consolidation\n// three or four times the trend's usual five-to-eight-bar pause, and since\n// tracking prior consolidation lengths needs machinery no source describes, the\n// ratio is baked into a fixed minimum of about 18 bars, the default. AT\n// consecutiveBars = 1 THE OUTER LOOP RUNS ONCE ON THE CURRENT BAR AND THIS IS\n// EXACTLY RangeWidthBelowAtrMultiple AT lag 0: the window is bars\n// 0..rangeLookback-1, and !el_gt(width, K * atr) is el_le(width, K * atr) under\n// the same tolerance. The MomentumConsecutiveBars / StrongTrendBarRun precedent\n// for a run count.\n//\n// The window extremes mirror EasyLanguage's Extremes(), which Highest()/\n// Lowest() call: seeded at the first bar of the window, scanning the rest,\n// strict comparison. Extremes is EL SOURCE, so its comparison carries the\n// relational tolerance -- el_gt/el_lt, as in Breakout (the reference). The EL\n// twin spells the same nested loop rather than Highest()/Lowest(), because\n// the run's shifted window has no registered function spelling.\n//\n// ONE ATR VALUE FOR THE WHOLE RUN, read at the current bar, never a lagged read\n// of WFSafe_AvgTrueRange (QuietBarCountInWindow's arrangement).\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded once with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the measurement\n// notes; the two details that are load-bearing are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\n//\n// The flag and the accumulators are class members and persist across bars, so\n// they are reset before use.\n//\n// Deepest bar touched: max(rangeLookback + consecutiveBars - 2, atrLookback + 1).\nif (atrLength != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLength = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\ntightRun = true;\nfor (int k = 0; k < (int)consecutiveBars; ++k) {\n    rangeHigh = high[k];\n    rangeLow = low[k];\n    for (int j = 1; j < (int)rangeLookback; ++j) {\n        if (el_gt(high[k + j], rangeHigh)) rangeHigh = high[k + j];\n        if (el_lt(low[k + j], rangeLow)) rangeLow = low[k + j];\n    }\n    if (el_gt(rangeHigh - rangeLow, rangeAtrMultiple * atr)) tightRun = false;\n}",
+    "longCondition": "tightRun",
+    "shortCondition": "tightRun",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

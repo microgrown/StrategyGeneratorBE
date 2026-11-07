@@ -1,0 +1,385 @@
+{
+ "slice": "B03_indicators_exits",
+ "rules": [
+  {
+   "key": "DailyLossLimit",
+   "role": "Switch",
+   "is_filter": false,
+   "description": "Equity lost since the first bar of the current calendar day exceeds the limit \u2014 blocks entries and forces flat for the rest of the day.",
+   "pseudocode": "if (Date[0] <> Date[1]) dayStartEquity = NetProfit + OpenPositionProfit;\n(NetProfit + OpenPositionProfit) - dayStartEquity <= -dailyLossLimit",
+   "sides": "same",
+   "parameters": {
+    "dailyLossLimit": 1000
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a persistent period-start latch plus a date-boundary reset; both are precedented \u2014 MonthlyProfitTarget captures period-start equity and mirrors the EL variable's history in endOfFileHook, MaxTradesPerSession resets on Date <> Date[1] \u2014 so no new engine accessor is needed"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Date",
+    "NetProfit",
+    "OpenPositionProfit"
+   ],
+   "catalog_match": {
+    "rule": "MonthlyProfitTarget",
+    "relation": "variant",
+    "note": "same construction with the boundary moved from Month(Date) <> Month(Date[1]) to Date <> Date[1] and the comparison on the LOSS side; EquityDrawdownFilter is the rolling-window cousin and resets at no boundary, a different accessor pattern"
+   },
+   "sources": [
+    "G12-01"
+   ],
+   "merge_notes": "Grimes gives no figure, so 1000 is a placeholder for the grid. His week and month forms are the same rule at a different boundary test, worth a `periodSelect` input only if the grid wants them. Unlike MaxTradesPerSession, which makes its exit half inert deliberately, forcing flat is WANTED here \u2014 MonthlyProfitTarget's Switch behaviour.",
+   "variants_kept_separate": [
+    "MaxTradesPerPeriod"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime",
+   "el_words": [
+    "Date",
+    "NetProfit",
+    "OpenPositionProfit"
+   ]
+  },
+  {
+   "key": "ParabolicSarTrailingStop",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Wilder's Parabolic SAR used as an exit-only trailing stop: the stop starts from the trend's extreme point and is ratcheted toward price every bar by an acceleration factor that itself steps up each time a new extreme prints.",
+   "pseudocode": "// per position, reset on ctx.BarsSinceEntry() == 0\nsar[0] = sar[1] + af[1] * (extremePoint[1] - sar[1]);\nif (high[0] > extremePoint[1]) { extremePoint[0] = high[0]; af[0] = min(af[1] + afStep, afMax); }\nctx.MarketPosition() > 0 && close[0] <= sar[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "afStart": 0.02,
+    "afStep": 0.02,
+    "afMax": 0.2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a recursive, self-accelerating state variable plus an extreme-point tracker, both carried across every bar of the position"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "ParabolicAccelerationExit",
+    "relation": "none",
+    "note": "name overlap only: that rule compares two successive leg magnitudes to detect an unsustainable slope. No SAR recursion exists anywhere in the corpus"
+   },
+   "sources": [
+    "G08-12"
+   ],
+   "merge_notes": "The literal SAR recursion, carried once and exit-only (never stop-and-reverse). State resets on ctx.BarsSinceEntry() == 0, the corpus's per-position capture idiom. Wilder's standard 0.02/0.02/0.20 defaults; Grimes presents it as the archetype of an accelerating trail.",
+   "variants_kept_separate": [
+    "ChandelierAtrTrailingStop",
+    "TimeDecayStopTightening"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": []
+  },
+  {
+   "key": "BreakevenStopAfterFavorableCloseRun",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "The breakeven stop is armed structurally: once N consecutive closes since entry have each moved in the trade's favour, a later close back at the entry price takes the trade off.",
+   "pseudocode": "// armed latches once favorableRun >= favorableCloses since ctx.BarsSinceEntry() == 0\nctx.MarketPosition() > 0 && armedLong && close[0] <= ctx.EntryPrice()",
+   "sides": "mirrored",
+   "parameters": {
+    "favorableCloses": 2
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a per-position counter and a latched flag, both reset on the fill bar"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "BarsSinceEntry",
+    "EntryPrice"
+   ],
+   "catalog_match": {
+    "rule": "BreakevenStopAfterEmaHoldingRun",
+    "relation": "variant",
+    "note": "identical shape and identical latch idiom; the arming condition differs - a run of favourable closes here, a run of closes holding on the EMA's correct side there"
+   },
+   "sources": [
+    "G10-03"
+   ],
+   "merge_notes": "'Once a trade is working, once the market is moving in the intended direction, tighten stops to reduce open risk.' The counter and flag reset on ctx.BarsSinceEntry() == 0, exactly as in BreakevenStopAfterEmaHoldingRun. Grimes's worked example arms on 2 closes; he gives no general number.",
+   "variants_kept_separate": [
+    "BreakevenStopAtRiskMultiple",
+    "ConsecutiveAdverseCloseExit"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "BarsSinceEntry",
+    "EntryPrice"
+   ]
+  },
+  {
+   "key": "TimeDecayStopTightening",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Instead of a hard exit when the time stop expires, the allowed give-back shrinks toward zero as bars elapse since entry, so open risk decays continuously through the window.",
+   "pseudocode": "// curve undecided; linear form shown\nallowed = (1 - ctx.BarsSinceEntry() / maxBars) * initialAllowance;\nctx.MarketPosition() > 0 && ctx.MaxPositionProfit() - ctx.OpenPositionProfit() > allowed",
+   "sides": "same",
+   "parameters": {
+    "maxBars": 10
+   },
+   "complexity": {
+    "grade": "research",
+    "reason": "Grimes gives only an analogy to the Parabolic, no tightening curve; linear, accelerating and stepped all fit the text"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "BarsSinceEntry",
+    "EntryPrice",
+    "MaxPositionProfit"
+   ],
+   "catalog_match": {
+    "rule": "ParabolicSarTrailingStop",
+    "relation": "variant",
+    "note": "same intention - a stop that tightens on its own schedule - but driven by elapsed bars rather than by new extremes; no catalog rule decays a stop on time"
+   },
+   "sources": [
+    "G08-20"
+   ],
+   "merge_notes": "'Tighten the stop very close to current prices, moving it closer as time goes on, in a similar fashion to the Parabolic SAR.' The curve is the whole rule and the book does not give it. ParabolicSarTrailingStop already supplies the accelerating form he points at, which may make this redundant.",
+   "variants_kept_separate": [
+    "ParabolicSarTrailingStop",
+    "NumBarsIfBelowProfitThreshold"
+   ],
+   "priority": "C",
+   "design_decisions_needed": [
+    "time-stop tightening curve"
+   ],
+   "depends_on_keys": [
+    "ParabolicSarTrailingStop"
+   ],
+   "bucket": "exits_stops",
+   "el_words": [
+    "BarsSinceEntry",
+    "EntryPrice",
+    "MaxPositionProfit"
+   ]
+  },
+  {
+   "key": "GapAgainstPositionOpeningRangeBreakExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "The session gapped against the position and the market then broke out of the opening range the wrong way: dump the position immediately rather than waiting for the original stop.",
+   "pseudocode": "// intraday; gapDown and orLow are session state fixed in the session's first openingBars bars\nctx.MarketPosition() > 0 && gapDown && barsSinceSessionOpen > openingBars && low[0] < orLow",
+   "sides": "mirrored",
+   "parameters": {
+    "openingBars": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "session-boundary state: the gap sign at the first bar plus the opening range's extremes, carried in locals"
+   },
+   "timeframe": "intraday-only",
+   "el_words_needed": [
+    "Time",
+    "Date"
+   ],
+   "catalog_match": {
+    "rule": "OpeningRangeMeasuredMoveTarget",
+    "relation": "none",
+    "note": "the corpus's opening-range exits are targets (OpeningRangeMeasuredMoveTarget, SessionMidpointTarget); none reads the session's gap direction against an open position"
+   },
+   "sources": [
+    "G08-23"
+   ],
+   "merge_notes": "'If the market opens down and immediately presses lower, or breaks lower out of an opening range, there is a good chance it could trend down all day. Long positions should be dumped immediately.' Session state is held in locals as in SessionMidpointTarget. Its companion G08-22 (widen the stop instead) is dropped.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "exits_stops",
+   "el_words": [
+    "Time",
+    "Date"
+   ]
+  },
+  {
+   "key": "MomentumDivergenceAtSwingExtreme",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Momentum divergence: price makes a new divLookback-bar extreme while the 3/10 oscillator does not \u2014 a new price high whose oscillator reading falls short of the oscillator's own window high (mirrored on lows). Grimes's bearish divergence fires on the LONG-side price extreme, so a short pane places it un-negated.",
+   "pseudocode": "high[0] >= highest(high, divLookback)[1] AND osc[0] < highest(osc, divLookback)[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "divLookback": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "two Highest scans, one of them over the mirrored oscillator history; the pivot form would additionally need SwingHigh and a read of the indicator at each pivot"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "VolumeDivergenceAfterClimax",
+    "relation": "variant",
+    "note": "the same shape \u2014 a new price extreme while the companion series stays under its own window extreme \u2014 on volume instead of the 3/10 oscillator; that rule is the porting template for this one"
+   },
+   "sources": [
+    "G03-13",
+    "G05-21",
+    "G06-07",
+    "G07-14",
+    "G07-15",
+    "G14-05",
+    "G14-06",
+    "G16-12"
+   ],
+   "merge_notes": "Eight candidates, one test. G07-15 is this rule negated (a per-placement toggle). G14-05 (shallower per-bar rate) and G14-06 (fewer bars) are the book's derivations of WHY the oscillator reads lower, not separate tests. Window maxima chosen over swing pivots \u2014 see the design decision (decision 3). RECONCILED: climax_termination's identical row is folded in here per decision 3 \u2014 its four sources join this one, with G05-21 / G06-07's 'momentum at the prior extreme' spelling (a latched value at a found bar) losing to the window maximum, and its termination reading (a mature trend or failed pullback making a new extreme on weaker momentum) being the same bars in another placement.",
+   "variants_kept_separate": [
+    "OscillatorNewExtreme"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "OscillatorArtifactWindowBlock",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Suppress hook and divergence reads for the first slowLen bars after a genuine trend inflection: Appendix B proves the fast line's curvature over that window is an artifact of the 10-period average rolling into the new regime, not new momentum.",
+   "pseudocode": "barsSinceLastGenuineInflection() > slowLen",
+   "sides": "same",
+   "parameters": {
+    "slowLen": 10
+   },
+   "complexity": {
+    "grade": "research",
+    "reason": "the window length is exact and measured; the unresolved part is detecting 'a genuine trend inflection' to measure from, which is circular without a separate detector"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "BarsSinceEmaCross",
+    "relation": "variant",
+    "note": "that rule counts bars since a close crossed the EMA, which is one concrete candidate for the inflection anchor this rule is missing"
+   },
+   "sources": [
+    "G14-04"
+   ],
+   "merge_notes": "Held at C only on the anchor. Candidate anchors visible in the sources: an oscillator zero cross (MovingAverageCross at 3/10), a close cross of the EMA (BarsSinceEmaCross), or a confirmed swing pivot. Pick one and this becomes a bar-counter rule of trivial complexity.",
+   "variants_kept_separate": [],
+   "priority": "C",
+   "design_decisions_needed": [
+    "fast-line artifact window: what counts as a genuine trend inflection to measure the slowLen bars from"
+   ],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average"
+   ]
+  },
+  {
+   "key": "AntiStochasticSlopeDisagreement",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Linda Raschke's original Anti confirmation, cited by Grimes: a fast stochastic is rising while a slow one is falling (mirrored) \u2014 two time frames' momentum sloping against each other.",
+   "pseudocode": "fastK(fastLookback)[0] > fastK(fastLookback)[1] AND fastK(slowLookback)[0] < fastK(slowLookback)[1]",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLookback": 5,
+    "slowLookback": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two stochastic chains at different lengths plus a one-bar slope on each"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "FastK",
+    "SlowK"
+   ],
+   "catalog_match": {
+    "rule": "StochasticCross",
+    "relation": "variant",
+    "note": "that rule fires on a SlowK/SlowD cross at one length; this compares the slopes of two stochastics at different lengths and never reads SlowD"
+   },
+   "sources": [
+    "G06-61"
+   ],
+   "merge_notes": "Held at C per the merge brief's stochastic rule. Worth flagging downstream: the register's `stochastic` row is VERIFIED (SmoothingType 1, ratio of sums, seed-filled warm-up) and StochasticCross carries a working port, so the block is cheap to lift. Grimes prefers his own price-structure Anti, which is in pullbacks_continuation.",
+   "variants_kept_separate": [],
+   "priority": "C",
+   "design_decisions_needed": [
+    "whether to build the Raschke Anti on the measured Stochastic chain or drop it for Grimes's price-structure form"
+   ],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "FastK",
+    "SlowK"
+   ]
+  },
+  {
+   "key": "NoMomentumDivergenceInWindow",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "No momentum divergence at a price extreme fired in the last N bars -- Grimes's 'long trades should not be entered on the next pullback' after a divergence. Stated positively; negate the placement to block.",
+   "pseudocode": "noneOf(i = 0..sinceDivergenceBars-1: high[i] >= highest(high, divLookback)[i+1] AND osc[i] < highest(osc, divLookback)[i+1])",
+   "sides": "mirrored",
+   "parameters": {
+    "sinceDivergenceBars": 20,
+    "divLookback": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a bounded OR over the divergence test, which itself needs the 3/10 oscillator series and two window maxima"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": null,
+    "relation": "none",
+    "note": "same shape as NoClimaxBarInWindow over a different primitive"
+   },
+   "sources": [
+    "G03-14"
+   ],
+   "merge_notes": "Divergence is settled by decision 3 (window maxima on the 3/10 oscillator, key MomentumDivergenceAtSwingExtreme), so this is B, not C. The window OR is what a single negated placement of that rule cannot express.",
+   "variants_kept_separate": [
+    "NoClimaxBarInWindow"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "MomentumDivergenceAtSwingExtreme"
+   ],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+{
+    "name": "ChesterKeltnerTypicalPriceChannel",
+    "type": "Entry",
+    "inputVariables": {
+        "maLength": "10",
+        "rangeLength": "10",
+        "bandMult": "1.0"
+    },
+    "localVariables": {
+        "tpAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rangeAvg": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE ORIGINAL CHESTER KELTNER CHANNEL (G16-23, the glossary entry and the one\n// place Grimes states the indicator before the modern ATR modification): a\n// simple average of the TYPICAL PRICE (high + low + close) / 3, offset by a\n// multiple of the average bar RANGE. Long when the close is above the upper\n// channel, short when below the lower one -- a STATE, not a cross.\n//\n// Not KeltnerChannelCross and not the EMA/ATR Keltner band rules in this slice,\n// on three differences at once: the centre series is the typical price rather\n// than the close or an EMA, the band series is the MEAN BAR RANGE rather\n// than an ATR, and the test is a state rather than EL's `crosses` state\n// machine. Range averaging ignores gaps where True Range folds them in, which\n// is the whole behavioural difference from the corpus's ATR bands. bandMult is\n// unspecified by the book; 1.0 chosen, 10 / 10 are Keltner's own lengths.\n//\n// EL's Average RECOMPUTES FROM SCRATCH every bar (VERIFIED, 2,808/2,808 bars),\n// so these are FRESH loops over price -- not the WFSafe_AvgTrueRange rolling\n// accumulator and not a mirrored variable buffer, because both series are\n// expressions over PRICE, which has real history. Summed newest-first, EL's\n// Summation order, and the / 3 is applied per term exactly as EL evaluates the\n// expression bar by bar before summing it.\n// Scratch is declared in localVariables, not at hook scope: the generator only\n// prefixes declared locals, so a hook-scope declaration is a redefinition when\n// this rule is placed twice in one strategy.\ntpAvg = 0.0;\nfor (int i = 0; i < (int)maLength; ++i) {\n    tpAvg += (high[i] + low[i] + close[i]) / 3.0;\n}\ntpAvg /= (int)maLength;\nrangeAvg = 0.0;\nfor (int i = 0; i < (int)rangeLength; ++i) {\n    rangeAvg += high[i] - low[i];\n}\nrangeAvg /= (int)rangeLength;",
+    "longCondition": "el_gt(close[0], tpAvg + bandMult * rangeAvg)",
+    "shortCondition": "el_lt(close[0], tpAvg - bandMult * rangeAvg)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

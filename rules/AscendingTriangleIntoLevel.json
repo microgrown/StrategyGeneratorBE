@@ -1,0 +1,120 @@
+{
+    "name": "AscendingTriangleIntoLevel",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "40",
+        "legs": "3",
+        "levelTolAtr": "0.25",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "aa": {
+            "type": "int",
+            "init": "0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "loOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hiOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "flatHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flatLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveAsc": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDesc": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE ASCENDING TRIANGLE: successively higher confirmed swing lows pressing\n// into a FLAT resistance level -- a run of `legs` rising swing lows while the\n// two most recent swing highs sit within levelTolAtr ATRs of each other\n// (G04-16). Mirrored, the descending triangle: a run of `legs` falling swing\n// highs into flat support.\n//\n// CARRIED AS ONE FILE although its two halves are separately meaningful --\n// HigherSwingLowRun with its `legs` input is the rising-lows run, and\n// LevelTouchCount is the flat-level read -- because LevelTouchCount's\n// RESISTANCE reading sits on its SHORT side and a LONG placement cannot borrow\n// it. That is the same side-assignment obstruction LowTouchesRecentRangeLow\n// carries, and an AND across two panes cannot fix it: both halves of the\n// ascending triangle belong to the long side. Both halves are inlined here, as\n// the corpus does for Brooks's named setups.\n//\n// THE FLAT PAIR IS A NEW TEST. No catalog rule asks whether two PIVOTS are\n// level with each other: LevelTouchCount counts BARS touching one pivot, Ledge\n// counts bars sharing one extreme, and EqualHighsBreakout tests a run of\n// adjacent BARS. Pivot against pivot is what a triangle's flat side is.\n//\n// NOT ExpandingTrianglePattern, the catalog's only triangle, which needs BOTH\n// series DIVERGING over five pivots; this needs one series rising into the\n// other held flat.\n//\n// THE RUN IS TESTED AS THE SCAN GOES, HigherSwingLowRun's construction: one\n// comparison per newly found pivot against the previously found (NEWER) one,\n// so no array and no numbered slots are needed for the run and `legs` is\n// bounded only by pivotLookback. The occurrence 1 and 2 PRICES are captured\n// separately for the flat-pair test on the other series. loPrev / hiPrev are\n// only ever read once the count has reached 2, which is exactly when they were\n// written earlier on the same bar.\n//\n// legs IS GUARDED AT 2 OR MORE: one pivot is not a run, and the flat pair needs\n// two pivots of the opposite series, which the same `legs` cap supplies.\n// Grimes's value is 3, the default here, as it is for HigherSwingLowRun's\n// `legs`.\n//\n// THE TOLERANCE IS AN ATR FRACTION, never ticks (merge decision 7); 0.25 is the\n// top of the decision's 0.1-to-0.25 band, right for a level two pivots must\n// BOTH sit on. MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator:\n// AtrProfitTarget's block verbatim, including the TWO separate accumulator\n// statements, since EasyLanguage evaluates Summation[1] + Price - Price[Length]\n// left to right, and the re-seed when the length changes.\n//\n// MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot\n// bar is AT OR BEYOND the swingStrength OLDER bars and STRICTLY BEYOND the\n// swingStrength NEWER bars -- bars-ago indexing makes the SMALLER kk the newer\n// bar, so the strict half is the kk < jj loop; the confirmation lag is exactly\n// swingStrength bars, so jj starts there; candidate offsets run 0..Length-1\n// inclusive so jj stops at pivotLookback - 1, while the neighbourhood test\n// reaches swingStrength bars PAST the window -- deepest bar touched\n// pivotLookback - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; the low side's tie sense is the mirror of the measured\n// high-side rule. Occurrence 3+ is UNMEASURED, which is why the scan is\n// hand-rolled. No WFSafe_SwingLow exists, so plain EL governs. Written WITHOUT\n// break, matching the twin statement for statement.\n//\n// THE SENTINEL IS GUARDED BY THE COUNTS, never by a price test: -1.00 and 0.00\n// are legitimate prices in a back-adjusted series. AbsValue is ACCEPTED and\n// std::fabs is its counterpart; <cmath> is already included by the emitter.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched:\n// max(pivotLookback - 1 + swingStrength, atrLength + 1).\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nnLo = 0;\nnHi = 0;\nloOk = true;\nhiOk = true;\nloPrev = 0.0;\nhiPrev = 0.0;\nloPx1 = 0.0;\nloPx2 = 0.0;\nhiPx1 = 0.0;\nhiPx2 = 0.0;\nfor (int jj = pivS; jj <= pivW - 1; ++jj) {\n    bool okLo = true;\n    bool okHi = true;\n    for (int kk = jj - pivS; kk < jj; ++kk) {\n        if (el_ge(low[jj], low[kk])) okLo = false;\n        if (el_le(high[jj], high[kk])) okHi = false;\n    }\n    for (int kk = jj + 1; kk <= jj + pivS; ++kk) {\n        if (el_gt(low[jj], low[kk])) okLo = false;\n        if (el_lt(high[jj], high[kk])) okHi = false;\n    }\n    if (okLo && el_lt((double)nLo, legs)) {\n        nLo = nLo + 1;\n        if (nLo >= 2 && el_le(loPrev, low[jj])) loOk = false;\n        loPrev = low[jj];\n        if (nLo == 1) loPx1 = low[jj];\n        if (nLo == 2) loPx2 = low[jj];\n    }\n    if (okHi && el_lt((double)nHi, legs)) {\n        nHi = nHi + 1;\n        if (nHi >= 2 && el_ge(hiPrev, high[jj])) hiOk = false;\n        hiPrev = high[jj];\n        if (nHi == 1) hiPx1 = high[jj];\n        if (nHi == 2) hiPx2 = high[jj];\n    }\n}\nflatHi = (nHi >= 2) && el_le(std::fabs(hiPx1 - hiPx2), levelTolAtr * atrValue);\nflatLo = (nLo >= 2) && el_le(std::fabs(loPx1 - loPx2), levelTolAtr * atrValue);\nhaveAsc = el_ge(legs, 2.0) && el_ge((double)nLo, legs) && loOk && flatHi;\nhaveDesc = el_ge(legs, 2.0) && el_ge((double)nHi, legs) && hiOk && flatLo;",
+    "longCondition": "haveAsc",
+    "shortCondition": "haveDesc",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

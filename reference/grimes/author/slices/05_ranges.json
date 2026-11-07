@@ -1,0 +1,425 @@
+{
+ "slice": "05_ranges",
+ "rules": [
+  {
+   "key": "CloseRangePositionRun",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Every one of the last `runBars` bars closed in the top `threshold` of its own high-low range (short: the bottom) \u2014 Grimes's buying- or selling-climax run of bars closing at their extreme.",
+   "pseudocode": "CountIF((close - low) > threshold * (high - low + epsilon), runBars) >= runBars",
+   "sides": "mirrored",
+   "parameters": {
+    "runBars": 3,
+    "threshold": 0.75,
+    "epsilon": 1e-06
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an all-of-N count over a per-bar ratio; no persistent state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "CloseRangePosition",
+    "relation": "variant",
+    "note": "a RUN of N bars, not one bar. ConsecutiveClosesBeyondEmaRun beside BarsBeyondEmaCount is the corpus precedent for keeping a run apart from its single-bar form. Not StrongBodyBarCountInWindow, which counts BODIES K-of-N rather than close position all-of-N"
+   },
+   "sources": [
+    "G03-06"
+   ],
+   "merge_notes": "One source, cited twice (the climax read, p72; the trend-leg checklist, p110). Product form `(close - low) > T x (high - low + eps)` so no division rounds, and a CountIF against the window length \u2014 the ExitOnFirstOppositeBodyAfterRun spelling \u2014 since EasyLanguage does not short-circuit.",
+   "variants_kept_separate": [
+    "CloseRangePosition"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "bar_anatomy",
+   "el_words": [
+    "CountIF"
+   ]
+  },
+  {
+   "key": "MomentumBeyondAtrMultiple",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The close is at least K ATRs above the close N bars ago (long) / below it (short) -- Grimes's 'run up too far too fast', the overextension that invites a countertrend scalp.",
+   "sides": "mirrored",
+   "pseudocode": "close[0] > close[extensionLookback] + extensionAtrMultiple * atr(atrLookback)",
+   "parameters": {
+    "extensionLookback": 3,
+    "extensionAtrMultiple": 2,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one ATR call site added to a close-against-close comparison"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "Momentum",
+    "relation": "parameterization",
+    "note": "Momentum is close[0] > close[lookback] with no threshold; add minMoveAtr(0) and atrLookback(14), and at the default 0 every existing placement is unchanged. Not TightChannel, whose netAtr term is ANDed with a pullback cap and a running-extreme walk; not EmaSlope, which measures the EMA against its own value N bars ago; not SessionMoveExhaustsDailyRange, which is session-anchored."
+   },
+   "sources": [
+    "G02-06"
+   ],
+   "merge_notes": "Grimes's use is the FADE of the overextension -- the short-side condition driving a long entry. That is a side exchange, which the negate toggle cannot supply (the DistanceAboveRecentLow / PullbackFromRecentHigh precedent), so the fade needs a second file; recorded, not authored. G02-02's trend-phase term is a separate pane. 3 bars / 2 ATR is the miner's reading; the book gives no number.",
+   "variants_kept_separate": [
+    "AcceleratingLegsClimax"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "climax_termination",
+   "el_words": [
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "SpringWithMinimumPenetration",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Spring (long): the bar's low trades below the range low by at least a minimum distance and the bar closes back at or above that level. Mirrored, the short side is Grimes's upthrust at range resistance.",
+   "pseudocode": "level = lowest(low[1], rangeLookback); low[0] < level - minPenetrationAtr * atr(atrLength) AND close[0] >= level",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeLookback": 20,
+    "minPenetrationAtr": 0.25,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a one-bar-shifted window extreme, an ATR margin and two comparisons on the same bar; no persistent state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "SmallBreakoutTrapReversal",
+    "relation": "variant",
+    "note": "that rule CAPS the penetration (Brooks's one-tick trap); this FLOORS it. Opposite bounds on the same event, so neither is the other at any parameter, and Grimes is explicit that a token poke is a bad spring"
+   },
+   "sources": [
+    "G01-11",
+    "G02-03",
+    "G04-03",
+    "G05-08",
+    "G06-05",
+    "G06-46",
+    "G10-11",
+    "G16-04",
+    "G16-18"
+   ],
+   "merge_notes": "Nine restatements of one same-bar test. The window-extreme level beat G16-04/G16-18's swing pivot on mechanizability. G10-11 supplies the floor (Grimes: a few cents is too little) and 0.25 ATR; at 0 this degenerates to SmallBreakoutTrapReversal with its cap disabled. G01-11 is the upthrust side.",
+   "variants_kept_separate": [
+    "SmallBreakoutTrapReversal",
+    "NearMissLevelReversal",
+    "PriorBarsBrokeLevelCloseBackInside"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "BodyExceedsAverageBarRange",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar's body is at least a multiple of the mean high-low range of the N bars before it - Grimes's strong-momentum rejection bar, the bar that closes back across a broken level.",
+   "pseudocode": "abs(close[0] - open[0]) > bodyMultiple * average(high[1] - low[1], lookback)",
+   "sides": "same",
+   "parameters": {
+    "lookback": 20,
+    "bodyMultiple": 1.0
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one body measurement against a window mean that excludes the judged bar"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "BodyAboveAverageMultiple",
+    "relation": "variant",
+    "note": "that rule measures the body against the mean BODY of the prior window and requires a with-trend colour; this measures it against the mean RANGE, a much harder test at the same multiple, and is direction-agnostic. Nothing in the catalog compares a body to other bars' ranges"
+   },
+   "sources": [
+    "G05-10"
+   ],
+   "merge_notes": "The momentum half of Grimes's failure test, carried atomically so the template is two panes. Benchmark excludes bar 0, the LargeOutsideBar / BodyAboveAverageMultiple convention. Also a bar_anatomy candidate (secondary bucket); merged here because the failure test is this bucket's.",
+   "variants_kept_separate": [
+    "BodyAboveAverageMultiple",
+    "BarRangeAtrMultiple"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Average"
+   ]
+  },
+  {
+   "key": "NetMoveBelowAtrMultiple",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The absolute net change in the close over the last N bars is below a multiple of ATR - no directional progress, the second half of Grimes's random-walk trading-range read.",
+   "pseudocode": "abs(close[0] - close[lookback]) < netAtr * atr(atrLength)",
+   "sides": "same",
+   "parameters": {
+    "lookback": 20,
+    "netAtr": 1.0,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one lagged close difference against an ATR multiple"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "Momentum",
+    "relation": "variant",
+    "note": "a TWO-SIDED band on the same lagged difference, which no negate toggle on the one-sided mirrored Momentum reaches, and scaled in ATR so it ports across instruments. Complements RangeWidthBelowAtrMultiple: a slow one-sided drift is tight by that rule's envelope and wide by this one"
+   },
+   "sources": [
+    "G04-10"
+   ],
+   "merge_notes": "G04-10's containment half IS RangeWidthBelowAtrMultiple at its own defaults (20 bars, 4.0 ATR), so only the net-progress half is new; the two AND in the pane to give Grimes's full range test. See the trading-range design decision.",
+   "variants_kept_separate": [
+    "RangeWidthBelowAtrMultiple"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "TightRangeRunLength",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The N-bar range width has stayed below a multiple of ATR on each of the last K consecutive bars - a consolidation that has lasted markedly longer than the trend's usual pauses.",
+   "pseudocode": "all k in 0..consecutiveBars-1: (highest(high[k], rangeLookback) - lowest(low[k], rangeLookback)) <= rangeAtrMultiple * atr(atrLookback)",
+   "sides": "same",
+   "parameters": {
+    "rangeLookback": 10,
+    "rangeAtrMultiple": 2.0,
+    "consecutiveBars": 18,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a run of window-width tests; ONE current ATR read for the whole run, never a lagged read of WFSafe_AvgTrueRange, per QuietBarCountInWindow"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "RangeWidthBelowAtrMultiple",
+    "relation": "parameterization",
+    "note": "that rule plus ONE new `consecutiveBars` input (the MomentumConsecutiveBars / StrongTrendBarRun precedent); at 1 it is exactly the existing rule"
+   },
+   "sources": [
+    "G10-07"
+   ],
+   "merge_notes": "Grimes states a RATIO (a consolidation three or four times the trend's usual five to eight bars); tracking prior consolidation lengths needs machinery no source describes, so the ratio is baked into a fixed minimum, 18 bars. See the consolidation-length design decision.",
+   "variants_kept_separate": [
+    "RangeWidthBelowAtrMultiple",
+    "BreakoutBase"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "LevelConfluenceAcrossWindows",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The support level of a recent window sits within an ATR fraction of the support level of an older, longer window - Grimes's confluence, levels from two scales lining up at one price. Mirrored on the highs.",
+   "pseudocode": "abs(lowest(low[1], shortLookback) - lowest(low[shortLookback + 1], longLookback)) <= tolAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "shortLookback": 20,
+    "longLookback": 100,
+    "tolAtr": 0.5,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two disjoint window extremes and an ATR-scaled distance"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "nothing in the catalog compares two levels to each other; NearAnyLevel ORs the distance from PRICE to three magnets"
+   },
+   "sources": [
+    "G16-20"
+   ],
+   "merge_notes": "The multi-timeframe read is two lookbacks on one series, per the standing convention. THE WINDOWS MUST NOT OVERLAP: a nested long window's low is at or below the short window's and the test fires trivially whenever the long low is recent, so the older window is offset by shortLookback, the ReversalShortOfPriorExtreme construction.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "PriorLegDirection",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close `lag` bars ago is above the close `lag + lookback` bars ago - the direction of the leg that ran into the current window. Negated on the long side it is Grimes's accumulation read (a decline precedes a base); as written it is the distribution read.",
+   "pseudocode": "close[lag] > close[lag + lookback]",
+   "sides": "mirrored",
+   "parameters": {
+    "lookback": 20,
+    "lag": 20
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "one comparison of two lagged closes"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "Momentum",
+    "relation": "parameterization",
+    "note": "ADD ONE INPUT, `lag`, to Momentum (default 0, which leaves every existing template unchanged); at lag 0 it is exactly that rule. The LaggedHigherHigh precedent for a lag input on a bar comparison"
+   },
+   "sources": [
+    "G02-01"
+   ],
+   "merge_notes": "G02-01's Wyckoff phase test is a three-way composite: its tightness half is RangeWidthBelowAtrMultiple, its flat-average half is EmaFlat, and only the prior-leg-direction term is new. Three panes beat one composite, so only that term is carried. See the accumulation/distribution design decision.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": []
+  },
+  {
+   "key": "CloseInTopOfSessionRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The close sits in the top fraction of the session's range so far (long, a strength read); mirrored, in the bottom fraction for the short.",
+   "pseudocode": "(close[0] - sessionLow(0)) >= strongFraction * (sessionHigh(0) - sessionLow(0))",
+   "sides": "mirrored",
+   "parameters": {
+    "strongFraction": 0.8
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "running session high/low accessors; written multiplied so a session whose high equals its low cannot divide by zero"
+   },
+   "timeframe": "intraday-only",
+   "el_words_needed": [
+    "Time",
+    "Date"
+   ],
+   "catalog_match": {
+    "rule": "CloseNearSessionExtreme",
+    "relation": "parameterization",
+    "note": "SAME STATISTIC, OPPOSITE POLARITY: that rule's long is a close in the BOTTOM of the session range (the fade read), Grimes's is a close in the TOP (the strength read). Add ONE boolean input, `strengthMode`, that swaps the two sides; the negate toggle does not reach it"
+   },
+   "sources": [
+    "G08-26"
+   ],
+   "merge_notes": "Grimes's close-as-percent-of-day's-range at his own 80/20 thresholds. Presented in the book as a monitoring text graph rather than a trigger, but the quantity is a plain ratio of differences and passes the shift test. On a daily bar the session is the bar and it degenerates to CloseRangePosition.",
+   "variants_kept_separate": [
+    "CloseNearSessionExtreme",
+    "CloseRangePosition",
+    "CloseInRangePosition"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Time",
+    "Date"
+   ]
+  },
+  {
+   "key": "SessionOpenPositionInRange",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The session's opening price sits in the top fraction of the session's range so far (long); mirrored, in the bottom fraction for the short. Grimes's O%Rng.",
+   "pseudocode": "(sessionOpen(0) - sessionLow(0)) >= highFraction * (sessionHigh(0) - sessionLow(0))",
+   "sides": "mirrored",
+   "parameters": {
+    "highFraction": 0.8
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "running session high/low plus the session's opening price held for the session"
+   },
+   "timeframe": "intraday-only",
+   "el_words_needed": [
+    "Time",
+    "Date"
+   ],
+   "catalog_match": {
+    "rule": "SessionOpenNearSessionExtreme",
+    "relation": "variant",
+    "note": "that rule bands the session open against the running LOW in ATRs and reads it as strength; this places it inside the session range as a fraction and reads the top as strength - a different tolerance basis AND the opposite polarity"
+   },
+   "sources": [
+    "G08-27",
+    "G16-13"
+   ],
+   "merge_notes": "Two restatements of one glossary metric (G16-13 names it O%Rng). The book's full-session range is knowable only in hindsight, so the range-to-date is used, as G08-27 itself proposes. Written multiplied, never as a ratio.",
+   "variants_kept_separate": [
+    "SessionOpenNearSessionExtreme",
+    "CloseInTopOfSessionRange"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Time",
+    "Date"
+   ]
+  }
+ ]
+}

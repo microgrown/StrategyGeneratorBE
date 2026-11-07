@@ -1,0 +1,26 @@
+{
+    "name": "CloseRangePositionRun",
+    "type": "Entry",
+    "inputVariables": {
+        "runBars": "3",
+        "threshold": "0.75",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "topRun": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "botRun": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: topRun = CountIF((close - low) > threshold * (high - low + epsilon),\n// runBars), and the mirror on high - close. CountIF counts bars 0..Length-1\n// INCLUDING the current bar and its condition is a true SERIES whose own\n// offsets shift per counted bar (EL_FEATURES `countif`, VERIFIED), so the\n// unshifted condition counts this bar and the runBars-1 before it. The counted\n// condition is on PRICES, which have real history back to the chart start, so\n// no zero-filled variable mirror is needed.\n//\n// The counts are EL numeric variables, kept as doubles, and can never exceed\n// runBars -- so el_ge(topRun, runBars) is the all-of-N test without a float\n// equality (ExitOnFirstOppositeBodyAfterRun's spelling). Every comparison is an\n// EL relational, so el_gt / el_ge carry the tolerance.\n//\n// PRODUCT FORM, never the quotient CloseRangePosition writes: nothing is\n// divided, so a bar whose high equals its low cannot raise EL's runtime\n// divide-by-zero. epsilon is that rule's book literal, and in the product form\n// its only effect is to make a zero-range bar fail both sides.\n//\n// The counts are class members and persist across bars, so both are reset.\n//\n// Deepest bar touched: runBars - 1.\ntopRun = 0.0;\nbotRun = 0.0;\nfor (int i = 0; i < (int)runBars; ++i) {\n    if (el_gt(close[i] - low[i], threshold * (high[i] - low[i] + epsilon))) topRun += 1;\n    if (el_gt(high[i] - close[i], threshold * (high[i] - low[i] + epsilon))) botRun += 1;\n}",
+    "longCondition": "el_ge(topRun, runBars)",
+    "shortCondition": "el_ge(botRun, runBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,25 @@
+{
+    "name": "BodyExceedsAverageBarRange",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "bodyMultiple": "1.0"
+    },
+    "localVariables": {
+        "rangeSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// EL: rangeSum over bars 1..lookback of high[kk] - low[kk], divided by\n// lookback, and AbsValue(close - open) > bodyMultiple * that mean -- Grimes's\n// strong-momentum rejection bar (G05-10), the bar that closes back across a\n// broken level.\n//\n// NOT BodyAboveAverageMultiple, which sizes the body against the mean BODY and\n// demands a with-trend colour. This sizes it against the mean RANGE, a much\n// harder test at the same multiple, and is direction-agnostic -- both sides are\n// identical text.\n//\n// The benchmark window EXCLUDES the bar it judges (bars 1..lookback), the\n// LargeOutsideBar / BodyAboveAverageMultiple convention, so an outsized body\n// cannot raise its own benchmark. The mean is an explicit summation rather than\n// Average(...)[1]: Average over a price expression with real history is a fresh\n// loop, but reading a function call's OWN history at an offset is unmeasured.\n// The summation runs newest-first, EasyLanguage's Summation order, and divides\n// by the same (int) bound the loop uses.\n//\n// The accumulator is a class member and persists across bars, so it is reset.\n//\n// Deepest bar touched: lookback.\nrangeSum = 0.0;\nfor (int i = 1; i <= (int)lookback; ++i) {\n    rangeSum = rangeSum + (high[i] - low[i]);\n}\navgRange = rangeSum / (int)lookback;",
+    "longCondition": "el_gt(std::fabs(close[0] - open[0]), bodyMultiple * avgRange)",
+    "shortCondition": "el_gt(std::fabs(close[0] - open[0]), bodyMultiple * avgRange)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

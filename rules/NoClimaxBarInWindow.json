@@ -1,0 +1,35 @@
+{
+    "name": "NoClimaxBarInWindow",
+    "type": "Entry",
+    "inputVariables": {
+        "climaxLookback": "10",
+        "climaxMultiple": "2",
+        "atrLength": "20",
+        "bodyFraction": "0.6"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "noClimax": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// NO CLIMAX BAR IN THE LAST climaxLookback BARS, either direction. Grimes states\n// it as a BLOCK -- \"do not enter pullbacks following potential climaxes\"\n// (G03-09), and ch6 blocks the simple Pullback template while allowing the\n// complex one (G06-29) -- but the corpus states every \"do not trade while X\"\n// claim in the PASSING sense and lets the per-placement NEGATE toggle give the\n// block. PostGapFadeBlockWindow is the construction copied here, including the\n// positive statement.\n//\n// THE WINDOW FORM CANNOT BE BUILT BY NEGATING ClimaxBar: a single placement of\n// that rule fires on ONE bar, and negating it says only that THIS bar is not a\n// climax. ConsecutiveClimaxBarCount is the COUNT form with a separation rule\n// and is not this either.\n//\n// BOTH DIRECTIONS COUNT -- a buying climax and a selling climax are each a\n// reason to stand aside -- so the sides are identical text, exactly as\n// PostGapFadeBlockWindow's are.\n//\n// The climax test is ClimaxBar's, term for term: a trend bar (close beyond\n// open) whose body is at least bodyFraction of its own range and whose range is\n// at least climaxMultiple ATRs.\n//\n// ONE ATR VALUE FOR THE WHOLE WINDOW, read at the current bar, which is\n// LargeBarCountInWindow's and ConsecutiveClimaxBarCount's arrangement: the\n// counted condition is written as an explicit loop rather than CountIF exactly\n// so the stateful WFSafe_ accumulator is NOT re-evaluated at each counted\n// offset. Reading the accumulator's own history at an offset is unmeasured and\n// is not asked for.\n//\n// ATR is MultiWalk's WFSafe_AvgTrueRange, a ROLLING accumulator and a DIFFERENT\n// FUNCTION from the plain built-in: seeded with a full N-term sum on the study's\n// first calculated bar and again whenever the length changes, thereafter\n// advanced as TWO SEPARATE STATEMENTS -- EasyLanguage evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently and lands on the other side of a threshold (@OJ 2015-02-20).\n// AtrProfitTarget is the reference implementation with the measurements. The\n// accumulator stays in the hook, which the generator emits unconditionally:\n// EasyLanguage does not short-circuit and/or, so a stateful call inside a\n// condition would advance every bar in EL and only on some bars in C++.\n//\n// The loop runs WITHOUT a break and the flag is cleared rather than the scan\n// abandoned -- EasyLanguage has no loop break, and Max Bars Back must cover the\n// window on every bar regardless.\n//\n// SHIFT TEST: bodies, ranges and the ATR are all differences of prices.\n//\n// Scratch below is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; every one is fully assigned each bar before it is\n// read.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLength;\nnoClimax = true;\nfor (int kk = 0; kk <= (int)climaxLookback - 1; ++kk) {\n    if (el_gt(close[kk], open[kk]) && el_ge(close[kk] - open[kk], bodyFraction * (high[kk] - low[kk])) && el_ge(high[kk] - low[kk], climaxMultiple * atrValue)) noClimax = false;\n    if (el_lt(close[kk], open[kk]) && el_ge(open[kk] - close[kk], bodyFraction * (high[kk] - low[kk])) && el_ge(high[kk] - low[kk], climaxMultiple * atrValue)) noClimax = false;\n}",
+    "longCondition": "noClimax",
+    "shortCondition": "noClimax",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

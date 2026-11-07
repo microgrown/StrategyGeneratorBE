@@ -1,0 +1,58 @@
+{
+    "name": "TrendLegCountAboveMax",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "40",
+        "maxLegs": "3"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "dnRun": {
+            "type": "int",
+            "init": "0"
+        },
+        "upChain": {
+            "type": "bool",
+            "init": "false"
+        },
+        "dnChain": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND HAS ALREADY MADE MORE THAN maxLegs SAME-DIRECTION PUSHES since the\n// last opposite-direction leg -- after which Grimes says the probability of\n// pullback failure rises with every further leg (G05-17). His threshold is\n// three, the default. Expected use is NEGATED, as a block on further\n// with-trend entries; the corpus states every \"do not trade while X\" claim\n// positively and lets the per-placement negate toggle give the block.\n//\n// THE COUNT IS A RUN, NOT A SLOT SCAN, and that is what makes the rule\n// reachable. The merge note warned that decision 14's newest-first scan keeps\n// only three pivots per series, so \"more than three\" looked unreachable. It is\n// not, once the chain is tested AS THE SCAN GOES -- HigherSwingLowRun's `legs`\n// construction: walk the window newest-first, and for each newly found swing\n// high compare it with the previously found (NEWER) one; while the chain of\n// higher highs holds, count a push; the first break of the chain closes the\n// count. No pivot slots, no array, and maxLegs is unbounded above. The only\n// limit is pivotLookback, the window the pushes must fit inside.\n//\n// MIRRORED, NOT IDENTICAL, a DELIBERATE DEPARTURE from the merged slice's\n// `sides: same`. \"The trend has made more than maxLegs same-direction pushes\"\n// is a directional claim: a long placement wants the count of UP pushes (the\n// chain of higher swing highs) and a short placement the count of DOWN pushes\n// (lower swing lows). Copying one side into the other would block long entries\n// because the DOWNtrend is extended, which is not what the source says. The\n// identical-text reading is reachable anyway by placing the rule twice.\n//\n// PUSHES ARE COUNTED AS COMPARISONS: a chain of four higher highs is three\n// pushes, so maxLegs 3 fires on the fourth confirmed higher high. Same\n// convention as HigherSwingLowRun's `legs` (legs - 1 comparisons).\n//\n// NOT LegCountAtLeast, whose counter runs over the legs of the CURRENT\n// PULLBACK off the settled bar counter -- a different series and a different\n// reset. Not ThreePushPattern, the fixed-count sibling at exactly three pivots,\n// which tests three pivot PRICES rather than counting an open-ended run. Not\n// HigherSwingLowRun at a large `legs`, which asks whether a run of exactly `legs`\n// pivots is rising -- a floor stated as an ALL-OF, where this counts the run\n// and compares the count.\n//\n// THE PIVOT SCAN IS INLINED (merge decision 14) and the chain is tested inside\n// it, so no Occurrence 3+ call is made -- that row is UNMEASURED. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot bar is AT\n// OR BEYOND the swingStrength OLDER bars and STRICTLY BEYOND the swingStrength\n// NEWER bars -- bars-ago indexing makes the SMALLER kk the newer bar, so the\n// strict half is the kk < jj loop; the confirmation lag is exactly\n// swingStrength bars, so jj starts there; candidate offsets run 0..Length-1\n// inclusive so jj stops at pivotLookback - 1, while the neighbourhood test\n// reaches swingStrength bars PAST the window -- deepest bar touched\n// pivotLookback - 1 + swingStrength; the comparisons carry the 2.22e-12\n// relational tolerance; the low side's tie sense is the mirror of the measured\n// high-side rule. No WFSafe_SwingHigh exists, so plain EL governs. Written\n// WITHOUT break, matching the twin statement for statement.\n//\n// hiPrev / loPrev are only ever READ once the count has reached 2, which is\n// exactly when they were written earlier on the same bar -- never a sentinel,\n// never a stale price, and never compared against -1. The chain flags are what\n// stop a later pivot being folded into the run.\n//\n// Every scratch value that must survive the bar is a localVariables entry\n// rather than a hook-scope declaration, so the hooks survive a double\n// placement; the loop counters and per-candidate flags are block-scoped.\n//\n// Deepest bar touched: pivotLookback - 1 + swingStrength.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPrev = 0.0;\nloPrev = 0.0;\nupRun = 0;\ndnRun = 0;\nupChain = true;\ndnChain = true;\nfor (int jj = pivS; jj <= pivW - 1; ++jj) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int kk = jj - pivS; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (int kk = jj + 1; kk <= jj + pivS; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi) {\n        nHi = nHi + 1;\n        if (nHi >= 2 && upChain && el_gt(hiPrev, high[jj])) {\n            upRun = upRun + 1;\n        }\n        if (nHi >= 2 && upChain && el_le(hiPrev, high[jj])) {\n            upChain = false;\n        }\n        hiPrev = high[jj];\n    }\n    if (okLo) {\n        nLo = nLo + 1;\n        if (nLo >= 2 && dnChain && el_lt(loPrev, low[jj])) {\n            dnRun = dnRun + 1;\n        }\n        if (nLo >= 2 && dnChain && el_ge(loPrev, low[jj])) {\n            dnChain = false;\n        }\n        loPrev = low[jj];\n    }\n}",
+    "longCondition": "el_gt((double)upRun, maxLegs)",
+    "shortCondition": "el_gt((double)dnRun, maxLegs)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,142 @@
+{
+    "name": "ComplexPullback",
+    "type": "Entry",
+    "inputVariables": {
+        "resetLookback": "20",
+        "bodyWindow": "5",
+        "minOpposite": "3",
+        "maxOpposite": "4",
+        "pullbackLookback": "10",
+        "tolAtr": "0.25",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "lowCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "signalLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "signalHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "minLowSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "maxHighSince": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLegLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "firstLegHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "twoLegUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "twoLegDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "bearBodies": {
+            "type": "int",
+            "init": "0"
+        },
+        "bullBodies": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiddenUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hiddenDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "supp1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "res1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "supp2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "res2": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trigUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trigDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S NAMED \"TRADING COMPLEX PULLBACKS\" TEMPLATE (G06-32), carried as\n// the book states it and with its parts INLINED. A complex pullback is a\n// complete ABCD structure in itself -- two distinct countertrend legs separated\n// by a with-trend retracement -- and it is very common in mature trends, where\n// a climax blocks the simple Pullback template but permits this one. That is\n// the one place the two templates are not interchangeable.\n//\n// TWO PARTS, BOTH ORs:\n//   1. THE STRUCTURE: the pullback's SECOND leg runs past the first leg's\n//      extreme (ComplexPullbackSecondLegBeyondFirst = the on-disk\n//      SecondLegExceedsFirstLegExtreme, G06-27) **OR** the hidden cue -- \"one\n//      or two with-trend candles in the middle of what otherwise looks like a\n//      simple pullback\" (HiddenComplexPullbackBodyCount = OppositeBodyCountInWindow\n//      with its minOpposite amendment, G06-28).\n//   2. THE TRIGGER, the SAME pair the simple Pullback template uses:\n//      break-and-recover of the pullback's own extreme (LevelBreakAndRecover,\n//      G06-03) **OR** a bounce off it (SupportResistanceBounceEntry, G06-04, a\n//      merge working name resolved through the mined candidate to the on-disk\n//      LowTouchesRecentRangeLow at lag 0).\n// TWO ORs ANDed IS WHY THE TEMPLATE IS ONE FILE -- entry panes AND, so neither\n// OR is reachable, let alone their conjunction.\n//\n// THE HIDDEN CUE IS A BAND ON THE AGAINST-TREND BODY COUNT, which is what the\n// merge's minOpposite amendment buys: on the long side the pullback's own bars\n// are BEAR-bodied, so \"one or two with-trend candles inside it\" is\n// \"bearBodies between minOpposite and maxOpposite over bodyWindow bars\" --\n// at the defaults, 3 or 4 bear bodies in a 5-bar window, leaving one or two\n// bull ones. Counting the WITH-trend bodies directly would need the short\n// side's quantity on the long side, which no placement can borrow.\n//\n// THE LEG STRUCTURE IS THE CORPUS'S SETTLED LEG COUNTER, inlined verbatim from\n// SecondLegExceedsFirstLegExtreme: CROSS-BAR STATE that resets when the closing\n// price clears the shifted resetLookback window extreme, counts a leg on each\n// bar that makes a higher high after a lower low than the last signal, caps the\n// count at 4, and fires once the second leg's lowest low has run past the first\n// leg's. The state locals persist across bars and are DELIBERATELY not reset at\n// the top of the hook, which is what makes them state.\n//\n// THE PULLBACK'S SUPPORT IS SHARED STATE between the two triggers, and the two\n// SHIFTS ARE KEPT APART exactly as in the Pullback template: break-and-recover\n// reads the window ending TWO bars ago so the breaking bar's own low cannot\n// define the level it broke, the bounce reads the window ending ONE bar ago.\n//\n// NOT `Pullback`: no setup-leg or quiet-pullback test at all (Grimes drops both\n// for the complex form) and a different structural precondition, so different\n// bars. The target is the AB=CD leg-equality move, the on-disk\n// LegOneEqualsLegTwoTarget, and the stop (G06-31) belongs to the exits pass.\n// Grimes pairs this with NoClimaxBarInWindow NEGATED in its own pane.\n//\n// SHIFT TEST: window extremes, body colours and counts only; the one tolerance\n// is an ATR fraction (decision 7).\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, a different function\n// from the built-in it resembles.\n//\n// Deepest bar touched: max(resetLookback, pullbackLookback + 1, bodyWindow - 1,\n// atrLength + 1).\n//\n// THE C++ TWIN WRITES OUT BY HAND what the EL twin says with built-ins.\n// Highest/Lowest bottom out in Extremes(), EL SOURCE, so each window is a scan\n// SEEDED ON THE WINDOW'S FIRST BAR and continued with a STRICT comparison under\n// the EL relational tolerance (el_gt / el_lt). CountIF becomes a counting loop\n// over the CURRENT-INCLUSIVE window, bars 0..bodyWindow-1, which is what that\n// word does.\n//\n// Every scratch value is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement; loop counters are\n// block-scoped. THE LEG-COUNTER STATE IS NOT RESET at the top of the hook --\n// that is the point of it -- and a double placement gets its own copy because\n// each placement gets its own locals.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int aa = 0; aa < (int)atrLength; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    outIdx = (int)atrLength;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLength;\npriorHigh = high[1];\npriorLow = low[1];\nfor (int i = 2; i <= (int)resetLookback; ++i) {\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n}\nif (el_gt(close[0], priorHigh)) {\n    highCount = 0;\n} else {\n    if (el_lt(low[0], minLowSince)) minLowSince = low[0];\n    if (el_gt(high[0], high[1]) && (highCount == 0 || el_lt(minLowSince, signalLow))) {\n        highCount = highCount + 1;\n        if (highCount > 4) highCount = 4;\n        signalLow = low[0];\n        minLowSince = low[0];\n        if (highCount == 1) firstLegLow = low[0];\n    }\n}\nif (el_lt(close[0], priorLow)) {\n    lowCount = 0;\n} else {\n    if (el_gt(high[0], maxHighSince)) maxHighSince = high[0];\n    if (el_lt(low[0], low[1]) && (lowCount == 0 || el_gt(maxHighSince, signalHigh))) {\n        lowCount = lowCount + 1;\n        if (lowCount > 4) lowCount = 4;\n        signalHigh = high[0];\n        maxHighSince = high[0];\n        if (lowCount == 1) firstLegHigh = high[0];\n    }\n}\ntwoLegUp = el_ge((double)highCount, 2.0) && el_lt(minLowSince, firstLegLow);\ntwoLegDn = el_ge((double)lowCount, 2.0) && el_gt(maxHighSince, firstLegHigh);\nbearBodies = 0;\nbullBodies = 0;\nfor (int kk = 0; kk <= (int)bodyWindow - 1; ++kk) {\n    if (el_lt(close[kk], open[kk])) bearBodies = bearBodies + 1;\n    if (el_gt(close[kk], open[kk])) bullBodies = bullBodies + 1;\n}\nhiddenUp = el_ge((double)bearBodies, minOpposite) && el_le((double)bearBodies, maxOpposite);\nhiddenDn = el_ge((double)bullBodies, minOpposite) && el_le((double)bullBodies, maxOpposite);\nsupp1 = low[1];\nres1 = high[1];\nfor (int i = 2; i <= (int)pullbackLookback; ++i) {\n    if (el_lt(low[i], supp1)) supp1 = low[i];\n    if (el_gt(high[i], res1)) res1 = high[i];\n}\nsupp2 = low[2];\nres2 = high[2];\nfor (int i = 3; i <= (int)pullbackLookback + 1; ++i) {\n    if (el_lt(low[i], supp2)) supp2 = low[i];\n    if (el_gt(high[i], res2)) res2 = high[i];\n}\ntrigUp = (el_lt(low[1], supp2) && el_gt(close[0], supp2)) || el_le(low[0], supp1 + tolAtr * atrValue);\ntrigDn = (el_gt(high[1], res2) && el_lt(close[0], res2)) || el_ge(high[0], res1 - tolAtr * atrValue);",
+    "longCondition": "(twoLegUp || hiddenUp) && trigUp",
+    "shortCondition": "(twoLegDn || hiddenDn) && trigDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

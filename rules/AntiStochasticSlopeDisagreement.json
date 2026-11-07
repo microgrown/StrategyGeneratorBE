@@ -1,0 +1,78 @@
+{
+    "name": "AntiStochasticSlopeDisagreement",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLookback": "5",
+        "slowLookback": "20",
+        "smoothing1": "3"
+    },
+    "localVariables": {
+        "fNumHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "fDenHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "sNumHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "sDenHist": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "hhWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "llWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sumN": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sumD": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "have": {
+            "type": "int",
+            "init": "0"
+        },
+        "take": {
+            "type": "int",
+            "init": "0"
+        },
+        "miss": {
+            "type": "int",
+            "init": "0"
+        },
+        "fSlowK": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "sSlowK": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevFSlowK": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "prevSSlowK": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// LINDA RASCHKE'S ORIGINAL \"ANTI\", the confirmation Grimes cites beside his own\n// price-structure Anti: a FAST stochastic is rising while a SLOW one is falling\n// (mirrored) -- two time frames' momentum sloping against each other.\n//\n// WAS PRIORITY C, RESOLVED: the register's `stochastic` row is VERIFIED and\n// covers the whole chain, and StochasticCross is the measured port this rule\n// copies. Not a duplicate of it -- that rule fires on a SlowK/SlowD cross at\n// ONE length and never compares two lengths; this one never reads SlowD.\n//\n// WHICH OUTPUT: the merged pseudocode spells the series fastK(n); the reading\n// taken here is SlowK, deliberately (the ratio of sums is the VERIFIED\n// quantity, Raschke's Anti is a slow-stochastic rule, and a one-bar slope on a\n// 5-bar raw FastK is close to a coin flip). Recorded, not hidden.\n//\n// SMOOTHING: only the first smoothing argument reaches SlowK -- SlowD is never\n// read here -- so smoothing1 is passed in both of the EasyLanguage call's\n// smoothing slots rather than carrying an input that could not change\n// behaviour. SmoothingType is pinned to 1, the only measured type.\n//\n// MEASURED CHAIN (the `stochastic` row, VERIFIED, EL_Stochastic_Probe.txt):\n//   oFastK = 100*(C - LL(Length)) / (HH - LL)   -- fresh, real price history;\n//   oSlowK = oFastD = 100*Sum(C - LL, Smoothing1) / Sum(HH - LL, Smoothing1),\n//            a RATIO OF SUMS, NOT an average of FastK (refuted at maxd 24);\n//   WARM-UP IS SEED-FILLED, NOT ZERO-FILLED: the num/den series exist only\n//   from the study's first calculated bar, and a short sum pads its missing\n//   terms with the FIRST bar's value. The growing vectors below reproduce\n//   that: they start empty at the first evaluated bar and never see pre-study\n//   bars. Sums run NEWEST-FIRST, the EL Summation order.\n// An all-flat window across the whole sum makes a denominator 0; EL raises\n// there and this mirror does not guard either, as StochasticCross does not.\n//\n// All scratch is declared in localVariables, never at hook scope: the\n// generator only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when this rule is placed twice in one strategy.\n//\n// ---- FAST CHAIN, length fastLookback ----\nhhWin = high[0];\nllWin = low[0];\nfor (int i = 1; i < (int)fastLookback; ++i) {\n    if (el_gt(high[i], hhWin)) { hhWin = high[i]; }\n    if (el_lt(low[i], llWin)) { llWin = low[i]; }\n}\nfNumHist.push_back(close[0] - llWin);\nfDenHist.push_back(hhWin - llWin);\nsumN = 0.0;\nsumD = 0.0;\nhave = (int)fNumHist.size();\ntake = (int)smoothing1;\nif (have < take) { take = have; }\nfor (int i = 0; i < take; ++i) {\n    sumN += fNumHist[fNumHist.size() - 1 - i];\n    sumD += fDenHist[fDenHist.size() - 1 - i];\n}\nmiss = (int)smoothing1 - take;\nif (miss > 0) {\n    sumN += miss * fNumHist[0];\n    sumD += miss * fDenHist[0];\n}\nfSlowK = 100.0 * sumN / sumD;\n// ---- SLOW CHAIN, length slowLookback ----\nhhWin = high[0];\nllWin = low[0];\nfor (int i = 1; i < (int)slowLookback; ++i) {\n    if (el_gt(high[i], hhWin)) { hhWin = high[i]; }\n    if (el_lt(low[i], llWin)) { llWin = low[i]; }\n}\nsNumHist.push_back(close[0] - llWin);\nsDenHist.push_back(hhWin - llWin);\nsumN = 0.0;\nsumD = 0.0;\nhave = (int)sNumHist.size();\ntake = (int)smoothing1;\nif (have < take) { take = have; }\nfor (int i = 0; i < take; ++i) {\n    sumN += sNumHist[sNumHist.size() - 1 - i];\n    sumD += sDenHist[sDenHist.size() - 1 - i];\n}\nmiss = (int)smoothing1 - take;\nif (miss > 0) {\n    sumN += miss * sNumHist[0];\n    sumD += miss * sDenHist[0];\n}\nsSlowK = 100.0 * sumN / sumD;\n// The one-bar slopes read the EL VARIABLES' own history, zero-filled before\n// the strategy's first evaluated bar -- mirrored by prevFSlowK / prevSSlowK,\n// which start at 0 and are advanced in endOfFileHook so the value read here is\n// always the previous bar's (MonthlyProfitTarget's idiom). On that first bar\n// \"rising\" is measured against 0 and neither AND can hold. Mirrored, not\n// corrected.\n// A ratio of price DIFFERENCES, so the whole rule passes the shift test.",
+    "longCondition": "el_gt(fSlowK, prevFSlowK) && el_lt(sSlowK, prevSSlowK)",
+    "shortCondition": "el_lt(fSlowK, prevFSlowK) && el_gt(sSlowK, prevSSlowK)",
+    "postConditionHook": "",
+    "endOfFileHook": "prevFSlowK = fSlowK;\nprevSSlowK = sSlowK;"
+}

@@ -1,0 +1,99 @@
+{
+    "name": "InitialStopBeyondSwingAtRank",
+    "type": "Exit",
+    "inputVariables": {
+        "pivotStrength": "2",
+        "pivotIndex": "2",
+        "stopTicks": "1",
+        "stopLookback": "20"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "jj": {
+            "type": "int",
+            "init": "0"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        },
+        "okHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "okLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "nHiPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLoPiv": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx3": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "needP": {
+            "type": "int",
+            "init": "0"
+        },
+        "lo1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hi1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "stopLong": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopShort": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveStopLong": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveStopShort": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// InitialStopBeyondSwingAtRank -- Grimes A list (G08-02, key\n// InitialStopBeyondSwingAtRank; also G10-05, key StopInsideTestedSwingExtreme,\n// merge decision 25). Authored 2026-09-22 as new inputs on\n// InitialStopBeyondSwingAtEntry and split out 2026-11-07, because the 202611 BRK\n// and OWN templates place InitialStopBeyondSwingAtEntry, so that rule stays\n// exactly as those families run it. Code otherwise unchanged.\n//\n// DEFAULTS: pivotIndex(2) and stopLookback(20) are the merged candidate's values\n// -- the penultimate pivot, with the pivot window widened so the scan can reach\n// it; pivotStrength(2) and stopTicks(1) are InitialStopBeyondSwingAtEntry's own.\n// At pivotIndex 1 and stopLookback 10 this is InitialStopBeyondSwingAtEntry's\n// behaviour exactly.\n//\n// GUARD (2026-09-17): a level's EXISTENCE is a COUNT of pivots the scan found,\n// never a test of the price against -1 -- a back-adjusted series can print\n// -1.00 (or 0.00) as a real price. The EL twin counts the same way. Mentions of\n// the -1 SENTINEL below describe what EL's SwingLow / SwingHigh return, not how\n// this rule guards it.\n// RISK TO THE SWING THAT EXISTED WHEN THE TRADE WAS TAKEN, AND LEAVE THE STOP\n// THERE. The pivotIndex-th most recent confirmed swing low is captured on the\n// fill bar and the level never moves again; Brooks's stop for limit-order\n// channel entries.\n//\n// Kept apart from SwingPointTrailingStop, which re-reads the pivot every bar: on\n// a trend that runs, the trailed rule exits far higher, and on a trend that never\n// prints a new pivot the two are identical. Not StopBeyondExtremeSinceEntry\n// either, whose level is a running extreme that WIDENS as the trade goes against\n// it, where this one is fixed at entry.\n//\n// THE LEVEL IS CAPTURED ON ctx.BarsSinceEntry() == 0 -- VERIFIED as 0 on the fill\n// bar and as restarting through a reversal, which a ctx.MarketPosition() == 0\n// reset would miss because a reversal never passes through flat. It is the same\n// at-entry capture convention StopAtSignalBarRangeMultiple and\n// PullbackSizedProfitTarget use, and it is what holds \"reaches back\" at the pivot\n// window rather than at the length of the longest trade.\n//\n// THE PIVOT FORM IS USED, NOT THE lowest-low-over-stopLookback PROXY the source\n// offers: the swing primitive is now MEASURED, so the proxy buys nothing.\n// stopLookback is therefore the PIVOT WINDOW (EL's Length) rather than a lowest-low\n// length -- at the source's 10 with strength 2 the reportable offsets are 2..9;\n// at this rule's default 20 they are 2..19.\n//\n// TWO GRIMES READINGS, one rule.\n//\n// (1) pivotIndex (G08-02, key InitialStopBeyondSwingAtRank). \"It is possible to\n// step back to the penultimate pivot, with the trade-off of a much smaller\n// position size.\" pivotIndex 2, the default, steps the stop back to the pivot\n// before the most recent one, a wider stop much less likely to be hit; at\n// pivotIndex 1 the level is InitialStopBeyondSwingAtEntry's. THE SCAN IS THE\n// THREE-PIVOT FORM SwingPivotTarget ALREADY CARRIES, because the register lists\n// SwingLow / SwingHigh Occurrence 3+ as UNMEASURED -- the deeper ranks are found\n// by hand rather than by a third-occurrence call, pivotIndex is CLAMPED to the\n// three pivots the scan keeps, and there is no early break, so the scan can\n// reach them. The equivalence at pivotIndex 1 is BEHAVIOURAL, not textual: the\n// first pivot found scanning newest-first is the same bar\n// InitialStopBeyondSwingAtEntry's scan, which breaks at the first pivot,\n// returns. The EL twin spells the same hand-rolled scan where\n// InitialStopBeyondSwingAtEntry calls SwingLow(1, ...) / SwingHigh(1, ...), the\n// equivalence SwingPivotTarget and ThreePushPattern already rest on. stopLookback\n// has to widen with pivotIndex so the scan can reach the deeper pivot, which is\n// why its default is 20 here against 10 there.\n//\n// (2) stopTicks IS SIGNED (merge decision 25, key StopInsideTestedSwingExtreme,\n// G10-05). On a failure test Grimes deliberately inverts the usual convention and\n// puts the stop AT or just INSIDE the tested extreme, ahead of the crowd's stop\n// cluster: \"a few extra premature stop-outs bought in exchange for much less\n// slippage on the exits that matter.\" Mechanically that is a NEGATIVE stopTicks,\n// so the grid runs below zero; the precedent is SwingHighProfitTarget.offsetTicks.\n// It needed NO code change -- the arithmetic was already signed in\n// InitialStopBeyondSwingAtEntry -- so this reading is equally a grid on that\n// rule, and it is not what this one was split out for. The default stays at 1,\n// the beyond-the-extreme reading. The long stop rises ABOVE the pivot\n// and the short stop falls BELOW it, which is the correct mirror.\n//\n// THE PIVOT SCAN IS INLINED from SwingHigh per the B-list decision. MEASURED\n// (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min): the pivot test is\n// MIXED -- at-or-beyond the pivotStrength OLDER bars, STRICTLY beyond the\n// pivotStrength NEWER bars, and bars-ago indexing makes the SMALLER index the\n// NEWER bar, so the strict half is the kk < jj loop; the confirmation lag is\n// exactly pivotStrength bars, never 0 or 1, so during the lag the PREVIOUS pivot\n// is captured and nothing looks ahead; stopLookback is EL's Length, offsets\n// 0..stopLookback-1 inclusive, and the neighbourhood test reaches pivotStrength\n// bars PAST the window, so the deepest bar touched is\n// stopLookback - 1 + pivotStrength; an empty window returns the -1 SENTINEL, and\n// the pivot COUNTS are how it is guarded -- a captured -1 as a PRICE sits under\n// every real price; the comparisons carry the 2.22e-12 relational tolerance,\n// hence el_lt / el_le / el_gt / el_ge. The low side's tie sense is the mirror of\n// the measured high-side rule. No WFSafe_SwingLow exists, so plain EL governs.\n// The scan runs unconditionally every bar, not only at entry, so Max Bars Back\n// covers it and the EasyLanguage twin advances on the same bars.\n//\n// Ticks: MinMove/PriceScale are VERIFIED and the tick is written division-first,\n// stopTicks * (ctx.MinMove() / ctx.PriceScale()), into a local.\n//\n// Every scratch value is a localVariables entry, never a hook-scope declaration,\n// so the hooks survive a double placement.\ntickSize = ctx.MinMove() / ctx.PriceScale();\nnHiPiv = 0;\nnLoPiv = 0;\nhiPx1 = -1.0;\nhiPx2 = -1.0;\nhiPx3 = -1.0;\nloPx1 = -1.0;\nloPx2 = -1.0;\nloPx3 = -1.0;\nfor (jj = (int)pivotStrength; jj <= (int)stopLookback - 1; ++jj) {\n    okHi = true;\n    okLo = true;\n    for (kk = jj - (int)pivotStrength; kk < jj; ++kk) {\n        if (!el_gt(high[jj], high[kk])) okHi = false;\n        if (!el_lt(low[jj], low[kk])) okLo = false;\n    }\n    for (kk = jj + 1; kk <= jj + (int)pivotStrength; ++kk) {\n        if (!el_ge(high[jj], high[kk])) okHi = false;\n        if (!el_le(low[jj], low[kk])) okLo = false;\n    }\n    if (okHi && nHiPiv < 3) {\n        nHiPiv = nHiPiv + 1;\n        if (nHiPiv == 1) hiPx1 = high[jj];\n        if (nHiPiv == 2) hiPx2 = high[jj];\n        if (nHiPiv == 3) hiPx3 = high[jj];\n    }\n    if (okLo && nLoPiv < 3) {\n        nLoPiv = nLoPiv + 1;\n        if (nLoPiv == 1) loPx1 = low[jj];\n        if (nLoPiv == 2) loPx2 = low[jj];\n        if (nLoPiv == 3) loPx3 = low[jj];\n    }\n}\nneedP = (int)pivotIndex;\nif (needP < 1) needP = 1;\nif (needP > 3) needP = 3;\nhi1 = hiPx3;\nlo1 = loPx3;\nif (needP == 1) { hi1 = hiPx1; lo1 = loPx1; }\nif (needP == 2) { hi1 = hiPx2; lo1 = loPx2; }\nif (ctx.BarsSinceEntry() == 0) {\n    haveStopLong = (nLoPiv >= needP);\n    stopLong = lo1;\n    haveStopShort = (nHiPiv >= needP);\n    stopShort = hi1;\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && haveStopLong && el_le(close[0], stopLong - stopTicks * tickSize)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && haveStopShort && el_ge(close[0], stopShort + stopTicks * tickSize)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

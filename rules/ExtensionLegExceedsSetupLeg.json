@@ -1,0 +1,90 @@
+{
+    "name": "ExtensionLegExceedsSetupLeg",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "40",
+        "extensionRatio": "1"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "setupUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "setupDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "haveUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE IMPULSE-RETRACEMENT-IMPULSE UNIT MEASURED IN PRICE. Grimes's setup-leg\n// strength test (G06-14, G16-21): the leg running NOW -- from the most recent\n// confirmed swing pivot low up to this bar's closing price -- is at least\n// extensionRatio times the SAME-DIRECTION leg before it, which ran from the\n// second swing low up to the swing high between them. The leg that sets up a\n// pullback should be at least as strong as the trend's previous legs. Both\n// sources read the ratio at 1.0, which is the default. Short is the mirror.\n//\n// The two-leg form is what is carried: merge decision 14's newest-first scan\n// gives two legs per series, so G06-14's average over several prior legs is\n// unreachable from Occurrence 1 and 2. SwingLegExceedsAverageLeg is the\n// three-pivot averaged sibling and hand-rolls its scan for that reason.\n//\n// NOT SwingLegLengthAtLeast, which sizes the last two legs in BARS and is\n// direction-agnostic; this sizes them in PRICE and compares them to each other.\n//\n// THE PIVOT SCAN IS INLINED, mirroring the twin's SwingLow / SwingLowBar /\n// SwingHigh / SwingHighBar at Occurrence 1 and 2 -- rules in this corpus never\n// reference each other. MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt,\n// @ES 60 min): the pivot test is MIXED -- AT OR BEYOND the swingStrength OLDER\n// bars, STRICTLY BEYOND the swingStrength NEWER bars, and bars-ago indexing\n// makes the SMALLER index the NEWER bar, so the strict half is the k < j loop;\n// the confirmation lag is exactly swingStrength bars, never 0 or 1, so j starts\n// there; pivotLookback is EL's Length with candidate offsets\n// 0..pivotLookback-1 inclusive while the neighbourhood test reaches\n// swingStrength bars PAST the window, so the deepest index touched is\n// pivotLookback - 1 + swingStrength; an empty window is the -1 SENTINEL, which\n// the twin guards on the BAR INDEX and this twin reproduces on the same bar\n// index, never on a price -- a back-adjusted series can print -1.00 as a real\n// price. The comparisons carry the 2.22e-12 relational tolerance. Occurrence 3+\n// is UNMEASURED and never asked for. The low side's tie sense is the mirror of\n// the measured high-side rule. No WFSafe_SwingLow exists, so plain EL governs.\n//\n// THE ORDERING GUARD is LegOneEqualsLegTwoTarget's: the anchors must have\n// printed in that order for the legs to be legs, so the bars-ago counts descend\n// loBar2 > hiBar1 > loBar1 on the long side, and the setup leg must actually be\n// up (setupUp > 0, a price DIFFERENCE and so shift-safe).\n//\n// Written WITHOUT break and with the < 2 counters, statement for statement with\n// the twin's Occurrence 1 / 2 reads.\n//\n// Every scratch value is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement; the loop counters and\n// the per-candidate flags are block-scoped inside the loops.\n//\n// Deepest bar touched: pivotLookback - 1 + swingStrength.\npivS = (int)swingStrength;\npivW = (int)pivotLookback;\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + pivS; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nsetupUp = hiPx1 - loPx2;\nrunUp = close[0] - loPx1;\nsetupDn = hiPx2 - loPx1;\nrunDn = hiPx1 - close[0];\nhaveUp = (loBar1 != -1.0) && (loBar2 != -1.0) && (hiBar1 != -1.0)\n    && el_gt(loBar2, hiBar1) && el_gt(hiBar1, loBar1) && el_gt(setupUp, 0.0);\nhaveDn = (hiBar1 != -1.0) && (hiBar2 != -1.0) && (loBar1 != -1.0)\n    && el_gt(hiBar2, loBar1) && el_gt(loBar1, hiBar1) && el_gt(setupDn, 0.0);",
+    "longCondition": "haveUp && el_ge(runUp, extensionRatio * setupUp)",
+    "shortCondition": "haveDn && el_ge(runDn, extensionRatio * setupDn)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

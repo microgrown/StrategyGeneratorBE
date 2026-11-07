@@ -1,0 +1,48 @@
+{
+    "name": "HighAndTightFlagSmallBarsNearExtreme",
+    "type": "Entry",
+    "inputVariables": {
+        "pullbackBars": "2",
+        "smallBarAtrFraction": "0.5",
+        "nearAtrFraction": "1.0",
+        "swingLookback": "20",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loWin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "flagHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "flagLo": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE HIGH AND TIGHT FLAG (G01-14): every one of the last pullbackBars bars has\n// a SMALL RANGE -- under smallBarAtrFraction ATRs -- and holds within\n// nearAtrFraction ATRs of the recent highest high, so the whole \"pullback\" is\n// one or two tiny bars pinned under the extreme. The short is the mirror below\n// the recent lowest low.\n//\n// NOT SmallBarNearRecentExtreme, which reads a small bar near the recent LOW\n// with an UP close -- buying at support. Exchanging the side is a SEPARATE RULE\n// under merge decision 12 (the negate toggle gives \"not A\", never the mirror\n// side), and this is additionally an ALL-OF-N run rather than a single bar. NOT\n// ShallowPullbackFractionOfImpulse, which measures depth against the impulse leg\n// instead of against bar size; the two are kept apart deliberately.\n//\n// THE LEVEL IS THE SHIFTED WINDOW EXTREME (merge decision 7), the highest high\n// of the swingLookback bars ending one bar ago, and BOTH distances are in ATRs\n// so the rule passes the shift test. ONE level and ONE ATR for the whole run of\n// bars, read at the current bar -- LargeBarCountInWindow's arrangement, which is\n// what keeps the stateful WFSafe_ accumulator out of the loop.\n//\n// RECORDED: the shifted window still OVERLAPS the flag when pullbackBars > 1\n// (bar 1 is both a flag bar and inside the window). The merged pseudocode says\n// the window ends one bar ago and that is what is written; the flag bars are\n// small and sit under the extreme by construction, so they rarely define it.\n//\n// ATR is MultiWalk's WFSafe_AvgTrueRange, a ROLLING accumulator and a DIFFERENT\n// FUNCTION from the plain built-in: seeded with a full N-term sum on the study's\n// first calculated bar and again whenever the length changes, thereafter\n// advanced as TWO SEPARATE STATEMENTS -- EasyLanguage evaluates\n// S[1] + in - out left to right, and folding it to S += in - out rounds\n// differently and lands on the other side of a threshold (@OJ 2015-02-20).\n// AtrProfitTarget is the reference implementation with the measurements. The\n// accumulator stays in the hook, which the generator emits unconditionally:\n// EasyLanguage does not short-circuit and/or, so a stateful call inside a\n// condition would advance every bar in EL and only on some bars in C++.\n//\n// The window scan mirrors EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at the window's first bar (offset 1, the window being shifted by\n// one), scanning the rest with a STRICT comparison so a tie keeps the earliest\n// bar. Extremes is EL SOURCE, so its comparisons carry the relational tolerance\n// and use el_lt / el_gt.\n//\n// The loop runs WITHOUT a break and clears a flag rather than abandoning the\n// scan -- EasyLanguage has no loop break.\n//\n// Scratch below is declared in localVariables, not at hook scope, so the hooks\n// survive a double placement; every one is fully assigned each bar before it is\n// read.\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrValue = atrSum / (int)atrLookback;\nhiWin = high[1];\nloWin = low[1];\nfor (int i = 2; i <= (int)swingLookback; ++i) {\n    if (el_gt(high[i], hiWin)) hiWin = high[i];\n    if (el_lt(low[i], loWin)) loWin = low[i];\n}\nflagHi = true;\nflagLo = true;\nfor (int kk = 0; kk <= (int)pullbackBars - 1; ++kk) {\n    if (el_ge(high[kk] - low[kk], smallBarAtrFraction * atrValue)) { flagHi = false; flagLo = false; }\n    if (el_ge(hiWin - low[kk], nearAtrFraction * atrValue)) flagHi = false;\n    if (el_ge(high[kk] - loWin, nearAtrFraction * atrValue)) flagLo = false;\n}",
+    "longCondition": "flagHi",
+    "shortCondition": "flagLo",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

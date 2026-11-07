@@ -2,14 +2,28 @@
     "name": "ShavedTopBar",
     "type": "Entry",
     "inputVariables": {
-        "shaveOffsetPoints": "0.25"
+        "shaveOffsetPoints": "0.25",
+        "consecutiveBars": "1"
     },
-    "localVariables": {},
+    "localVariables": {
+        "shavedTop": {
+            "type": "bool",
+            "init": "true"
+        },
+        "shavedBottom": {
+            "type": "bool",
+            "init": "true"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
     "classMembersHook": "",
     "startOfFileHook": "",
-    "preConditionHook": "// Brooks's shaved top / shaved bottom: the close is within shaveOffsetPoints\n// of the bar's high (long) / of its low (short), so there is no tail at the\n// far end.\n//\n// The source states the tolerance in TICKS. `minmove` and `pricescale` are\n// UNKNOWN in EL_FEATURES and ctx exposes no tick size at all, so the tolerance\n// is carried as a PRICE-POINT input, per AUTHORING.md and the convention the\n// rest of this batch follows (CloseNearPriorLow, LimitEntryAtMicroGapEdge).\n// The default 0.25 is the book's one tick at the Emini's tick size and is\n// therefore instrument-specific -- a grid-pass concern.\n//\n// Not CloseRangePosition, which puts the close in the upper FRACTION of the\n// bar's own range: an absolute offset is far stricter on a wide bar and far\n// looser on a one-tick bar, so the two fire on different bars.",
-    "longCondition": "el_le(high[0] - close[0], shaveOffsetPoints)",
-    "shortCondition": "el_le(close[0] - low[0], shaveOffsetPoints)",
+    "preConditionHook": "// Brooks's shaved top / shaved bottom: the close is within shaveOffsetPoints\n// of the bar's high (long) / of its low (short), so there is no tail at the\n// far end.\n//\n// consecutiveBars (AMENDMENT, Grimes G01-09): EVERY one of the last\n// consecutiveBars bars must pass that test, not merely this one. Grimes reads\n// a RUN of closes on the absolute extreme as short-term exhaustion rather than\n// strength, so his natural placement is NEGATED, as a block on a fresh\n// with-trend entry; his own reading is three bars, and his words are \"close on\n// their absolute highs\", i.e. offset 0, so the default 0.25 is the loose\n// reading. THE DEFAULT IS 1, at which the loop runs exactly once over bar 0\n// and the rule is the single-bar test it has always been -- el_gt is the exact\n// complement of el_le under the EL relational tolerance, so every existing\n// placement is unchanged bar for bar. The MicroChannelRunLength / minTicks\n// precedent: a run length lands as an input on the single-bar rule rather than\n// as a near-duplicate file.\n//\n// The source states the tolerance in TICKS. `minmove` and `pricescale` are\n// UNKNOWN in EL_FEATURES and ctx exposes no tick size at all, so the tolerance\n// is carried as a PRICE-POINT input, per AUTHORING.md and the convention the\n// rest of this batch follows (CloseNearPriorLow, LimitEntryAtMicroGapEdge).\n// The default 0.25 is the book's one tick at the Emini's tick size and is\n// therefore instrument-specific -- a grid-pass concern.\n//\n// Not CloseRangePosition, which puts the close in the upper FRACTION of the\n// bar's own range: an absolute offset is far stricter on a wide bar and far\n// looser on a one-tick bar, so the two fire on different bars. Not\n// ConsecutiveUpBars, which tests the close against the bar's own open.\n//\n// All-of-N written the way ShrinkingBodies writes it -- start true and let any\n// failing bar clear the flag -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. Both sides are\n// computed here rather than in the conditions for the same reason.\n//\n// The flags are class members and persist across bars; both are reset at the\n// top of the hook rather than relied on to start true.\n//\n// Deepest bar touched: consecutiveBars - 1.\nshavedTop = true;\nshavedBottom = true;\nfor (kk = 0; kk < (int)consecutiveBars; ++kk) {\n    if (el_gt(high[kk] - close[kk], shaveOffsetPoints)) shavedTop = false;\n    if (el_gt(close[kk] - low[kk], shaveOffsetPoints)) shavedBottom = false;\n}",
+    "longCondition": "shavedTop",
+    "shortCondition": "shavedBottom",
     "postConditionHook": "",
     "endOfFileHook": ""
 }

@@ -1,0 +1,88 @@
+{
+    "name": "OscillatorJumpOutOfProportion",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10",
+        "climaxMult": "3",
+        "climaxLookback": "20",
+        "withinBars": "10"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "oscLag1": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscJump": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "jumpHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "jumpCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "jumpDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "jumpAvg": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "avgCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "avgDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "jumpFound": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "jumpReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word:\n// Appendix B spells the construction out as plain moving averages, and the\n// chapter 16 restatement in exponential terms loses to it.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffers below mirror.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// AN OSCILLATOR JUMP OUT OF PROPORTION: some bar within the last withinBars\n// moved the fast line by more than climaxMult times its own recent average\n// bar-over-bar change -- an indicator distortion left by a climactic price\n// move, after which Grimes says to disregard the oscillator. The natural\n// placement is NEGATED, and the book's cooldown is folded into withinBars.\n// Identical both sides: a distortion carries no direction.\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one. Mirrored here as a zero-seeded ring buffer, re-seeded if the depth\n// ever changes -- exactly what AwesomeOscillatorSlope, AtrRising and\n// BarRangeAboveStd do for the same reason. The rule GUARDS its own warm-up\n// on the bar counter instead of comparing against those zeros.\n// Three mirrored series, because EasyLanguage reads three variables' own\n// histories here: osc (for the one-bar difference), oscJump, and jumpAvg.\nif (oscHistory.size() != (std::size_t)2) {\n    oscHistory.assign((std::size_t)2, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\noscLag1 = oscHistory[(oscCursor + oscHistory.size() - 2) % oscHistory.size()];\noscJump = std::fabs(osc - oscLag1);\n// oscJump's history has to be deep enough for BOTH the climaxLookback\n// average taken on this bar and the withinBars scan.\njumpDepth = (int)climaxLookback > (int)withinBars ? (int)climaxLookback : (int)withinBars;\nif (jumpDepth < 1) {\n    jumpDepth = 1;\n}\nif (jumpHistory.size() != (std::size_t)jumpDepth) {\n    jumpHistory.assign((std::size_t)jumpDepth, 0.0);\n    jumpCursor = 0;\n}\njumpHistory[jumpCursor] = oscJump;\njumpCursor = (jumpCursor + 1) % jumpHistory.size();\n// jumpAvg on THIS bar, summed newest bar first as EL's Summation is.\njumpAvg = 0.0;\nfor (ii = 0; ii < (int)climaxLookback; ++ii) {\n    jumpAvg += jumpHistory[(jumpCursor + jumpHistory.size() - 1 - (std::size_t)ii) % jumpHistory.size()];\n}\njumpAvg = jumpAvg / (int)climaxLookback;\n// jumpAvg is itself a variable, and the scan reads jumpAvg[ii] -- the value\n// the strategy assigned ii bars ago -- so it gets its own mirrored history.\navgDepth = (int)withinBars;\nif (avgDepth < 1) {\n    avgDepth = 1;\n}\nif (avgHistory.size() != (std::size_t)avgDepth) {\n    avgHistory.assign((std::size_t)avgDepth, 0.0);\n    avgCursor = 0;\n}\navgHistory[avgCursor] = jumpAvg;\navgCursor = (avgCursor + 1) % avgHistory.size();\njumpFound = false;\nfor (ii = 0; ii < (int)withinBars; ++ii) {\n    double jv = jumpHistory[(jumpCursor + jumpHistory.size() - 1 - (std::size_t)ii) % jumpHistory.size()];\n    double av = avgHistory[(avgCursor + avgHistory.size() - 1 - (std::size_t)ii) % avgHistory.size()];\n    if (el_gt(jv, climaxMult * av)) {\n        jumpFound = true;\n    }\n}\njumpReady = ctx.CurrentBar() > (int)climaxLookback + (int)withinBars;",
+    "longCondition": "jumpReady && jumpFound",
+    "shortCondition": "jumpReady && jumpFound",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,16 @@
+{
+    "name": "ProfitTargetAtRiskMultiple",
+    "type": "Exit",
+    "inputVariables": {
+        "riskMultiple": "1",
+        "stopDistance": "2"
+    },
+    "localVariables": {},
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE RESTING LIMIT ORDER AT A MULTIPLE OF INITIAL RISK. A long is closed when\n// the bar's own high reaches EntryPrice + riskMultiple * stopDistance; the\n// short mirrors on the bar's low. Six Grimes restatements of one target\n// (G06-10, G06-19, G06-59, G08-05, G08-06, G10-01); book values 1 and 2 are a\n// GRID RANGE, not two rules.\n//\n// THE ENGINE HAS NO INITIAL-RISK ACCESSOR, so the risk unit is a stopDistance\n// INPUT IN PRICE POINTS (merge decision 24, the RewardRiskDeteriorationExit\n// spelling). Keeping it equal to the stop placement's own distance is the\n// placement author's job; nothing enforces it.\n//\n// PARTIAL PROFITS ARE NOT EXPRESSIBLE: each risk multiple is a FULL exit\n// placement (decision 24), and Grimes's 25-50 percent / \"more than half\"\n// fractions are recorded, not mechanized.\n//\n// NOT TakeProfit, which fires on ctx.OpenPositionProfit() -- the close-marked\n// dollar mark net of the entry side's costs. This fires on the bar's own\n// extreme, the limit fill Grimes describes, and carries no stop leg. Not\n// CountertrendScalpAtrTarget either: that sizes the target in ATRs frozen at\n// entry and tests the close.\n//\n// The MarketPosition guard is load-bearing: ctx.EntryPrice() is 0.0 while flat\n// and a back-adjusted series carries an arbitrary offset.\n//\n// Deepest bar touched: 0.",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge(high[0], ctx.EntryPrice() + riskMultiple * stopDistance)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_le(low[0], ctx.EntryPrice() - riskMultiple * stopDistance)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

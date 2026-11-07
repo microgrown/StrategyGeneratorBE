@@ -1,0 +1,823 @@
+[
+  {
+    "id": "G01-09",
+    "name": "ConsecutiveClosesAtBarHighExhaustionWarning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": true,
+    "composes": [
+      "G01-08"
+    ],
+    "depends_on": [
+      "G01-08"
+    ],
+    "pages": [
+      39
+    ],
+    "quote": "several bars in a row close on their absolute highs. Many traders would assume that this is indicative of a very strong market, but, statistically, this condition more often indicates short-term exhaustion and at least a slight reversal -- be careful of entering with the trend after several bars close on their highs.",
+    "description": "N consecutive bars each closing at (or within a small tolerance of) its own bar high is read as a short-term exhaustion warning rather than confirmation of strength -- a filter meant to block/discourage a fresh with-trend entry, not itself a reversal entry.",
+    "pseudocode": "count(closeIsAtBarHigh, lag=0..(consecutiveBars-1)) == consecutiveBars  where closeIsAtBarHigh := (high[lag]-close[lag]) <= closeToHighToleranceAtrFraction * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "consecutiveBars": 3,
+      "closeToHighToleranceAtrFraction": 0.1,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a window loop with a per-bar tolerance test and a persistent count of consecutive occurrences"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Distinct from ConsecutiveUpBars (close above own open) -- this tests close proximity to the bar's own high, not the open/close relationship."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G01-12",
+    "name": "ShrinkingSwingHighIncrements",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [
+      "G01-01"
+    ],
+    "depends_on": [
+      "G01-01"
+    ],
+    "pages": [
+      40
+    ],
+    "quote": "Each bar continues to make a higher high up into mid-April, but at a declining rate. We could characterize these as 'reluctant highs,' to indicate waning momentum.",
+    "description": "Successive new swing/pivot highs are each made by a smaller margin over the prior high than the margin before it -- a momentum-loss warning ('reluctant highs'). Mirrored for declining lows in a downtrend.",
+    "pseudocode": "(pivotHigh[0] - pivotHigh[1]) < (pivotHigh[1] - pivotHigh[2])",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs pivot detection plus comparing successive pivot-to-pivot increments"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ShrinkingSwingIncrementsExit",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G01-13",
+    "name": "ShrinkingBarRangeSequence",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      40
+    ],
+    "quote": "the bars are becoming smaller, indicating that trading interest is drying up, and there are no more large trend bars... in April.",
+    "description": "Bar ranges over a recent window are shrinking bar to bar -- a trend-exhaustion/momentum-loss warning, paired with G01-12 in the book's example.",
+    "pseudocode": "(high[0]-low[0]) < (high[1]-low[1]) AND (high[1]-low[1]) < (high[2]-low[2])",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a short run of consecutive bar-range comparisons"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ShrinkingConsecutiveRanges",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/01_the_traders_edge.json",
+    "chapter_title": "The Trader's Edge"
+  },
+  {
+    "id": "G02-06",
+    "name": "TrendTerminationOverextensionFade",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G02-02"
+    ],
+    "depends_on": [
+      "G02-02"
+    ],
+    "pages": [
+      58,
+      59
+    ],
+    "quote": "a trader might find spots where the rallies in the uptrend have run up too far too fast, and take short positions against those rallies, planning to cover one to three bars later.",
+    "description": "A fast countertrend scalp: within an established uptrend, short a rally that has advanced an unusually large amount in a short number of bars (overextended), planning a very short holding period. Mirrored for a plunge within a downtrend (buy the oversold spike). Grimes gives no numeric definition of 'too far too fast' in this chapter.",
+    "pseudocode": "MarkupMarkdownTrendPhase(...) AND (close[0] - close[extensionLookback]) > extensionAtrMultiple * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "extensionLookback": 3,
+      "extensionAtrMultiple": 2,
+      "atrLookback": 14
+    },
+    "book_order_type": "n/a (assumed market order at the close, i.e. next-open per convention)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "'too far too fast' has no numeric threshold in this chapter; a design decision is needed for both the lookback and the magnitude"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "Grimes explicitly warns this is 'for only the fastest and most nimble traders' and that 'developing traders are well advised to avoid these countertrend scalps' -- kept per the high-recall instruction, not because it is recommended."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/02_the_market_cycle_and_the_four_trades.json",
+    "chapter_title": "The Market Cycle and the Four Trades"
+  },
+  {
+    "id": "G02-07",
+    "name": "CoverOverextensionFadeAfterFixedBars",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [
+      "G02-06"
+    ],
+    "depends_on": [
+      "G02-06"
+    ],
+    "pages": [
+      58,
+      59
+    ],
+    "quote": "planning to cover one to three bars later.",
+    "description": "The trend-termination overextension scalp (G02-06) is covered after a small, fixed number of bars regardless of profit.",
+    "pseudocode": "ctx.BarsSinceEntry() >= numBarsExit",
+    "sides": "same",
+    "parameters": {
+      "numBarsExit": 2
+    },
+    "book_order_type": "time-based exit at the next open once the bar count is reached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a single position-age comparison"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "NumBars",
+    "confidence": "high",
+    "notes": [
+      "Grimes's number is one to three bars; the existing NumBars rule's default (50) should be overridden to this range for this specific placement."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/02_the_market_cycle_and_the_four_trades.json",
+    "chapter_title": "The Market Cycle and the Four Trades"
+  },
+  {
+    "id": "G03-07",
+    "name": "ClimaxVolumeSpike",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      72
+    ],
+    "quote": "It is not uncommon to see bars that trade four or five times the average volume for the instrument",
+    "description": "Bar volume exceeds a multiple of its own recent average volume -- a climax marker; not a price-level test so it passes the shift test.",
+    "pseudocode": "volume[0] > volumeMultiple * average(volume, volLookback)",
+    "sides": "same",
+    "parameters": {
+      "volumeMultiple": 4,
+      "volLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window average of volume"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "VolumeAboveAverageMultiple",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-13",
+    "name": "MomentumDivergenceAtNewPriceExtreme",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-12"
+    ],
+    "pages": [
+      84
+    ],
+    "quote": "At the point marked B, the market made a new high but the momentum indicator did not. This is a momentum divergence",
+    "description": "Price makes a new N-bar high (low) but the momentum indicator (G03-12) does not make a concurrent new extreme -- a momentum divergence.",
+    "pseudocode": "close[0] >= highest(close, lookback)[1] AND NOT (mom(close,fastLen,slowLen)[0] >= highest(mom(close,fastLen,slowLen), momLookback)[1])",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20,
+      "fastLen": 3,
+      "slowLen": 10,
+      "momLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "two rolling-extreme comparisons and a negation"
+    },
+    "el_words_needed": [
+      "MACD",
+      "XAverage",
+      "Highest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-19",
+    "name": "ThreePushesPattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      79,
+      80
+    ],
+    "quote": "three pushes, which appears on a price chart as three drives to a new high or low after a somewhat extended trend ... In the best examples, the third push breaks a trend line drawn across pushes one and two",
+    "description": "Three successive drives to a new trend extreme, roughly symmetric in time and price, spaced more closely together than the trend's typical prior swing spacing; the third push often breaks the trend line connecting pushes 1 and 2 -- a short-term climax/exhaustion warning.",
+    "pseudocode": "push1, push2, push3 = successive swing extremes in trend direction; abs(push2-push1) approx abs(push3-push2) AND barsBetween(push2,push3) < barsBetween(push1,push2) AND priceCrossesTrendLine(push1,push2)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and trend-line projection from those pivots"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "ThreePushPattern, ThreePushAcceleration, ThreePushSlopeBias, ThreePushCompletionExit",
+    "confidence": "medium",
+    "notes": [
+      "Heavily covered already by the Brooks-derived ThreePush* family in the catalog; recorded here for completeness per the mining brief."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G03-30",
+    "name": "ShrinkingSwingLengthsWarning",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      99,
+      100
+    ],
+    "quote": "the trend is running out of steam occurs when successive upswings are shorter relative to previous upswings",
+    "description": "Successive with-trend swings become progressively shorter than the swings preceding them -- an early warning that the trend is losing momentum.",
+    "pseudocode": "swingLength[0] < swingLength[1] AND swingLength[1] < swingLength[2]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection and a running series of swing lengths"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "ShrinkingSwingIncrementsExit",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/03_on_trends.json",
+    "chapter_title": "On Trends"
+  },
+  {
+    "id": "G04-20",
+    "name": "ReversalRangeHigherTimeframeOverextension",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G03-11",
+      "G03-13",
+      "G04-10"
+    ],
+    "pages": [
+      130,
+      131
+    ],
+    "quote": "Any of the factors that can suggest an end of a trend on one time frame (overextension, momentum divergence, specific terminating formations, etc.) apply to all time frames",
+    "description": "A trading-timeframe range is treated as a potential higher-timeframe reversal (rather than continuation) when the higher-timeframe proxy shows overextension (G03-11, distance from EMA in ATR units, evaluated on a longer lookback) or a momentum divergence (G03-13).",
+    "pseudocode": "G04-10 (bounded range) AND (G03-11 evaluated at htfLookback OR G03-13 evaluated at htfLookback)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "n/a (context filter)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "compounds two Chapter 3 research/moderate-grade primitives at an approximated higher-timeframe lookback"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "AvgTrueRange",
+      "MACD"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G05-21",
+    "name": "MomentumDivergenceAtExtremeWarnsFailure",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      150
+    ],
+    "quote": "failed pullbacks are preceded by some form of a momentum divergence.",
+    "description": "Momentum (a simple close-vs-N-bars-ago reading, or a fast oscillator) fails to make a new extreme alongside a new price extreme -- a divergence that precedes failed pullbacks.",
+    "pseudocode": "high[0] >= highest(high[1], lookback) AND momentumValue[0] < momentumValueAtPriorExtreme",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state comparing momentum at two price-extreme bars"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "MomentumChange",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-26",
+    "name": "LastGaspSpringUpthrust",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": true,
+    "composes": [
+      "G05-08",
+      "G05-25"
+    ],
+    "depends_on": [],
+    "pages": [
+      157,
+      158
+    ],
+    "quote": "The actual 'last gasp' pattern is nothing more than a Wyckoff upthrust, but the key is that it is preceded by sufficient consolidation to set up the potential for another trend leg up; the pattern draws its power from the failure of that potential.",
+    "description": "A spring or upthrust (G05-08) at the extreme of an established trend, occurring only after a sufficiently long consolidation (G05-25) -- a high-reliability trend-termination signal.",
+    "pseudocode": "ConsolidationDurationBeforeExtremeTest AND SpringAtRangeSupport",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market/stop entry on the close of the spring/upthrust bar -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "combines a moderate primitive with a research-grade consolidation test"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "Example: two upthrusts in Disney (Figure 5.15)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G05-27",
+    "name": "ChangeOfCharacterSwingReversal",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      159
+    ],
+    "quote": "a change of character could be as simple as a downswing that is bigger than the preceding upswing. If this is the first time this has happened in many swings, it is time to carefully monitor the market.",
+    "description": "The most recent countertrend swing is larger than the with-trend swing immediately preceding it, and no such reversal has occurred in the last M swings -- flags a possible change of character / trend weakening.",
+    "pseudocode": "swingLength[0] > priorSameDirectionSwingLength AND no prior occurrence of this in the last numSwingsLookback swings",
+    "sides": "mirrored",
+    "parameters": {
+      "numSwingsLookback": 5
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-leg detection and a lookback over prior swing comparisons"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "SecondLegExceedsFirstLegExtreme",
+    "confidence": "low",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/05_interfaces_between_trends_and_ranges.json",
+    "chapter_title": "Interfaces between Trends and Ranges"
+  },
+  {
+    "id": "G06-06",
+    "name": "ClimaxBarCondition",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      183,
+      184
+    ],
+    "quote": "It is usually a good idea to avoid pullbacks after conditions that could indicate a buying or selling climax. We have looked at these parabolic expansions and have seen that they frequently cap trends.",
+    "description": "Primitive: a bar (or the most recent bar) shows range/momentum expansion well beyond normal -- a buying or selling climax.",
+    "pseudocode": "(high[0] - low[0]) > climaxMultiple * average(high[1..lookback] - low[1..lookback])",
+    "sides": "same",
+    "parameters": {
+      "lookback": 20,
+      "climaxMultiple": 2.0
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "single bar's range vs. a window average"
+    },
+    "el_words_needed": [
+      "Average"
+    ],
+    "likely_existing_rule": "ClimaxBar",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-07",
+    "name": "MomentumDivergenceMatureTrendSetup",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      166
+    ],
+    "quote": "The best examples of this trade occur in mature, extended trends, and will usually be accompanied by momentum divergence on the trading time frame.",
+    "description": "Failure Test setup condition 1: momentum fails to make a new extreme alongside a new price extreme in a mature, extended trend.",
+    "pseudocode": "high[0] >= highest(high[1], lookback) AND momentumValue[0] < momentumValueAtPriorExtreme",
+    "sides": "mirrored",
+    "parameters": {
+      "lookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar comparison of momentum at two price-extreme bars"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "MomentumChange",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-33",
+    "name": "TrendTerminationPreconditionPattern",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      186
+    ],
+    "quote": "The first is that the market must have made a pattern that suggests the current trend could be terminating... loss of momentum on successive thrusts, an extremely overextended market on the higher time frame, some type of double top or bottom formation... or perhaps a failure test.",
+    "description": "The Anti's first setup condition: some prior pattern suggesting the trend could be ending -- momentum divergence across successive thrusts (reuses G06-07's mechanics), high volatility/overextension (reuses G06-06's climax mechanics), or a completed failure test (G06-01).",
+    "pseudocode": "MomentumDivergenceAcrossThrusts OR ClimaxBarCondition (recent) OR FailureTestOfLevelTrigger (recent, against the established trend)",
+    "sides": "mirrored",
+    "parameters": {
+      "recentLookback": 10
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "an OR of several sub-conditions, one of which (double top/bottom) needs pattern recognition over a variable-length window and is only approximated by the others here"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The 'double top or bottom formation' sub-case is not separately mechanized; it reduces to two roughly-equal swing highs/lows, which is closer to a design decision than a bar-level test."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G07-16",
+    "name": "DivergenceTradeMaReturnExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-14"
+    ],
+    "pages": [
+      224,
+      225
+    ],
+    "quote": "a divergence can usually be assumed to have reset or to have fulfilled its expectation when one of three conditions occurs: price returns to an intermediate-term (e.g., 20-period) moving average...",
+    "description": "Once in a countertrend position opened on a momentum divergence, price returning to the resetMaLength-period moving average marks the divergence as having reset; tighten or exit the trade.",
+    "pseudocode": "ctx.MarketPosition() > 0 && close[0] <= ema(close, resetMaLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "resetMaLength": 20
+    },
+    "book_order_type": "n/a (management rule)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "an EMA comparison combined with a position-state read"
+    },
+    "el_words_needed": [
+      "XAverage",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "resetMaLength=20 is explicit ('e.g., 20-period'); the other two reset conditions are G07-17 and G07-18, meant to be OR'd together by the exit pane."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-17",
+    "name": "DivergenceTradeZeroCrossExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-14",
+      "G07-11"
+    ],
+    "pages": [
+      224,
+      225
+    ],
+    "quote": "a divergence can usually be assumed to have reset... the MACD fast line crosses the zero line from the divergent state...",
+    "description": "Once in a divergence-based trade, the fast line crossing the zero line at least once since entry marks the divergence as reset; tighten or exit the trade.",
+    "pseudocode": "macdFast[0] * macdFast[ctx.BarsSinceEntry()] <= 0",
+    "sides": "same",
+    "parameters": {},
+    "book_order_type": "n/a (management rule)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the fast-line series plus reading its value back at the entry bar via BarsSinceEntry"
+    },
+    "el_words_needed": [
+      "Average",
+      "BarsSinceEntry",
+      "MarketPosition"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G07-18",
+    "name": "DivergenceTradeTimeElapsedExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G07-14"
+    ],
+    "pages": [
+      224,
+      225
+    ],
+    "quote": "a divergence can usually be assumed to have reset... or an extended period of time (10+ bars) elapses.",
+    "description": "Once in a divergence-based trade, at least divergenceResetBars bars have passed since entry; treat the divergence as expired and tighten or exit.",
+    "pseudocode": "ctx.BarsSinceEntry() >= divergenceResetBars",
+    "sides": "same",
+    "parameters": {
+      "divergenceResetBars": 10
+    },
+    "book_order_type": "n/a (management rule)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a bare comparison against a bar-count accessor"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/07_tools_for_confirmation.json",
+    "chapter_title": "Tools for Confirmation"
+  },
+  {
+    "id": "G16-02",
+    "name": "ClimaxAcceleratingTrendMove",
+    "role": "Entry",
+    "is_filter": true,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      444
+    ],
+    "quote": "Usually refers to a move near the end of an extended trend in which the trend accelerates into a steeper move, usually accompanied by an increase in volume.",
+    "description": "Flags a climax: the most recent leg of the trend has moved farther, faster than the leg before it, together with an increase in volume.",
+    "pseudocode": "abs(close[0] - close[legBars]) > accelMultiple * abs(close[legBars] - close[2*legBars]) and volume[0] > volumeMultiple * average(volume, volLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "legBars": 5,
+      "accelMultiple": 1.5,
+      "volumeMultiple": 1.5,
+      "volLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "compares two successive leg magnitudes plus an average-volume gate"
+    },
+    "el_words_needed": [
+      "Volume",
+      "Average"
+    ],
+    "likely_existing_rule": "ClimaxBar",
+    "confidence": "medium",
+    "notes": [
+      "\"Exhaustion\" is glossed as a synonym of climax on the same page; no separate candidate needed."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-12",
+    "name": "MomentumDivergenceAtNewExtreme",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-11",
+      "G16-05"
+    ],
+    "pages": [
+      450
+    ],
+    "quote": "Most of them look for a new high or low in price (relative to its recent history) that is not accompanied by a new high or low on a momentum indicator, such as the MACD. The assumption is that there was less conviction behind the move, so it is more likely to fail to continue.",
+    "description": "Price makes a new swing extreme, but the momentum oscillator (e.g. the 3/10 MACD) fails to make a corresponding new extreme, signalling weakening conviction.",
+    "pseudocode": "high[0] >= highest(high, priceLookback) and osc(0) < highest(osc, oscLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "priceLookback": 20,
+      "oscLookback": 20
+    },
+    "book_order_type": "n/a (context test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires aligning a new price extreme with the oscillator's value at the prior comparable extreme, i.e. pivot-to-pivot comparison of two series"
+    },
+    "el_words_needed": [
+      "MACD",
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "medium",
+    "notes": [
+      "No exact existing-rule name found for classic momentum divergence against a new price extreme; likely a genuinely new rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  },
+  {
+    "id": "G16-19",
+    "name": "ThreePushesReversalPattern",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G16-05"
+    ],
+    "pages": [
+      456,
+      457
+    ],
+    "quote": "A typical end-of-trend pattern consisting of three symmetrical (in both price and time) pushes to a new high or a new low, followed by a reversal that shows a distinct change of character.",
+    "description": "Three successive swing extremes, each beyond the last, roughly matched in both price distance and bar-count spacing, followed by a reversal.",
+    "pseudocode": "abs(push3Height - push2Height) < symmetryTol * push2Height and abs(push2Height - push1Height) < symmetryTol * push1Height and abs(push3Bars - push2Bars) < timeSymmetryTol",
+    "sides": "mirrored",
+    "parameters": {
+      "symmetryTol": 0.3,
+      "timeSymmetryTol": 3,
+      "swingStrength": 2
+    },
+    "book_order_type": "n/a (context/pattern test)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs three ranked swing pivots plus symmetry comparisons in both price and time"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow"
+    ],
+    "likely_existing_rule": "ThreePushPattern",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/16_glossary.json",
+    "chapter_title": "Glossary"
+  }
+]

@@ -1,0 +1,30 @@
+{
+    "name": "FlatTradeScratchExit",
+    "type": "Exit",
+    "inputVariables": {
+        "maxFlatBars": "6",
+        "flatThreshold": "1.0",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SCRATCH A TRADE THAT NEVER WENT ANYWHERE. maxFlatBars bars after the fill,\n// the trade's PEAK profit has still not reached flatThreshold ATRs (Grimes\n// G10-06).\n//\n// NOT NumBarsIfLosing, and NOT NumBarsIfBelowProfitThreshold\n// either: both read ctx.OpenPositionProfit(), this close's mark. A trade that\n// ran two ATRs in favour and gave it all back is \"losing\" to them and is\n// emphatically not flat. This reads ctx.MaxPositionProfit() -- the position's\n// PEAK -- so it asks whether the trade ever moved at all, and scales the\n// threshold by ATR rather than fixing it in dollars.\n//\n// NOT FailedScalpExit: that caps the position's age at 1 bar and adds a\n// price-level term; this requires the position to have SURVIVED maxFlatBars\n// and carries no price term.\n//\n// ctx.MaxPositionProfit() is VERIFIED as the INTRABAR peak of the favourable\n// extreme, net of the entry side's costs, starting at 0 per position and\n// restarting through a reversal -- never emulate it.\n//\n// UNITS: MaxPositionProfit is account currency; flatThreshold * ATR *\n// BigPointValue is currency per contract, and BigPointValue is NOT currency\n// converted while the profit accessors are -- TradeStation's own\n// inconsistency, preserved deliberately, exactly as AtrProfitTarget does it.\n//\n// SIDES ARE `same`. No MarketPosition guard, matching the NumBarsIf* family;\n// the grid must keep maxFlatBars >= 1, since BarsSinceEntry() is 0 while flat.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: atrLength + 1.\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term\n// sum: seeded with a full sum on the study's first calculated bar and\n// thereafter carrying S += TrueRange - TrueRange[Length], re-seeding when the\n// length changes. AtrProfitTarget is the reference and carries the\n// measurements; the two load-bearing details are reproduced here -- the\n// re-seed on a length change (what makes it walkforward safe) and the update\n// as TWO statements, because EasyLanguage evaluates S[1] + in - out left to\n// right and folding it to S += in - out rounds differently.\nif (atrLenState != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLenState = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "el_ge((double)ctx.BarsSinceEntry(), maxFlatBars) && el_lt(ctx.MaxPositionProfit(), flatThreshold * atrVal * ctx.BigPointValue())",
+    "shortCondition": "el_ge((double)ctx.BarsSinceEntry(), maxFlatBars) && el_lt(ctx.MaxPositionProfit(), flatThreshold * atrVal * ctx.BigPointValue())",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

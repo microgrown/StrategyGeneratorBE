@@ -1,0 +1,55 @@
+{
+    "name": "LevelConfluenceAcrossWindows",
+    "type": "Entry",
+    "inputVariables": {
+        "shortLookback": "20",
+        "longLookback": "100",
+        "tolAtr": "0.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "recentLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recentHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "olderLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "olderHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oBase": {
+            "type": "int",
+            "init": "0"
+        },
+        "tol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// CONFLUENCE (G16-20): the support level of a RECENT window sits within tolAtr\n// ATRs of the support level of an OLDER, LONGER one -- levels from two scales\n// lining up at one price. Mirrored on the highs.\n//\n// THE WINDOWS MUST NOT OVERLAP: a nested long window's low is at or below the\n// short window's and the test would fire trivially. The recent window is bars\n// 1..shortLookback and the older one bars shortLookback+1 ..\n// shortLookback+longLookback -- ReversalShortOfPriorExtreme's construction,\n// with the offset on the price series.\n//\n// Both levels are one-bar-shifted window extremes (merge decision 7) and the\n// tolerance is an ATR fraction, never ticks. EL's Extremes() -- which\n// Highest()/Lowest() call -- seeds at the FIRST element of the window (the\n// nearest bar) and scans elements 1..Length-1 with a strict,\n// tolerance-carrying comparison, so each loop below seeds at its window's\n// nearest bar and scans the remainder.\n//\n// WFSafe_AvgTrueRange is MultiWalk's rolling accumulator, re-seeded on a length\n// change and updated as TWO statements; AtrProfitTarget carries the notes.\n//\n// oBase is a local rather than a hook-scope const: a rule can be placed twice\n// in one strategy and its hooks are emitted twice into one class.\n//\n// Deepest bar touched: max(shortLookback + longLookback, atrLength + 1).\nrecentLow = low[1];\nrecentHigh = high[1];\nfor (int i = 2; i <= (int)shortLookback; ++i) {\n    if (el_lt(low[i], recentLow)) recentLow = low[i];\n    if (el_gt(high[i], recentHigh)) recentHigh = high[i];\n}\noBase = (int)shortLookback + 1;\nolderLow = low[oBase];\nolderHigh = high[oBase];\nfor (int i = 1; i < (int)longLookback; ++i) {\n    if (el_lt(low[oBase + i], olderLow)) olderLow = low[oBase + i];\n    if (el_gt(high[oBase + i], olderHigh)) olderHigh = high[oBase + i];\n}\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLength;\ntol = tolAtr * atr;",
+    "longCondition": "el_le(std::fabs(recentLow - olderLow), tol)",
+    "shortCondition": "el_le(std::fabs(recentHigh - olderHigh), tol)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

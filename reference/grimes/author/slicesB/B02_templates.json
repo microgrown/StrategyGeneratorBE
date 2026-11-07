@@ -1,0 +1,392 @@
+{
+ "slice": "B02_templates",
+ "rules": [
+  {
+   "key": "NoSustainedPriorPenetration",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Stated positively: no run of more than maxBarsBeyond consecutive bars in the last N bars closed beyond the level the breakout is about to clear, so none of the breakout's energy has been spent. Place NEGATED for Grimes's warning that prior penetrations lead to poor breakout trades.",
+   "sides": "mirrored",
+   "pseudocode": "level = Highest(high[1], levelLookback) + tolAtr * atr(atrLookback); longest run of (close[k] > level) over k = 1..preLookback <= maxBarsBeyond",
+   "parameters": {
+    "preLookback": 20,
+    "levelLookback": 20,
+    "maxBarsBeyond": 2,
+    "tolAtr": 0.1,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a longest-consecutive-run scan over a window against one fixed level, plus an ATR call site"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "TwiceFailedBreakoutAttempt",
+    "relation": "variant",
+    "note": "that rule COUNTS failed breakout EVENTS (a poke beyond a per-candidate window extreme, then a close back inside) and reads them as a reason to expect the other direction; this caps the LENGTH of any excursion beyond ONE fixed level and reads a long excursion as energy already spent. FailedNewExtremeBlock is the nearest shape -- a standing block written positively -- but it requires a bear trend bar closing back through the level and is an event test, not a run length."
+   },
+   "sources": [
+    "G06-44"
+   ],
+   "merge_notes": "Stated in the PASSING sense so it ANDs into the pane, the corpus's convention for every 'do not trade while X' claim (PostGapFadeBlockWindow, FailedNewExtremeBlock). The level is the settled shifted window extreme with an ATR tolerance (decision 7), read once at bar 0 rather than re-derived per scanned bar. Grimes forgives small failure-test probes, which maxBarsBeyond ~2 does.",
+   "variants_kept_separate": [
+    "CleanLevelTouchBand"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "BreakoutBaseEntryTemplate",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named 'Breakouts, Entering in the Preceding Base' template: a cleanly tested level, a base pressed against it (a tight base OR higher lows into it), no sustained prior penetration, entered near the base floor, on a spring, or anywhere inside the base.",
+   "sides": "mirrored",
+   "pseudocode": "CleanLevelTouchBand && (BreakoutBase || RisingLowsIntoFlatCeiling) && NoSustainedPriorPenetration && (LowTouchesRecentLow || SpringWithMinimumPenetration || baseIsEstablished)",
+   "parameters": {},
+   "complexity": {
+    "grade": "hard",
+    "reason": "graded by its hardest parts, the toleranced level-touch counter and the penetration run scan"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "no catalog composite assembles a level quality test, a base and an anticipatory entry; BreakoutPullbackEntry and BreakoutPullbackWindow are the AFTER-the-break family, which this template deliberately is not."
+   },
+   "sources": [
+    "G06-51",
+    "G06-47"
+   ],
+   "merge_notes": "A NAMED template, carried as the book states it and graded by its hardest part. Its two ORs -- base OR higher-lows, and the three triggers -- are why panes cannot assemble it. G06-47 ('just get the position on, anywhere in the range') has no condition of its own and is folded in as the third trigger. Stops and target (G06-48/49/50) belong to the exits pass.",
+   "variants_kept_separate": [
+    "FailedBreakoutTemplate"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "CleanLevelTouchBand",
+    "BreakoutBase",
+    "RisingLowsIntoFlatCeiling",
+    "NoSustainedPriorPenetration",
+    "LowTouchesRecentLow",
+    "SpringWithMinimumPenetration"
+   ],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "FailedBreakoutTemplate",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Failed Breakouts template: a breakout bar within the last few bars that showed WEAK range and volume, followed by a strong countertrend reaction bar now -- take the reversal.",
+   "sides": "mirrored",
+   "pseudocode": "some bar k in 1..maxBarsSinceBreakout closed above Highest(high, breakoutLookback)[k+1] and FAILED BreakoutBarRangeAndVolumeExpansion at that bar, and this bar is a bear body >= bodyMultiple * the mean body -- the short side; long is the mirror",
+   "parameters": {
+    "maxBarsSinceBreakout": 5,
+    "breakoutLookback": 10,
+    "lookback": 20,
+    "rangeMultiple": 1.5,
+    "volMultiple": 1.5,
+    "bodyMultiple": 2.0
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a bounded backward scan with an open-coded per-candidate level to find the breakout bar, plus two window averages read at that bar"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Highest",
+    "Lowest",
+    "Ticks"
+   ],
+   "catalog_match": {
+    "rule": "FailedBreakoutReversal",
+    "relation": "variant",
+    "note": "that rule needs a CLOSE back through the broken window extreme and says nothing about the quality of the breakout bar or the strength of the reaction; this is Grimes's own sequence -- a weak breakout, then a strong reaction -- and never reads the level again after the break. FailedBreakoutBeyondExtreme and MarginalBreakoutThenReverse are the poke-and-reclaim forms; BreakoutPullbackWindow supplies the backward scan this reuses."
+   },
+   "sources": [
+    "G06-60"
+   ],
+   "merge_notes": "A NAMED template, carried as stated, graded by the scan that finds the breakout bar. The book's alternative resolution -- 'a plain failure test at the prior high or low' -- is FailureTest (B, decision 13) placed alongside and is deliberately not folded in. Stop and target (G06-58/59) are the exits pass's.",
+   "variants_kept_separate": [
+    "BreakoutBaseEntryTemplate"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "BreakoutBarRangeAndVolumeExpansion",
+    "BodyAboveAverageMultiple",
+    "FailureTest"
+   ],
+   "bucket": "breakouts",
+   "el_words": [
+    "Average",
+    "Highest",
+    "Lowest",
+    "Ticks"
+   ]
+  },
+  {
+   "key": "Pullback",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Pullback template (Buying Support / Shorting Resistance), the book's central trend-continuation trade: a strong setup leg, a quiet pullback that has not tested its support three times, entered on a break-and-recover of the pullback's extreme or on a bounce off it.",
+   "pseudocode": "ExtensionLegExceedsSetupLeg AND PullbackRangeBelowLegRange AND NOT PullbackSupportTestCount AND (LevelBreakAndRecover OR SupportResistanceBounceEntry)",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "hard",
+    "reason": "graded by its hardest part, the pivot-based setup-leg comparison"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "Average",
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": null,
+    "relation": "none",
+    "note": "no catalog composite covers it; every part is a separate rule"
+   },
+   "sources": [
+    "G06-21"
+   ],
+   "merge_notes": "Carried as a named template per the brief. Grimes says flags, pennants, wedges and continuation triangles are functionally identical, so there are no per-shape rules. Stop and targets (G06-17/18/19) live in exits_stops and exits_targets.",
+   "variants_kept_separate": [
+    "ComplexPullback",
+    "PullbackLowerTimeframeBreakout"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "ExtensionLegExceedsSetupLeg",
+    "PullbackRangeBelowLegRange",
+    "PullbackSupportTestCount",
+    "LevelBreakAndRecover",
+    "SupportResistanceBounceEntry"
+   ],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "Average",
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "PullbackLowerTimeframeBreakout",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Pullback, Entering Lower Time Frame Breakout template: the same pullback setup, timed by a short-window breakout out of the pullback instead of by a bounce -- better momentum confirmation, worse trade location.",
+   "pseudocode": "ExtensionLegExceedsSetupLeg AND PullbackRangeBelowLegRange AND (LowerTimeFrameBreakoutEntry OR EqualHighsBreakout)",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "hard",
+    "reason": "inherits the pivot-based setup; the trigger itself is simple"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "Average",
+    "Highest"
+   ],
+   "catalog_match": {
+    "rule": null,
+    "relation": "none",
+    "note": "the trigger half alone is close to HighestHighBreakout at a short lookback; the template is the pairing"
+   },
+   "sources": [
+    "G06-26"
+   ],
+   "merge_notes": "The lower timeframe is approximated by a 3-bar breakout on the same bars (decision 4's multiplier read downward); that primitive, G06-22, sits in breakouts. Stop choice (tight vs the preferred wider one) is exits_stops.",
+   "variants_kept_separate": [
+    "Pullback"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "ExtensionLegExceedsSetupLeg",
+    "PullbackRangeBelowLegRange",
+    "LowerTimeFrameBreakoutEntry",
+    "EqualHighsBreakout"
+   ],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "Average",
+    "Highest"
+   ]
+  },
+  {
+   "key": "ComplexPullback",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Trading Complex Pullbacks template: the pullback has two countertrend legs (or the hidden with-trend-body cue), often after a climax where the simple Pullback template is blocked, entered on the same triggers.",
+   "pseudocode": "(SecondLegExceedsFirstLegExtreme OR HiddenComplexPullbackBodyCount) AND (LevelBreakAndRecover OR SupportResistanceBounceEntry)",
+   "sides": "mirrored",
+   "parameters": {},
+   "complexity": {
+    "grade": "hard",
+    "reason": "graded by the leg-structure part, which needs the settled leg counter"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": null,
+    "relation": "none",
+    "note": "the two-leg part is the on-disk SecondLegExceedsFirstLegExtreme; the template is the pairing with a trigger"
+   },
+   "sources": [
+    "G06-32"
+   ],
+   "merge_notes": "Grimes pairs this with NoClimaxBarInWindow negated: a climax blocks the simple template but permits this one, which is the one place the two templates are not interchangeable. Target is the AB=CD leg-equality move, the on-disk LegOneEqualsLegTwoTarget.",
+   "variants_kept_separate": [
+    "Pullback"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "ComplexPullbackSecondLegBeyondFirst",
+    "HiddenComplexPullbackBodyCount",
+    "LevelBreakAndRecover",
+    "SupportResistanceBounceEntry"
+   ],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "Anti",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Anti template: after a pattern suggesting the trend could be ending, a countertrend swing emerges that is much stronger than the trend's previous countertrend swings, and the trade is the FIRST pullback after that swing -- entered in the direction of the new move.",
+   "pseudocode": "TrendTerminationPrecondition AND CountertrendSpikeStrongerThanPriorSwings, then FirstPullbackAfterSpike",
+   "sides": "mirrored",
+   "parameters": {
+    "recentLookback": 10
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "two pivot-based setup conditions ahead of an on-disk trigger"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "FirstPullbackAfterSpike",
+    "relation": "variant",
+    "note": "the catalog rule is the Anti's TRIGGER alone, with the spike defined by strong trend bars; the template adds the trend-termination precondition and the change-of-character swing test, which is what makes it countertrend rather than with-trend"
+   },
+   "sources": [
+    "G06-40",
+    "G16-01"
+   ],
+   "merge_notes": "Grimes's PRICE-STRUCTURE Anti, the form he prefers; decision 6 leaves Raschke's stochastic original at C in indicators_bands. The setup parts G06-33 / G06-34 sit in climax_termination and swing_structure. The loose 'enter anywhere in the pullback' variant is dropped -- it has no bar test of its own.",
+   "variants_kept_separate": [
+    "AntiFirstPullbackTrigger"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "TrendTerminationPrecondition",
+    "CountertrendSpikeStrongerThanPriorSwings",
+    "AntiFirstPullbackTrigger"
+   ],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "FailureTest",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "Grimes's named Failure Test (Wyckoff spring/upthrust, Sperandeo's 2B): a brief excursion beyond a level - at most a few bars closing past it - that ends with a strong-bodied bar closing back on the origin side. Enter on that close.",
+   "pseudocode": "someBar k in 1..maxBarsBeyond closed below lowest(low, rangeBars) as of bar k+1 AND close[0] > that level AND abs(close[0] - open[0]) > bodyMultiple * average(high[1] - low[1], lookback)",
+   "sides": "mirrored",
+   "parameters": {
+    "rangeBars": 20,
+    "maxBarsBeyond": 3,
+    "bodyMultiple": 1.0,
+    "lookback": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "FailedBreakoutReversal's per-candidate window loop plus a single-bar body test"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "FailedBreakoutReversal",
+    "relation": "variant",
+    "note": "that rule is the excursion-and-reclaim half; this adds the strong-momentum reclaim bar the book insists on"
+   },
+   "sources": [
+    "G05-11",
+    "G06-13"
+   ],
+   "merge_notes": "REACHABLE AS TWO PANES - FailedBreakoutReversal AND BodyExceedsAverageBarRange, both direction-compatible - so it earns a file only as the book's named template tested verbatim, which is why the brief lists it. G06-13's stop, target and reentry legs live in other buckets; its stall exit is StalledPositionExit.",
+   "variants_kept_separate": [
+    "LevelBreakoutFailsWithinFewBars",
+    "SpringWithMinimumPenetration"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "FailedBreakoutReversal",
+    "BodyExceedsAverageBarRange"
+   ],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "Average"
+   ]
+  }
+ ]
+}

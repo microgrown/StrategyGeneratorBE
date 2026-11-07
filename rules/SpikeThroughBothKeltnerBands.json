@@ -1,0 +1,79 @@
+{
+    "name": "SpikeThroughBothKeltnerBands",
+    "type": "Switch",
+    "inputVariables": {
+        "emaLength": "20",
+        "bandMult": "2.25",
+        "atrLength": "20",
+        "spikeLookback": "10"
+    },
+    "localVariables": {
+        "emaVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "emaSf": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSeedLen": {
+            "type": "int",
+            "init": "0"
+        },
+        "band": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upper": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lower": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upperHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "lowerHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "bandCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "bandDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "spikeUpCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "spikeDownCount": {
+            "type": "int",
+            "init": "0"
+        },
+        "countReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A SPIKE THROUGH BOTH BANDS (G07-10): somewhere inside the last spikeLookback\n// bars the market closed beyond the UPPER Keltner band AND somewhere inside\n// that same window it closed beyond the LOWER one -- a sharp move one way\n// immediately reversed the other, which Grimes reads as a market about to\n// consolidate. Take no new position on either side.\n//\n// Both sides identical, and not composable: an AND of an upper-band read and a\n// lower-band read cannot be built from mirrored directional panes, and two\n// Switch placements OR rather than AND. Not OppositeLargeBarsInWindow, which\n// reads the same idea off two large opposite TREND BARS rather than off the\n// bands. The mined cooldownBars is folded into spikeLookback -- one window,\n// default 10. The thresholds are a literal 1: \"it happened at all\" is the\n// structural constant here, not a tunable count.\n// DIVERGENCE FROM THE BOOK, recorded rather than hidden, exactly as\n// TightRangeBlocksEntries records it: the generator's Switch role both blocks\n// entries AND forces an exit (strategyWriter.py `_switchLines`). Grimes asks\n// only for the block. There is no block-without-flat role; and there is no per-pane substitute here -- an AND of an\n// upper-band read and a lower-band read cannot be built from mirrored\n// directional panes at all, which is why it is a Switch.\n// While countReady is false the Switch is FALSE: a blocker must not block on a\n// warm-up reading.\n// THE KELTNER BAND (Grimes merge decision 1, book p68: \"2.25 multiples of the\n// ATR around a 20-period exponential moving average\"). The centre line is\n// EXPONENTIAL -- WFSafe_Xaverage, not the simple Average KeltnerChannelCross\n// uses. Defaults 20 / 2.25 / 20 are the book's.\n//\n// MultiWalk's WFSafe_Xaverage, ported from EmaGapBar (the EMA reference, which\n// carries the full measurements). EL_XAverage_Probe.txt (@OJ 240min, chart\n// starts 2007 and 2010):\n//   * BIT-IDENTICAL to the plain XAverage built-in at a fixed length --\n//     (wf - xa) * 1e12 printed exactly 0.0000 on all 17,785 bars;\n//   * the SEED is the PRICE on the study's first calculated bar\n//     (ctx.CurrentBar() == 1), not a length-term simple average;\n//   * the recurrence is x + sf*(p - x), ONE statement, never\n//     sf*p + (1-sf)*x -- the two separated on 67% of probed bars past 100;\n//   * there is NO warm-up hole on the CURRENT value, so no bar-count guard;\n//   * an EMA NEVER FORGETS ITS SEED (it decays at (1 - sf)^n, ~330 bars), so\n//     Max Bars Back and the chart start are part of this rule's specification.\n// LENGTH CHANGE MEASURED 2026-09-17 (EL_XAverage_Lag_Probe.txt): the wrapper\n// recomputes sf on the bar the length changes and carries its state, no\n// re-seed, so emaLength may be optimized in grids.\n// Scratch below is declared in localVariables, not at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a redefinition\n// when this rule is placed twice in one strategy.\nemaSf = 2.0 / (emaLength + 1.0);\nif (ctx.CurrentBar() == 1) {\n    emaVal = close[0];\n} else {\n    emaVal = emaVal + emaSf * (close[0] - emaVal);\n}\n// WFSafe_AvgTrueRange: MultiWalk's ROLLING accumulator, ported from\n// AtrProfitTarget (the reference, with the measurements). Seeded with a full\n// sum on the first calculated bar or when the length changes, and updated\n// thereafter as TWO statements -- EL evaluates S[1] + in - out left to right,\n// and folding it to S += in - out rounds differently (@OJ 2015-02-20).\nif (atrSeedLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrSeedLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLength;\nband = bandMult * atr;\nupper = emaVal + band;\nlower = emaVal - band;\n// EL's CountIF counts bars 0..N-1 INCLUDING the current bar and its counted\n// condition is a TRUE SERIES (VERIFIED): at position i it tests the band at\n// OFFSET i, so every counted bar reads the band as it stood on that bar. The\n// zero-initialized ring buffers below supply exactly that. `upper` and `lower`\n// are EL VARIABLES, so their [k] history is the value the strategy assigned k\n// bars ago and reads 0.0 before that history exists -- MEASURED for the\n// function itself (EL_XAverage_Lag_Probe.txt, lag1/lag5 exactly 0 on every bar\n// past the lag on both charts) and the same zero-filled pre-history the\n// countif row records for variables. The buffers are re-seeded if the depth\n// ever changes, the way BarRangeAboveStd's mirrored history is.\n// That zero is NEVER compared against: comparing a back-adjusted price with 0\n// is a sign test and would fail the shift test, so the rule guards its own\n// warm-up on the bar counter instead. Both counts accumulate in ONE pass and\n// neither test is short-circuited away, so the loop runs the same number of\n// times as EasyLanguage's.\nbandDepth = (int)spikeLookback;\nif (bandDepth < 1) {\n    bandDepth = 1;\n}\nif (upperHistory.size() != (std::size_t)bandDepth) {\n    upperHistory.assign((std::size_t)bandDepth, 0.0);\n    lowerHistory.assign((std::size_t)bandDepth, 0.0);\n    bandCursor = 0;\n}\nupperHistory[bandCursor] = upper;\nlowerHistory[bandCursor] = lower;\nspikeUpCount = 0;\nspikeDownCount = 0;\nfor (int i = 0; i < (int)spikeLookback; ++i) {\n    const int k = i;\n    double laggedUpper = upperHistory[(bandCursor + upperHistory.size() - (std::size_t)k) % upperHistory.size()];\n    double laggedLower = lowerHistory[(bandCursor + lowerHistory.size() - (std::size_t)k) % lowerHistory.size()];\n    if (el_gt(close[k], laggedUpper)) {\n        spikeUpCount = spikeUpCount + 1;\n    }\n    if (el_lt(close[k], laggedLower)) {\n        spikeDownCount = spikeDownCount + 1;\n    }\n}\nbandCursor = (bandCursor + 1) % upperHistory.size();\n// The deepest lagged read is upper[spikeLookback - 1].\ncountReady = ctx.CurrentBar() > (int)spikeLookback - 1;",
+    "longCondition": "countReady && el_ge((double)spikeUpCount, 1.0) && el_ge((double)spikeDownCount, 1.0)",
+    "shortCondition": "countReady && el_ge((double)spikeUpCount, 1.0) && el_ge((double)spikeDownCount, 1.0)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

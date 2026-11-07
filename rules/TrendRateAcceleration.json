@@ -1,0 +1,26 @@
+{
+    "name": "TrendRateAcceleration",
+    "type": "Entry",
+    "inputVariables": {
+        "nearBars": "10",
+        "farBars": "20",
+        "accelMultiple": "1.5"
+    },
+    "localVariables": {
+        "nearMove": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "farMove": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE TREND IS STEEPENING: the market's RATE of travel over the last nearBars\n// bars is at least accelMultiple times its rate over the farBars bars before\n// them. Grimes gives \"trend rate\" no formula; it reduces to a ratio of two\n// displacement rates, and the book cites the steepening as a buying-climax\n// sign as well as a regime read.\n//\n// CROSS-MULTIPLIED, so no division rounds and a zero-length far leg cannot\n// raise a runtime divide-by-zero -- the MinRewardToRiskFilter spelling. The\n// per-bar normalization is what lets the two windows be DIFFERENT lengths: a\n// short near window measured against a longer baseline.\n//\n// SIDES IDENTICAL because both rates are ABSOLUTE: an absolute value carries\n// no direction, so this is placed beside a directional rule rather than\n// standing in for one.\n//\n// KEPT SEPARATE FROM AcceleratingLegsClimax, the other half of this slice's\n// acceleration cluster, and the reason is not the arithmetic: that rule is\n// SIGNED and MIRRORED (it requires the prior leg to run in the trade's own\n// direction, which is what makes its comparison mean \"steeper in the same\n// direction\") and it PINS the two windows equal. This one is ABSOLUTE,\n// direction-agnostic, and normalizes by window length so the windows may\n// differ. No setting of either rule's inputs reproduces the other's fired-bar\n// set -- a down leg following a larger up leg fires this and not that -- and a\n// boolean that switched BOTH the sign requirement AND the meaning of the short\n// side is a larger switch than merge decision 12's one-line-ratio case covers.\n// Also not ParabolicAccelerationExit, which is an Exit, signed, and\n// equal-windowed.\n//\n// Differences of closes only, so the rule passes the shift test; no indicator\n// and no persistent state.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: nearBars + farBars.\nnearMove = std::fabs(close[0] - close[nearBars]);\nfarMove = std::fabs(close[nearBars] - close[nearBars + farBars]);",
+    "longCondition": "el_ge(nearMove * farBars, accelMultiple * farMove * nearBars)",
+    "shortCondition": "el_ge(nearMove * farBars, accelMultiple * farMove * nearBars)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -82,7 +82,8 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
   `threshold = nearExtreme`; entry panes AND, and as two placements the halves can be
   parameterized apart. Both twins deleted, catalog row removed, relation recorded in
   `OpenNearBarLow`'s row.
-- REMOVED `VolumeBelowAverageFraction` (14): the catalog's `VolumeBelowAverage` at a fraction,
+- REMOVED `VolumeBelowAverageFraction` (14) (REVERSED 2026-09-27: restored as its own rule and
+  `VolumeBelowAverage` returned to its original form, see end): the catalog's `VolumeBelowAverage` at a fraction,
   same average, same window construction. Folded instead of dropped: `volumeFraction` added to
   both `VolumeBelowAverage` twins with default `1`, which reproduces the existing rule exactly
   (missing template params pin to the rule default, so the two templates that place it are
@@ -321,3 +322,16 @@ Every flagged pair reopened on the BE JSON, not the descriptions. Verdicts:
   `ShavedBothEnds` NOT written — `ShavedBothEndsBar` exists. `MicroChannelRunLength`
   gained `minTicks(1)`: at the default the break test is character for character the
   original strict one; templates unchanged.
+
+## 2026-09-27: `VolumeBelowAverageFraction` restored as its own rule (Brian)
+
+The slice-14 fold above is reversed. `VolumeBelowAverage` is back to its original form,
+`volume < average(volume, lookback)`, with no `volumeFraction` input: it is placed in two
+templates (202607 BAS-3 among them), and folding a new input into a placed rule changes the
+MultiWalk code of every family that places it. The fraction test is the separate rule
+**`VolumeBelowAverageFraction`** again, both twins, written from the folded code: strict `<`
+(the slice-14 draft had `<=`), inputs `lookback(20)`, `volumeFraction(0.8)` (the quiet-market
+design point). At `volumeFraction 1` it IS `VolumeBelowAverage`. It is in no template yet.
+The `VolumeBelowAverage`/`volumeFraction` precedent cited for `MicroChannelRunLength`'s
+`minTicks` no longer stands; that amendment was left alone because no template places
+`MicroChannelRunLength`.

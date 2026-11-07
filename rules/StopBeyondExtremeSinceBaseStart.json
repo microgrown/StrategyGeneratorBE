@@ -1,0 +1,37 @@
+{
+    "name": "StopBeyondExtremeSinceBaseStart",
+    "type": "Exit",
+    "inputVariables": {
+        "ratchetOffset": "0.25",
+        "preEntryBars": "10"
+    },
+    "localVariables": {
+        "lowSinceEntry": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "highSinceEntry": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopLongLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stopShortLevel": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// StopBeyondExtremeSinceBaseStart -- Grimes A list, key\n// StopBeyondExtremeSinceBaseStart (G06-48): \"put a stop below the lowest point\n// reached while the market was in the base.\" Authored 2026-09-22 as a\n// preEntryBars input on StopBeyondExtremeSinceEntry and split out as its own\n// rule 2026-11-07, because the 202611 BRK and OWN templates place\n// StopBeyondExtremeSinceEntry, so StopBeyondExtremeSinceEntry stays exactly as\n// those families run it. Code otherwise unchanged. The default\n// preEntryBars(10) is the miner's number; Grimes gives none.\n//\n// The base PREDATES the fill, so the running extreme is SEEDED from the\n// preEntryBars bars before the entry bar instead of from the entry bar alone.\n// Only the SEED differs from StopBeyondExtremeSinceEntry: after the fill the\n// level still ratchets outward bar by bar, so a deeper pre-entry base can only\n// WIDEN the stop, never tighten it. At preEntryBars 0 the seed is the fill\n// bar's own extremes, the loop body never runs, and this is\n// StopBeyondExtremeSinceEntry exactly.\n//\n// The stop sits beyond the worst price the trade has seen SO FAR, read as of\n// the previous bar: the extreme through bar [1], compared against this bar's\n// close. Including the current bar (the merged pseudocode's\n// lowest(low, BarsSinceEntry + 1)[0]) can never fire on the long side, because\n// that low is always <= this close, so the level is taken before the current\n// bar is folded in.\n// Running min/max rather than a window whose length is the position's age:\n// same values, deepest subscript 0 instead of the longest trade.\n// BarsSinceEntry() is 0 on the fill bar AND while flat, so the seed branch\n// re-arms every flat bar and lands on the entry bar's own extremes.\n//\n// Deepest bar touched: preEntryBars.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    lowSinceEntry = low[0];\n    highSinceEntry = high[0];\n    for (ii = 1; ii <= (int)preEntryBars; ++ii) {\n        if (el_lt(low[ii], lowSinceEntry)) lowSinceEntry = low[ii];\n        if (el_gt(high[ii], highSinceEntry)) highSinceEntry = high[ii];\n    }\n    stopLongLevel = lowSinceEntry - ratchetOffset;\n    stopShortLevel = highSinceEntry + ratchetOffset;\n} else {\n    stopLongLevel = lowSinceEntry - ratchetOffset;\n    stopShortLevel = highSinceEntry + ratchetOffset;\n    // Strict comparison, as EL's own Extremes uses: a tie keeps the earlier bar.\n    if (el_lt(low[0], lowSinceEntry)) lowSinceEntry = low[0];\n    if (el_gt(high[0], highSinceEntry)) highSinceEntry = high[0];\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1.0) && el_le(close[0], stopLongLevel)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge((double)ctx.BarsSinceEntry(), 1.0) && el_ge(close[0], stopShortLevel)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

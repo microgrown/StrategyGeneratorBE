@@ -1,0 +1,41 @@
+{
+    "name": "OscillatorArtifactWindowBlock",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lastSide": {
+            "type": "int",
+            "init": "0"
+        },
+        "crossed": {
+            "type": "bool",
+            "init": "false"
+        },
+        "barsSinceInflection": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffer below mirrors. Copied from\n// OscillatorAboveZero and OscillatorNewExtreme, the family's reference pair.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// THE FAST-LINE ARTIFACT WINDOW, Appendix B. For the first slowLen bars after\n// a genuine trend inflection the fast line's curvature is an artifact of the\n// slowLen-period average rolling into the new regime, not new momentum. The\n// rule is true -- those reads are trustworthy -- once more than slowLen bars\n// have passed since the anchor.\n//\n// THE ANCHOR is the OSCILLATOR ZERO CROSS, the C-list resolution of the\n// merge's open question; decision 2 records that cross as MovingAverageCross\n// at fastLen/slowLen. Either direction counts, so both sides are identical.\n//\n// THE WINDOW LENGTH IS slowLen AND IS NOT SEPARATELY TUNABLE: Appendix B's\n// proof is that the distortion lasts exactly as long as the slow average takes\n// to roll over.\n//\n// EL's crosses above/below is a VERIFIED STATE MACHINE (the `crosses` register\n// row), not a two-bar test: a cross fires on a bar whose toleranced relation\n// is above/below AND whose most recent NON-EQUAL relation was on the other\n// side. An equality run is bridged and the state starts UNKNOWN, so nothing\n// fires until a non-equal relation has been observed. Mirrored exactly as\n// MovingAverageCross does, which is why osc[1] is never read: that would be\n// the variable's zero-filled pre-history.\ncrossed = false;\nif (el_gt(osc, 0.0)) {\n    crossed = (lastSide == -1);\n    lastSide = 1;\n} else if (el_lt(osc, 0.0)) {\n    crossed = (lastSide == 1);\n    lastSide = -1;\n}\n// el_eq: equality run -- lastSide deliberately unchanged, no cross.\n// Before any cross has been observed the counter counts bars since the\n// strategy's first bar, so the rule reads true after slowLen bars: the\n// permissive polarity a window blocker wants during warm-up, and the literal\n// reading BarsSinceEmaCross gives the same counter.\nif (crossed) {\n    barsSinceInflection = 0;\n} else {\n    barsSinceInflection = barsSinceInflection + 1;\n}",
+    "longCondition": "el_gt((double)barsSinceInflection, slowLen)",
+    "shortCondition": "el_gt((double)barsSinceInflection, slowLen)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

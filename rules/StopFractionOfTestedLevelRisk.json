@@ -1,0 +1,25 @@
+{
+    "name": "StopFractionOfTestedLevelRisk",
+    "type": "Exit",
+    "inputVariables": {
+        "stopFraction": "0.5",
+        "levelLookback": "20"
+    },
+    "localVariables": {
+        "levelLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "levelHigh": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S \"STOP A\", INSIDE THE TESTED LEVEL. The stop sits stopFraction of\n// the way from the entry price DOWN TOWARD the tested range extreme, so the\n// exit happens before the mass of resting stop orders sitting at the level\n// (G04-09).\n//\n// NOT StopFractionOfSignalBarRisk: identical arithmetic, a different FAR\n// ANCHOR and a different DIRECTION of measurement -- that rule measures up\n// from the SIGNAL BAR'S low, this one down from the ENTRY PRICE toward the\n// tested RANGE extreme. Complementary; both kept.\n//\n// THE LEVEL IS THE ONE-BAR-SHIFTED WINDOW EXTREME (merge decision 7), captured\n// ONCE on ctx.BarsSinceEntry() == 0 -- VERIFIED as 0 on the fill bar and as\n// restarting through a reversal, which a ctx.MarketPosition() == 0 reset would\n// miss because a reversal never passes through flat. Capturing rather than\n// re-indexing by the position's age holds \"reaches back\" at levelLookback.\n//\n// NO ARM FLAG IS NEEDED: BarsSinceEntry() is 0 on every flat bar too, so the\n// captured level is refreshed right up to the fill and is never read stale.\n// The MarketPosition guard is load-bearing anyway -- EntryPrice() is 0.0 while\n// flat and a back-adjusted series carries an arbitrary offset.\n//\n// The window mirrors EasyLanguage's Extremes(), which Lowest()/Highest() call:\n// seeded at the first bar of the window, scanning the rest, STRICT comparison\n// so a tie keeps the earliest bar. Extremes is EL SOURCE, so its comparisons\n// carry the relational tolerance -- el_lt/el_gt, as in Breakout.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: levelLookback.\nif (el_eq((double)ctx.BarsSinceEntry(), 0.0)) {\n    levelLow = low[1];\n    levelHigh = high[1];\n    for (int i = 2; i <= (int)levelLookback; ++i) {\n        if (el_lt(low[i], levelLow)) levelLow = low[i];\n        if (el_gt(high[i], levelHigh)) levelHigh = high[i];\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && el_le(close[0], ctx.EntryPrice() - stopFraction * (ctx.EntryPrice() - levelLow))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && el_ge(close[0], ctx.EntryPrice() + stopFraction * (levelHigh - ctx.EntryPrice()))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

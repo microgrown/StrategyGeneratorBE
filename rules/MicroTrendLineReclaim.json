@@ -1,0 +1,99 @@
+{
+    "name": "MicroTrendLineReclaim",
+    "type": "Entry",
+    "inputVariables": {
+        "microSwingStrength": "1",
+        "pivotLookback": "20",
+        "microLineBars": "5",
+        "failureWindowBars": "3"
+    },
+    "localVariables": {
+        "pivS": {
+            "type": "int",
+            "init": "0"
+        },
+        "pivW": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "foundHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "loP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiP2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiB2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "haveLoLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHiLine": {
+            "type": "bool",
+            "init": "false"
+        },
+        "loSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiSlope": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "brokeLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "brokeHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lineNowLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lineNowHi": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE MICRO TREND LINE, MicroTrendLineFailedBreakout's construction unchanged:\n// the two most recent CONFIRMED swing pivots, the bull line across the lows\n// and the bear line across the highs, TLValue's FIRST-anchor two-point\n// projection, read at microSwingStrength 1 and with the two anchors no more\n// than microLineBars apart. That span test is what makes the line a MICRO line\n// rather than the swing line.\n//\n// THIS RULE: the RECLAIM is the trigger. A bar within the last\n// failureWindowBars traded THROUGH the line -- for a long, a bar whose low\n// printed below the bull micro line -- and THIS bar closes back on the\n// original side of the LINE. Grimes's span is 1 to 3 bars and Brooks's 2 to\n// 10; microLineBars 5 splits them, failureWindowBars 3 is Grimes's.\n//\n// NOT MicroTrendLineFailedBreakout, which needs the closing price to clear the\n// POKING BAR's own opposite extreme -- a higher bar than the line. This asks\n// only for a close back on the right side of the line, so it fires on strictly\n// more bars. Two rules until someone measures that they coincide.\n//\n// THE POKE IS NOT REQUIRED TO BE THE MOST RECENT ONE -- any bar in the window\n// arms the reclaim, so the loop sets a flag rather than keeping the first hit.\n// That is the difference in machinery from MicroTrendLineFailedBreakout, which\n// must remember the poking bar's extreme.\n//\n// KEPT WHOLE like a crossing: the break and the recovery are tested on\n// DIFFERENT bars, and every entry pane evaluates on the same bar, so no\n// pane-AND reaches it.\n//\n// The pivot scan is INLINED rather than reaching into SwingHigh.json -- rules\n// in this corpus never reference each other -- and mirrors the twin's\n// SwingLow / SwingLowBar / SwingHigh / SwingHighBar at Occurrence 1 and 2.\n// MEASURED, EL_Swing_Probe.txt / el_swing_output1.txt (@ES 60 min): the pivot\n// test is MIXED -- AT OR ABOVE the microSwingStrength OLDER bars, STRICTLY\n// ABOVE the microSwingStrength NEWER bars -- so a flat top yields exactly one\n// pivot, the later of the equal bars; bars-ago indexing makes the SMALLER\n// index the NEWER bar, so the strict half is the k < j loop. The confirmation\n// lag is exactly microSwingStrength bars -- ONE bar here, the minimum that is\n// still lookahead-safe. pivotLookback is EL's Length (offsets\n// 0..pivotLookback-1 inclusive) and the neighbourhood test reaches\n// microSwingStrength bars PAST the window, so the deepest index the scan\n// touches is pivotLookback - 1 + microSwingStrength. A window with no pivot\n// returns the -1 SENTINEL, guarded here on the BAR INDEX and never on a price.\n// Occurrence 3+ is UNMEASURED and never asked for. The comparisons carry the\n// 2.22e-12 relational tolerance. No WFSafe_SwingHigh exists, so plain EL\n// governs.\n//\n// MEASURED, EL_TLValue_Probe.txt: the two-point line anchored at the FIRST\n// pair, Slope = (P2 - P1) / (B2 - B1); value = P1 + (target - B1) * Slope,\n// extrapolating freely, so it can be read at an older bar of the window.\n// Bars-ago convention, OLDER pivot as P1/B1 (the zero-drift spelling).\n// Bar1 = Bar2 silently returns 0.0 and is GUARDED rather than relied on; the\n// slope is hoisted out of the per-target arithmetic where the twin recomputes\n// it inside each TLValue call -- identical doubles, same line -- and is\n// computed only inside the guard.\n//\n// THE PIVOTS ARE THE CURRENT ONES, not the pivots as they stood at bar kk; the\n// line is re-read at each bar of the window through TLValue's free\n// extrapolation, as ChannelLineBreakoutFailure and TrendLineBrokenRecently do.\n//\n// Scratch is declared in localVariables, not at hook scope: the generator only\n// prefixes declared locals, so a hook-scope declaration is a redefinition when\n// this rule is placed twice in one strategy. Every one is fully assigned each\n// bar before it is read.\n//\n// Deepest bar touched:\n// max(pivotLookback - 1 + microSwingStrength, failureWindowBars).\npivS = (int)microSwingStrength;\npivW = (int)pivotLookback;\nloP1 = -1.0;\nloB1 = -1.0;\nloP2 = -1.0;\nloB2 = -1.0;\nfoundLo = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_lt(low[j], low[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_le(low[j], low[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundLo;\n        if (foundLo == 1) { loP2 = low[j]; loB2 = (double)j; }\n        else { loP1 = low[j]; loB1 = (double)j; break; }\n    }\n}\nhiP1 = -1.0;\nhiB1 = -1.0;\nhiP2 = -1.0;\nhiB2 = -1.0;\nfoundHi = 0;\nfor (int j = pivS; j <= pivW - 1; ++j) {\n    bool ok = true;\n    for (int k = j - pivS; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) { ok = false; break; }\n    }\n    if (ok) {\n        for (int k = j + 1; k <= j + pivS; ++k) {\n            if (!el_ge(high[j], high[k])) { ok = false; break; }\n        }\n    }\n    if (ok) {\n        ++foundHi;\n        if (foundHi == 1) { hiP2 = high[j]; hiB2 = (double)j; }\n        else { hiP1 = high[j]; hiB1 = (double)j; break; }\n    }\n}\nhaveLoLine = (foundLo == 2) && (loB1 != loB2) && el_le(loB1 - loB2, microLineBars);\nhaveHiLine = (foundHi == 2) && (hiB1 != hiB2) && el_le(hiB1 - hiB2, microLineBars);\nloSlope = 0.0;\nhiSlope = 0.0;\nif (haveLoLine) loSlope = (loP2 - loP1) / (loB2 - loB1);\nif (haveHiLine) hiSlope = (hiP2 - hiP1) / (hiB2 - hiB1);\nbrokeLo = false;\nbrokeHi = false;\nif (el_ge(failureWindowBars, 1.0)) {\n    for (int kk = 1; kk <= (int)failureWindowBars; ++kk) {\n        if (haveLoLine && el_lt(low[kk], loP1 + ((double)kk - loB1) * loSlope)) {\n            brokeLo = true;\n        }\n        if (haveHiLine && el_gt(high[kk], hiP1 + ((double)kk - hiB1) * hiSlope)) {\n            brokeHi = true;\n        }\n    }\n}\nlineNowLo = 0.0;\nlineNowHi = 0.0;\nif (haveLoLine) lineNowLo = loP1 + (0.0 - loB1) * loSlope;\nif (haveHiLine) lineNowHi = hiP1 + (0.0 - hiB1) * hiSlope;",
+    "longCondition": "haveLoLine && brokeLo && el_gt(close[0], lineNowLo)",
+    "shortCondition": "haveHiLine && brokeHi && el_lt(close[0], lineNowHi)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

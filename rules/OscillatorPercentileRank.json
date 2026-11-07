@@ -1,0 +1,59 @@
+{
+    "name": "OscillatorPercentileRank",
+    "type": "Entry",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10",
+        "oscLookback": "40",
+        "topFraction": "0.9"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "oscCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        },
+        "oscDepth": {
+            "type": "int",
+            "init": "0"
+        },
+        "countBelow": {
+            "type": "int",
+            "init": "0"
+        },
+        "countAbove": {
+            "type": "int",
+            "init": "0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        },
+        "oscReady": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word:\n// Appendix B spells the construction out as plain moving averages, and the\n// chapter 16 restatement in exponential terms loses to it.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED: matched a fresh\n// loop on 2,808/2,808 bars; it is NOT a rolling accumulator like the WFSafe_\n// wrappers), and Summation adds the newest bar first and works backwards,\n// with a single divide at the end -- which is how the loops below run.\n// Both averages run over a PRICE expression, which has real bar history, so\n// they are recomputed from the bars rather than mirrored; only osc ITSELF is\n// a variable, and that is what the ring buffers below mirror.\n// The whole quantity is a difference of prices, so it passes the shift test.\n// Scratch is declared in localVariables, never at hook scope: the generator\n// only prefixes declared locals, so a hook-scope declaration is a\n// redefinition when the rule is placed twice in one strategy.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\n// THE FAST LINE IS EXTENDED: the current oscillator value out-ranks at least\n// topFraction of its own last oscLookback values (short: under-ranks as\n// many). Grimes uses it NEGATED, to hold off an entry while momentum is\n// stretched. Not EL's Percentile, which answers the inverse question (the\n// VALUE at a rank, interpolated, with a -1 sentinel out of range); this is\n// ClosePercentileRank's own counting machinery moved onto the oscillator,\n// ties generous on both sides.\n// osc is an EL VARIABLE, so osc[k] reads the variable's OWN history, which\n// holds its initial 0 for every bar before the strategy's first evaluated\n// one. Mirrored here as a zero-seeded ring buffer, re-seeded if the depth\n// ever changes -- exactly what AwesomeOscillatorSlope, AtrRising and\n// BarRangeAboveStd do for the same reason. The rule GUARDS its own warm-up\n// on the bar counter instead of comparing against those zeros.\n// Depth oscLookback: lags 0..oscLookback - 1, the current bar included.\noscDepth = (int)oscLookback;\nif (oscDepth < 1) {\n    oscDepth = 1;\n}\nif (oscHistory.size() != (std::size_t)oscDepth) {\n    oscHistory.assign((std::size_t)oscDepth, 0.0);\n    oscCursor = 0;\n}\noscHistory[oscCursor] = osc;\noscCursor = (oscCursor + 1) % oscHistory.size();\ncountBelow = 0;\ncountAbove = 0;\nfor (ii = 0; ii < (int)oscLookback; ++ii) {\n    double v = oscHistory[(oscCursor + oscHistory.size() - 1 - (std::size_t)ii) % oscHistory.size()];\n    if (el_lt(v, osc)) {\n        countBelow = countBelow + 1;\n    }\n    if (el_gt(v, osc)) {\n        countAbove = countAbove + 1;\n    }\n}\noscReady = ctx.CurrentBar() >= (int)oscLookback;",
+    "longCondition": "oscReady && el_ge(countBelow, topFraction * oscLookback)",
+    "shortCondition": "oscReady && el_ge(countAbove, topFraction * oscLookback)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

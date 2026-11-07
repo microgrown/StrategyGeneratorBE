@@ -1,0 +1,17 @@
+{
+    "name": "ScratchExitOnEarlyOppositeStrongBar",
+    "type": "Exit",
+    "inputVariables": {
+        "bodyFraction": "0.6",
+        "tailFraction": "0.2",
+        "scratchWindow": "3"
+    },
+    "localVariables": {},
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// ScratchExitOnEarlyOppositeStrongBar -- Grimes A list (G06-20, key\n// ScratchExitOnEarlyOppositeStrongBar). Authored 2026-09-22 as a new\n// scratchWindow input on ExitOnOppositeStrongTrendBar and split out as its own\n// rule 2026-11-07, because the 202611 BRK and OWN templates place\n// ExitOnOppositeStrongTrendBar, so that rule stays exactly as those families\n// run it. Code otherwise unchanged.\n//\n// \"Developing price action may suggest the trend is losing integrity --\n// scratch the trade.\" ExitOnOppositeStrongTrendBar's test, restricted to the\n// fill bar and the scratchWindow bars after it, turns a trail into a SCRATCH:\n// the trade comes off for a small win or loss instead of being held to the\n// original stop. ExitOnWeakFollowThrough carries exactly this kind of\n// BarsSinceEntry cap as maxBarsAfterSpike. The default scratchWindow(3) is the\n// merged candidate's value, Grimes's \"first few bars\".\n//\n// THE TEST: one strong trend bar against the position is enough to leave, even\n// though flipping direction would take two -- the mechanizable half of the\n// source's exit/reversal asymmetry. The long side exits on a strong BEAR bar: a\n// body worth at least bodyFraction of the bar's range and no more than\n// tailFraction of it left as a tail on the far side (close near the low).\n// Body and tail as PRODUCTS, not quotients: EL raises a runtime\n// divide-by-zero and a bar whose high equals its low is legal data.\n//\n// scratchWindow 0 MEANS OFF, not \"the fill bar only\": at 0 the gate is open\n// at any age and this is ExitOnOppositeStrongTrendBar exactly. The grid\n// therefore starts at 1 and the fill-bar-only case is not reachable.\n// ctx.BarsSinceEntry() is VERIFIED as 0 on the fill bar, 0 while flat, and\n// restarting through a reversal; the MarketPosition guard is what keeps the\n// flat-bar 0 from mattering. EL does not short-circuit `or`, but neither half of\n// the gate has a side effect, so the C++ `||` is equivalent.\n//\n// Deepest bar touched: 0.",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && (el_le(scratchWindow, 0.0) || el_le((double)ctx.BarsSinceEntry(), scratchWindow)) && el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyFraction * (high[0] - low[0])) && el_le(close[0] - low[0], tailFraction * (high[0] - low[0]))",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && (el_le(scratchWindow, 0.0) || el_le((double)ctx.BarsSinceEntry(), scratchWindow)) && el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyFraction * (high[0] - low[0])) && el_le(high[0] - close[0], tailFraction * (high[0] - low[0]))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

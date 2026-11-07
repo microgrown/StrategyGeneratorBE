@@ -1,0 +1,37 @@
+{
+    "name": "OscillatorZeroCrossSinceEntry",
+    "type": "Exit",
+    "inputVariables": {
+        "fastLen": "3",
+        "slowLen": "10"
+    },
+    "localVariables": {
+        "oscFast": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "oscSlow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "osc": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "armed": {
+            "type": "bool",
+            "init": "false"
+        },
+        "entryUp": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE 3/10 OSCILLATOR -- Grimes's fast line, in the settled form (merge\n// decision 2): the difference of two SIMPLE averages of the close,\n//     osc = average of close over fastLen bars, less the average\n//           of close over slowLen bars\n// with fastLen 3 and slowLen 10 as the book's defaults. Never the MACD word.\n// EL's Average RECOMPUTES from scratch every bar (VERIFIED, 2,808/2,808 bars;\n// it is NOT a rolling accumulator like the WFSafe_ wrappers) and Summation\n// adds the newest bar first with a single divide at the end -- which is how\n// the loops below run. Both averages run over a PRICE expression, which has\n// real bar history, so they are recomputed from the bars rather than mirrored;\n// no history of osc itself is read here, so there is no ring buffer and no\n// warm-up guard.\n//\n// THE EXIT: the fast line has CHANGED SIGN at least once since the trade was\n// entered -- the divergence that justified the trade has reset, so close the\n// position. The sign is captured ONCE, on the fill bar, and latched; it is not\n// re-read afterwards.\n//\n// THE LATCH, not a variable-lag read. The mined candidate spelled this\n// `oscFast[0] * oscFast[BarsSinceEntry] <= 0`, a read of the series at a\n// VARIABLE offset; capturing the sign on the fill bar is the corpus's\n// convention for exactly this (StopAtSignalBarRangeMultiple). BarsSinceEntry\n// is VERIFIED to be 0 on the bar the entry fills, to restart through a\n// reversal (so a reversal re-latches without ever passing through flat), and\n// to read 0 WHILE FLAT -- which is why the latch is armed only when\n// MarketPosition is non-zero, and disarmed when it returns to zero.\n//\n// Not MovingAverageCross at 3/10, which merge decision 2 settles IS the zero\n// cross of this line: that is an ENTRY, it fires only on the crossing bar, and\n// it goes through EL's `crosses` STATE MACHINE. This is an EXIT that stays\n// TRUE for the rest of the position once the sign has flipped, and an Entry\n// rule cannot sit in the exit pane -- the ConsecutiveCloseExit /\n// MomentumConsecutiveBars precedent.\n//\n// SIDES IDENTICAL: the test is \"the sign is not the one it was at entry\",\n// which is already relative to the trade; the generator's own MarketPosition\n// guard on the exit applies the long side to a long and the short side to a\n// short.\n//\n// osc is a difference of averages of price, so the sign test is a test on a\n// DIFFERENCE and the rule passes the shift test. A bar sitting exactly on zero\n// fires neither branch: each branch requires the value to be STRICTLY on the\n// other side.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(fastLen, slowLen) - 1.\noscFast = 0.0;\nfor (int i = 0; i < (int)fastLen; ++i) {\n    oscFast += close[i];\n}\noscFast = oscFast / (int)fastLen;\noscSlow = 0.0;\nfor (int i = 0; i < (int)slowLen; ++i) {\n    oscSlow += close[i];\n}\noscSlow = oscSlow / (int)slowLen;\nosc = oscFast - oscSlow;\nif (ctx.MarketPosition() == 0) {\n    armed = false;\n}\nif (ctx.MarketPosition() != 0 && ctx.BarsSinceEntry() == 0) {\n    armed = true;\n    if (el_gt(osc, 0.0)) {\n        entryUp = true;\n    } else {\n        entryUp = false;\n    }\n}",
+    "longCondition": "armed && ((entryUp && el_lt(osc, 0.0)) || ((!entryUp) && el_gt(osc, 0.0)))",
+    "shortCondition": "armed && ((entryUp && el_lt(osc, 0.0)) || ((!entryUp) && el_gt(osc, 0.0)))",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

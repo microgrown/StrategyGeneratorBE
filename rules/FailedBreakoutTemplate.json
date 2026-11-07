@@ -1,0 +1,73 @@
+{
+    "name": "FailedBreakoutTemplate",
+    "type": "Entry",
+    "inputVariables": {
+        "maxBarsSinceBreakout": "5",
+        "breakoutLookback": "10",
+        "lookback": "20",
+        "rangeMultiple": "1.5",
+        "volMultiple": "1.5",
+        "bodyMultiple": "2.0"
+    },
+    "localVariables": {
+        "bodySum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgBody": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "weakUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "weakDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rngSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "rngMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "strongBrk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "reactUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "reactDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S NAMED FAILED BREAKOUTS TEMPLATE (G06-60), carried as the book\n// states it and with its parts INLINED, as the corpus does for a named setup.\n// A breakout happened in the last maxBarsSinceBreakout bars, it showed WEAK\n// range and tick count -- \"good breakouts should have strong momentum, volume\n// and interest beyond the level; if this does not happen, it is more likely\n// that the breakout will fail\" (G06-56) -- and THIS bar is a strong\n// countertrend reaction (G06-57). Take the reversal.\n//\n// SIDES: a failed UPSIDE breakout is the SHORT and a failed DOWNSIDE breakout\n// the LONG, which is why the long condition pairs weakDn with a strong BULL\n// reaction bar.\n//\n// THE SEQUENCE IS THE RULE, and it is what no pane-AND reaches: the range and\n// tick tests are evaluated AT THE BREAKOUT BAR, a bar found by a backward scan,\n// while the body test is evaluated on THIS bar. Two entry panes both evaluate\n// on the same bar, so BreakoutBarRangeAndVolumeExpansion negated in a pane\n// would judge bar 0, not bar kk. That ORDERING CONSTRAINT, not an OR, is this\n// template's reason to exist.\n//\n// NOT FailedBreakoutReversal, which needs a closing price back through the\n// broken window extreme and says nothing about the quality of the breakout bar or the\n// strength of the reaction; this never reads the level again after the break.\n// Not FailedBreakoutBeyondExtreme or MarginalBreakoutThenReverse, the\n// poke-and-reclaim forms. BreakoutPullbackWindow supplies the backward-scan\n// shape this reuses.\n//\n// THE BOOK'S ALTERNATIVE RESOLUTION -- \"a plain failure test at the prior high\n// or low\" (G06-01) -- is DELIBERATELY NOT FOLDED IN: it is\n// FailedBreakoutReversal AND BodyExceedsAverageBarRange placed alongside, per\n// merge decision 13.\n//\n// THE LEVEL IS PER-CANDIDATE and open-coded, FailedBreakoutReversal's\n// construction: for a candidate breakout bar kk the level is the extreme of\n// bars kk+1 .. kk+breakoutLookback, which in EasyLanguage would be the highest\n// high of that window read at offset kk + 1 -- a history reference on a\n// function call at a VARIABLE offset. Extremes(), which Highest and Lowest call, is EL\n// source and is exactly this loop: seed at the window's first bar and scan the\n// rest with a strict comparison, so a tie keeps the earliest bar.\n//\n// THE TWO BENCHMARKS AT BAR kk BOTH EXCLUDE THE BREAKOUT BAR -- bars\n// kk+1 .. kk+lookback -- so an oversized breakout bar cannot raise its own\n// benchmark. THIS IS A STATED DEPARTURE from BreakoutBarRangeAndVolumeExpansion,\n// whose TICK average is current-inclusive: that rule reads the tick count\n// through an EL VARIABLE and averages the variable's zero-filled warm-up\n// history, which cannot be re-read at a variable offset. Reading Ticks[kk + jj]\n// directly is exact at every bar and needs no mirrored buffer (the `ticks` row\n// is VERIFIED: up + down, not the up-ticks-only EL volume word), and it makes\n// the two windows symmetric. The means are explicit loops for the same reason\n// BodyExceedsAverageBarRange's is: Average over a series with real history is a\n// fresh loop, but reading a function call's OWN history at an offset is\n// unmeasured.\n//\n// THE REACTION BAR is BodyAboveAverageMultiple at consecutiveBars 1: a body of\n// the right COLOUR, at least bodyMultiple times the mean body of the lookback\n// bars before it. The mean BODY, not the mean RANGE -- that is the depends_on\n// part, and BodyExceedsAverageBarRange is the harder mean-RANGE sibling used by\n// the failure test instead.\n//\n// THREE For GUARDS. EasyLanguage's For counts DOWN when the end value is below\n// the start, so `for jj = 1 to 0` would execute at jj = 1 and jj = 0 and read\n// the CURRENT bar, and `for jj = kk + 2 to kk + 1` would read two bars of the\n// level window backwards, where the C++ for-loops would not run at all. The\n// guards make the twins agree at every setting; the grid still starts at 1 for\n// lookback and maxBarsSinceBreakout and at 2 for breakoutLookback.\n//\n// SHIFT TEST: ranges, bodies and tick counts only.\n//\n// Deepest bar touched:\n// max(maxBarsSinceBreakout + breakoutLookback, maxBarsSinceBreakout + lookback).\n//\n// Every scratch value is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement; loop counters are\n// block-scoped inside their loops. ctx.Ticks is the up-plus-down series, cast\n// to double before arithmetic, never the `volume` alias.\nbodySum = 0.0;\navgBody = 0.0;\nfor (int jj = 1; jj <= (int)lookback; ++jj) {\n    bodySum = bodySum + std::fabs(close[jj] - open[jj]);\n}\nif ((int)lookback >= 1) {\n    avgBody = bodySum / (int)lookback;\n}\nweakUp = false;\nweakDn = false;\nfor (int kk = 1; kk <= (int)maxBarsSinceBreakout; ++kk) {\n    if ((int)lookback < 1 || (int)breakoutLookback < 1) break;\n    lvlHi = high[kk + 1];\n    lvlLo = low[kk + 1];\n    for (int jj = kk + 2; jj <= kk + (int)breakoutLookback; ++jj) {\n        if (el_gt(high[jj], lvlHi)) lvlHi = high[jj];\n        if (el_lt(low[jj], lvlLo)) lvlLo = low[jj];\n    }\n    rngSum = 0.0;\n    volSum = 0.0;\n    for (int jj = 1; jj <= (int)lookback; ++jj) {\n        rngSum = rngSum + (high[kk + jj] - low[kk + jj]);\n        volSum = volSum + (double)ctx.Ticks[kk + jj];\n    }\n    rngMean = rngSum / (int)lookback;\n    volMean = volSum / (int)lookback;\n    strongBrk = el_ge(high[kk] - low[kk], rangeMultiple * rngMean)\n        && el_ge((double)ctx.Ticks[kk], volMultiple * volMean);\n    if (el_gt(close[kk], lvlHi) && !strongBrk) weakUp = true;\n    if (el_lt(close[kk], lvlLo) && !strongBrk) weakDn = true;\n}\nreactUp = el_gt(close[0], open[0]) && el_ge(close[0] - open[0], bodyMultiple * avgBody);\nreactDn = el_lt(close[0], open[0]) && el_ge(open[0] - close[0], bodyMultiple * avgBody);",
+    "longCondition": "weakDn && reactUp",
+    "shortCondition": "weakUp && reactDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

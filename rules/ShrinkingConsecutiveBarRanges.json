@@ -1,0 +1,24 @@
+{
+    "name": "ShrinkingConsecutiveBarRanges",
+    "type": "Entry",
+    "inputVariables": {
+        "barCount": "3"
+    },
+    "localVariables": {
+        "shrinking": {
+            "type": "bool",
+            "init": "true"
+        },
+        "kk": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// Each of the last barCount bars has a STRICTLY SMALLER high-low range than\n// the bar before it -- trading interest drying up, the bar-scale companion to\n// Grimes's reluctant-highs reading, which the book states beside it (\"the bars\n// are becoming smaller ... no more large trend bars\"), so the two are meant to\n// be placed together.\n//\n// DIRECTION-AGNOSTIC: a range carries no direction, so both sides are the same\n// text. That is the difference from ShrinkingBodies, which compares BODIES and\n// ALSO requires every bar of the run to close with the trend -- a run of\n// shrinking ranges with mixed closes fires here and not there, and no\n// parameter of that rule drops its body-colour term. Not\n// ShrinkingConsecutiveRanges, which compares the SPANS of two adjacent\n// FIXED-LENGTH WINDOWS rather than bar-to-bar ranges; not NarrowRangeBar, one\n// bar against a window mean.\n//\n// All-of-N written the way ShrinkingBodies writes it -- start true and let any\n// failing pair clear the flag -- so the loop runs unconditionally and\n// EasyLanguage's lack of short-circuiting cannot matter. The pair comparison\n// is guarded by kk <= barCount - 2 INSIDE a loop that runs 0..barCount-1,\n// rather than run as a loop to barCount - 2, so no loop is ever asked to run\n// with a limit below its start (at barCount 1 the rule is vacuously true; the\n// grid starts at 2).\n//\n// Ranges are compared as DIFFERENCES, never as a ratio: EL raises a runtime\n// divide-by-zero and a zero-range bar is legal data. Differences only, so the\n// rule passes the shift test.\n//\n// The flag is a class member and persists across bars; it is reset at the top\n// of the hook rather than relied on to start true.\n//\n// Deepest bar touched: barCount - 1.\nshrinking = true;\nfor (kk = 0; kk < (int)barCount; ++kk) {\n    if (kk <= (int)barCount - 2) {\n        if (el_ge(high[kk] - low[kk], high[kk + 1] - low[kk + 1])) shrinking = false;\n    }\n}",
+    "longCondition": "shrinking",
+    "shortCondition": "shrinking",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

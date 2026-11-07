@@ -1,0 +1,27 @@
+{
+    "name": "StalledPositionExit",
+    "type": "Exit",
+    "inputVariables": {
+        "stallBars": "3",
+        "riskMultiple": "1",
+        "stallFraction": "0.5",
+        "stopDistance": "2"
+    },
+    "localVariables": {
+        "stallHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "stallLow": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE FAILURE TEST'S STALL WARNING. The position has been open stallBars bars,\n// is still short of its first target, AND price has gone nowhere since -- the\n// stallBars-bar high-low range is a small fraction of the initial risk (Grimes\n// G06-11).\n//\n// THE CONJUNCTION IS ONE RULE BECAUSE EXITS ARE ORed: split across placements\n// the three terms would each fire alone and take every trade off far too\n// early. That is why NumBarsIfProfitable / NumBarsIfLosing exist as rules at\n// all rather than as NumBars plus a filter.\n//\n// NOT NumBarsIfLosing, nor NumBarsIfBelowProfitThreshold: the\n// RANGE-CONTRACTION term is the content here. Not FlatTradeScratchExit either\n// -- that reads the position's PEAK profit and no price window.\n//\n// THE ENGINE HAS NO INITIAL-RISK ACCESSOR, so risk is a stopDistance INPUT IN\n// PRICE POINTS (merge decision 24, the RewardRiskDeteriorationExit spelling).\n//\n// UNITS RECONCILED: ctx.OpenPositionProfit() is account CURRENCY while\n// stopDistance is PRICE POINTS, so the profit term carries BigPointValue and\n// the range term does not. BigPointValue is NOT currency converted while the\n// profit accessors are -- TradeStation's own inconsistency, preserved as\n// AtrProfitTarget and StopAtSignalBarRangeMultiple preserve it.\n//\n// The window mirrors EasyLanguage's Extremes(), which Highest()/Lowest() call:\n// seeded at bar 0, scanning bars 1..stallBars-1, STRICT comparison so a tie\n// keeps the earliest bar. Extremes is EL SOURCE, so its comparisons carry the\n// relational tolerance -- el_gt/el_lt, as in Breakout.\n//\n// SIDES ARE `same`. No MarketPosition guard, matching the NumBarsIf* family;\n// the grid must keep stallBars >= 1, since BarsSinceEntry() is 0 while flat.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: stallBars - 1.\nstallHigh = high[0];\nstallLow = low[0];\nfor (int i = 1; i < (int)stallBars; ++i) {\n    if (el_gt(high[i], stallHigh)) stallHigh = high[i];\n    if (el_lt(low[i], stallLow)) stallLow = low[i];\n}",
+    "longCondition": "el_ge((double)ctx.BarsSinceEntry(), stallBars) && el_lt(ctx.OpenPositionProfit(), riskMultiple * stopDistance * ctx.BigPointValue()) && el_lt(stallHigh - stallLow, stallFraction * stopDistance)",
+    "shortCondition": "el_ge((double)ctx.BarsSinceEntry(), stallBars) && el_lt(ctx.OpenPositionProfit(), riskMultiple * stopDistance * ctx.BigPointValue()) && el_lt(stallHigh - stallLow, stallFraction * stopDistance)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

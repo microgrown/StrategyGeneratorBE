@@ -1,0 +1,54 @@
+{
+  "source": {
+    "book": "The Art and Science of Technical Analysis",
+    "book_key": "grimes",
+    "author": "Adam Grimes",
+    "chapter": 9,
+    "chapter_title": "Risk Management",
+    "text_file": "reference/grimes/text/grimes/09_risk_management.txt",
+    "pdf_pages": [279, 306],
+    "mined": "2026-09-21"
+  },
+  "conventions": "stop and limit entries mechanized as bar-close then next-bar-open; every tunable constant is a parameter; long side only in pseudocode; price-level conditions rejected (shift test)",
+  "candidates": [
+    {
+      "id": "G09-01",
+      "name": "MinStopDistanceAverageBarRange",
+      "role": "Exit",
+      "is_filter": false,
+      "composite": false,
+      "composes": [],
+      "depends_on": [],
+      "pages": [280],
+      "quote": "A rough guideline is given by the average range of a single bar on the time frame you are trading. If you try to place your initial stops closer than one average bar's range, you are probably working within the noise level...",
+      "description": "The initial protective stop, wherever the pattern otherwise places it, should never sit closer to the entry than the average range of a single bar on the trading time frame (approximated by ATR). This is a floor on stop distance, not a stop-placement method by itself: if the pattern-based stop distance is smaller than the average bar range, widen it to at least the average range.",
+      "pseudocode": "// long: initial stop distance floor, applied at entry to whatever pattern-based stop distance is chosen\nstopDistance = max(patternStopDistance, atr(atrLength))\ninitialStopPrice = entryFillPrice - stopDistance\n// exit test on a later bar\nlow[0] <= initialStopPrice",
+      "sides": "mirrored",
+      "parameters": { "atrLength": 14 },
+      "book_order_type": "stop-loss order at initialStopPrice",
+      "timeframe": "any",
+      "complexity": { "grade": "simple", "reason": "a window loop into ATR over N bars, then a max() against whatever other stop-distance rule supplies the pattern-based distance" },
+      "el_words_needed": ["AvgTrueRange", "EntryPrice"],
+      "likely_existing_rule": "StopLossTakeProfitATR / AvgDailyRangeFractionStop",
+      "confidence": "medium",
+      "notes": ["Grimes gives no explicit lookback for 'average range of a single bar'; defaulted atrLength to 14 (a common ATR default) since he does not name one here.", "This is a floor/guardrail on other stop rules, not a standalone stop-placement rule; the authoring pass may prefer to fold it into existing ATR-stop rules as a minimum-distance clamp rather than a new standalone rule."]
+    }
+  ],
+  "rejected": [
+    { "pages": [280, 281], "quote": "the classic Kelly criterion gives f, the percentage of the account to risk on every trade...", "reason": "position sizing" },
+    { "pages": [281, 283], "quote": "The rules are very simple: the risk for every trade is set at a consistent percentage of the account equity.", "reason": "position sizing" },
+    { "pages": [283, 294], "quote": "TABLE 9.1 Results of 1,000 Monte Carlo Runs Risking $2,000 per Trade in $100,000 Account", "reason": "position sizing (Monte Carlo comparison of fixed-dollar vs. fixed-fractional vs. Kelly sizing schemes; account-level math, not a bar-level test)" },
+    { "pages": [294, 295], "quote": "Equivalent volatility strategies... you calculate a volatility measure for each market -- Average True Range (ATR) is a good standard -- and then size each position so that its daily contribution to the portfolio will be the same.", "reason": "position sizing (ATR used to size the position, not to set a stop or exit level)" },
+    { "pages": [294, 295], "quote": "Fixed-percentage allocation... Margin as a fixed percentage of account...", "reason": "position sizing / portfolio allocation across instruments" },
+    { "pages": [295, 298], "quote": "Risk = Probability of loss x Expected size of loss", "reason": "risk theory / statistics of the book, no bar-level test" },
+    { "pages": [298, 299], "quote": "the reason they are unable to accept the risk is that they don't really understand that risk...", "reason": "trading psychology, no bar-level test" },
+    { "pages": [299, 301], "quote": "Execution risk is the divergence between those intended points and the actual prices received.", "reason": "discretion / execution and slippage risk, not decidable from OHLCV bars" },
+    { "pages": [301, 302], "quote": "Examples of fairly mundane risks are loss of power or Internet connection, a hard drive crash, or some other mechanical failure.", "reason": "operational/disaster risk, not decidable from bar data" },
+    { "pages": [302, 303], "quote": "Tail risk refers to extreme events in the tails of a distribution.", "reason": "unpredictable event/tail risk, no bar-level test, randomness/future information" },
+    { "pages": [303, 304], "quote": "Correlation is a major concern in portfolio design and analysis... a trader may believe she is risking 3 percent of her portfolio on four different positions, but if they are highly correlated, it is much more like one large position risking 12 percent of equity.", "reason": "correlation across multiple simultaneous positions/instruments; does not reduce to a single-instrument bar rule, and requires data on other symbols the engine cannot have" },
+    { "pages": [304], "quote": "For most traders, the main danger of low liquidity is that you may be unable to execute at prices you intend.", "reason": "data the engine cannot have (order-book depth, liquidity conditions)" },
+    { "pages": [304, 306], "quote": "Regulatory risk is rarely considered, but can have a catastrophic impact in certain market environments.", "reason": "data the engine cannot have / discretion; regulatory and execution events are not decidable from bar data" },
+    { "pages": [292], "quote": "it might make sense to trade certain kinds of patterns on smaller risk (for instance, the failure tests in Chapter 6), and some traders might want to approach illiquid markets with smaller risk.", "reason": "position sizing (discretionary risk sizing by setup type, not a bar-level entry/exit/stop rule)" }
+  ],
+  "chapter_summary": "Chapter 9 is almost entirely position sizing (Kelly criterion, fixed-fractional vs. fixed-dollar risk, extensive Monte Carlo comparisons) and portfolio-level risk (correlation, liquidity, tail/event, regulatory, execution, disaster risk), none of which reduces to a bar-level OHLCV test and all of which is recorded under rejected with reason 'position sizing' or the relevant no-bar-data reason. The one genuine bar-level statement is the guideline that an initial stop should never be placed closer than the market's average single-bar range -- a floor/clamp on stop distance, mechanized here as an ATR-based minimum applied to whatever pattern-based stop distance is otherwise chosen."
+}

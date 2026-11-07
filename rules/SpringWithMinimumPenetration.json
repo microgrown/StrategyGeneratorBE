@@ -1,0 +1,42 @@
+{
+    "name": "SpringWithMinimumPenetration",
+    "type": "Entry",
+    "inputVariables": {
+        "rangeLookback": "20",
+        "minPenetrationAtr": "0.25",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "priorLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priorHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "penetration": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// SPRING (long): the bar's low trades BELOW the one-bar-shifted window low by\n// at least minPenetrationAtr ATRs and the bar CLOSES BACK at or above that\n// level; the short side is the upthrust at range resistance. The FLOOR is what\n// distinguishes this from SmallBreakoutTrapReversal, which CAPS the same\n// penetration -- opposite bounds on the same event, so neither is the other at\n// any parameter (merge decision 11).\n//\n// THE LEVEL, merge decision 7: bars 1..rangeLookback. EL's Extremes() -- which\n// Highest()/Lowest() call -- seeds at the FIRST bar of the window and scans the\n// rest with a strict, tolerance-carrying comparison, so the loop seeds at bar 1\n// and runs 2..rangeLookback. SmallBreakoutTrapReversal is the reference.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not a fresh N-term\n// mean: seeded with a full sum on the study's first calculated bar and\n// thereafter S += TrueRange; S -= TrueRange[Length]; as TWO statements, because\n// EasyLanguage evaluates S[1] + in - out left to right and folding it rounds\n// differently. It re-seeds when the length changes. AtrProfitTarget carries the\n// measurement notes.\n//\n// The margin is an ATR fraction, never ticks (merge decision 7). Every term is\n// a price DIFFERENCE, so the rule passes the shift test.\n//\n// Deepest bar touched: max(rangeLookback, atrLength + 1).\npriorLow = low[1];\npriorHigh = high[1];\nfor (int i = 2; i <= (int)rangeLookback; ++i) {\n    if (el_lt(low[i], priorLow)) priorLow = low[i];\n    if (el_gt(high[i], priorHigh)) priorHigh = high[i];\n}\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLength;\npenetration = minPenetrationAtr * atr;",
+    "longCondition": "el_lt(low[0], priorLow - penetration) && el_ge(close[0], priorLow)",
+    "shortCondition": "el_gt(high[0], priorHigh + penetration) && el_le(close[0], priorHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

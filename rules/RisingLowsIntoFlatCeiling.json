@@ -1,0 +1,68 @@
+{
+    "name": "RisingLowsIntoFlatCeiling",
+    "type": "Entry",
+    "inputVariables": {
+        "recentBars": "10",
+        "priorBars": "10",
+        "riseAtr": "0.5",
+        "flatAtr": "0.25",
+        "atrLookback": "14"
+    },
+    "localVariables": {
+        "atrValue": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLenState": {
+            "type": "int",
+            "init": "0"
+        },
+        "hiV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loV": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loO": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "outIdx": {
+            "type": "int",
+            "init": "0"
+        },
+        "recLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "recHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "priHi": {
+            "type": "double",
+            "init": "0.0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE ASCENDING TRIANGLE, which this corpus lacks: over the recent window the\n// FLOOR has risen while the CEILING has stayed flat -- buyers holding\n// successively higher lows against a stable resistance, Grimes's stated\n// precondition for the best upside breakouts. Mirrored, the short side is the\n// descending triangle: falling highs pressing into a flat floor.\n//\n// TWO ADJACENT WINDOWS, not nested: the recent window is bars\n// 0..recentBars-1 and the prior window is bars recentBars..recentBars+priorBars-1,\n// so the EL twin hands Lowest/Highest the SHIFTED price series (the low series offset by\n// recentBars)\n// rather than lagging the function's own result (the\n// StopBeyondRecentRangeExtreme / TouchOfRecentExtreme spelling).\n//\n// Not BarsSinceExtremeExceeds, which is the flat-ceiling half ALONE, on NESTED\n// current-inclusive windows (inner rangeBars inside outer rangeBars+priorLookback),\n// and is MIRRORED -- so one placement gives the highs test or the lows test and\n// never both, and the pair of tests this rule ANDs is unreachable from it.\n// Not HigherLowCount, which counts bar PAIRS rather than a window floor that\n// has risen. Not ChannelWidthConvergence, two sloping pivot lines, which is\n// direction-agnostic and so cannot say WHICH side is the flat one.\n//\n// BOTH BANDS ARE ATR FRACTIONS (merge decision 7), never ticks and never a\n// percentage of price, so the whole rule is differences over a difference and\n// passes the shift test.\n//\n// The pseudocode's PIVOT spelling lost to the two-window form at merge: a\n// pivot has a confirmation lag and retention, and \"the ceiling is roughly\n// flat\" has no pivot spelling at all.\n//\n// MultiWalk's WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh mean:\n// AtrProfitTarget's block verbatim, including the TWO separate accumulator\n// statements, since EasyLanguage evaluates Summation[1] + Price - Price[Length]\n// left to right, and the re-seed when the length changes.\n//\n// The window loops mirror EasyLanguage's Extremes(), which Highest()/Lowest()\n// call: seeded at the window's first bar, scanning the rest, strict comparison\n// under the EL relational tolerance -- hence el_gt / el_lt, as in Breakout.\n//\n// Every scratch value is a localVariables entry or a loop-scoped int, never a\n// hook-scope declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: max(recentBars + priorBars - 1, atrLookback + 1).\nif (atrLenState != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int aa = 0; aa < (int)atrLookback; ++aa) {\n        hiV = high[aa] > close[aa + 1] ? high[aa] : close[aa + 1];\n        loV = low[aa] < close[aa + 1] ? low[aa] : close[aa + 1];\n        atrSum += hiV - loV;\n    }\n    atrLenState = (int)atrLookback;\n} else {\n    outIdx = (int)atrLookback;\n    hiV = high[0] > close[1] ? high[0] : close[1];\n    loV = low[0] < close[1] ? low[0] : close[1];\n    hiO = high[outIdx] > close[outIdx + 1] ? high[outIdx] : close[outIdx + 1];\n    loO = low[outIdx] < close[outIdx + 1] ? low[outIdx] : close[outIdx + 1];\n    atrSum += hiV - loV;\n    atrSum -= hiO - loO;\n}\natrValue = atrSum / (int)atrLookback;\nrecLo = low[0];\nrecHi = high[0];\nfor (int i = 1; i < (int)recentBars; ++i) {\n    if (el_lt(low[i], recLo)) recLo = low[i];\n    if (el_gt(high[i], recHi)) recHi = high[i];\n}\npriLo = low[recentBars];\npriHi = high[recentBars];\nfor (int i = 1; i < (int)priorBars; ++i) {\n    if (el_lt(low[(int)recentBars + i], priLo)) priLo = low[(int)recentBars + i];\n    if (el_gt(high[(int)recentBars + i], priHi)) priHi = high[(int)recentBars + i];\n}",
+    "longCondition": "el_gt(recLo, priLo + riseAtr * atrValue) && el_le(std::fabs(recHi - priHi), flatAtr * atrValue)",
+    "shortCondition": "el_lt(recHi, priHi - riseAtr * atrValue) && el_le(std::fabs(recLo - priLo), flatAtr * atrValue)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

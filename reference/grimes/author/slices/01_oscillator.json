@@ -1,0 +1,454 @@
+{
+ "slice": "01_oscillator",
+ "rules": [
+  {
+   "key": "OscillatorAboveZero",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The 3/10 oscillator is positive: the fast simple average of close is above the slow one. The standing state read of Grimes's zero line, as opposed to the cross event.",
+   "pseudocode": "average(close, fastLen)[0] - average(close, slowLen)[0] > 0",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two fresh Averages and a sign test"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "MovingAverageCross",
+    "relation": "variant",
+    "note": "that rule fires only on the bar the two averages cross, using EL's `crosses` state machine; this is the standing state, true on every bar the fast average is above the slow one"
+   },
+   "sources": [
+    "G07-23",
+    "G16-11"
+   ],
+   "merge_notes": "The settled oscillator form: Average(close, 3) - Average(close, 10), simple averages, never the MACD word. G16-11's exponential restatement loses to Appendix B's explicit SMAs. G07-23's setup is this rule NEGATED, ANDed in a pane with OscillatorSlowLineAboveThreshold.",
+   "variants_kept_separate": [
+    "OscillatorZeroCross"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average"
+   ]
+  },
+  {
+   "key": "OscillatorNewExtreme",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The 3/10 oscillator reaches a new oscLookback-bar high (long) / low (short) \u2014 a genuine momentum extreme, which Grimes uses to mark the pullback that follows as worth buying.",
+   "pseudocode": "osc[0] >= highest(osc, oscLookback)[1]   where osc[k] = average(close, fastLen)[k] - average(close, slowLen)[k]",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "oscLookback": 40
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a Highest over a DERIVED series, so the oscillator's own history must be mirrored as a zero-seeded ring buffer (AwesomeOscillatorSlope and AtrRising are the precedents)"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "AwesomeOscillatorSlope carries the ring-buffer machinery but tests a slope of a different oscillator; no catalog rule takes an extreme of a derived momentum series"
+   },
+   "sources": [
+    "G03-12",
+    "G07-11"
+   ],
+   "merge_notes": "One test at two lookbacks: G07-11 gives the book's stated 40-bar starting point, G03-12 guessed 20. Highest over an EL VARIABLE reads zero-filled warm-up history, so the long side passes trivially for the first oscLookback bars unless the rule guards on the bar counter.",
+   "variants_kept_separate": [
+    "OscillatorPercentileRank",
+    "MomentumDivergenceAtSwingExtreme"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "OscillatorPercentileRank",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The 3/10 oscillator's current value ranks in the top fraction of its own oscLookback-bar history (long) / the bottom fraction (short) \u2014 Grimes's 'the fast line is extended', which he uses NEGATED to hold off an entry.",
+   "pseudocode": "percentRank(osc[0], osc, oscLookback) >= topFraction",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "oscLookback": 40,
+    "topFraction": 0.9
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a rank scan over the mirrored oscillator history, about the cost of a Highest"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Percentile"
+   ],
+   "catalog_match": {
+    "rule": "ClosePercentileRank",
+    "relation": "variant",
+    "note": "the same rank machinery on the oscillator instead of on close; that rule's own note (at rank ~100/N it degenerates to Breakout) is the precedent for keeping rank and extreme apart"
+   },
+   "sources": [
+    "G07-12"
+   ],
+   "merge_notes": "Kept apart from OscillatorNewExtreme on the ClosePercentileRank / Breakout precedent: a decile band and a window maximum are different bars, and this one degenerates to that rule only at the top rank. EL's Percentile over a variable reads zero-filled warm-up history.",
+   "variants_kept_separate": [
+    "OscillatorNewExtreme"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "Percentile"
+   ]
+  },
+  {
+   "key": "OscillatorHook",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The 3/10 oscillator hooks up on this bar's close: it was flat or falling and is now rising (the mirror hooks down). Grimes's most responsive read \u2014 Appendix B shows the turn lands on the first bar of the new move.",
+   "pseudocode": "osc[0] > osc[1] AND osc[1] <= osc[2]",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a bare offset comparison, but on the derived oscillator series, so its history must be mirrored"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average"
+   ],
+   "catalog_match": {
+    "rule": "AwesomeOscillatorSlope",
+    "relation": "variant",
+    "note": "same family \u2014 the direction of a two-average oscillator \u2014 but a different series ((H+L)/2 vs close), different lengths, and an INFLECTION (a turn) rather than a lagged level comparison, so it fires on far fewer bars"
+   },
+   "sources": [
+    "G07-19",
+    "G14-03"
+   ],
+   "merge_notes": "Two statements of one test; Appendix B (G14-03) adds only the synthetic-data proof that the hook fires on the new trend's first bar. The `<=` on the prior bar is deliberate: a flat-then-up turn counts.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average"
+   ]
+  },
+  {
+   "key": "OscillatorSlowLineAboveThreshold",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The 3/10 oscillator's slow line \u2014 a 16-period simple average of the fast line \u2014 is above thresholdAtr ATRs (long) / below minus that (short). At the default 0 this is Grimes's plain 'slow line above zero' trend confirmation; raised, it is his 'the slow line is extended'.",
+   "pseudocode": "average(osc, signalLen)[0] > thresholdAtr * atr(atrLength)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "signalLen": 16,
+    "thresholdAtr": 0,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an Average of a derived series (so the oscillator's history is mirrored), plus an ATR for the threshold"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "no catalog rule reads a signal line of a derived oscillator; AwesomeOscillatorSlope is the nearest derived-series machinery"
+   },
+   "sources": [
+    "G07-22",
+    "G14-02"
+   ],
+   "merge_notes": "G14-02 gives the definition (16-period simple average of the fast line), G07-22 the zero read; G07-21's 'extended' read is the same test at a raised threshold, so it is one rule with thresholdAtr. The oscillator is a difference of averages of one series, so the zero test passes the shift test.",
+   "variants_kept_separate": [
+    "OscillatorAboveZero"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "OscillatorSlowLineExtendedRollover",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Blocks the entry when the 3/10 slow line is extended beyond thresholdAtr ATRs AND has just turned back toward zero \u2014 Grimes's 'be suspicious of trades that set up against the slope of an extended slow line'.",
+   "pseudocode": "NOT( average(osc, signalLen)[0] > thresholdAtr * atr(atrLength)[0] AND average(osc, signalLen)[0] < average(osc, signalLen)[1] )",
+   "sides": "mirrored",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "signalLen": 16,
+    "thresholdAtr": 1.5,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the slow line plus a one-bar slope read; the negation is what forces it to be one rule"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "SmallWeakSignalBarBlock",
+    "relation": "variant",
+    "note": "cited for the shape, not the content: that rule is the corpus's precedent for carrying a NOT(A AND B) blocker whole because ANDed panes cannot rebuild an OR"
+   },
+   "sources": [
+    "G07-21"
+   ],
+   "merge_notes": "Kept whole because Grimes states it negated: NOT(extended AND turning down) is an OR of two negations, which the pane system cannot assemble. Extension is in ATRs because the book gives no absolute level; 1.5 chosen.",
+   "variants_kept_separate": [
+    "OscillatorSlowLineAboveThreshold"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "OscillatorSlowLineAboveThreshold"
+   ],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "OscillatorJumpOutOfProportion",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Some bar in the last withinBars moved the 3/10 oscillator by more than climaxMult times its own recent average bar-over-bar change \u2014 an indicator distortion from a climactic price move, after which Grimes says to disregard the oscillator.",
+   "pseudocode": "countIf( abs(osc[k] - osc[k+1]) > climaxMult * average(abs(osc - osc[1]), climaxLookback)[k], withinBars ) >= 1",
+   "sides": "same",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10,
+    "climaxMult": 3.0,
+    "climaxLookback": 20,
+    "withinBars": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an Average of the absolute first difference of the oscillator, plus a short window scan; all over the mirrored oscillator history"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "the catalog's outsized-move tests (LargeRangeBarInWindow, AtrAtExtreme) measure price, not a derived indicator's jump"
+   },
+   "sources": [
+    "G07-13"
+   ],
+   "merge_notes": "Regraded from the miner's research grade: the arithmetic is exact and only the constants are unstated, which is what optimizer inputs are for in this corpus. The book's cooldown is folded into withinBars. Identical both sides \u2014 a distortion carries no direction; Grimes uses it negated.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "Average",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "MovingAverageCrossCountChop",
+   "role": "Switch",
+   "is_filter": false,
+   "description": "Price has crossed the moving average at least maxCrosses times in the last lookback bars \u2014 chopping back and forth on both sides of it, which Grimes says is a market to move on from. Blocks entries on both sides.",
+   "pseudocode": "countIf( (close[k] > ema(close, maLength)[k]) <> (close[k+1] > ema(close, maLength)[k+1]), lookback ) >= maxCrosses",
+   "sides": "same",
+   "parameters": {
+    "maLength": 20,
+    "lookback": 20,
+    "maxCrosses": 4
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "the EMA's own lagged history must be mirrored (EmaSlope's ring buffer) so the sign of close-minus-average can be compared bar by bar across the window"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "TightRangeBlocksEntries",
+    "relation": "variant",
+    "note": "same role and intent \u2014 a global 'this is chop, stand down' override \u2014 but measured by how often price crosses the average rather than by how tall the last N bars are; the two disagree on a wide, slow range and on a tight trending drift"
+   },
+   "sources": [
+    "G07-03"
+   ],
+   "merge_notes": "No book number for 'chopping back and forth'; 4 crosses in 20 bars chosen, both optimizer inputs. Same Switch divergence to record as TightRangeBlocksEntries: the generator's Switch also forces flat, which Grimes does not ask for \u2014 place it negated per pane instead if that matters.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage",
+    "CountIF"
+   ]
+  },
+  {
+   "key": "MovingAverageExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Leave the trend trade when price gives up the moving average: the close crosses to the wrong side of it (long exits below), or with useTouch set, the bar merely touches it.",
+   "pseudocode": "close[0] < ema(close, emaLength)[0]     // useTouch = 1: low[0] < ema(close, emaLength)[0]",
+   "sides": "mirrored",
+   "parameters": {
+    "emaLength": 20,
+    "useTouch": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "an EMA; reads no position state, so it is an exit by placement (ConsecutiveCloseExit's precedent)"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "XAverage"
+   ],
+   "catalog_match": {
+    "rule": "CloseBeyondEma",
+    "relation": "variant",
+    "note": "same comparison in the Entry role; the corpus has no plain moving-average EXIT \u2014 TrailArmedAfterEmaCloseBreak only ARMS a trail on it and MovingAverageTarget is a countertrend profit target at the average"
+   },
+   "sources": [
+    "G08-18"
+   ],
+   "merge_notes": "Grimes states both readings in one sentence ('touches or, in some cases, closes below'), so they are one rule with a mode input, on the GapMidpointMeasuredMoveTarget / ThreePushPattern precedent for boolean modes. He calls the length choice arbitrary; 20 keeps it with the Keltner family.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "XAverage"
+   ]
+  },
+  {
+   "key": "CloseChangeAboveStdDev",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Grimes's standard-deviation spike: the bar's change from the prior close is at least sdMultiple standard deviations of the bar-to-bar close changes over the last lookback bars. Volatility-standardized, direction-agnostic.",
+   "pseudocode": "abs(close[0] - close[1]) >= sdMultiple * stdDev(close - close[1], lookback)[0]",
+   "sides": "same",
+   "parameters": {
+    "sdMultiple": 3,
+    "lookback": 20
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a StdDev over a derived difference series, so its history is mirrored as a zero-seeded ring buffer"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "StdDev"
+   ],
+   "catalog_match": {
+    "rule": "BarRangeAboveStd",
+    "relation": "variant",
+    "note": "same StdDev machinery and the same warm-up mirroring, but on the bar-to-bar close CHANGE rather than the high-low range, and with no mean term added to the band \u2014 different bars entirely"
+   },
+   "sources": [
+    "G08-29",
+    "G16-26"
+   ],
+   "merge_notes": "Two statements of one indicator; chapter 8 gives the numbers (20 bars, 3 deviations) and the glossary only names it. EL's StdDev is the POPULATION form and, over a variable, reads zero-filled warm-up history \u2014 BarRangeAboveStd is the port to copy. Grimes's cross-market colour screen is out of scope.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": [
+    "StdDev"
+   ]
+  },
+  {
+   "key": "EfficiencyRatioAboveThreshold",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Kaufman's Efficiency Ratio is at least erThreshold: the net move over erLength bars divided by the total distance travelled, 0 for pure noise and 1 for an unbroken line. A directness-of-movement filter, identical both sides.",
+   "pseudocode": "abs(close[0] - close[erLength]) / (sum(abs(close[k] - close[k+1]), erLength) + epsilon) >= erThreshold",
+   "sides": "same",
+   "parameters": {
+    "erLength": 10,
+    "erThreshold": 0.3,
+    "epsilon": 1e-06
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a fresh loop over close differences and one division; no cross-bar state at all"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "the corpus's trendiness filters are AdxBelowThreshold and the bar-overlap family; none measures net move against distance travelled"
+   },
+   "sources": [
+    "G16-22"
+   ],
+   "merge_notes": "Glossary-only. Grimes gives neither a length nor a cutoff, so both are optimizer inputs; 10 is Kaufman's own default and 0.3 a starting threshold. The epsilon guards the flat-market divide-by-zero, following CloseRangePosition. Differences only, so the shift test passes.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "indicators_bands",
+   "el_words": []
+  }
+ ]
+}

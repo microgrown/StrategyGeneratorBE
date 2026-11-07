@@ -1,0 +1,1239 @@
+[
+  {
+    "id": "G04-08",
+    "name": "StopBeyondSupportExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      121
+    ],
+    "quote": "Stop B is probably the most logical stop, a tick beyond the most extreme level reached in the support area",
+    "description": "Protective stop placed a small offset beyond the most extreme price reached within the tested support (resistance) area -- Grimes's 'Stop B', chosen for respecting the pattern's geometry.",
+    "pseudocode": "close[0] <= lowest(low, rangeLookback)[1] - stopBuffer",
+    "sides": "mirrored",
+    "parameters": {
+      "rangeLookback": 20,
+      "stopBuffer": 1.25
+    },
+    "book_order_type": "stop beyond the range extreme (mechanized as close-and-next-open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window low/high plus a fixed buffer"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest"
+    ],
+    "likely_existing_rule": "StopBeyondRecentRangeExtreme",
+    "confidence": "high",
+    "notes": [
+      "Essentially StopBeyondRecentRangeExtreme; recorded because it is Grimes's own worked example ('Stop B') with a named rationale, distinct from the 'Stop A' variant below (G04-09) and the wider, more-random 'Stop C'."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G04-09",
+    "name": "StopInsideLevelEarlyExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      122
+    ],
+    "quote": "The stop marked A, actually inside the support level ... has the benefit of virtually eliminating slippage even in thin markets because you are exiting long before the mass of other stop orders is hit",
+    "description": "A conservative stop placed a fraction of the way from the entry price toward the support/resistance extreme (inside the zone itself, not beyond it) -- exits ahead of the crowd's stop cluster at the level extreme, trading a higher chance of premature stop-out for less slippage.",
+    "pseudocode": "close[0] <= entryPrice - stopInsideFraction*(entryPrice - level)",
+    "sides": "mirrored",
+    "parameters": {
+      "stopInsideFraction": 0.5
+    },
+    "book_order_type": "stop inside the level (mechanized as close-and-next-open)",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fraction-of-distance comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "StopFractionOfSignalBarRisk",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/04_on_trading_ranges.json",
+    "chapter_title": "On Trading Ranges"
+  },
+  {
+    "id": "G06-09",
+    "name": "FailureTestStopBeyondExcursionExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G06-01"
+    ],
+    "pages": [
+      167
+    ],
+    "quote": "The stop for this trade is clearly defined: a hard stop must be entered just beyond the extreme of the test beyond the level.",
+    "description": "Stop placed just beyond the highest high (short) / lowest low (long) reached during the excursion beyond the level, including the bar before entry if that bar set the extreme.",
+    "pseudocode": "stopPrice = highest(high, barsBeyondLevel + 1) + stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached, or intrabar stop order",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the excursion's own high-water mark tracked across the setup bars"
+    },
+    "el_words_needed": [
+      "Highest"
+    ],
+    "likely_existing_rule": "StopBeyondSignalBar",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-12",
+    "name": "FailureTestReentryAfterStopOut",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G06-01"
+    ],
+    "pages": [
+      169
+    ],
+    "quote": "some of these trades will hit the stop point and, on the same or the next bar following the stop-out bar, will once again fall back inside the level. ... this second trade, taken on the second failure, is also an excellent entry.",
+    "description": "If a Failure Test trade was stopped out (price made a new extreme beyond the excursion), and on the same or the following bar price closes back inside the level again, take a second failure-test entry in the same direction as the first.",
+    "pseudocode": "priorFailureTestStoppedOut[reentryLag] == true AND close[0] crosses back to the origin side of level",
+    "sides": "mirrored",
+    "parameters": {
+      "reentryLag": 1
+    },
+    "book_order_type": "market/stop entry on the close back inside the level -> close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the prior stop-out tracked as recent trade-history state"
+    },
+    "el_words_needed": [
+      "PositionProfit"
+    ],
+    "likely_existing_rule": "LastTradeCooldown",
+    "confidence": "medium",
+    "notes": [
+      "This is the mirror image of LastTradeCooldown's usual purpose: here a recent loss on the SAME setup is a reason to re-enter, not to stand down."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-17",
+    "name": "PullbackStopBeyondPatternWithBuffer",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      173,
+      174
+    ],
+    "quote": "My preference is to put stops farther away from the pattern... If you put yours a few ticks or cents beyond the obvious levels, you may still be swept out if there is extra volatility beyond the level.",
+    "description": "Stop placed beyond the pullback's own extreme, offset by a small ATR-scaled buffer past the obvious level (rather than exactly at the pattern edge).",
+    "pseudocode": "stopPrice = lowest(low, pullbackLookback) - bufferAtrMultiple * atr(atrLookback)",
+    "sides": "mirrored",
+    "parameters": {
+      "pullbackLookback": 10,
+      "bufferAtrMultiple": 0.25,
+      "atrLookback": 14
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window low/high plus an ATR-scaled buffer"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "StopBeyondRecentRangeExtreme",
+    "confidence": "medium",
+    "notes": [
+      "Grimes's stated 'small random jitter' component is rejected separately (randomness); the deterministic buffer captures the rest of the idea."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-24",
+    "name": "TightStopBeyondLtfTriggerBar",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      180
+    ],
+    "quote": "many traders will want to use a very tight stop, operating under the assumption that if the breakout is truly a critical tipping point, they can simply exit the market for a very small loss.",
+    "description": "The tight-stop school for the lower-time-frame breakout trigger: stop just beyond the low (high) of the breakout trigger bar itself.",
+    "pseudocode": "stopPrice = low[triggerBarLag] - stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "triggerBarLag": 0,
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare comparison to a single bar's extreme"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "StopBeyondSignalBar",
+    "confidence": "high",
+    "notes": [
+      "Grimes explicitly prefers G06-25 over this approach (see its notes)."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-31",
+    "name": "StopBeyondSecondLegExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G06-27"
+    ],
+    "pages": [
+      184
+    ],
+    "quote": "in complex pullbacks this is often an excellent risk point... the stop level is more clearly defined.",
+    "description": "Stop placed just beyond the extreme (termination point) of the second (CD) countertrend leg of a complex pullback.",
+    "pseudocode": "stopPrice = legCD_LowPrice - stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs the second leg's own swing extreme, from G06-27's pivot detection"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "InitialStopBeyondSwingAtEntry",
+    "confidence": "medium",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-37",
+    "name": "AntiStopBeyondTrendExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G06-33",
+      "G06-34"
+    ],
+    "pages": [
+      187
+    ],
+    "quote": "One choice is to simply put the stop beyond the trend extreme... If the level is violated, we know the countertrend attempt has failed and the probabilities favor trend continuation.",
+    "description": "Conservative Anti stop: placed beyond the pre-Anti trend's own extreme pivot (the highest high / lowest low of the established trend leading into the spike).",
+    "pseudocode": "stopPrice = highest(high, trendLookback) + stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "trendLookback": 50,
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window highest/lowest over the trend's own lookback"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest"
+    ],
+    "likely_existing_rule": "StopBeyondSwingAtEntry",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-48",
+    "name": "BaseStopBelowLowestPointInBase",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      194,
+      195
+    ],
+    "quote": "One simple strategy might be to put a stop below the lowest point reached while the market was in the base, with the plan that if you are stopped out on a temporary drop you probably must reenter the trade.",
+    "description": "Simple base-entry stop: placed just beyond the lowest low (highest high) reached while the position was accumulating in the base, from entry to the current bar.",
+    "pseudocode": "stopPrice = lowest(low, ctx.BarsSinceEntry() + baseLookback) - stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "baseLookback": 10,
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "window low tracked from before entry through the held bars"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "StopBeyondRecentRangeExtreme",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G06-58",
+    "name": "FailedBreakoutStopBeyondPullbackThrustExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      201,
+      202
+    ],
+    "quote": "the ultimate stop is above the extreme of the initial pullback thrust, but in this trade you must respect your stop fully and without question.",
+    "description": "Stop placed just beyond the extreme reached by the initial pullback/reaction thrust after the breakout.",
+    "pseudocode": "stopPrice = highest(high, ctx.BarsSinceEntry()) + stopBuffer * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "stopBuffer": 1
+    },
+    "book_order_type": "hard stop -> close-and-next-open if breached",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the thrust's own high-water mark since entry"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "Highest"
+    ],
+    "likely_existing_rule": "StopBeyondSignalBar",
+    "confidence": "high",
+    "notes": [],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/06_practical_trading_templates.json",
+    "chapter_title": "Practical Trading Templates"
+  },
+  {
+    "id": "G08-01",
+    "name": "InitialStopAtrMultiple",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      249,
+      250
+    ],
+    "quote": "it would be very unusual to set an initial stop that is less than two Average True Ranges (ATRs) from the current price, and the initial stop may sometimes be more than four ATRs away from the current price",
+    "description": "Initial protective stop is placed a multiple of ATR beyond the entry price; the ATR is captured once at entry and the stop level is then fixed for the life of the trade.",
+    "pseudocode": "close[0] <= ctx.EntryPrice() - atrMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "atrMult": 3,
+      "atrLength": 20
+    },
+    "book_order_type": "stop order beyond the ATR-derived level; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an ATR and the ATR must be captured once at entry and held constant, not recomputed every bar"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "EntryPrice",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "StopLossTakeProfitATR",
+    "confidence": "high",
+    "notes": [
+      "Grimes also mentions an equivalent N-times-average-daily-range or N-times-one-day-stdev volatility stop; treat as the same family with a different volatility measure.",
+      "atrLength not given for this stop specifically; defaulted to 20 to match Grimes's Keltner/EMA convention elsewhere in the book."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-02",
+    "name": "StopBeyondPenultimateSwingPoint",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      249
+    ],
+    "quote": "you do not want to see the market take out the closest pivot low ... It is also possible to step back to the penultimate pivot in many cases ... but with the trade-off of a much smaller position size",
+    "description": "Initial stop is placed beyond the second-most-recent (penultimate) confirmed swing low rather than the nearest one, for a wider, lower-probability-of-being-hit stop.",
+    "pseudocode": "close[0] <= swingLow(swingRank=2, swingStrength) - stopTicks * ctx.MinMove()",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2,
+      "swingRank": 2,
+      "stopTicks": 1
+    },
+    "book_order_type": "stop order beyond the penultimate pivot; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection at a rank deeper than the most recent confirmed pivot"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "InitialStopBeyondSwingAtEntry",
+    "confidence": "medium",
+    "notes": [
+      "This is InitialStopBeyondSwingAtEntry with a pivot-rank parameter; the rank-1 case (nearest pivot) is presumably already the existing rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-03",
+    "name": "StopBeyondConsolidationExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      250
+    ],
+    "quote": "If buying against a sloppy support area with many shadows below, the only stop that makes sense is beyond the most extreme low",
+    "description": "When buying against a messy support area, the initial stop is placed beyond the single lowest low of the recent consolidation lookback, not just beyond the nearest pivot.",
+    "pseudocode": "close[0] <= lowest(low, consolLookback) - stopBuffer * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "consolLookback": 20,
+      "stopBuffer": 0.25,
+      "atrLength": 20
+    },
+    "book_order_type": "stop order beyond the most extreme low; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a lowest-low window over N bars plus an ATR buffer"
+    },
+    "el_words_needed": [
+      "Lowest",
+      "Highest",
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "StopBeyondRecentRangeExtreme",
+    "confidence": "high",
+    "notes": [
+      "consolLookback and stopBuffer are not numbered by Grimes; defaults chosen to match StopBeyondRecentRangeExtreme's existing convention."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-04",
+    "name": "ReenterBeyondNewExtremeAfterStopOut",
+    "role": "Entry",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      250
+    ],
+    "quote": "If this happens and you are stopped out of the position on a fakeout, it is necessary to rebuy with a new stop beyond the new, lowest extreme",
+    "description": "After being stopped out on a dip below support that then reverses (a fakeout), re-enter long with a new stop placed beyond the new, lower extreme that was just made.",
+    "pseudocode": "ctx.MarketPosition() == 0 and ctx.BarsSinceExit() <= reentryBars and not ctx.LastTradeWasWinner() and close[0] > low[1]",
+    "sides": "same",
+    "parameters": {
+      "reentryBars": 2
+    },
+    "book_order_type": "market/stop re-entry after the reversal is confirmed; mechanized as close-then-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "reads recent trade-history accessors (BarsSinceExit, last-trade outcome) plus a same-bar reversal test"
+    },
+    "el_words_needed": [
+      "MarketPosition",
+      "BarsSinceExit",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "ReenterAfterQuickStopOut",
+    "confidence": "medium",
+    "notes": [
+      "Close cousin of ReenterAfterQuickStopOut / StopRunReclaimReentry; the new stop this candidate implies is G08-03 applied again at the new extreme."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-07",
+    "name": "TightenStopAfterOneRiskMultipleReached",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G08-05"
+    ],
+    "pages": [
+      263,
+      264
+    ],
+    "quote": "When the market reaches $52.50, it may make sense to tighten the stop to just under your entry point or even higher",
+    "description": "Once the open trade has moved one initial-risk multiple into profit, tighten the protective stop to just under (long) the entry price.",
+    "pseudocode": "ctx.OpenPositionProfit() > 0 and high[0] >= ctx.EntryPrice() + riskMultiple * stopDistance ; then close[0] <= ctx.EntryPrice() - tightenBuffer",
+    "sides": "mirrored",
+    "parameters": {
+      "riskMultiple": 1.0,
+      "stopDistance": 2,
+      "tightenBuffer": 0
+    },
+    "book_order_type": "mental/manual stop adjustment; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state: once armed by the 1x move, the tightened stop level must persist"
+    },
+    "el_words_needed": [
+      "EntryPrice",
+      "MaxPositionProfit"
+    ],
+    "likely_existing_rule": "BreakevenStop",
+    "confidence": "medium",
+    "notes": [
+      "Grimes leaves the exact tightened level to discretion (\"or even higher\"); tightenBuffer=0 (exact breakeven) is the conservative default chosen for this candidate."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-08",
+    "name": "BreakevenStopAfterTwoRiskMultiplesReached",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G08-06"
+    ],
+    "pages": [
+      263
+    ],
+    "quote": "Once this profit target is hit, it usually makes sense to tighten the stop on the remainder of the trade to the entry price, essentially working a breakeven stop on the rest of the trade",
+    "description": "After the 2x-initial-risk profit target has been reached (and part of the position taken off there), move the stop on the remainder to exactly the entry price.",
+    "pseudocode": "ctx.MaxPositionProfit() >= riskMultiple * stopDistance ; then close[0] <= ctx.EntryPrice()",
+    "sides": "mirrored",
+    "parameters": {
+      "riskMultiple": 2.0,
+      "stopDistance": 2
+    },
+    "book_order_type": "mental/manual stop adjustment; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "arms on a peak-profit accessor, then holds a fixed level"
+    },
+    "el_words_needed": [
+      "EntryPrice",
+      "MaxPositionProfit"
+    ],
+    "likely_existing_rule": "BreakevenStop",
+    "confidence": "high",
+    "notes": [
+      "This is essentially BreakevenStop with activationProfit expressed as a risk multiple (2x stopDistance) instead of a flat dollar amount."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-09",
+    "name": "SwingLowTrailingStopInTrend",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      265
+    ],
+    "quote": "in an uptrend, a tight stop could be trailed under the highest pivot low of the trend. Slightly wider stops could go under the second-highest pivot low, probably working both of these stops on a close-only basis",
+    "description": "In a trend, trail the protective stop under the most recent confirmed swing low (tight variant) or under the second-most-recent swing low (wider variant), checked on closes only.",
+    "pseudocode": "close[0] <= swingLow(swingRank, swingStrength)",
+    "sides": "mirrored",
+    "parameters": {
+      "swingStrength": 2,
+      "swingRank": 1
+    },
+    "book_order_type": "close-only stop, no intrabar trigger",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "needs swing-pivot detection, re-read every bar"
+    },
+    "el_words_needed": [
+      "SwingLow",
+      "SwingHigh"
+    ],
+    "likely_existing_rule": "SwingPointTrailingStop",
+    "confidence": "high",
+    "notes": [
+      "swingRank=2 gives the looser, second-highest-pivot-low variant Grimes also describes."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-10",
+    "name": "TightenStopUnderPriorBarExtremeInParabolicRun",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      263,
+      264
+    ],
+    "quote": "A trader holding a long position in a runaway trend like this could have worked a stop each day below the previous day's lows",
+    "description": "During a sharp, parabolic momentum run, use a very tight trailing stop set just below the previous bar's low, deliberately courting an early exit to lock in the blow-off gains.",
+    "pseudocode": "low[0] <= low[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "stop order at previous bar's extreme; mechanized as close-based since intrabar stops are not modelled",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare comparison against the previous bar's low"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "TrailStopBeyondPriorBarExtreme",
+    "confidence": "high",
+    "notes": [
+      "Grimes ties this specifically to a parabolic/runaway-trend context; without a parabolic-context gate this degenerates to a universal one-bar trail, which is much more aggressive than intended. Consider gating on a large-recent-range or consecutive-strong-bar filter."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-11",
+    "name": "ChandelierAtrTrailFromTrendExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "Chuck LeBeau's chandelier stop, which basically hangs a stop a fixed number of ATRs from the extreme point of a trend, creating a stop level that is conceptually similar to the Parabolic without the acceleration factor",
+    "description": "Trail the stop a fixed multiple of ATR below the highest high made since entry (long), with no acceleration factor (unlike the Parabolic).",
+    "pseudocode": "close[0] <= highest(high, sinceEntryBars) - atrMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "atrMult": 3,
+      "atrLength": 20
+    },
+    "book_order_type": "stop order below the chandelier level; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs the running highest-high since entry plus an ATR"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "Highest",
+      "BarsSinceEntry"
+    ],
+    "likely_existing_rule": "AtrTrailingStop",
+    "confidence": "high",
+    "notes": [
+      "AtrTrailingStop trails from peak dollar profit; this candidate trails from the peak PRICE since entry, which is closer to LeBeau's original chandelier definition and may already be equivalent depending on how AtrTrailingStop computes its peak."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-12",
+    "name": "ParabolicSarTrailingStop",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      253,
+      254,
+      255
+    ],
+    "quote": "It works by identifying the most extreme trend point (highest point in an uptrend or lowest point in a downtrend), and then placing a stop a certain distance from that extreme point. Each day, the stop is moved closer to that extreme point by an amount called the acceleration factor",
+    "description": "Wilder's Parabolic SAR trailing stop: the stop starts at the extreme point of the trend and is ratcheted toward price each bar by an acceleration factor that itself increases as the trend extends, used here only as an exit-and-flatten tool (not a reverse-and-flip system).",
+    "pseudocode": "close[0] <= sar[0]  // sar[0] = sar[1] + af[1] * (extremePoint[1] - sar[1]), af ratchets from afStart toward afMax by afStep on each new extreme",
+    "sides": "mirrored",
+    "parameters": {
+      "afStart": 0.02,
+      "afStep": 0.02,
+      "afMax": 0.2
+    },
+    "book_order_type": "stop-and-reverse originally, mechanized here as an exit-only stop, close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "a recursive, self-accelerating state variable carried across every bar since the trend began, plus extreme-point tracking"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ParabolicAccelerationExit",
+    "confidence": "medium",
+    "notes": [
+      "ParabolicAccelerationExit in the catalog compares two successive leg magnitudes, which is a different mechanism from Wilder's actual SAR recursion; this candidate is the literal SAR formula and is likely a genuinely new rule despite the name overlap."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-13",
+    "name": "TrailingStopFirstOppositeClose",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "a simple plan might be to stop out of an uptrending market on the first down close",
+    "description": "Exit a long trend position on the very first close that is lower than the prior close.",
+    "pseudocode": "close[0] < close[1]",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "market exit on close; mechanized as close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare one-bar close comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ExitOnFirstOppositeBodyAfterRun",
+    "confidence": "high",
+    "notes": [
+      "Grimes explicitly flags this family as statistically naive (three-down-closes is usually primed for a bounce), so record but flag confidence medium-low on it being a good rule; still a valid mechanical candidate."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-14",
+    "name": "TrailingStopLowestLowNBarsAgo",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "a simple plan might be to stop out of an uptrending market on the first down close, at the lowest low of three days ago, or on two consecutive downward closes",
+    "description": "Trailing stop set at the low of a fixed number of bars back (Grimes's example: three bars ago).",
+    "pseudocode": "close[0] <= low[nBarsAgo]",
+    "sides": "mirrored",
+    "parameters": {
+      "nBarsAgo": 3
+    },
+    "book_order_type": "stop order at a fixed lookback bar's low; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare fixed-offset comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "StopBeyondRecentRangeExtreme",
+    "confidence": "low",
+    "notes": [
+      "Ambiguous phrasing: could mean the low of the bar exactly N bars back (as coded) or the lowest low over the last N bars (a Donchian floor, which would duplicate StopBeyondRecentRangeExtreme more directly); flagged for the authoring pass to pick."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-15",
+    "name": "TrailingStopTwoConsecutiveOppositeCloses",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "a simple plan might be to stop out of an uptrending market on the first down close, at the lowest low of three days ago, or on two consecutive downward closes",
+    "description": "Exit a long trend position after two consecutive closes each lower than the one before.",
+    "pseudocode": "close[0] < close[1] and close[1] < close[2]",
+    "sides": "mirrored",
+    "parameters": {
+      "consecutiveBars": 2
+    },
+    "book_order_type": "market exit on close; mechanized as close-and-next-open",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "trivial",
+      "reason": "a bare two-bar close comparison"
+    },
+    "el_words_needed": [],
+    "likely_existing_rule": "ConsecutiveCloseExit",
+    "confidence": "high",
+    "notes": [
+      "Very close to the existing ConsecutiveCloseExit; kept for completeness since Grimes states it as a distinct trailing-stop option."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-16",
+    "name": "TrailingStopAtrMultipleFromPriorBarExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      255
+    ],
+    "quote": "also consider stops that limit your loss on any one day, perhaps stopping out a certain ATR multiple from the previous day's high, low, or closing values",
+    "description": "Trailing stop set a fixed ATR multiple away from the previous bar's high, low, or close (trader's choice of reference).",
+    "pseudocode": "close[0] <= priorRef(refPrice) - atrMult * atr(atrLength)",
+    "sides": "mirrored",
+    "parameters": {
+      "atrMult": 1.5,
+      "atrLength": 14,
+      "refPrice": "low"
+    },
+    "book_order_type": "stop order offset from the previous bar's extreme; mechanized as close-based",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a fixed-offset comparison plus an ATR window"
+    },
+    "el_words_needed": [
+      "AvgTrueRange"
+    ],
+    "likely_existing_rule": "StopBeyondSignalBar",
+    "confidence": "medium",
+    "notes": [
+      "refPrice selects which of the prior bar's high/low/close is the anchor; Grimes leaves the choice open."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-19",
+    "name": "TimeStopNoProfitWithinWindow",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      262
+    ],
+    "quote": "if a trade does not hit some kind of predetermined profit limit within a certain time, the trade will be exited after that time window expires",
+    "description": "If a trade has not reached its profit target within N bars of entry, exit at market.",
+    "pseudocode": "ctx.BarsSinceEntry() >= maxBars and ctx.OpenPositionProfit() <= profitThreshold",
+    "sides": "same",
+    "parameters": {
+      "maxBars": 10,
+      "profitThreshold": 0
+    },
+    "book_order_type": "market exit once the window expires",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "cross-bar state: bars-since-entry counter plus a profit gate"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "OpenPositionProfit"
+    ],
+    "likely_existing_rule": "NumBarsIfLosing",
+    "confidence": "medium",
+    "notes": [
+      "Grimes gives no specific bar count or profit threshold for this general rule; defaults are placeholders. profitThreshold=0 makes this close to the existing NumBarsIfLosing at numBars=maxBars."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-20",
+    "name": "TimeStopProgressiveTightening",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [
+      "G08-19"
+    ],
+    "pages": [
+      262
+    ],
+    "quote": "tighten the stop very close to current market prices, moving it closer as time goes on in a similar fashion to the movement of the Parabolic SAR's stop levels",
+    "description": "Instead of a hard exit at the time-stop deadline, progressively tighten the stop toward the current market price as bars elapse since entry, so open risk shrinks continuously through the time window.",
+    "pseudocode": "close[0] <= ctx.EntryPrice() + (close[0] - ctx.EntryPrice()) * (1 - ctx.BarsSinceEntry() / maxBars)  // stop tightens linearly toward price as BarsSinceEntry -> maxBars",
+    "sides": "mirrored",
+    "parameters": {
+      "maxBars": 10
+    },
+    "book_order_type": "manually ratcheted stop, tightened bar by bar",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "research",
+      "reason": "Grimes gives no formula for the tightening rate, only an analogy to the Parabolic; a design decision (linear vs. accelerating) is needed before coding"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "",
+    "confidence": "low",
+    "notes": [
+      "The pseudocode's linear interpolation is one reasonable design choice among several; flagged research because the book does not specify the tightening curve."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-22",
+    "name": "GapAgainstPositionRecoveryHold",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      266
+    ],
+    "quote": "if you are holding a long position that gaps down and immediately starts trading up, it may make sense to set a new stop under the day's low to give the market a chance at recovery",
+    "description": "If a long position gaps down at the open but the session immediately trades back up from the open, replace the stop with one placed under the session's low so far, rather than exiting at the gap.",
+    "pseudocode": "open[0] < close[1] and close[0] > open[0] ; then close[0] <= sessionLow(0)",
+    "sides": "mirrored",
+    "parameters": {},
+    "book_order_type": "revised stop under the session low; mechanized as close-based",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs a running session-low accessor (lowest low since session open) plus a same-bar recovery test"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "SessionOpeningRange",
+    "confidence": "medium",
+    "notes": [
+      "Session-low-so-far is approximated as lowest(low, barsSinceSessionOpen); needs the corpus's session-boundary helpers."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G08-23",
+    "name": "GapAgainstPositionPressesLowerExit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      266
+    ],
+    "quote": "if the market opens down and immediately presses lower, or breaks lower out of an opening range, there is a good chance that it could trend down all day. Long positions should be dumped immediately",
+    "description": "If a long position gaps down at the open and the market then breaks below the opening range low, exit immediately rather than waiting for the original stop.",
+    "pseudocode": "open[0] < close[1] and low[0] < openingRangeLow(orBars)",
+    "sides": "mirrored",
+    "parameters": {
+      "orBars": 3
+    },
+    "book_order_type": "market exit; mechanized as close-and-next-open",
+    "timeframe": "intraday-only",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "needs an opening-range low accessor"
+    },
+    "el_words_needed": [
+      "Time",
+      "Date"
+    ],
+    "likely_existing_rule": "OpeningRangeBreakout",
+    "confidence": "medium",
+    "notes": [
+      "Companion to G08-22: same gap-down setup, opposite continuation, opposite management decision."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/08_trade_management.json",
+    "chapter_title": "Trade Management"
+  },
+  {
+    "id": "G09-01",
+    "name": "MinStopDistanceAverageBarRange",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      280
+    ],
+    "quote": "A rough guideline is given by the average range of a single bar on the time frame you are trading. If you try to place your initial stops closer than one average bar's range, you are probably working within the noise level...",
+    "description": "The initial protective stop, wherever the pattern otherwise places it, should never sit closer to the entry than the average range of a single bar on the trading time frame (approximated by ATR). This is a floor on stop distance, not a stop-placement method by itself: if the pattern-based stop distance is smaller than the average bar range, widen it to at least the average range.",
+    "pseudocode": "// long: initial stop distance floor, applied at entry to whatever pattern-based stop distance is chosen\nstopDistance = max(patternStopDistance, atr(atrLength))\ninitialStopPrice = entryFillPrice - stopDistance\n// exit test on a later bar\nlow[0] <= initialStopPrice",
+    "sides": "mirrored",
+    "parameters": {
+      "atrLength": 14
+    },
+    "book_order_type": "stop-loss order at initialStopPrice",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "simple",
+      "reason": "a window loop into ATR over N bars, then a max() against whatever other stop-distance rule supplies the pattern-based distance"
+    },
+    "el_words_needed": [
+      "AvgTrueRange",
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "StopLossTakeProfitATR / AvgDailyRangeFractionStop",
+    "confidence": "medium",
+    "notes": [
+      "Grimes gives no explicit lookback for 'average range of a single bar'; defaulted atrLength to 14 (a common ATR default) since he does not name one here.",
+      "This is a floor/guardrail on other stop rules, not a standalone stop-placement rule; the authoring pass may prefer to fold it into existing ATR-stop rules as a minimum-distance clamp rather than a new standalone rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/09_risk_management.json",
+    "chapter_title": "Risk Management"
+  },
+  {
+    "id": "G10-03",
+    "name": "TightenStopAfterConsecutiveFavorableCloses",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      327,
+      328
+    ],
+    "quote": "At this point, the second downward closing bar, the trade is working. This is a small, but very important point: once a trade is working, once the market is moving in the intended direction, tighten stops to reduce open risk.",
+    "description": "Once the position has N consecutive bar closes in the trade's favor since entry, tighten the stop (reduce its distance from the market, e.g. move it toward breakeven) rather than leaving the original stop in place.",
+    "pseudocode": "// short example generalized to long: consecutive up-closes since entry\nconsecutiveFavorable = 0\nfor i = 0 to bars_since_entry: if close[i] > close[i+1] then consecutiveFavorable++ else break\nconsecutiveFavorable >= tightenAfterCloses  // triggers tightening the stop toward entry/breakeven",
+    "sides": "mirrored",
+    "parameters": {
+      "tightenAfterCloses": 2
+    },
+    "book_order_type": "stop order moved closer to the market",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a counter of consecutive favorable closes since entry, persisted across bars"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "ConsecutiveCloseExit / BreakevenStop",
+    "confidence": "medium",
+    "notes": [
+      "Grimes's example uses exactly 2 consecutive favorable closes as the trigger point in this trade narrative; treated as the default rather than a universal rule."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  },
+  {
+    "id": "G10-04",
+    "name": "FailureTestTimeStopIfTargetNotHit",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      331,
+      336
+    ],
+    "quote": "You should not have to wait more than three or four bars for the profit target to be hit, and many times it will be reached on the first bar following the entry.",
+    "description": "Specific to failure-test entries (stop and target both close to entry): if the 1R first target has not been reached within N bars of entry, treat this as a warning sign and reduce or exit the position rather than waiting for the stop.",
+    "pseudocode": "ctx.BarsSinceEntry() >= maxBarsToTarget && ctx.OpenPositionProfit() < initialRiskDollars  // triggers reducing/exiting the position",
+    "sides": "same",
+    "parameters": {
+      "maxBarsToTarget": 4
+    },
+    "book_order_type": "n/a (discretionary reduce/exit, mechanized as a time-based exit)",
+    "timeframe": "any",
+    "confidence": "medium",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "a bar-count-since-entry test combined with an open-profit comparison"
+    },
+    "el_words_needed": [
+      "BarsSinceEntry",
+      "OpenPositionProfit",
+      "EntryPrice"
+    ],
+    "likely_existing_rule": "",
+    "notes": [
+      "Scoped by Grimes specifically to failure-test trades, where stop and target both sit close to entry; the authoring pass should decide whether to gate this on a FailureTest identity or leave it general with a note."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  },
+  {
+    "id": "G10-05",
+    "name": "FailureTestStopAtSwingExtreme",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      330,
+      331
+    ],
+    "quote": "The stop in this trade should be located at or around (within a few pennies of) the previous trend high... Placing the stop inside the previous extreme will result in a rare stop-out where the trade is still valid, but the reduced slippage on nearly all exits will more than compensate.",
+    "description": "For a failure-test entry, place the initial stop AT (or just inside) the swing extreme the pattern is testing, rather than beyond it with a safety buffer. This deliberately accepts a few extra premature stop-outs in exchange for less slippage on the much larger set of trades where the stop is actually hit.",
+    "pseudocode": "// short failure test at a swing high; stop placed at/just inside the tested extreme rather than beyond it\ninitialStopPrice = swingExtremePrice - stopInsideBuffer * ctx.MinMove()\nhigh[0] >= initialStopPrice  // stop triggers at/just inside the extreme, not beyond it",
+    "sides": "mirrored",
+    "parameters": {
+      "stopInsideBuffer": 3
+    },
+    "book_order_type": "stop order placed inside (not beyond) the tested swing extreme",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "moderate",
+      "reason": "depends on the swing extreme the failure test is built on being already located by the pattern's own pivot detection"
+    },
+    "el_words_needed": [
+      "SwingHigh",
+      "SwingLow",
+      "MinMove"
+    ],
+    "likely_existing_rule": "StopBeyondSignalBar / InitialStopBeyondSwingAtEntry (this is the opposite convention: inside, not beyond)",
+    "confidence": "medium",
+    "notes": [
+      "This is a deliberate contrast with the usual 'stop beyond the swing extreme' rule: Grimes argues for stopping inside the extreme on failure tests specifically, to cut slippage. Flag this to the authoring pass since it conflicts with the more common convention."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  },
+  {
+    "id": "G10-08",
+    "name": "StopBeyondHigherTimeframeRangeForLowerTimeframeEntry",
+    "role": "Exit",
+    "is_filter": false,
+    "composite": false,
+    "composes": [],
+    "depends_on": [],
+    "pages": [
+      355
+    ],
+    "quote": "If using some of these patterns, it may make sense to adjust the stop to respect the limits of the higher time frame pattern. In other words, if positioning in a daily range using a 30-minute Anti, perhaps set the stop outside the daily range. This will result in a much smaller position size, but it will be a position size that respects the reality of the higher time frame market structure.",
+    "description": "When a lower-timeframe pattern is traded inside a higher-timeframe range, the initial stop should sit beyond the higher-timeframe range boundary rather than just beyond the lower-timeframe setup, so the trade isn't stopped out by noise that is still inside the larger structure.",
+    "pseudocode": "// long; higher-timeframe range approximated by a longer lookback on the same bars per the multi-timeframe convention\nhigherTimeframeRangeLow = lowest(low, higherTimeframeLookback)\ninitialStopPrice = min(patternStopPrice, higherTimeframeRangeLow - stopBuffer * ctx.MinMove())\nlow[0] <= initialStopPrice",
+    "sides": "mirrored",
+    "parameters": {
+      "higherTimeframeLookback": 78,
+      "stopBuffer": 1
+    },
+    "book_order_type": "stop order beyond the higher-timeframe range",
+    "timeframe": "any",
+    "complexity": {
+      "grade": "hard",
+      "reason": "requires approximating a higher (e.g. daily) range from a longer lookback on the entry (e.g. 30-minute) bars, per the multi-timeframe convention"
+    },
+    "el_words_needed": [
+      "Highest",
+      "Lowest",
+      "MinMove"
+    ],
+    "likely_existing_rule": "",
+    "notes": [
+      "higherTimeframeLookback of 78 approximates one daily session on 30-minute bars (13 bars/session x ~6 sessions for a multi-day daily range); this is a rough multi-timeframe stand-in per the mining brief's convention, not something Grimes specifies numerically."
+    ],
+    "book_key": "grimes",
+    "source_file": "reference/grimes/mined/grimes/10_trade_examples.json",
+    "chapter_title": "Trade Examples"
+  }
+]

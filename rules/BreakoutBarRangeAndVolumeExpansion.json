@@ -1,0 +1,38 @@
+{
+    "name": "BreakoutBarRangeAndVolumeExpansion",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "20",
+        "rangeMultiple": "1.5",
+        "volMultiple": "1.5"
+    },
+    "localVariables": {
+        "avgRange": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "vol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "avgVol": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "volHistory": {
+            "type": "std::vector<double>",
+            "init": "{}"
+        },
+        "volCursor": {
+            "type": "std::size_t",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// A DELIBERATE CONJUNCTION, carried against atomic-beats-composite because the\n// USE IS THE NEGATION. Grimes's proof that a break was real is that the\n// breakout bar BOTH expands its range beyond the recent mean AND trades\n// above-average volume; his weak-breakout warning is literally\n// NOT(range AND volume), and the negation of an AND is an OR, which two ANDed\n// entry panes cannot express. That is the LargeOutsideBar /\n// SmallWeakSignalBarBlock shape, and it is the whole reason this file exists:\n// placed POSITIVELY it is reachable as two panes (BarRangeBelowAverageMultiple\n// negated, plus the tick-count rule), placed NEGATED it is not\n// reachable at all.\n//\n// Nothing in the catalog ANDs a range-expansion test with a volume test:\n// ClimaxBar pairs range with a BODY, BreakoutBarLargeBodyLargeRange pairs it\n// with the bar's own body fraction, and LargeRangeBarInWindow and\n// VolumeAboveAverageMultiple are the two halves standing alone.\n//\n// THE TWO BENCHMARKS USE DIFFERENT WINDOWS, on purpose, because each half is\n// spelled the way the corpus already spells it:\n//   * RANGE -- the mean bar range over the window ENDING ONE BAR AGO, so an\n//     oversized breakout bar cannot raise its own benchmark; the EL twin's\n//     indexed-Average idiom at offset 1, which\n//     BarRangeBelowAverageMultiple and BreakoutBarLargeBodyLargeRange write\n//     exactly this way. The bar range is a PRICE expression with real bar\n//     history, so this is a FRESH loop over price -- not a rolling accumulator\n//     and not a mirrored variable buffer. Summed newest-first, EL's Summation\n//     order.\n//   * TICK COUNT -- vol = ctx.Ticks (up-ticks + down-ticks; NOT the `volume`\n//     alias, which mirrors EL's up-ticks-only word -- see the `ticks` row in\n//     EL_FEATURES.md), and its average over the CURRENT-INCLUSIVE window,\n//     which is VolumeAboveAverageMultiple's measured spelling. vol is an EL\n//     VARIABLE, so that average reads its zero-filled warm-up history --\n//     mirrored here as a zero-initialized ring buffer, exactly as\n//     BarRangeAboveStd does, re-seeded when the depth changes.\n// Mixing the two windows is stated rather than assumed: shifting the volume\n// average would mean lagging an Average taken over a VARIABLE, a compound\n// behaviour the register does not cover.\n//\n// SIDES IDENTICAL: a range and a tick count carry no direction.\n//\n// Ranges and counts only, so the rule passes the shift test.\n//\n// Every scratch value is a localVariables entry or loop-scoped, never a\n// hook-scope declaration, so the hooks survive a double placement.\n//\n// Deepest bar touched: lookback.\navgRange = 0.0;\nfor (int i = 0; i < (int)lookback; ++i) {\n    avgRange += high[1 + i] - low[1 + i];\n}\navgRange /= (int)lookback;\nvol = (double)ctx.Ticks[0];\nif (volHistory.size() != (std::size_t)(int)lookback) {\n    volHistory.assign((std::size_t)(int)lookback, 0.0);\n    volCursor = 0;\n}\nvolHistory[volCursor] = vol;\nvolCursor = (volCursor + 1) % volHistory.size();\navgVol = 0.0;\nfor (double v : volHistory) {\n    avgVol += v;\n}\navgVol /= (int)lookback;",
+    "longCondition": "el_ge(high[0] - low[0], rangeMultiple * avgRange) && el_ge(vol, volMultiple * avgVol)",
+    "shortCondition": "el_ge(high[0] - low[0], rangeMultiple * avgRange) && el_ge(vol, volMultiple * avgVol)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,144 @@
+{
+    "name": "PullbackLowerTimeframeBreakout",
+    "type": "Entry",
+    "inputVariables": {
+        "swingStrength": "2",
+        "pivotLookback": "40",
+        "extensionRatio": "1",
+        "pullbackBars": "5",
+        "legBars": "10",
+        "reducedFraction": "0.75",
+        "ltfLookback": "3",
+        "equalBarsCount": "2",
+        "toleranceTicks": "2"
+    },
+    "localVariables": {
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "loPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "loBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar1": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiPx2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "hiBar2": {
+            "type": "double",
+            "init": "-1.0"
+        },
+        "setupUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runUp": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "setupDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "runDn": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "legDn": {
+            "type": "bool",
+            "init": "false"
+        },
+        "pbSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pbMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "legMean": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "quiet": {
+            "type": "bool",
+            "init": "false"
+        },
+        "ltfHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ltfLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "eqHi": {
+            "type": "bool",
+            "init": "false"
+        },
+        "eqLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "lvlHi": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "lvlLo": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "trigUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "trigDn": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// GRIMES'S NAMED \"PULLBACK, ENTERING LOWER TIME FRAME BREAKOUT\" TEMPLATE\n// (G06-26), carried as the book states it and with its parts INLINED. The same\n// pullback setup as the Pullback template, but TIMED BY A BREAKOUT OUT OF THE\n// PULLBACK instead of by a bounce into it: better momentum confirmation, worse\n// trade location and a larger stop, which is the trade-off the book draws.\n//\n// THREE PARTS:\n//   1. A STRONG SETUP LEG (ExtensionLegExceedsSetupLeg, G06-14).\n//   2. A QUIET PULLBACK (PullbackRangeBelowLegRange, G06-15).\n//   3. A TRIGGER: the closing price clears the highest high of the last\n//      ltfLookback bars ending one bar ago (LowerTimeFrameBreakoutEntry,\n//      G06-22) **OR** it clears a run of bars that shared the same high\n//      (EqualHighsBreakout, G06-23). THIS OR IS WHY THE TEMPLATE IS ONE FILE.\n//\n// THE THIRD `depends_on_keys` ENTRY RESOLVED: LowerTimeFrameBreakoutEntry is a\n// merge working name that appears in no slice. The merged breakouts bucket\n// carries G06-22 as CloseAbovePriorHighestHigh at lookback 3, marked a\n// DUPLICATE of that catalog rule and never authored, so the trigger is that\n// rule's condition inlined with its lookback as ltfLookback. The lower time\n// frame is merge decision 4's multiplier read DOWNWARD -- a 3-bar breakout on\n// the trading timeframe standing in for a several-times-faster chart; Grimes\n// gives no ratio.\n//\n// PART 3 IS NOT REACHABLE AS PANES for the same reason part 4 of the Pullback\n// template is not: entry panes AND, and this is an OR of two triggers. The\n// setup halves ARE separately placeable, but only ALONGSIDE the OR, which is\n// what a single file gives.\n//\n// NO ATR HERE. The equal-highs tolerance is in TICKS, which is\n// EqualHighsBreakout's own spelling (MinMove and PriceScale are VERIFIED, and a\n// tick margin is written division-first, toleranceTicks * (MinMove/PriceScale));\n// the level tolerances that decision 7 puts in ATR fractions are the ones this\n// template does not use, because both triggers clear a level outright rather\n// than testing a touch of one.\n//\n// MEASURED SWING PIVOT (decision 14, EL_Swing_Probe.txt): occurrences 1 and 2\n// only, since occurrence 3+ is UNMEASURED; MIXED tie sense -- AT OR BEYOND the\n// swingStrength OLDER bars, STRICTLY BEYOND the swingStrength NEWER bars -- lag\n// exactly swingStrength bars, and the -1 SENTINEL GUARDED ON THE BAR INDEX,\n// never on the returned price. THE ORDERING GUARD is\n// ExtensionLegExceedsSetupLeg's: bars-ago counts descend\n// loBar2 > hiBar1 > loBar1 on the long side with setupUp > 0.\n//\n// For GUARDS at >= 1 on the two range loops and at >= 2 on the equal-bars scan:\n// EasyLanguage's For counts DOWN when the end value is below the start, so\n// `for kk = 0 to -1` would read the NEXT bar and `for kk = 2 to 1` would walk\n// the equal-highs window backwards, where the C++ for-loops would not run at\n// all. The two means are guarded against a zero divisor the same way.\n//\n// SHIFT TEST: leg lengths and bar ranges are price DIFFERENCES, the equality\n// band is a tick margin, and both triggers compare a price with a window\n// extreme of the same series.\n//\n// Deepest bar touched: max(pivotLookback - 1 + swingStrength,\n// pullbackBars + legBars - 1, ltfLookback, equalBarsCount).\n//\n// THE C++ TWIN WRITES OUT BY HAND what the EL twin says with built-ins.\n// Highest/Lowest bottom out in Extremes(), EL SOURCE, so each window is a scan\n// SEEDED ON THE WINDOW'S FIRST BAR and continued with a STRICT comparison under\n// the EL relational tolerance (el_gt / el_lt). The pivot scan is\n// ExtensionLegExceedsSetupLeg's inlined form, written WITHOUT break and with\n// the < 2 counters so occurrences 1 and 2 land in the slots the EL twin's\n// Occurrence arguments do.\n//\n// Every scratch value is a localVariables entry rather than a hook-scope\n// declaration, so the hooks survive a double placement; loop counters and\n// per-candidate flags are block-scoped inside their loops.\nnHi = 0;\nnLo = 0;\nhiPx1 = -1.0;\nhiBar1 = -1.0;\nhiPx2 = -1.0;\nhiBar2 = -1.0;\nloPx1 = -1.0;\nloBar1 = -1.0;\nloPx2 = -1.0;\nloBar2 = -1.0;\nfor (int j = (int)swingStrength; j <= (int)pivotLookback - 1; ++j) {\n    bool okHi = true;\n    bool okLo = true;\n    for (int k = j - (int)swingStrength; k < j; ++k) {\n        if (!el_gt(high[j], high[k])) okHi = false;\n        if (!el_lt(low[j], low[k])) okLo = false;\n    }\n    for (int k = j + 1; k <= j + (int)swingStrength; ++k) {\n        if (!el_ge(high[j], high[k])) okHi = false;\n        if (!el_le(low[j], low[k])) okLo = false;\n    }\n    if (okHi && nHi < 2) {\n        nHi = nHi + 1;\n        if (nHi == 1) { hiPx1 = high[j]; hiBar1 = (double)j; }\n        if (nHi == 2) { hiPx2 = high[j]; hiBar2 = (double)j; }\n    }\n    if (okLo && nLo < 2) {\n        nLo = nLo + 1;\n        if (nLo == 1) { loPx1 = low[j]; loBar1 = (double)j; }\n        if (nLo == 2) { loPx2 = low[j]; loBar2 = (double)j; }\n    }\n}\nsetupUp = hiPx1 - loPx2;\nrunUp = close[0] - loPx1;\nsetupDn = hiPx2 - loPx1;\nrunDn = hiPx1 - close[0];\nlegUp = (loBar1 != -1.0) && (loBar2 != -1.0) && (hiBar1 != -1.0)\n    && el_gt(loBar2, hiBar1) && el_gt(hiBar1, loBar1) && el_gt(setupUp, 0.0)\n    && el_ge(runUp, extensionRatio * setupUp);\nlegDn = (hiBar1 != -1.0) && (hiBar2 != -1.0) && (loBar1 != -1.0)\n    && el_gt(hiBar2, loBar1) && el_gt(loBar1, hiBar1) && el_gt(setupDn, 0.0)\n    && el_ge(runDn, extensionRatio * setupDn);\npbSum = 0.0;\nfor (int kk = 0; kk <= (int)pullbackBars - 1; ++kk) {\n    pbSum = pbSum + (high[kk] - low[kk]);\n}\nlegSum = 0.0;\nfor (int kk = (int)pullbackBars; kk <= (int)pullbackBars + (int)legBars - 1; ++kk) {\n    legSum = legSum + (high[kk] - low[kk]);\n}\npbMean = 0.0;\nlegMean = 0.0;\nif ((int)pullbackBars >= 1) pbMean = pbSum / (int)pullbackBars;\nif ((int)legBars >= 1) legMean = legSum / (int)legBars;\nquiet = el_lt(pbMean, reducedFraction * legMean);\nltfHi = high[1];\nltfLo = low[1];\nfor (int i = 2; i <= (int)ltfLookback; ++i) {\n    if (el_gt(high[i], ltfHi)) ltfHi = high[i];\n    if (el_lt(low[i], ltfLo)) ltfLo = low[i];\n}\ntickSize = ctx.MinMove() / ctx.PriceScale();\neqHi = true;\neqLo = true;\nlvlHi = high[1];\nlvlLo = low[1];\nfor (int kk = 2; kk <= (int)equalBarsCount; ++kk) {\n    if (el_gt(std::fabs(high[kk] - high[1]), toleranceTicks * tickSize)) eqHi = false;\n    if (el_gt(std::fabs(low[kk] - low[1]), toleranceTicks * tickSize)) eqLo = false;\n    if (el_gt(high[kk], lvlHi)) lvlHi = high[kk];\n    if (el_lt(low[kk], lvlLo)) lvlLo = low[kk];\n}\ntrigUp = el_gt(close[0], ltfHi) || (eqHi && el_gt(close[0], lvlHi));\ntrigDn = el_lt(close[0], ltfLo) || (eqLo && el_lt(close[0], lvlLo));",
+    "longCondition": "legUp && quiet && trigUp",
+    "shortCondition": "legDn && quiet && trigDn",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

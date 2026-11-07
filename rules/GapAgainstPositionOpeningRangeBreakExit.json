@@ -1,0 +1,41 @@
+{
+    "name": "GapAgainstPositionOpeningRangeBreakExit",
+    "type": "Exit",
+    "inputVariables": {
+        "openingBars": "3",
+        "minGapTicks": "0"
+    },
+    "localVariables": {
+        "tickSz": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "barsIn": {
+            "type": "int",
+            "init": "0"
+        },
+        "orHigh": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "orLow": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "gapUp": {
+            "type": "bool",
+            "init": "false"
+        },
+        "gapDown": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// THE SESSION GAPPED AGAINST THE POSITION AND BROKE THE OPENING RANGE THE WRONG\n// WAY -- Grimes: \"if the market opens down and immediately presses lower, or\n// breaks lower out of an opening range, there is a good chance it could trend\n// down all day. Long positions should be dumped immediately.\"\n//\n// TWO SESSION FACTS, both fixed early in the day and read all day: the GAP SIGN,\n// captured on the session's first bar from this bar's open against the previous\n// bar's close (on a session's first bar, the previous session's final close),\n// and the OPENING RANGE, the extremes of the session's first openingBars bars,\n// frozen once that many have printed.\n//\n// SESSION MODEL, per the standing decision and identical to OpeningRangeBreakout\n// and OpeningRangeMeasuredMoveTarget, the form copied here: a session starts\n// when the wall-clock close date changes -- EL's date > date[1], mirrored as\n// day_of(ctx.Time(0)) > day_of(ctx.Time(1)) -- and the running extremes plus a\n// bars-into-session counter live in locals reset there. barsIn is 1 on the\n// session's first bar. Intraday only.\n//\n// THE GAP IS LATCHED IN BOOLEANS, never in a price local with a sentinel: these\n// are back-adjusted futures, 0.0 and -1.0 are legitimate prices and a sign test\n// on one is not shift-safe. The quantity tested is the DIFFERENCE\n// open[0] - close[1], so the whole rule passes the shift test.\n//\n// minGapTicks is the minimum gap that counts, in TICKS, written division-first\n// as ticks * (ctx.MinMove() / ctx.PriceScale()) to match EL's\n// ticks * (MinMove / PriceScale), computed once per bar into a local. At its\n// default 0 the test is the merged pseudocode exactly -- any gap at all,\n// strictly -- and a grid can raise it to ask for a real gap.\n//\n// WARM-UP mirrors EL exactly: barsIn, orHigh, orLow hold their initial 0 and\n// both flags their initial false if the first calculated bar falls mid-session,\n// so nothing can fire before the first date change. Mirrored, not corrected.\n//\n// The corpus's opening-range exits are TARGETS; none reads the session's gap\n// direction against an open position. OpeningRangeMeasuredMoveTarget re-read\n// against its JSON: no overlap beyond the shared session block.\n//\n// All state is in localVariables, never at hook scope, so the rule survives\n// double placement.\ntickSz = ctx.MinMove() / ctx.PriceScale();\nif (day_of(ctx.Time(0)) > day_of(ctx.Time(1))) {\n    barsIn = 1;\n    orHigh = high[0];\n    orLow = low[0];\n    gapDown = el_gt(close[1] - open[0], minGapTicks * tickSz);\n    gapUp = el_gt(open[0] - close[1], minGapTicks * tickSz);\n} else {\n    barsIn = barsIn + 1;\n    if (barsIn <= (int)openingBars) {\n        if (el_gt(high[0], orHigh)) orHigh = high[0];\n        if (el_lt(low[0], orLow)) orLow = low[0];\n    }\n}",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && gapDown && el_gt((double)barsIn, openingBars) && el_lt(low[0], orLow)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && gapUp && el_gt((double)barsIn, openingBars) && el_gt(high[0], orHigh)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

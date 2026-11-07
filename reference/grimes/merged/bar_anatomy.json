@@ -1,0 +1,114 @@
+{
+  "bucket": "bar_anatomy",
+  "merged": "2026-09-21",
+  "rules": [
+    {
+      "key": "InsideBarInclusive",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar's whole range is enclosed by the previous bar's, on the inclusive boundary — Grimes's volatility-contraction bar.",
+      "pseudocode": "high[lag] <= high[lag + 1] AND low[lag] >= low[lag + 1]",
+      "sides": "same",
+      "parameters": {
+        "lag": 0
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a two-bar comparison at fixed offsets"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "InsideBarInclusive",
+        "relation": "duplicate",
+        "note": "Grimes's wording is the inclusive form at the catalog rule's default lag 0, statement for statement"
+      },
+      "sources": [
+        "G01-06"
+      ],
+      "merge_notes": "Grimes writes 'entire range enclosed within the range of the previous bar', which the mining pass rendered inclusively (<=, >=) — that is `InsideBarInclusive(lag 0)`. The catalog's `InsideBar` is the STRICT form at lag 1 and remains a different rule: on tick-grid futures the two disagree on every bar that ties the prior high or low.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseRangePosition",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The close sits in the upper fraction of the bar's own high-low range (long: buyers in control into the close); short is the mirror at the low.",
+      "pseudocode": "(close[0] - low[0]) / (high[0] - low[0] + epsilon) > threshold",
+      "sides": "mirrored",
+      "parameters": {
+        "threshold": 0.75,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "trivial",
+        "reason": "a single-bar ratio comparison"
+      },
+      "timeframe": "any",
+      "el_words_needed": [],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "duplicate",
+        "note": "the catalog rule verbatim, epsilon included; 0.75 is a threshold value, not a rule"
+      },
+      "sources": [
+        "G01-08"
+      ],
+      "merge_notes": "`CloseRangePosition(threshold, epsilon)` exactly. Grimes's default reading is 0.75 against the catalog's 0.5 — record the book value for the grid, nothing to author. His companion observation, that closes near the MIDDLE show no conviction, is the same rule negated on both placements, a per-placement toggle rather than a second rule.",
+      "variants_kept_separate": [
+        "CloseRangePositionRun"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "CloseRangePositionRun",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "Every one of the last `runBars` bars closed in the top `threshold` of its own high-low range (short: the bottom) — Grimes's buying- or selling-climax run of bars closing at their extreme.",
+      "pseudocode": "CountIF((close - low) > threshold * (high - low + epsilon), runBars) >= runBars",
+      "sides": "mirrored",
+      "parameters": {
+        "runBars": 3,
+        "threshold": 0.75,
+        "epsilon": 1e-06
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "an all-of-N count over a per-bar ratio; no persistent state"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "CloseRangePosition",
+        "relation": "variant",
+        "note": "a RUN of N bars, not one bar. ConsecutiveClosesBeyondEmaRun beside BarsBeyondEmaCount is the corpus precedent for keeping a run apart from its single-bar form. Not StrongBodyBarCountInWindow, which counts BODIES K-of-N rather than close position all-of-N"
+      },
+      "sources": [
+        "G03-06"
+      ],
+      "merge_notes": "One source, cited twice (the climax read, p72; the trend-leg checklist, p110). Product form `(close - low) > T x (high - low + eps)` so no division rounds, and a CountIF against the window length — the ExitOnFirstOppositeBodyAfterRun spelling — since EasyLanguage does not short-circuit.",
+      "variants_kept_separate": [
+        "CloseRangePosition"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "G03-33",
+      "reason": "composition of BarRangeAtrMultiple (or BarRangeBelowAverageMultiple negated) + TrendDurationBars; 'near the end of a swing' is hindsight at the right edge, and the one mechanizable reading of it — the biggest bar of the run so far — is already the catalog's LargestTrendBarOfTheRun"
+    }
+  ],
+  "cross_bucket": [],
+  "design_decisions": [],
+  "bucket_summary": "The smallest bucket: four candidates, three rules, one dropped. Two are flat duplicates of catalog rules (InsideBarInclusive at its default lag, CloseRangePosition with Grimes's 0.75 recorded as a book value for the grid). The one new rule is CloseRangePositionRun, the all-of-N form of CloseRangePosition that Grimes uses as a climax read, kept separate on the corpus's standing run-versus-single-bar precedent. It is the bucket's whole A list."
+}

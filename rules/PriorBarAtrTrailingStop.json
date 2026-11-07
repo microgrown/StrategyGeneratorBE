@@ -1,0 +1,39 @@
+{
+    "name": "PriorBarAtrTrailingStop",
+    "type": "Exit",
+    "inputVariables": {
+        "armProfitDollars": "0",
+        "stopOffsetTicks": "0",
+        "stopOffsetAtr": "1.5",
+        "atrLength": "14"
+    },
+    "localVariables": {
+        "tickSize": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "armed": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atrVal": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// PriorBarAtrTrailingStop -- Grimes A list, key PriorBarAtrTrailingStop\n// (G08-16): \"consider stops that limit your loss on any one day, perhaps a\n// certain ATR multiple from the previous day's high, low, or closing values.\"\n// Authored 2026-09-22 as stopOffsetAtr / atrLength inputs on\n// TrailArmedAfterProfitThreshold and split out as its own rule 2026-11-07,\n// because the 202611 BRK and OWN templates place\n// TrailArmedAfterProfitThreshold, so TrailArmedAfterProfitThreshold stays\n// exactly as those families run it. Code otherwise unchanged. The defaults are\n// Grimes's unarmed, pure-ATR form: stopOffsetAtr(1.5) is his multiple of about\n// 1.5 ATR, stopOffsetTicks(0) drops the fixed tick offset, and\n// armProfitDollars(0) leaves the trail unarmed -- live from the fill bar --\n// because ctx.MaxPositionProfit() starts at 0 and the arming test is >=.\n//\n// A PRIOR-BAR TRAIL WITH AN ATR OFFSET: a close beyond the PRIOR bar's adverse\n// extreme by stopOffsetAtr ATRs (plus stopOffsetTicks ticks) takes the trade\n// off. A tick offset is FIXED and does not scale, so the day's allowed adverse\n// move shrinks in ATR terms as volatility rises; the ATR term is what Grimes\n// actually asks for. The ADVERSE extreme (the prior bar's low for a long) is\n// the anchor; the high and close anchors Grimes also lists are recorded, not\n// given an input. THE TWO OFFSETS ARE ADDITIVE. At stopOffsetAtr 0 this fires\n// exactly where TrailArmedAfterProfitThreshold does, at whatever\n// armProfitDollars and stopOffsetTicks it is given.\n//\n// THE OPTIONAL ARMING GATE is TrailArmedAfterProfitThreshold's: with\n// armProfitDollars above 0 the trail does not arm until the trade has shown\n// that much open profit, and before that the wider initial stop (a separate\n// placement) stands alone.\n//\n// R29-14 states this as a GATE on other tightening rules -- \"do not tighten\n// until about four ticks of profit\" -- which the pane system cannot express,\n// since exits are ORed and one exit cannot condition another. The only\n// mechanizable shape is the single armed-trail exit written here, the same\n// recast NumBarsIfProfitable makes for the profit-gated time stop.\n//\n// ARMING IS ctx.MaxPositionProfit(), NOT A HAND-ROLLED FLAG: it is VERIFIED as\n// the INTRABAR peak, net of the entry side's costs, starting at 0 per position\n// and restarting through a reversal, so it is already the once-true-per-position\n// latch this rule needs and nothing has to be reset. armProfitDollars is\n// CURRENCY, not ticks -- the source's four ticks is a per-symbol statement of\n// the same idea, and the dollar form is the corpus's threshold currency.\n//\n// The tick offset IS ticks: MinMove/PriceScale are VERIFIED and the tick is\n// written division-first, stopOffsetTicks * (ctx.MinMove() / ctx.PriceScale()),\n// computed once per bar into a local since both are per-symbol constants.\n//\n// SIDES ARE MIRRORED, correcting the merged `same`: the long reads the prior\n// bar's low and the short the prior bar's high, which is directional. The same\n// correction BreakevenStop and BreakevenExitAfterAdverseExcursion needed.\n//\n// Every scratch value is a localVariables entry, never a hook-scope\n// declaration, so the hooks survive a double placement.\n//\n// WFSafe_AvgTrueRange is MultiWalk's ROLLING accumulator, not the built-in it\n// resembles: seeded with a full N-term sum on the first calculated bar and\n// again whenever the length changes, and thereafter updated as TWO\n// statements -- EL\n// evaluates S[1] + in - out left to right and folding it to S += in - out\n// rounds differently. Ported from AtrProfitTarget / SwingPivotTarget. Read\n// once per bar into a local, never inside a condition: EL does not\n// short-circuit and/or, so an accumulator in a condition would advance on\n// every bar in EL and only on some bars here. The local counter is atrLen,\n// not atrLength: atrLength is this rule's INPUT.\n//\n// Deepest bar touched: atrLength + 1, at every stopOffsetAtr: the\n// accumulator is read on every bar.\ntickSize = ctx.MinMove() / ctx.PriceScale();\narmed = el_ge(ctx.MaxPositionProfit(), armProfitDollars);\nif (atrLen != (int)atrLength) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLength; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLength;\n} else {\n    const int out = (int)atrLength;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natrVal = atrSum / (int)atrLength;",
+    "longCondition": "el_gt(ctx.MarketPosition(), 0) && armed && el_le(close[0], low[1] - stopOffsetTicks * tickSize - stopOffsetAtr * atrVal)",
+    "shortCondition": "el_lt(ctx.MarketPosition(), 0) && armed && el_ge(close[0], high[1] + stopOffsetTicks * tickSize + stopOffsetAtr * atrVal)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

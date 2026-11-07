@@ -1,0 +1,50 @@
+{
+    "name": "HigherSwingLowRun",
+    "type": "Entry",
+    "inputVariables": {
+        "strength": "2",
+        "legs": "3",
+        "maxBarsBack": "60"
+    },
+    "localVariables": {
+        "nLo": {
+            "type": "int",
+            "init": "0"
+        },
+        "nHi": {
+            "type": "int",
+            "init": "0"
+        },
+        "loPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "hiPrev": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "loOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "hiOk": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveLo": {
+            "type": "bool",
+            "init": "false"
+        },
+        "haveHi": {
+            "type": "bool",
+            "init": "false"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// HigherSwingLowRun -- Grimes A list, keys HigherSwingLowRun (G06-43) and\n// RisingSwingLowCount (G05-07). Authored 2026-09-22 as a `legs` input on\n// HigherSwingLow and split out as its own rule 2026-11-07, because the 202611\n// BRK and OWN templates place HigherSwingLow, so HigherSwingLow stays exactly\n// as those families run it. Code otherwise unchanged. The default legs(3) is\n// Grimes's reading and both merged keys' own number.\n//\n// A RUN OF HIGHER LOWS: each of the last `legs` CONFIRMED swing lows is above\n// the one before it. Grimes reads the run as pullbacks getting shallower into\n// a level, his ascending-triangle accumulation, at legs 3 (G05-07, G06-43). At\n// legs 2 it is Brooks's minimum precondition for a with-trend trade, \"a trader\n// usually should not be looking to buy unless the market is at least forming a\n// higher low\". Mirrored: the short side wants the last `legs` swing HIGHS each\n// below the one before, a run of lower highs.\n//\n// TWO merged keys proposed this input -- HigherSwingLowRun's `legs` and\n// RisingSwingLowCount's `minRisingLows` -- and they are ONE INPUT, not two:\n// both ask for the same chain of pairwise comparisons over the same\n// newest-first pivot scan. `legs` is the name kept. The count of COMPARISONS\n// is `legs` - 1, so legs 2 is one comparison and legs 3 is two.\n// RisingSwingLowCount's ascending-triangle second half -- a flat ceiling while\n// the lows rise -- is LevelTouchCount or Ledge in its own pane, not folded in.\n//\n// AT legs 2 THIS IS HigherSwingLow's BEHAVIOUR BUT NOT ITS TEXT: the run\n// reduces to occurrences 1 and 2 and the single comparison between them, but\n// both twins spell the scan differently -- here one loop serves both sides and\n// runs without a break, and the EL twin inlines the scan where HigherSwingLow\n// calls SwingLow / SwingLowBar / SwingHigh / SwingHighBar.\n//\n// THE PIVOT SCAN IS INLINED IN BOTH TWINS. It has to be: the register's\n// swinghigh / swinglow / swinghighbar / swinglowbar rows are VERIFIED but list\n// Occurrence 3+ explicitly as UNMEASURED, and legs 3 needs a third pivot. The\n// inlined scan is the route TrendLineSlopeFlattening ratified for a third or\n// later pivot, since plain EL loops and comparisons are registered and the scan\n// reproduces the MEASURED pivot test exactly.\n//\n// MEASURED (EL_Swing_Probe.txt / el_swing_output1.txt, @ES 60 min):\n//   * the pivot test is MIXED: at-or-beyond the `strength` OLDER bars, STRICTLY\n//     beyond the `strength` NEWER bars. Bars-ago indexing makes the SMALLER\n//     index the NEWER bar, so the strict half is the kk < jj loop;\n//   * the confirmation lag is exactly `strength` bars, never 0 or 1, so the\n//     scan is lookahead-safe, and during the lag it reports the PREVIOUS pivot;\n//   * maxBarsBack is EL's Length: candidate offsets 0..maxBarsBack-1 from the\n//     current bar INCLUSIVE, and the neighbourhood test reaches `strength` bars\n//     PAST the window, so the deepest bar touched is\n//     maxBarsBack - 1 + strength;\n//   * fewer than `legs` pivots in the window is the -1 SENTINEL case, guarded\n//     here by the COUNT reaching `legs` -- never by a price test, because -1 and\n//     0 are legitimate prices in a back-adjusted series;\n//   * the comparisons carry the 2.22e-12 relational tolerance;\n//   * the low side's tie sense is the mirror of the measured high-side rule,\n//     not an observation. No WFSafe_SwingLow exists, so plain EL governs.\n//\n// THE RUN IS TESTED AS THE SCAN GOES, one comparison per newly found pivot\n// against the previous one, so no array and no numbered pivot slots are needed\n// and `legs` is unbounded above. loPrev / hiPrev are only ever READ once the\n// count has reached 2, which is exactly when they were written earlier on the\n// same bar -- they are never a sentinel and never a stale price.\n//\n// Not LaggedHigherHigh, which compares two ADJACENT BARS at a fixed lag on the\n// opposite series, and not HigherLowCount, which counts adjacent-bar pairs.\n// This reads the STRUCTURE -- confirmed pivots, however many bars apart --\n// which no fixed-lag bar comparison reaches. The cheap window proxy the merge\n// recorded (lowest(low, n) now against lowest(low, n) n bars ago) is a\n// different test and is not used. Not TrendingHighsAndLows or StairsPattern.\n//\n// The loops run WITHOUT a break -- EasyLanguage has no loop break -- and the\n// `nLo < legs` guard is what stops a later pivot being folded into the run.\n//\n// Deepest bar touched: maxBarsBack - 1 + strength.\n//\n// Every scratch value that must survive the bar is a localVariables entry; the\n// loop counters and the per-candidate flags are declared inside braced blocks,\n// which are block-scoped and so safe under a double placement (the\n// AwesomeOscillatorSlope / TrendLineSlopeFlattening precedent).\nnLo = 0;\nnHi = 0;\nloOk = true;\nhiOk = true;\nloPrev = 0.0;\nhiPrev = 0.0;\nfor (int jj = (int)strength; jj <= (int)maxBarsBack - 1; ++jj) {\n    bool okLo = true;\n    bool okHi = true;\n    for (int kk = jj - (int)strength; kk < jj; ++kk) {\n        if (el_ge(low[jj], low[kk])) okLo = false;\n        if (el_le(high[jj], high[kk])) okHi = false;\n    }\n    for (int kk = jj + 1; kk <= jj + (int)strength; ++kk) {\n        if (el_gt(low[jj], low[kk])) okLo = false;\n        if (el_lt(high[jj], high[kk])) okHi = false;\n    }\n    if (okLo && nLo < (int)legs) {\n        nLo = nLo + 1;\n        if (nLo >= 2 && el_le(loPrev, low[jj])) loOk = false;\n        loPrev = low[jj];\n    }\n    if (okHi && nHi < (int)legs) {\n        nHi = nHi + 1;\n        if (nHi >= 2 && el_ge(hiPrev, high[jj])) hiOk = false;\n        hiPrev = high[jj];\n    }\n}\nhaveLo = nLo >= (int)legs;\nhaveHi = nHi >= (int)legs;",
+    "longCondition": "haveLo && loOk",
+    "shortCondition": "haveHi && hiOk",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

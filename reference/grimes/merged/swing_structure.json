@@ -1,0 +1,459 @@
+{
+  "bucket": "swing_structure",
+  "merged": "2026-09-21",
+  "rules": [
+    {
+      "key": "SwingHigh",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The bar `strength` bars ago is a confirmed swing high (short: a confirmed swing low) — Grimes's first-order pivot, a bar with a higher high than the bars on either side of it.",
+      "pseudocode": "swingHigh(strength) is confirmed at bar[strength]  // high[strength] >= high[strength + k] for k = 1..strength AND high[strength] > high[strength - k] for k = 1..strength",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 1,
+        "lookback": 20
+      },
+      "complexity": {
+        "grade": "simple",
+        "reason": "a fixed local-extreme comparison over a window of 2 x strength + 1 bars; the corpus already carries it as a measured primitive"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "SwingHigh",
+        "relation": "duplicate",
+        "note": "the corpus pivot primitive, measured in EL_Swing_Probe.txt; same bars at strength = 1"
+      },
+      "sources": [
+        "G01-01",
+        "G16-05"
+      ],
+      "merge_notes": "Two restatements: G16-05 parameterizes by strength, G01-01 is the strength-1 case. Grimes writes the test STRICT both sides; the measured EL primitive is MIXED — at or above the older bars, strictly above the newer — so a flat top yields one pivot where his wording yields none. Measured semantics win.",
+      "variants_kept_separate": [
+        "SecondOrderPivot"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SecondOrderPivot",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "A first-order pivot high that is itself higher than the first-order pivot highs immediately before and after it — Grimes's second-order (intermediate-term) pivot; order 3 is his 'major inflection'.",
+      "pseudocode": "isPivotOfOrder(k, i) := if k == 1 then swingHigh(1) at i else nearestPriorPivotOfOrder(k-1) is lower AND nearestNextPivotOfOrder(k-1) is lower",
+      "sides": "mirrored",
+      "parameters": {
+        "pivotOrder": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "a true pivot-of-pivots needs a maintained list of confirmed lower-order pivots and a search over it, not a fixed window; pivots are not required to alternate, so runs of same-type pivots must be handled"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "SwingHigh",
+        "relation": "parameterization",
+        "note": "pivot ORDER is carried by `strength`: order 1 = strength 1, order 2 = the corpus default strength 2, order 3 ~ strength 3-5. No new rule and no new input"
+      },
+      "sources": [
+        "G01-02",
+        "G16-06"
+      ],
+      "merge_notes": "Decision taken (see design_decisions): order is approximated by `strength`, so no recursive scan is authored. G01-02's general order-K form is absorbed into G16-06's order-2 statement. Grimes disclaims the method at the right edge — 'little or no predictive power' — so the exact form is not worth building.",
+      "variants_kept_separate": [
+        "SwingHigh"
+      ],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "UpLegsLongerThanDownLegs",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The recent up-legs are longer in price than the recent down-legs — buyers in control; short is the mirror. Legs are measured between confirmed swing pivots.",
+      "pseudocode": "// pivots newest-first from the three-pivot scan, alternating in bar order: lo2 < hi2 < lo1 < hi1\nupSum = (swingHigh(1) - swingLow(1)) + (swingHigh(2) - swingLow(2)); downSum = swingHigh(2) - swingLow(1);\nupSum / 2 > downSum / 1  // written as a product; false unless the pivots alternate and every scan hit is non-sentinel",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60,
+        "numLegs": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "needs the pivot scan on both series plus leg pairing by bar index; the `-1` sentinel must be guarded as a bool from the scan, never as a price"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "SwingLegLengthAtLeast",
+        "relation": "variant",
+        "note": "that rule sizes legs in BARS and tests a floor on the last two; this compares up-leg against down-leg PRICE length, which no placement of it reaches"
+      },
+      "sources": [
+        "G01-04"
+      ],
+      "merge_notes": "One source. Grimes states the asymmetry 'in price and in time'; the price form is carried because the time form is already the catalog's CorrectionBarsVsTrendLegBars. The corpus scan keeps three pivots per series, which caps numLegs at 2. Chapter 2's four trades and Chapter 3's trend structure both build on this asymmetry, so later buckets may cite it.",
+      "variants_kept_separate": [
+        "SwingLegExceedsAverageLeg"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "SwingTrendHigherHighsAndLows",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The most recent confirmed swing high is above the one before it AND the most recent confirmed swing low is above the one before it — Dow's uptrend, and Grimes's markup phase; short is the mirror (lower highs and lower lows).",
+      "pseudocode": "swingHigh(1) > swingHigh(2) AND swingLow(1) > swingLow(2)",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "two occurrences of the pivot scan on BOTH series; the definition itself is exact"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "HigherSwingLow",
+        "relation": "variant",
+        "note": "HigherSwingLow tests ONE series per side (higher lows long, lower highs short); Dow's uptrend needs BOTH series on the same side, which neither a placement of HigherSwingLow nor its per-placement negation produces"
+      },
+      "sources": [
+        "G02-02",
+        "G03-26"
+      ],
+      "merge_notes": "Two restatements, same bars: G03-26 the Dow uptrend, G02-02 the markup/markdown phase (arriving from context_regime, whose secondary bucket is this one). `numLegsToConfirm` is the pivot count, fixed at 2 by the scan. Sentinel guarded as a bool, never as a price. THE structural trend test later buckets should cite.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "SwingLegExceedsAverageLeg",
+      "role": "Entry",
+      "is_filter": true,
+      "description": "The newest completed swing leg is at least K times the mean of the `numLegs` legs before it on the same side — an overextension/climax warning with the trend, and the Anti's change-of-character against it.",
+      "pseudocode": "(swingHigh(1) - swingLow(1)) >= legMultiple * ((swingHigh(2) - swingLow(2)) + (swingHigh(3) - swingLow(3))) / numLegs  // written as a product",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 60,
+        "legMultiple": 2.0,
+        "numLegs": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "three occurrences of the pivot scan on both series, the ShrinkingSwingIncrementsExit spelling; arithmetic is trivial once the pivots are in hand"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "ShrinkingSwingIncrementsExit",
+        "relation": "variant",
+        "note": "same three-pivot machinery, opposite sense (expanding rather than shrinking) and Entry rather than Exit; ShrinkingSwingIncrementsExit compares pivot-to-pivot INCREMENTS, this compares whole legs"
+      },
+      "sources": [
+        "G03-32",
+        "G06-34"
+      ],
+      "merge_notes": "G03-32 measures the WITH-trend leg against the recent average (2-3x over 5 swings), G06-34 the COUNTERTREND leg against prior counter swings (1.5x over 3). Both long sides are 'the up-leg exceeds K x the mean of recent up-legs' — same bars; context is another pane's job. Default 2.0; numLegs capped at 2 by the scan.",
+      "variants_kept_separate": [
+        "UpLegsLongerThanDownLegs"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": [
+        "SwingHigh"
+      ]
+    },
+    {
+      "key": "SwingPointUndercut",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The bar trades below the most recent confirmed swing low (short: above the most recent swing high) — which is exactly what Grimes's 'first downswing longer than the preceding upswing' reduces to.",
+      "pseudocode": "low[0] <= swingLow(1) - offsetTicks * (ctx.MinMove() / ctx.PriceScale())",
+      "sides": "mirrored",
+      "parameters": {
+        "strength": 2,
+        "maxBarsBack": 40,
+        "offsetTicks": 0
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the pivot scan; the comparison itself is one line"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "SwingPointUndercut",
+        "relation": "duplicate",
+        "note": "same bars once the swing endpoints are written out"
+      },
+      "sources": [
+        "G03-31"
+      ],
+      "merge_notes": "Write the endpoints out and it collapses: the down-leg is swingHigh(1) minus the running low, the up-leg is swingHigh(1) minus swingLow(1), so 'the downswing exceeds the upswing' IS 'the running low is below the previous swing low' — the catalog rule verbatim. The 'longer in bars' reading is CorrectionBarsVsTrendLegBars at correctionFraction 1.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendLineTouch",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The standard trend line: the projected line through the two most recent confirmed swing lows (bull) or swing highs (bear), read as support or resistance at the current bar.",
+      "pseudocode": "trendLineValue(bar) = pivot1 + (bar - pivot1Bar) * (pivot1 - pivot2) / (pivot1Bar - pivot2Bar)",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "pivotLookback": 20
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "pivot scan plus a linear projection; settled machinery in the corpus"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "TrendLineTouch",
+        "relation": "duplicate",
+        "note": "a definition rather than a condition; the corpus's TrendLine* family already carries every use Grimes makes of it"
+      },
+      "sources": [
+        "G03-36"
+      ],
+      "merge_notes": "The corpus's trend-line construction is settled (B01/B02: the line is ALWAYS the newest confirmed pivot pair, slopes re-projected every bar) and TrendLineTouch / TrendLineBreak / TrendLineBrokenRecently / TrendLineTouchCount / BrokenTrendLineHoldsAsSupport / TrendLineSlopeFlattening cover the book's uses. Recorded as a citation so later Grimes buckets can point here instead of redefining the line.",
+      "variants_kept_separate": [],
+      "priority": "D",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MicroTrendLineBreak",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "The close breaks the projected trend line whose two pivot anchors lie no more than `maxAnchorSpanBars` apart — the micro-trend-line break.",
+      "pseudocode": "close[0] < bullMicroTrendLine(0) - breakTicks * (ctx.MinMove() / ctx.PriceScale())  // long side breaks the BEAR micro line from below, per TrendLineBreak's pairing",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 1,
+        "pivotLookback": 20,
+        "maxAnchorSpanBars": 5,
+        "breakTicks": 0
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one new input on an existing rule; the line machinery and the span cap are both already built"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "TrendLineBreak",
+        "relation": "parameterization",
+        "note": "add one input, `maxAnchorSpanBars`"
+      },
+      "sources": [
+        "G16-10"
+      ],
+      "merge_notes": "ADD `maxAnchorSpanBars` (0 = unbounded, which preserves every existing TrendLineBreak placement) to `TrendLineBreak`, capping the bar distance between the two pivot anchors, and run it at swingStrength 1; that is the whole of this candidate. `MicroTrendLineFailedBreakout` already carries the same cap as `microLineBars(10)`, so the construction is measured, not new. Grimes's span is 2-5 bars, Brooks's 2-10; default 5.",
+      "variants_kept_separate": [
+        "MicroTrendLineReclaim"
+      ],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "MicroTrendLineReclaim",
+      "role": "Entry",
+      "is_filter": false,
+      "description": "A bar within the last `failureWindowBars` traded through the micro trend line and this bar CLOSES back on the original side of the line — the reclaim is the trigger.",
+      "pseudocode": "some k in 1..failureWindowBars had low[k] < bullMicroTrendLine(k) AND close[0] > bullMicroTrendLine(0)",
+      "sides": "mirrored",
+      "parameters": {
+        "microSwingStrength": 1,
+        "pivotLookback": 20,
+        "microLineBars": 5,
+        "failureWindowBars": 3
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the micro-line projection re-read at each offset in the window plus a break-then-reclaim scan"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow"
+      ],
+      "catalog_match": {
+        "rule": "MicroTrendLineFailedBreakout",
+        "relation": "variant",
+        "note": "the catalog rule needs the close to clear the POKING BAR's own opposite extreme; this needs only a close back on the right side of the LINE, a lower bar, so it fires on strictly more bars. Two rules until someone measures that they coincide"
+      },
+      "sources": [
+        "G03-39"
+      ],
+      "merge_notes": "Grimes's span is 1-3 bars, Brooks's 2-10; microLineBars 5 splits them. Grimes credits Brooks's micro trend lines and Drummond geometry, so the overlap with the Brooks-derived MicroTrendLine* rules is expected. The book's stop 'just under the low of the bar that broke the trend line' belongs to exits_stops.",
+      "variants_kept_separate": [
+        "MicroTrendLineBreak"
+      ],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "TrendLineBreakConfirmedExit",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "Exit once the close has been beyond the projected trend line for `confirmCloses` CONSECUTIVE bars — a trend line used as a trailing stop only after the break is confirmed.",
+      "pseudocode": "CountIF(close < bullTrendLine, confirmCloses) >= confirmCloses  // long; short is the mirror above the bear line",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "pivotLookback": 20,
+        "confirmCloses": 2
+      },
+      "complexity": {
+        "grade": "hard",
+        "reason": "the line projection re-read at each offset in the run plus an all-of-N count"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "CountIF"
+      ],
+      "catalog_match": {
+        "rule": "TrendLineBrokenRecently",
+        "relation": "variant",
+        "note": "that rule is K-of-N and an ENTRY; this is a RUN of consecutive closes and an EXIT, and an Entry cannot sit in the exit pane. ConsecutiveClosesBeyondEmaRun beside BarsBeyondEmaCount is the precedent for keeping a run apart from a count"
+      },
+      "sources": [
+        "G08-17"
+      ],
+      "merge_notes": "Grimes leaves the confirmation open — multiple closes, consolidation under, or multiple legs under — and only the closes form is mechanizable; confirmCloses(2) is his smallest. The line is re-projected every bar from the newest confirmed pivot pair (B01/B02), so an older offset's test reads the line as it stood at that bar.",
+      "variants_kept_separate": [],
+      "priority": "B",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    },
+    {
+      "key": "SwingTrailCappedAtMaxRisk",
+      "role": "Exit",
+      "is_filter": false,
+      "description": "The swing-point trailing stop with a hard floor at the initial risk: a long exits when the close reaches the HIGHER of (the most recent confirmed swing low less the offset) and (entry price less `maxRiskAtr` ATRs), so the stop may widen to emerging structure but never past 1R.",
+      "pseudocode": "close[0] <= MaxList(swingLow(1) - trailOffsetTicks * (ctx.MinMove() / ctx.PriceScale()), ctx.EntryPrice() - maxRiskAtr * atr(atrLength)[0])",
+      "sides": "mirrored",
+      "parameters": {
+        "swingStrength": 2,
+        "lookbackBars": 40,
+        "trailOffsetTicks": 1,
+        "maxRiskAtr": 2.0,
+        "atrLength": 14
+      },
+      "complexity": {
+        "grade": "moderate",
+        "reason": "one new input flooring an existing rule's level; the pivot scan and the ATR call site are already in SwingPointTrailingStop"
+      },
+      "timeframe": "any",
+      "el_words_needed": [
+        "SwingHigh",
+        "SwingLow",
+        "EntryPrice",
+        "AvgTrueRange",
+        "MaxList",
+        "MinMove",
+        "PriceScale"
+      ],
+      "catalog_match": {
+        "rule": "SwingPointTrailingStop",
+        "relation": "parameterization",
+        "note": "add one input, `maxRiskAtr`"
+      },
+      "sources": [
+        "G08-21"
+      ],
+      "merge_notes": "ADD `maxRiskAtr` (0 = unbounded, preserving existing placements) to `SwingPointTrailingStop`, flooring the trail at `EntryPrice - maxRiskAtr x ATR`. Resolves the miner's research grade: the 'emerging market structure' IS the swing scan that trail already re-reads, so the only new content is the hard 1R cap. ATRs rather than raw `stopDistance`, the SwingPivotTarget substitution; no initial-risk accessor exists.",
+      "variants_kept_separate": [],
+      "priority": "A",
+      "design_decisions_needed": [],
+      "depends_on_keys": []
+    }
+  ],
+  "dropped": [
+    {
+      "id": "G01-16",
+      "reason": "stray from indicators_bands. The ATR-reversal zigzag pivot, REJECTED by decision 14: it has no fixed confirmation lag and would fork every pivot rule onto a series incompatible with the measured EL SwingHigh/SwingLow(strength) pivots the whole corpus uses. The book's own $1.00 reversal also fails the shift test"
+    },
+    {
+      "id": "G03-28",
+      "reason": "composition of SwingTrendHigherHighsAndLows + CloseBeyondLastSwingPoint (short side, swingPointsCleared 1); the extra content is a hindsight distinction (whether one swing made both a higher high and a lower low) that vanishes at the right edge, and the 'not confirmed until the market again takes out the previous low' stage is the same close-beyond-pivot test a second time"
+    }
+  ],
+  "cross_bucket": [
+    { "id": "G08-24", "belongs_in": "exits_targets.json", "note": "reconciliation pass: this bucket's SwingPivotTarget row duplicated exits_targets' row of the same key, so the 'take profit just INSIDE the visible pivot' reading is merged there as that rule's toleranceAtr at about 0.25" }
+  ],
+  "design_decisions": [
+    {
+      "topic": "Swing pivot definition and pivot order",
+      "options": [
+        "Grimes's strict three-bar first-order pivot: high[1] > high[2] AND high[1] > high[0]",
+        "the corpus's measured EL SwingHigh(strength): at or above the `strength` OLDER bars, strictly above the `strength` NEWER ones, confirmation lag exactly `strength`",
+        "a recursive pivot-of-pivots scan over a maintained pivot list for second/third-order pivots",
+        "an ATR-multiple zigzag as an alternative pivot series"
+      ],
+      "recommended": "Use the measured `SwingHigh`/`SwingLow(strength)` primitive for every Grimes pivot. Grimes's first-order pivot IS SwingHigh at strength 1 except on a flat top, where his strict wording yields no pivot and the measured rule yields exactly one (the later of the equal bars); the measurement wins. Pivot ORDER maps onto `strength` — order 1 = strength 1, order 2 = the corpus default 2, order 3 ~ 3-5 — so second- and third-order pivots are NOT distinct rules and no recursive scan is authored. Do NOT introduce an ATR-multiple zigzag: it has no fixed confirmation lag and would fork every downstream pivot rule onto a second, incompatible pivot series. For pivot-to-pivot reads, cite the corpus's newest-first three-pivot scan (SwingPivotTarget / ShrinkingSwingIncrementsExit), which caps any 'last N legs' at 2 legs per series and guards the -1 sentinel as a bool from the scan, never as a price.",
+      "gates": [
+        "SecondOrderPivot",
+        "SwingTrendHigherHighsAndLows",
+        "UpLegsLongerThanDownLegs",
+        "SwingLegExceedsAverageLeg",
+        "SwingPointUndercut",
+        "SwingTrailCappedAtMaxRisk"
+      ]
+    }
+  ],
+  "bucket_summary": "Sixteen candidates, almost all restatements of two primitives Grimes redefines in every chapter: the swing pivot and the trend line. Twelve rules out, eleven after the reconciliation pass folded the SwingPivotTarget row into exits_targets' row of the same key; two dropped, the second being the G01-16 stray (the ATR zigzag pivot, rejected by decision 14). Five are flat duplicates of settled corpus machinery (SwingHigh, SwingPivotTarget, SwingPointUndercut, TrendLineTouch, and second-order pivots, which the decision folds into `strength`). The A list is two one-input parameterizations of existing rules — MicroTrendLineBreak (add `maxAnchorSpanBars` to TrendLineBreak) and SwingTrailCappedAtMaxRisk (add `maxRiskAtr` to SwingPointTrailingStop). The five B rules are the genuinely new structural reads: Dow's higher-highs-and-higher-lows, leg-length asymmetry, an oversized leg against the recent average, the micro-line reclaim, and a confirmed trend-line-break exit."
+}

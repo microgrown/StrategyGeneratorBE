@@ -1,0 +1,30 @@
+{
+    "name": "EfficiencyRatioAboveThreshold",
+    "type": "Entry",
+    "inputVariables": {
+        "erLength": "10",
+        "erThreshold": "0.3",
+        "epsilon": "0.000001"
+    },
+    "localVariables": {
+        "netMove": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "pathLen": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "ii": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// KAUFMAN'S EFFICIENCY RATIO: the net move over erLength bars divided by the\n// total distance travelled to get there -- 0 for pure noise, 1 for an\n// unbroken line. Identical both sides, because both terms are absolute.\n// The source names it and gives neither a length nor a cutoff, so both are\n// optimizer inputs; 10 is Kaufman's own default and 0.3 a starting\n// threshold.\n//\n// No catalog rule measures net move against distance travelled --\n// AdxBelowThreshold and the bar-overlap family read trendiness differently.\n//\n// epsilon guards the flat-market divide-by-zero, following\n// CloseRangePosition: a zero denominator is a RUNTIME ERROR in EasyLanguage\n// (VERIFIED), so epsilon must stay strictly positive in any grid.\n//\n// Differences only, no cross-bar state: the shift test passes and there is\n// no EL variable history to mirror. Scratch is declared in localVariables,\n// never at hook scope, so the rule survives double placement.\nnetMove = std::fabs(close[0] - close[(int)erLength]);\npathLen = 0.0;\nfor (ii = 0; ii < (int)erLength; ++ii) {\n    pathLen = pathLen + std::fabs(close[ii] - close[ii + 1]);\n}",
+    "longCondition": "el_ge(netMove / (pathLen + epsilon), erThreshold)",
+    "shortCondition": "el_ge(netMove / (pathLen + epsilon), erThreshold)",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

@@ -1,0 +1,512 @@
+{
+ "slice": "06_breakouts_climax",
+ "rules": [
+  {
+   "key": "RisingLowsIntoFlatCeiling",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Over the recent window the FLOOR has risen while the CEILING has stayed flat -- buyers holding higher lows against a stable resistance, Grimes's precondition for the best upside breakouts. Mirrored: falling highs pressing into a flat floor before a breakdown.",
+   "sides": "mirrored",
+   "pseudocode": "Lowest(low, recentBars) > Lowest(low[recentBars], priorBars) + riseAtr * atr(atrLookback) && AbsValue(Highest(high, recentBars) - Highest(high[recentBars], priorBars)) <= flatAtr * atr(atrLookback)",
+   "parameters": {
+    "recentBars": 10,
+    "priorBars": 10,
+    "riseAtr": 0.5,
+    "flatAtr": 0.25,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "two pairs of window extremes on adjacent windows plus one ATR call site; no pivots and no state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "BarsSinceExtremeExceeds",
+    "relation": "variant",
+    "note": "that rule is the FLAT-CEILING half alone (the recent window's high strictly below the older window's) and it is MIRRORED, so one placement gives the highs test or the lows test and never both -- the argument that earns BothSidedFailedBreakouts and ExpandingTrianglePattern their places. HigherLowCount counts bar PAIRS, a far noisier claim than a window floor that has risen; ChannelWidthConvergence is two sloping pivot lines and is direction-agnostic, so it cannot say WHICH side is flat."
+   },
+   "sources": [
+    "G01-05",
+    "G02-09"
+   ],
+   "merge_notes": "Two statements of one pattern (chapter 1 previews it, chapter 2 ties it to the breakout trade). The PIVOT spelling lost to the two-window form per the mechanizability rule: no pivot retention, no confirmation lag, and 'the ceiling is roughly flat' has no pivot spelling at all. This is the ascending triangle, which the corpus lacks. Both bands are ATR fractions per decision 7.",
+   "variants_kept_separate": [
+    "BreakoutBase"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "CleanLevelTouchBand",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The level has been tested at least minTouches and at most maxTouches times inside the window -- Grimes's 'clean level', which he says sets up good breakouts, as against a level tested so often that the breakout has nothing left behind it.",
+   "sides": "mirrored",
+   "pseudocode": "touches >= minTouches && (maxTouches <= 0 || touches <= maxTouches), touches counted as in LevelTouchCount against the most recent confirmed swing pivot",
+   "parameters": {
+    "minTouches": 1,
+    "maxTouches": 3,
+    "lookback": 40,
+    "tolAtr": 0.15,
+    "breakTolAtr": 0.1,
+    "strength": 2,
+    "pivotLookback": 20,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "a pivot scan plus a toleranced touch count over a window -- all of it already on disk"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "LevelTouchCount",
+    "relation": "parameterization",
+    "note": "add ONE input, maxTouches(0 = unbounded), so the existing counter reads as a BAND; at 0 every existing placement is unchanged. The catalog row already records that its two sources read the same counter with opposite signs (touches weaken the level, or prove it); Grimes's claim is specifically that FEW clean tests break well, and only an upper bound lets that be tested."
+   },
+   "sources": [
+    "G04-05"
+   ],
+   "merge_notes": "The break half ('then decisively closed through by breakMargin x ATR') is a SEPARATE pane -- CloseAbovePriorHighestHigh, or BreakoutClearsPriorExtremeByMargin for the margin form. Level and tolerances are the settled forms (decision 7): a confirmed pivot when the level must persist from touches to a later break, tolerances as ATR fractions.",
+   "variants_kept_separate": [
+    "NoSustainedPriorPenetration"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "BreakoutBase",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A tight recent range sitting at the TOP of a much larger range (long) / at its bottom (short) -- Grimes's named breakout base, the coil that builds the energy for the break.",
+   "sides": "mirrored",
+   "pseudocode": "tightHigh = Highest(high, tightLookback); tightLow = Lowest(low, tightLookback); rangeHigh = Highest(high, rangeLookback); rangeLow = Lowest(low, rangeLookback); (tightHigh - tightLow) <= tightFraction * (rangeHigh - rangeLow) && (rangeHigh - tightHigh) <= proximityFraction * (rangeHigh - rangeLow)",
+   "parameters": {
+    "tightLookback": 10,
+    "rangeLookback": 50,
+    "tightFraction": 0.25,
+    "proximityFraction": 0.1
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two nested pairs of window extremes, compared as products"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest"
+   ],
+   "catalog_match": {
+    "rule": "RangeWidthBelowAtrMultiple",
+    "relation": "variant",
+    "note": "that rule sizes ONE window against ATR (decision 8); this sizes a SHORT window against a LONGER window's own height and adds a POSITION term -- the tight range must sit at the far end of the big one. ShrinkingConsecutiveRanges compares two ADJACENT equal-length windows, not a nested pair; CloseInRangePosition places the CLOSE, not the tight window's edge, inside the big range; TightChannel is net progress plus pullback depth, a different quantity. The two halves are the named pattern and, the rule being mirrored, neither half is reachable from the other's placement."
+   },
+   "sources": [
+    "G04-07",
+    "G04-13",
+    "G05-06",
+    "G05-25",
+    "G06-08",
+    "G06-42"
+   ],
+   "merge_notes": "A NAMED Grimes pattern ('a small range near a resistance level ... is referred to as a breakout base'), carried as stated. FOLDED: ranges_levels_tests' TightRangeNearLargerRangeEdge was the same test to the character -- same four window extremes, same two multiplied comparisons, same defaults (10 / 50 / 0.25 / 0.1) -- so its five ids merge here. Within them, the nested-window height form (G05-06, G06-08) beat G04-07 / G04-13's counted narrow-bars-near-the-level form, which needs a persistent counter for the same bars, and G05-25 is this rule with proximityFraction disabled. 25 percent is the book's own figure; proximityFraction is a guess. Written as multiplications, so a zero-height outer range cannot divide by zero.",
+   "variants_kept_separate": [
+    "RisingLowsIntoFlatCeiling",
+    "ShrinkingConsecutiveRanges",
+    "TightRangeRunLength"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest"
+   ]
+  },
+  {
+   "key": "LowTouchesRecentLow",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar's low trades down to within a tolerance of the lowest low of the N bars ending one bar ago -- the resting bid at the floor of the base; short mirrors at the recent high.",
+   "sides": "mirrored",
+   "pseudocode": "low[0] <= Lowest(low[1], baseLookback) + touchTolAtr * atr(atrLookback)",
+   "parameters": {
+    "baseLookback": 10,
+    "touchTolAtr": 0.25,
+    "atrLookback": 14
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "one shifted window extreme and one ATR call site"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "TouchOfRecentExtreme",
+    "relation": "variant",
+    "note": "that rule's two sides EXCHANGED: its LONG side reads the HIGH reaching the window high (the magnet above), this one the LOW reaching the window low (the bid at support). A side exchange is not the negate toggle -- the DistanceAboveRecentLow / PullbackFromRecentHigh precedent -- so neither rule can be placed to do the other's job. Not SwingPointTestHolds (a confirmed pivot, and the low must NOT break it); not NearMissLevelReversal (a two-sided band plus a close-up term); not PullbackFromRecentHigh, which measures the low DOWN FROM the window HIGH."
+   },
+   "sources": [
+    "G06-45"
+   ],
+   "merge_notes": "Grimes's limit order at the base floor, mechanized as the bar trading to the level under the standing signal-bar-close / next-bar-open convention. There is deliberately NO cap on how far through the level the bar trades -- a limit fills on the way down. Tolerance as an ATR fraction per decision 7; TouchOfRecentExtreme's own tolerance is in ticks, to reconcile at authoring.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "BreakoutBarRangeAndVolumeExpansion",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The breakout bar BOTH expands its range beyond the recent mean AND trades above-average volume -- Grimes's proof that the break was real. Place NEGATED for his weak-breakout warning, which is the whole reason the conjunction is carried.",
+   "sides": "same",
+   "pseudocode": "(high[0] - low[0]) >= rangeMultiple * mean(high[k] - low[k], k = 1..lookback) && ticks[0] >= volMultiple * average(ticks, lookback)",
+   "parameters": {
+    "lookback": 20,
+    "rangeMultiple": 1.5,
+    "volMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two window averages and two comparisons"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "Ticks"
+   ],
+   "catalog_match": {
+    "rule": "",
+    "relation": "none",
+    "note": "nothing in the catalog ANDs a range-expansion test with a volume test: ClimaxBar pairs range with a BODY, BreakoutBarLargeBodyLargeRange pairs it with the bar's own body fraction, and LargeRangeBarInWindow / VolumeAboveAverageMultiple are the two halves standing alone."
+   },
+   "sources": [
+    "G06-52",
+    "G06-56"
+   ],
+   "merge_notes": "CARRIED AS A COMPOSITE DELIBERATELY, against atomic-beats-composite, because the use is the NEGATION: G06-56 is literally NOT(range AND volume), and the negation of an AND is an OR that two ANDed panes cannot express -- the LargeOutsideBar / SmallWeakSignalBarBlock shape. The halves are carried separately as catalog duplicates from chapter 5's atomic statements. Volume is ctx.Ticks.",
+   "variants_kept_separate": [
+    "LargeRangeBarInWindow",
+    "VolumeAboveAverageMultiple"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "Average",
+    "Ticks"
+   ]
+  },
+  {
+   "key": "ChannelLineBreakWithAtrMargin",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The close is beyond the projected channel line by an ATR margin -- Grimes reads a decisive channel-line break as a vote of confidence from the dominant side and the start of a faster trend, the same sign Brooks gives it.",
+   "sides": "mirrored",
+   "pseudocode": "close[0] > channelLineValue(0) + breakMarginAtr * atr(atrLength) && close[0] - open[0] >= bodyFraction * (high[0] - low[0])",
+   "parameters": {
+    "pivotStrength": 2,
+    "pivotLookback": 20,
+    "bodyFraction": 0.6,
+    "breakMarginAtr": 0.25,
+    "atrLength": 20
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the settled two-pivot channel construction plus one ATR call site"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "ChannelLineBreakTrendBarClose",
+    "relation": "parameterization",
+    "note": "the catalog rule is the same close-beyond-the-line test with a strong with-trend BODY and no margin; add breakMarginAtr(0) and atrLength(14) so Grimes's 'decisively beyond' is expressible, and at the default 0 every existing placement is unchanged. Not ChannelLineOvershoot (the bar's HIGH beyond the line by ticks, no close term) and not SignificantChannelLineOvershoot (a windowed ATR magnitude with no close term)."
+   },
+   "sources": [
+    "G03-38"
+   ],
+   "merge_notes": "A stray sent here by the trend-lines bucket. KEY: renamed from ChannelLineBreakTrendBarClose, which is the existing rules/ filename; a parameterization takes a new descriptive key with catalog_match.rule naming the rule to extend (the FreeBarOutsideKeltnerBand -> EmaGapBar precedent), so the two new inputs land on the existing file rather than forking it. CONSTRUCTION: Grimes's channel line is the PARALLEL projection; the corpus's settled construction (slice B01) is an independent two-pivot line, and TrendChannelLineTarget was already dropped as a duplicate once it was applied. The corpus construction is kept -- see design_decisions. Grimes's reading of the break agrees with the catalog row's, so the body term stays.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "breakouts",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "ConsecutiveShavedTopBars",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last N bars closed within a small offset of its own high (long) / its own low (short) -- Grimes reads a run of closes on the absolute extreme as short-term exhaustion, not strength, so the natural placement is negated as a block on a fresh with-trend entry.",
+   "pseudocode": "every k in 0..consecutiveBars-1: high[k] - close[k] <= shaveOffsetPoints",
+   "sides": "mirrored",
+   "parameters": {
+    "consecutiveBars": 3,
+    "shaveOffsetPoints": 0.25
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a fixed-length all-of-N run of the existing single-bar shaved-top test; no indicator"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "ShavedTopBar",
+    "relation": "parameterization",
+    "note": "ShavedTopBar IS this rule at consecutiveBars = 1 (close within shaveOffsetPoints of the high). Add a consecutiveBars(1) input to it rather than author a near-duplicate; at the default every existing placement is bit for bit unchanged, the MicroChannelRunLength/minTicks precedent. Not ConsecutiveUpBars, which tests the close against the bar's own OPEN; not CloseRangePosition, a fraction of the bar's range."
+   },
+   "sources": [
+    "G01-09"
+   ],
+   "merge_notes": "One source. The miner's ATR-fraction tolerance (0.1 ATR) lost to ShavedTopBar's price-point offset, which is the corpus spelling for exactly this test; Grimes's own words are 'close on their absolute highs', i.e. offset 0, so 0.25 (one Emini tick) is the loose reading and is instrument-specific.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "climax_termination",
+   "el_words": []
+  },
+  {
+   "key": "ShrinkingConsecutiveBarRanges",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Each of the last N bars has a strictly smaller high-low range than the bar before it -- trading interest drying up, the bar-scale companion to the reluctant-highs reading.",
+   "sides": "same",
+   "pseudocode": "every k in 0..barCount-2: (high[k] - low[k]) < (high[k+1] - low[k+1])",
+   "parameters": {
+    "barCount": 3
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "a short run of consecutive bar-range comparisons, all-of-N in the ConsecutiveUpBars shape"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "ShrinkingBodies",
+    "relation": "variant",
+    "note": "ShrinkingBodies compares BODIES and also requires every bar of the run to close with the trend, so it is directional -- a run of shrinking ranges with mixed closes fires here and not there, and no parameter of that rule drops its body-colour term. Not ShrinkingConsecutiveRanges, which compares the SPANS of two adjacent fixed-length windows rather than bar-to-bar ranges; not NarrowRangeBar, one bar against a window mean."
+   },
+   "sources": [
+    "G01-13"
+   ],
+   "merge_notes": "One source, stated over three bars ('the bars are becoming smaller ... no more large trend bars'). Direction-agnostic: a range carries no direction. The book states it beside the reluctant-highs reading, so the two are meant to be placed together.",
+   "variants_kept_separate": [
+    "ShrinkingSwingIncrements"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "climax_termination",
+   "el_words": []
+  },
+  {
+   "key": "OscillatorZeroCrossSinceEntry",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "The 3/10 oscillator's fast line has changed sign at least once since the trade was entered -- the divergence has reset, so close the position.",
+   "sides": "same",
+   "pseudocode": "sign(osc[0]) <> signAtEntry, osc = Average(close, fastLen) - Average(close, slowLen), the sign captured on the fill bar (ctx.BarsSinceEntry() == 0)",
+   "parameters": {
+    "fastLen": 3,
+    "slowLen": 10
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a derived two-average series plus one per-position latch; no window indexing"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Average",
+    "BarsSinceEntry",
+    "MarketPosition"
+   ],
+   "catalog_match": {
+    "rule": "MovingAverageCross",
+    "relation": "variant",
+    "note": "decision 2 settles that a zero cross of the 3/10 fast line IS MovingAverageCross at 3/10 -- but that is an ENTRY firing only on the crossing bar, through EL's bridging cross state machine, where this is an EXIT that stays true for the rest of the position once the sign has flipped. An Entry rule cannot sit in the exit pane (the ConsecutiveCloseExit / MomentumConsecutiveBars precedent), and a since-entry latch is not a crossing."
+   },
+   "sources": [
+    "G07-17"
+   ],
+   "merge_notes": "The candidate's `macdFast[0] * macdFast[BarsSinceEntry] <= 0` reads the series at a VARIABLE lag; replaced by capturing the sign once on the fill bar (BarsSinceEntry = 0, VERIFIED), the StopAtSignalBarRangeMultiple convention. el_words is `Average`, never MACD (decision 2).",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "MomentumDivergenceAtSwingExtreme"
+   ],
+   "bucket": "climax_termination",
+   "el_words": [
+    "Average",
+    "BarsSinceEntry",
+    "MarketPosition"
+   ]
+  },
+  {
+   "key": "AcceleratingLegsClimax",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The most recent leg has travelled more than K times the leg before it -- Grimes's accelerating, parabolic climax near the end of an extended trend, carried as a context flag.",
+   "sides": "mirrored",
+   "pseudocode": "(close[0] - close[legBars]) > accelMultiple * (close[legBars] - close[2 * legBars]) && (close[legBars] - close[2 * legBars]) > 0",
+   "parameters": {
+    "legBars": 5,
+    "accelMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "simple",
+    "reason": "two fixed-bar net moves compared; no indicator and no state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [],
+   "catalog_match": {
+    "rule": "ParabolicAccelerationExit",
+    "relation": "variant",
+    "note": "identical two-leg arithmetic in the ENTRY role. Brooks is explicit (p376) that his is an exit and NOT a countertrend entry, while Grimes states it as a climax context test, and an Exit rule cannot sit in an entry pane -- the ConsecutiveCloseExit / MomentumConsecutiveBars precedent, which is the corpus's standing reason for role twins. Book defaults differ: 4 bars / 1.5 there, 5 / 1.5 here."
+   },
+   "sources": [
+    "G16-02"
+   ],
+   "merge_notes": "The volume half ('usually accompanied by an increase in volume') is VolumeAboveAverageMultiple in a separate pane -- atomic beats composite. The candidate's AbsValue spelling covers both directions at once; the mirrored SIGNED form on disk is kept, so a bull climax fires the long side and the prior-leg sign term is what makes the comparison mean 'steeper'. Grimes glosses exhaustion as a synonym of climax.",
+   "variants_kept_separate": [
+    "MomentumBeyondAtrMultiple",
+    "LargeRangeBarInWindow"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "climax_termination",
+   "el_words": []
+  },
+  {
+   "key": "TrendRateAcceleration",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The market's rate of travel over the last `nearBars` bars is at least K times its rate over the `farBars` bars before them \u2014 the trend is steepening. Direction-agnostic: both rates are absolute, so both sides are identical text.",
+   "pseudocode": "AbsValue(close[0] - close[nearBars]) * farBars >= accelMultiple * AbsValue(close[nearBars] - close[nearBars + farBars]) * nearBars",
+   "sides": "same",
+   "parameters": {
+    "nearBars": 10,
+    "farBars": 20,
+    "accelMultiple": 1.5
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "three lagged closes and a cross-multiplied comparison; no persistent state"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "AbsValue"
+   ],
+   "catalog_match": {
+    "rule": "ParabolicAccelerationExit",
+    "relation": "variant",
+    "note": "that rule is an EXIT, requires both legs SIGNED in the trade's direction, and pins the windows equal (legBars and 2 x legBars); this is an Entry context filter on ABSOLUTE rates with independent windows, so it fires on a different set of bars and an Exit cannot sit in the entry pane anyway"
+   },
+   "sources": [
+    "G03-05"
+   ],
+   "merge_notes": "One source. Grimes gives 'trend rate' no formula; it reduces to a ratio of two displacement rates. Cross-multiplied so no division rounds, the MinRewardToRiskFilter spelling. Sides `same` because absolute values carry no direction \u2014 place it beside a directional rule. Cited as a buying-climax sign, so climax_termination may want it too.",
+   "variants_kept_separate": [],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "context_regime",
+   "el_words": [
+    "AbsValue"
+   ]
+  },
+  {
+   "key": "LowTouchesRecentRangeLow",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "The bar's low comes down to within an ATR fraction of the low of the N bars ending `lag` bars ago (long, buying support); mirrored, the high reaches the N-bar high for the short.",
+   "pseudocode": "low[lag] <= lowest(low[lag + 1], levelLookback) + tolAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "levelLookback": 20,
+    "tolAtr": 0.25,
+    "atrLength": 14,
+    "lag": 0
+   },
+   "complexity": {
+    "grade": "moderate",
+    "reason": "a shifted window extreme plus an ATR-scaled one-sided tolerance"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "TouchOfRecentExtreme",
+    "relation": "variant",
+    "note": "SIDES EXCHANGED: that rule's long is the high reaching the recent HIGH (momentum read); Grimes buys the touch of the recent LOW (fade read). A placement cannot borrow the other side's condition, the DistanceAboveRecentLow / PullbackFromRecentHigh precedent. Also not NearMissLevelReversal, a two-sided tick band plus a close-up term"
+   },
+   "sources": [
+    "G06-04"
+   ],
+   "merge_notes": "Tolerance in ATR fractions, not ticks, per the corpus's standing level-tolerance decision. `lag` follows StrongTrendBar's convention and exists so G04-02's \"touched one bar ago, now well away\" is two placements rather than a composite.",
+   "variants_kept_separate": [
+    "TouchOfRecentExtreme",
+    "NearMissLevelReversal",
+    "SwingPointTestHolds"
+   ],
+   "priority": "A",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "Highest",
+    "Lowest",
+    "AvgTrueRange"
+   ]
+  }
+ ]
+}

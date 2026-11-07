@@ -1,0 +1,44 @@
+{
+    "name": "MomentumBeyondAtrMultiple",
+    "type": "Entry",
+    "inputVariables": {
+        "lookback": "3",
+        "minMoveAtr": "2",
+        "atrLookback": "14",
+        "lag": "0",
+        "searchBars": "0"
+    },
+    "localVariables": {
+        "moveMargin": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "upMove": {
+            "type": "bool",
+            "init": "false"
+        },
+        "downMove": {
+            "type": "bool",
+            "init": "false"
+        },
+        "atr": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrSum": {
+            "type": "double",
+            "init": "0.0"
+        },
+        "atrLen": {
+            "type": "int",
+            "init": "0"
+        }
+    },
+    "classMembersHook": "",
+    "startOfFileHook": "",
+    "preConditionHook": "// MomentumBeyondAtrMultiple -- Grimes A list (G02-06, G02-01, G03-15). Authored\n// 2026-09-22 as new inputs on Momentum; split out as its own rule 2026-09-27 so\n// Momentum stays the plain close[0] vs close[lookback] test.\n//\n// EL: upMove is set when close[lag + kk] > close[lag + kk + lookback] +\n// minMoveAtr * WFSafe_AvgTrueRange(atrLookback) for any kk in 0..searchBars;\n// downMove is the mirror on the other side of the margin.\n//\n// Three Grimes readings, one rule:\n// - minMoveAtr / atrLookback (MomentumBeyondAtrMultiple, G02-06): \"run up too far\n//   too fast\", the overextension that invites a countertrend scalp. His reading\n//   is 2 ATRs over 3 bars, which is the default (lookback 3, minMoveAtr 2).\n// - lag (PriorLegDirection, G02-01): the direction of the leg that ran INTO the\n//   window. His accumulation read is this rule NEGATED on the long side, at\n//   minMoveAtr 0 (the LaggedHigherHigh precedent for a lag input).\n// - searchBars (ImpulseLegNetMove, G03-15, \"trade only pullbacks preceded by\n//   significant momentum\", about 15 bars): the impulse leg need not end on this\n//   bar, so the test is an ANY-OF over the last searchBars + 1 offsets.\n//\n// At lag = searchBars = minMoveAtr = 0 this is Momentum term for term: the loop\n// runs once at offset 0 and adding 0.0 to a double is exact.\n//\n// ONE ATR READ FOR THE WHOLE SCAN, taken at the current bar: a lagged read of\n// WFSafe_AvgTrueRange has no register row, and QuietBarCountInWindow's\n// arrangement -- the series function called once in the hook, the scan an\n// explicit loop -- is the corpus form. It is read unconditionally, even at\n// minMoveAtr = 0, so MultiWalk's accumulator advances on exactly the same bars.\n//\n// WFSafe_AvgTrueRange is a ROLLING accumulator, not a fresh N-term mean: seeded\n// with a full sum on the study's first calculated bar, thereafter\n// S += TrueRange; S -= TrueRange[Length]; as TWO statements (EasyLanguage\n// evaluates S[1] + in - out left to right and folding it rounds differently),\n// re-seeding when the length changes. AtrProfitTarget carries the notes.\n//\n// Deepest bar touched: max(lag + searchBars + lookback, atrLookback + 1).\n//\n// The flags and the accumulators are class members and persist across bars, so\n// they are reset before use.\nif (atrLen != (int)atrLookback) {\n    atrSum = 0.0;\n    for (int i = 0; i < (int)atrLookback; ++i) {\n        double hi = high[i] > close[i + 1] ? high[i] : close[i + 1];\n        double lo = low[i] < close[i + 1] ? low[i] : close[i + 1];\n        atrSum += hi - lo;\n    }\n    atrLen = (int)atrLookback;\n} else {\n    const int out = (int)atrLookback;\n    double hiIn = high[0] > close[1] ? high[0] : close[1];\n    double loIn = low[0] < close[1] ? low[0] : close[1];\n    double hiOut = high[out] > close[out + 1] ? high[out] : close[out + 1];\n    double loOut = low[out] < close[out + 1] ? low[out] : close[out + 1];\n    atrSum += hiIn - loIn;\n    atrSum -= hiOut - loOut;\n}\natr = atrSum / (int)atrLookback;\nmoveMargin = minMoveAtr * atr;\nupMove = false;\ndownMove = false;\nfor (int k = 0; k <= (int)searchBars; ++k) {\n    if (el_gt(close[(int)lag + k], close[(int)lag + k + (int)lookback] + moveMargin)) upMove = true;\n    if (el_lt(close[(int)lag + k], close[(int)lag + k + (int)lookback] - moveMargin)) downMove = true;\n}",
+    "longCondition": "upMove",
+    "shortCondition": "downMove",
+    "postConditionHook": "",
+    "endOfFileHook": ""
+}

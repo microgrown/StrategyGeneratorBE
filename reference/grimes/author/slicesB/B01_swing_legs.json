@@ -1,0 +1,440 @@
+{
+ "slice": "B01_swing_legs",
+ "rules": [
+  {
+   "key": "ThreePushSymmetry",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The three pushes are roughly symmetric in BOTH price and time: the two push-to-push increments within a tolerance band of each other, and the two inter-pivot bar gaps within a few bars of each other -- Grimes's qualifier on the three-pushes termination pattern.",
+   "sides": "mirrored",
+   "pseudocode": "AbsValue(inc2 - inc1) <= symmetryTol * inc1 && AbsValue(bars2 - bars1) <= timeSymmetryTol, inc/bars measured between the three most recent confirmed same-side pivots",
+   "parameters": {
+    "swingStrength": 2,
+    "lookbackBars": 40,
+    "symmetryTol": 0.3,
+    "timeSymmetryTol": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "three confirmed pivots, a two-sided price band and a bar-count comparison between pivots"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "ThreePushAcceleration",
+    "relation": "variant",
+    "note": "that rule is a ONE-SIDED multiple on the two increments (accelerating; negated, shrinking), so no setting of it expresses 'the two increments are about equal'; and nothing in the ThreePush* family measures TIME symmetry -- ThreePushDurationWindow bounds the pattern's TOTAL bars, not the evenness of its legs. Intended as a filter ANDed beside ThreePushPattern / ThreePushReversalEntry, not as a trigger."
+   },
+   "sources": [
+    "G03-19",
+    "G16-19"
+   ],
+   "merge_notes": "Two restatements. The pattern itself is ThreePushPattern (shapeMode 0) and is not re-authored -- the ThreePush* family covers detection, shape, entry, slope, duration and exit. What Grimes adds is symmetry in price AND time; his 'the third push breaks the trend line across pushes one and two' is TrendLineBreak in the pane. Both tolerances are the miner's readings: the book says only 'roughly symmetric'.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "ThreePushPattern"
+   ],
+   "bucket": "climax_termination",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "TrendLegCountAboveMax",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The trend has already made more than maxLegs same-direction pushes since the last opposite-direction leg -- after which Grimes says the probability of pullback failure rises with every further leg.",
+   "pseudocode": "sameDirectionLegCount(pivotScan) > maxLegs",
+   "sides": "same",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 40,
+    "maxLegs": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "counts with-trend legs across a pivot scan, which decision 14 caps at two legs per series"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "LegCountAtLeast",
+    "relation": "variant",
+    "note": "that counter counts legs of the CURRENT PULLBACK off the settled bar counter; this counts WITH-TREND pushes since the last countertrend leg, a different series and a different reset. ThreePushPattern is the fixed-count sibling at three"
+   },
+   "sources": [
+    "G05-17"
+   ],
+   "merge_notes": "Reachability caveat for the authoring pass: decision 14's newest-first scan gives two legs per series, so 'more than three' is best mechanized as ThreePushPattern ANDed with a further push, or as HighLowBarCount (saturates at 4) on the with-trend series. Grimes's threshold is three.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "OppositeLegsSimilarLength",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "A sharp leg was immediately answered by an almost equally sharp leg the other way -- Grimes: a very high probability of an extended, low-edge consolidation, so block new entries.",
+   "pseudocode": "sign(leg1) != sign(leg2) AND abs(abs(leg1) - abs(leg2)) < similarityFraction * max(abs(leg1), abs(leg2)) AND leg2BarCount <= maxLegBars",
+   "sides": "same",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 40,
+    "similarityFraction": 0.25,
+    "maxLegBars": 10
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "two consecutive legs measured in price off the pivot scan plus a magnitude comparison"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "SpikeReversedBySpike",
+    "relation": "variant",
+    "note": "that rule is the BAR-RUN form (a strong-trend-bar run answered by the opposite run) with no magnitude comparison; this is the LEG form with an explicit similarity test, reading the same A/B/C pivot prices LegOneEqualsLegTwoTarget already reads. Not OppositeLargeBarsInWindow, which needs only one large bar of each sign"
+   },
+   "sources": [
+    "G05-24"
+   ],
+   "merge_notes": "Expected use is negated, as a block. Grimes gives no similarity number; 0.25 is the miner's. Not ExpandingTrianglePattern, which needs both sides diverging over five pivots.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "ExtensionLegExceedsSetupLeg",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The impulse-retracement-impulse unit measured in price: the leg running now is at least extensionRatio times the same-direction leg before it. Grimes's setup-leg strength test -- the leg that sets up a pullback should be at least as strong as the trend's previous legs.",
+   "pseudocode": "(close[0] - swingLow(1)) >= extensionRatio * (swingHigh(1) - swingLow(2))",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 40,
+    "extensionRatio": 1.0
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "three confirmed pivots, occurrences 1 and 2 of both series, with the ordering guard LegOneEqualsLegTwoTarget already writes"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "SwingLegLengthAtLeast",
+    "relation": "variant",
+    "note": "that rule measures the last two legs in BARS and is direction-agnostic; this measures them in PRICE and compares them to each other, which is the claim Grimes actually makes ('gauging the strength of the extension leg')"
+   },
+   "sources": [
+    "G06-14",
+    "G16-21"
+   ],
+   "merge_notes": "G06-14 asks for the setup leg against the AVERAGE of several prior legs; G16-21 against the first leg of the same unit. The two-leg form wins -- decision 14 caps the pivot scan at two legs per series, so an average over three is unreachable. Ratio 1.0 (both sources).",
+   "variants_kept_separate": [
+    "ComplexPullbackSecondLegBeyondFirst"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "pullbacks_continuation",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "AscendingTriangleIntoLevel",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "Successively higher confirmed swing lows press into a flat resistance level (two recent swing highs within an ATR fraction of each other) - Grimes's ascending triangle; mirrored, the descending triangle into flat support.",
+   "pseudocode": "all k in 1..legs-1: swingLow(k) > swingLow(k + 1); AND abs(swingHigh(1) - swingHigh(2)) <= levelTolAtr * atr(atrLength)",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 40,
+    "legs": 3,
+    "levelTolAtr": 0.25,
+    "atrLength": 14
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "pivots on both series at once - a run of rising lows and a flat pair of highs"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "AvgTrueRange"
+   ],
+   "catalog_match": {
+    "rule": "ExpandingTrianglePattern",
+    "relation": "variant",
+    "note": "the catalog's only triangle is the broadening one, which needs BOTH series diverging; this needs one series rising into the other held flat. No catalog rule tests a flat pair of pivots"
+   },
+   "sources": [
+    "G04-16"
+   ],
+   "merge_notes": "Carried as a composite (depends_on_keys) although its two halves are separately meaningful, because LevelTouchCount's resistance reading sits on its SHORT side and a long placement cannot borrow it - the same side-assignment obstruction as LowTouchesRecentRangeLow. Inline the pivot scan, -1 sentinel guarded as a bar index.",
+   "variants_kept_separate": [
+    "HigherSwingLowRun",
+    "LevelTouchCountThreeOrMore"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "HigherSwingLowRun",
+    "LevelTouchCount"
+   ],
+   "bucket": "ranges_levels_tests",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "AvgTrueRange"
+   ]
+  },
+  {
+   "key": "UpLegsLongerThanDownLegs",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The recent up-legs are longer in price than the recent down-legs \u2014 buyers in control; short is the mirror. Legs are measured between confirmed swing pivots.",
+   "pseudocode": "// pivots newest-first from the three-pivot scan, alternating in bar order: lo2 < hi2 < lo1 < hi1\nupSum = (swingHigh(1) - swingLow(1)) + (swingHigh(2) - swingLow(2)); downSum = swingHigh(2) - swingLow(1);\nupSum / 2 > downSum / 1  // written as a product; false unless the pivots alternate and every scan hit is non-sentinel",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "maxBarsBack": 60,
+    "numLegs": 2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "needs the pivot scan on both series plus leg pairing by bar index; the `-1` sentinel must be guarded as a bool from the scan, never as a price"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "SwingLegLengthAtLeast",
+    "relation": "variant",
+    "note": "that rule sizes legs in BARS and tests a floor on the last two; this compares up-leg against down-leg PRICE length, which no placement of it reaches"
+   },
+   "sources": [
+    "G01-04"
+   ],
+   "merge_notes": "One source. Grimes states the asymmetry 'in price and in time'; the price form is carried because the time form is already the catalog's CorrectionBarsVsTrendLegBars. The corpus scan keeps three pivots per series, which caps numLegs at 2. Chapter 2's four trades and Chapter 3's trend structure both build on this asymmetry, so later buckets may cite it.",
+   "variants_kept_separate": [
+    "SwingLegExceedsAverageLeg"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "SwingTrendHigherHighsAndLows",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The most recent confirmed swing high is above the one before it AND the most recent confirmed swing low is above the one before it \u2014 Dow's uptrend, and Grimes's markup phase; short is the mirror (lower highs and lower lows).",
+   "pseudocode": "swingHigh(1) > swingHigh(2) AND swingLow(1) > swingLow(2)",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "maxBarsBack": 60
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "two occurrences of the pivot scan on BOTH series; the definition itself is exact"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "HigherSwingLow",
+    "relation": "variant",
+    "note": "HigherSwingLow tests ONE series per side (higher lows long, lower highs short); Dow's uptrend needs BOTH series on the same side, which neither a placement of HigherSwingLow nor its per-placement negation produces"
+   },
+   "sources": [
+    "G02-02",
+    "G03-26"
+   ],
+   "merge_notes": "Two restatements, same bars: G03-26 the Dow uptrend, G02-02 the markup/markdown phase (arriving from context_regime, whose secondary bucket is this one). `numLegsToConfirm` is the pivot count, fixed at 2 by the scan. Sentinel guarded as a bool, never as a price. THE structural trend test later buckets should cite.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "SwingLegExceedsAverageLeg",
+   "role": "Entry",
+   "is_filter": true,
+   "description": "The newest completed swing leg is at least K times the mean of the `numLegs` legs before it on the same side \u2014 an overextension/climax warning with the trend, and the Anti's change-of-character against it.",
+   "pseudocode": "(swingHigh(1) - swingLow(1)) >= legMultiple * ((swingHigh(2) - swingLow(2)) + (swingHigh(3) - swingLow(3))) / numLegs  // written as a product",
+   "sides": "mirrored",
+   "parameters": {
+    "strength": 2,
+    "maxBarsBack": 60,
+    "legMultiple": 2.0,
+    "numLegs": 2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "three occurrences of the pivot scan on both series, the ShrinkingSwingIncrementsExit spelling; arithmetic is trivial once the pivots are in hand"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "ShrinkingSwingIncrementsExit",
+    "relation": "variant",
+    "note": "same three-pivot machinery, opposite sense (expanding rather than shrinking) and Entry rather than Exit; ShrinkingSwingIncrementsExit compares pivot-to-pivot INCREMENTS, this compares whole legs"
+   },
+   "sources": [
+    "G03-32",
+    "G06-34"
+   ],
+   "merge_notes": "G03-32 measures the WITH-trend leg against the recent average (2-3x over 5 swings), G06-34 the COUNTERTREND leg against prior counter swings (1.5x over 3). Both long sides are 'the up-leg exceeds K x the mean of recent up-legs' \u2014 same bars; context is another pane's job. Default 2.0; numLegs capped at 2 by the scan.",
+   "variants_kept_separate": [
+    "UpLegsLongerThanDownLegs"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [
+    "SwingHigh"
+   ],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "MicroTrendLineReclaim",
+   "role": "Entry",
+   "is_filter": false,
+   "description": "A bar within the last `failureWindowBars` traded through the micro trend line and this bar CLOSES back on the original side of the line \u2014 the reclaim is the trigger.",
+   "pseudocode": "some k in 1..failureWindowBars had low[k] < bullMicroTrendLine(k) AND close[0] > bullMicroTrendLine(0)",
+   "sides": "mirrored",
+   "parameters": {
+    "microSwingStrength": 1,
+    "pivotLookback": 20,
+    "microLineBars": 5,
+    "failureWindowBars": 3
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the micro-line projection re-read at each offset in the window plus a break-then-reclaim scan"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow"
+   ],
+   "catalog_match": {
+    "rule": "MicroTrendLineFailedBreakout",
+    "relation": "variant",
+    "note": "the catalog rule needs the close to clear the POKING BAR's own opposite extreme; this needs only a close back on the right side of the LINE, a lower bar, so it fires on strictly more bars. Two rules until someone measures that they coincide"
+   },
+   "sources": [
+    "G03-39"
+   ],
+   "merge_notes": "Grimes's span is 1-3 bars, Brooks's 2-10; microLineBars 5 splits them. Grimes credits Brooks's micro trend lines and Drummond geometry, so the overlap with the Brooks-derived MicroTrendLine* rules is expected. The book's stop 'just under the low of the bar that broke the trend line' belongs to exits_stops.",
+   "variants_kept_separate": [
+    "MicroTrendLineBreak"
+   ],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow"
+   ]
+  },
+  {
+   "key": "TrendLineBreakConfirmedExit",
+   "role": "Exit",
+   "is_filter": false,
+   "description": "Exit once the close has been beyond the projected trend line for `confirmCloses` CONSECUTIVE bars \u2014 a trend line used as a trailing stop only after the break is confirmed.",
+   "pseudocode": "CountIF(close < bullTrendLine, confirmCloses) >= confirmCloses  // long; short is the mirror above the bear line",
+   "sides": "mirrored",
+   "parameters": {
+    "swingStrength": 2,
+    "pivotLookback": 20,
+    "confirmCloses": 2
+   },
+   "complexity": {
+    "grade": "hard",
+    "reason": "the line projection re-read at each offset in the run plus an all-of-N count"
+   },
+   "timeframe": "any",
+   "el_words_needed": [
+    "SwingHigh",
+    "SwingLow",
+    "CountIF"
+   ],
+   "catalog_match": {
+    "rule": "TrendLineBrokenRecently",
+    "relation": "variant",
+    "note": "that rule is K-of-N and an ENTRY; this is a RUN of consecutive closes and an EXIT, and an Entry cannot sit in the exit pane. ConsecutiveClosesBeyondEmaRun beside BarsBeyondEmaCount is the precedent for keeping a run apart from a count"
+   },
+   "sources": [
+    "G08-17"
+   ],
+   "merge_notes": "Grimes leaves the confirmation open \u2014 multiple closes, consolidation under, or multiple legs under \u2014 and only the closes form is mechanizable; confirmCloses(2) is his smallest. The line is re-projected every bar from the newest confirmed pivot pair (B01/B02), so an older offset's test reads the line as it stood at that bar.",
+   "variants_kept_separate": [],
+   "priority": "B",
+   "design_decisions_needed": [],
+   "depends_on_keys": [],
+   "bucket": "swing_structure",
+   "el_words": [
+    "SwingHigh",
+    "SwingLow",
+    "CountIF"
+   ]
+  }
+ ]
+}
